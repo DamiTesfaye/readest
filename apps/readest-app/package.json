@@ -124,6 +124,7 @@
     "@readest/turso-database-common": "0.7.0-pre.3-readest.0",
     "@readest/turso-database-wasm": "0.7.0-pre.3-readest.0",
     "@readest/turso-database-wasm-common": "0.7.0-pre.3-readest.0",
+    "@rive-app/canvas": "^2.38.1",
     "@serwist/next": "^9.5.6",
     "@serwist/webpack-plugin": "^9.5.6",
     "@stripe/react-stripe-js": "^6.2.0",

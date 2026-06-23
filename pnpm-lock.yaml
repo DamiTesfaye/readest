@@ -156,6 +156,9 @@ importers:
       '@readest/turso-database-wasm-common':
         specifier: 0.7.0-pre.3-readest.0
         version: 0.7.0-pre.3-readest.0
+      '@rive-app/canvas':
+        specifier: ^2.38.1
+        version: 2.38.1
       '@serwist/next':
         specifier: ^9.5.6
         version: 9.5.11(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(webpack@5.106.2(postcss@8.5.14))
@@ -2732,6 +2735,9 @@ packages:
   '@resvg/resvg-wasm@2.4.0':
     resolution: {integrity: sha512-C7c51Nn4yTxXFKvgh2txJFNweaVcfUPQxwEUFw4aWsCmfiBDJsTSwviIF8EcwjQ6k8bPyMWCl1vw4BdxE569Cg==}
     engines: {node: '>= 10'}
+
+  '@rive-app/canvas@2.38.1':
+    resolution: {integrity: sha512-iK5HH2N1ZtkgbGV9nkIEyTv6j7Zbx6tVns/y6a8Yk+hPPnQl8XO5RS6gMM4V2NNmyvQ9PnAmnZDNaZCJUtaU8g==}
 
   '@rolldown/pluginutils@1.0.0-rc.18':
     resolution: {integrity: sha512-CUY5Mnhe64xQBGZEEXQ5WyZwsc1JU3vAZLIxtrsBt3LO6UOb+C8GunVKqe9sT8NeWb4lqSaoJtp2xo6GxT1MNw==}
@@ -11121,6 +11127,8 @@ snapshots:
       '@readest/turso-database-wasm-common': 0.7.0-pre.3-readest.0
 
   '@resvg/resvg-wasm@2.4.0': {}
+
+  '@rive-app/canvas@2.38.1': {}
 
   '@rolldown/pluginutils@1.0.0-rc.18': {}
 
