@@ -475,6 +475,60 @@ export const snapRangeToWords = (range: Range): void => {
   snapEndToWordBoundary();
 };
 
+// Expand a caret position (a text node + offset) to the word-like segment that
+// contains it — the same word a native double-click would select. Returns null
+// when the position isn't inside word-like text (whitespace, punctuation, a
+// non-text node). CJK is segmented via Intl.Segmenter, matching snapRangeToWords.
+export const getWordRangeAt = (node: Node, offset: number): Range | null => {
+  if (node.nodeType !== Node.TEXT_NODE) return null;
+  if (typeof Intl === 'undefined' || !Intl.Segmenter) return null;
+  const text = node.textContent ?? '';
+  if (!text) return null;
+  const doc = node.ownerDocument;
+  if (!doc) return null;
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'word' });
+  for (const seg of segmenter.segment(text)) {
+    if (!seg.isWordLike) continue;
+    const start = seg.index;
+    const end = seg.index + seg.segment.length;
+    // The caret falls inside this word, or sits exactly on either edge (a
+    // caret-from-point at a word boundary should still select the adjacent word).
+    if (offset >= start && offset <= end) {
+      const range = doc.createRange();
+      try {
+        range.setStart(node, start);
+        range.setEnd(node, end);
+      } catch {
+        return null;
+      }
+      return range.collapsed ? null : range;
+    }
+  }
+  return null;
+};
+
+// The word range under a point (in `doc` viewport coordinates), like a native
+// double-click. Returns null when the point isn't on word-like text.
+export const getWordRangeFromPoint = (doc: Document, x: number, y: number): Range | null => {
+  let node: Node | null = null;
+  let offset = 0;
+  if (doc.caretPositionFromPoint) {
+    const pos = doc.caretPositionFromPoint(x, y);
+    if (pos) {
+      node = pos.offsetNode;
+      offset = pos.offset;
+    }
+  } else if (doc.caretRangeFromPoint) {
+    const range = doc.caretRangeFromPoint(x, y);
+    if (range) {
+      node = range.startContainer;
+      offset = range.startOffset;
+    }
+  }
+  if (!node) return null;
+  return getWordRangeAt(node, offset);
+};
+
 // --- Android hyphenation selection-bounds bug (issue #1553) -----------------
 //
 // Blink's `LayoutSelection::ComputePaintingSelectionStateForCursor` compares
@@ -591,6 +645,37 @@ export const isHyphenHandleBugProneRange = (range: Range, vertical = false): boo
   if (!mayHyphenate) return false;
   if (!isRangeStartAtBlockStart(range)) return false;
   return blockHasGeneratedHyphens(block, vertical);
+};
+
+// Window-coordinate position of the selection focus (caret), or null. The book
+// content lives in a (possibly very wide, multi-column) iframe translated by the
+// pagination offset, so map the caret from iframe space via the iframe element's
+// on-screen rect. Used by the corner auto page-turn (the caret is an engagement
+// signal) and the keyboard turn-on-cross check.
+export const focusCaretWindowPos = (doc: Document, sel: Selection): Point | null => {
+  const focusNode = sel.focusNode;
+  const win = doc.defaultView;
+  if (!focusNode || !win) return null;
+  let rect: DOMRect;
+  try {
+    const range = doc.createRange();
+    const offset =
+      focusNode.nodeType === Node.TEXT_NODE
+        ? Math.min(sel.focusOffset, (focusNode.textContent ?? '').length)
+        : sel.focusOffset;
+    range.setStart(focusNode, offset);
+    range.collapse(true);
+    rect = range.getBoundingClientRect();
+  } catch {
+    return null;
+  }
+  // An unmeasurable range (e.g. focus on an empty element) collapses to 0,0,0,0.
+  if (rect.top === 0 && rect.bottom === 0 && rect.left === 0 && rect.right === 0) return null;
+  const feRect = win.frameElement?.getBoundingClientRect();
+  return {
+    x: (rect.left + rect.right) / 2 + (feRect?.left ?? 0),
+    y: (rect.top + rect.bottom) / 2 + (feRect?.top ?? 0),
+  };
 };
 
 // Rebuild a selection range between a known-good anchor and the caret at a

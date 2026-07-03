@@ -30,6 +30,10 @@ func getLocalizedDisplayName(familyName: String) -> String? {
 
 class SafariAuthRequestArgs: Decodable {
   let authUrl: String
+  // ASWebAuthenticationSession callback scheme. Defaults to "readest" (the
+  // Supabase login); the Google Drive flow passes its reverse-DNS scheme so the
+  // session intercepts that redirect instead.
+  let callbackScheme: String?
 }
 
 class UseBackgroundAudioRequestArgs: Decodable {
@@ -466,6 +470,16 @@ class NativeBridgePlugin: Plugin {
   private var webViewLifecycleManager: WebViewLifecycleManager?
   private var traitChangeRegistered = false
 
+  // Screen-brightness management. `UIScreen.main.brightness` is a *global*
+  // device setting, not a per-window one: once the app writes to it, iOS
+  // suppresses ambient auto-brightness and the override survives backgrounding,
+  // leaving the system stuck at the app's level until the user nudges it
+  // manually (issue #4885). We remember the value that was there before the
+  // first override so we can hand it back whenever the app leaves the
+  // foreground, and re-assert the app's value when it returns.
+  private var appDesiredBrightness: CGFloat?
+  private var systemBrightnessBeforeOverride: CGFloat?
+
   @objc public override func load(webview: WKWebView) {
     self.webView = webview
     logger.log("NativeBridgePlugin loaded")
@@ -532,6 +546,10 @@ class NativeBridgePlugin: Plugin {
 
   @objc func appWillEnterForeground() {
     logger.log("NativeBridgePlugin: App will enter foreground")
+    // Re-assert the app's brightness that was released on background (#4885).
+    if let desired = appDesiredBrightness {
+      UIScreen.main.brightness = desired
+    }
     webViewLifecycleManager?.handleAppWillEnterForeground()
   }
 
@@ -658,6 +676,11 @@ class NativeBridgePlugin: Plugin {
     if let handler = volumeKeyHandler, handler.isIntercepting {
       handler.stopInterception()
     }
+    // Hand screen brightness back to iOS so ambient auto-brightness resumes
+    // while backgrounded; the override is re-applied on foreground (#4885).
+    if appDesiredBrightness != nil, let original = systemBrightnessBeforeOverride {
+      UIScreen.main.brightness = original
+    }
     webViewLifecycleManager?.handleAppDidEnterBackground()
   }
 
@@ -770,8 +793,9 @@ class NativeBridgePlugin: Plugin {
   @objc public func auth_with_safari(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(SafariAuthRequestArgs.self)
     let authUrl = URL(string: args.authUrl)!
+    let callbackScheme = args.callbackScheme ?? "readest"
 
-    authSession = ASWebAuthenticationSession(url: authUrl, callbackURLScheme: "readest") {
+    authSession = ASWebAuthenticationSession(url: authUrl, callbackURLScheme: callbackScheme) {
       [weak self] callbackURL, error in
       guard let strongSelf = self else { return }
 
@@ -1045,20 +1069,37 @@ class NativeBridgePlugin: Plugin {
 
     let brightness = args.brightness ?? 0.5
 
-    if brightness < 0.0 {
-      // Revert to system brightness - iOS doesn't have a direct "system brightness" setting
-      // We will restore the brightness that was set before the app modified it
-      return invoke.resolve(["success": true])
-    }
-
     if brightness > 1.0 {
       return invoke.reject("Brightness must be between 0.0 and 1.0")
     }
 
-    DispatchQueue.main.async {
-      UIScreen.main.brightness = CGFloat(brightness)
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      if brightness < 0.0 {
+        // A negative value means "release control back to the system", mirroring
+        // Android's BRIGHTNESS_OVERRIDE_NONE. Restore the pre-override brightness
+        // so iOS resumes ambient auto-brightness.
+        self.releaseBrightnessControl()
+      } else {
+        if self.systemBrightnessBeforeOverride == nil {
+          self.systemBrightnessBeforeOverride = UIScreen.main.brightness
+        }
+        self.appDesiredBrightness = CGFloat(brightness)
+        UIScreen.main.brightness = CGFloat(brightness)
+      }
     }
     invoke.resolve(["success": true])
+  }
+
+  /// Restore the brightness captured before the app first overrode it so iOS
+  /// resumes ambient auto-brightness, then forget our managed state. Must run
+  /// on the main thread.
+  private func releaseBrightnessControl() {
+    if let original = systemBrightnessBeforeOverride {
+      UIScreen.main.brightness = original
+    }
+    appDesiredBrightness = nil
+    systemBrightnessBeforeOverride = nil
   }
 
   @objc public func copy_uri_to_path(_ invoke: Invoke) {
@@ -1231,6 +1272,79 @@ class NativeBridgePlugin: Plugin {
       invoke.resolve(["available": true])
     } else {
       invoke.resolve(["available": false, "error": "OSStatus \(status)"])
+    }
+  }
+
+  // ── Keyed secure key-value store ──────────────────────────────────
+  // Same Keychain backing as the sync passphrase, but a generic keyed
+  // store: one service, the caller's `key` as the account, so secrets
+  // like the Google Drive token set persist the same way.
+
+  private static let secureItemsService = "com.bilingify.readest.secure-items"
+
+  private func secureItemBaseQuery(_ key: String) -> [String: Any] {
+    return [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: NativeBridgePlugin.secureItemsService,
+      kSecAttrAccount as String: key
+    ]
+  }
+
+  @objc public func set_secure_item(_ invoke: Invoke) {
+    do {
+      let args = try invoke.parseArgs(SecureItemSetArgs.self)
+      guard let data = args.value.data(using: .utf8) else {
+        invoke.resolve(["success": false, "error": "encoding"])
+        return
+      }
+      var query = secureItemBaseQuery(args.key)
+      query[kSecValueData as String] = data
+      // Replace any existing entry. Delete-then-add keeps the
+      // accessibility class consistent across SDK versions.
+      SecItemDelete(query as CFDictionary)
+      let status = SecItemAdd(query as CFDictionary, nil)
+      if status == errSecSuccess {
+        invoke.resolve(["success": true])
+      } else {
+        invoke.resolve(["success": false, "error": "OSStatus \(status)"])
+      }
+    } catch {
+      invoke.resolve(["success": false, "error": "\(error)"])
+    }
+  }
+
+  @objc public func get_secure_item(_ invoke: Invoke) {
+    do {
+      let args = try invoke.parseArgs(SecureItemGetArgs.self)
+      var query = secureItemBaseQuery(args.key)
+      query[kSecReturnData as String] = true
+      query[kSecMatchLimit as String] = kSecMatchLimitOne
+      var item: CFTypeRef?
+      let status = SecItemCopyMatching(query as CFDictionary, &item)
+      if status == errSecSuccess, let data = item as? Data, let s = String(data: data, encoding: .utf8) {
+        invoke.resolve(["value": s])
+      } else if status == errSecItemNotFound {
+        // No entry: empty response. The TS layer treats this as "not stored".
+        invoke.resolve([:])
+      } else {
+        invoke.resolve(["error": "OSStatus \(status)"])
+      }
+    } catch {
+      invoke.resolve(["error": "\(error)"])
+    }
+  }
+
+  @objc public func clear_secure_item(_ invoke: Invoke) {
+    do {
+      let args = try invoke.parseArgs(SecureItemGetArgs.self)
+      let status = SecItemDelete(secureItemBaseQuery(args.key) as CFDictionary)
+      if status == errSecSuccess || status == errSecItemNotFound {
+        invoke.resolve(["success": true])
+      } else {
+        invoke.resolve(["success": false, "error": "OSStatus \(status)"])
+      }
+    } catch {
+      invoke.resolve(["success": false, "error": "\(error)"])
     }
   }
 
@@ -1415,6 +1529,33 @@ class NativeBridgePlugin: Plugin {
       picker.delegate = delegate
 
       presenter.present(picker, animated: true)
+    }
+  }
+
+  // iOS devices have no e-ink panel; the "Refresh Page" page-turner action is
+  // gated to e-ink Android in the UI, so this is only ever reached defensively.
+  // Resolve as a soft no-op rather than rejecting.
+  @objc public func refresh_eink_screen(_ invoke: Invoke) {
+    invoke.resolve(["success": false])
+  }
+
+  @objc public func update_reading_widget(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(UpdateReadingWidgetRequestArgs.self) else {
+      return invoke.reject("Failed to parse arguments")
+    }
+    DispatchQueue.global(qos: .utility).async {
+      for book in args.books {
+        ReadingWidgetWriter.writeThumbnail(hash: book.hash, sourcePath: book.coverPath)
+      }
+      let snapshot = ReadingWidgetWriter.Snapshot(
+        books: args.books.map {
+          .init(hash: $0.hash, title: $0.title, author: $0.author, percent: $0.percent)
+        },
+        sectionTitle: args.sectionTitle,
+        emptyTitle: args.emptyTitle
+      )
+      ReadingWidgetWriter.write(snapshot: snapshot)
+      invoke.resolve()
     }
   }
 }
@@ -1633,8 +1774,30 @@ class SyncPassphraseSetArgs: Decodable {
   let passphrase: String
 }
 
+class SecureItemSetArgs: Decodable {
+  let key: String
+  let value: String
+}
+
+class SecureItemGetArgs: Decodable {
+  let key: String
+}
+
 class ShowLookupPopoverArgs: Decodable {
   let word: String
+}
+
+struct UpdateReadingWidgetBookArgs: Decodable {
+  let hash: String
+  let title: String
+  let author: String
+  let percent: Int
+  let coverPath: String
+}
+struct UpdateReadingWidgetRequestArgs: Decodable {
+  let books: [UpdateReadingWidgetBookArgs]
+  let sectionTitle: String
+  let emptyTitle: String
 }
 
 @_cdecl("init_plugin_native_bridge")

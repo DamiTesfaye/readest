@@ -36,14 +36,19 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUICSS } from '@/hooks/useUICSS';
 import { useDemoBooks } from './hooks/useDemoBooks';
 import { useBooksSync } from './hooks/useBooksSync';
+import { useLibraryFileSync } from './hooks/useLibraryFileSync';
 import { useInboxDrainer } from '@/hooks/useInboxDrainer';
 import { useOPDSSubscriptions } from '@/hooks/useOPDSSubscriptions';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useTransferStore } from '@/store/transferStore';
 import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
+import { useBackgroundTexture } from '@/hooks/useBackgroundTexture';
+import { getLibraryViewSettings } from '@/helpers/settings';
 import { useAppUrlIngress } from '@/hooks/useAppUrlIngress';
 import { useOpenWithBooks } from '@/hooks/useOpenWithBooks';
 import { useOpenAnnotationLink } from '@/hooks/useOpenAnnotationLink';
+import { useOpenBookLink } from '@/hooks/useOpenBookLink';
+import { useReadingWidget } from '@/hooks/useReadingWidget';
 import { useOpenShareLink } from '@/hooks/useOpenShareLink';
 import { useClipUrlIngress } from '@/hooks/useClipUrlIngress';
 import { useKeyDownActions } from '@/hooks/useKeyDownActions';
@@ -241,14 +246,39 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   useTheme({ systemUIVisible: true, appThemeColor: 'base-200' });
   useUICSS();
 
+  // Apply the library's own background texture (separate from the reader's,
+  // issue #4743). Re-applies on mount so returning from a textured book
+  // restores the library background, and whenever the library texture — or the
+  // reader/global texture it inherits when unset — changes from the Color panel.
+  const { applyBackgroundTexture } = useBackgroundTexture();
+  useEffect(() => {
+    applyBackgroundTexture(envConfig, getLibraryViewSettings(settings));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    envConfig,
+    applyBackgroundTexture,
+    settings.libraryBackgroundTextureId,
+    settings.libraryBackgroundOpacity,
+    settings.libraryBackgroundSize,
+    settings.globalViewSettings?.backgroundTextureId,
+    settings.globalViewSettings?.backgroundOpacity,
+    settings.globalViewSettings?.backgroundSize,
+  ]);
+
   useAppUrlIngress();
   useOpenWithBooks();
   useOpenAnnotationLink();
+  useOpenBookLink();
+  useReadingWidget();
   useOpenShareLink();
   useClipUrlIngress();
   useTransferQueue(libraryLoaded);
 
   const { pullLibrary, pushLibrary } = useBooksSync();
+  // Library-scoped auto-sync for the active third-party cloud provider (WebDAV /
+  // Google Drive): keeps library.json current on import / delete / book-close,
+  // parity with useBooksSync. No-op when no provider is enabled.
+  useLibraryFileSync();
   const { checkOPDSSubscriptions } = useOPDSSubscriptions();
   useInboxDrainer();
   const { isDragging } = useDragDropImport();
@@ -1363,7 +1393,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   };
 
   if (!appService || !insets || checkOpenWithBooks || checkLastOpenBooks) {
-    return <div className={clsx('full-height', !appService?.isLinuxApp && 'bg-base-200')} />;
+    return <div className='full-height bg-base-200' />;
   }
 
   const showBookshelf = libraryLoaded || libraryBooks.length > 0;

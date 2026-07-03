@@ -44,6 +44,7 @@ vi.mock('@/app/reader/hooks/useInstantAnnotation', () => ({
     handleInstantAnnotationPointerMove: vi.fn(() => true),
     handleInstantAnnotationPointerCancel: vi.fn(),
     handleInstantAnnotationPointerUp: vi.fn(async () => false),
+    reapplyInstantAnnotation: vi.fn(),
     cancelInstantAnnotation: vi.fn(),
   }),
 }));

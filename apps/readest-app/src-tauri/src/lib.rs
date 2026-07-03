@@ -33,6 +33,8 @@ mod mobi_parser;
 mod nightly_update;
 mod parser_common;
 mod range_file;
+#[cfg(desktop)]
+mod spawn_fresh_browser;
 mod transfer_file;
 #[cfg(desktop)]
 mod window_state;
@@ -245,6 +247,52 @@ fn get_executable_dir() -> String {
         .unwrap_or_default()
 }
 
+// Pure decision for whether the in-app updater should be hidden. Kept
+// dependency-free so it can be unit tested for every platform combination.
+//
+// - `env_disable`: READEST_DISABLE_UPDATER is set (explicit opt-out).
+// - Linux only: Tauri's updater can self-update AppImage bundles *only*, so
+//   deb/rpm/pacman (`!is_appimage`) and Flatpak installs are updated by the
+//   system package manager and must not show the in-app updater.
+#[cfg(desktop)]
+fn compute_updater_disabled(
+    env_disable: bool,
+    is_linux: bool,
+    is_flatpak: bool,
+    is_appimage: bool,
+) -> bool {
+    env_disable || (is_linux && (is_flatpak || !is_appimage))
+}
+
+#[cfg(desktop)]
+fn updater_disabled() -> bool {
+    let env_disable = std::env::var("READEST_DISABLE_UPDATER").is_ok();
+    #[cfg(target_os = "linux")]
+    {
+        let is_flatpak =
+            std::env::var("FLATPAK_ID").is_ok() || std::path::Path::new("/.flatpak-info").exists();
+        let is_appimage = std::env::var("APPIMAGE").is_ok()
+            || std::env::current_exe()
+                .map(|path| path.to_string_lossy().contains("/tmp/.mount_"))
+                .unwrap_or(false);
+        compute_updater_disabled(env_disable, true, is_flatpak, is_appimage)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        compute_updater_disabled(env_disable, false, false, false)
+    }
+}
+
+// Authoritative source of truth for the frontend `hasUpdater` capability.
+// Read via IPC in `NativeAppService.init()` so the decision does not depend on
+// the injected init-script global, which is not reliably visible to page
+// scripts on every Linux/WebKitGTK setup (see issue #4874).
+#[cfg(desktop)]
+#[tauri::command]
+fn is_updater_disabled() -> bool {
+    updater_disabled()
+}
+
 #[derive(Clone, serde::Serialize)]
 #[allow(dead_code)]
 struct SingleInstancePayload {
@@ -271,6 +319,8 @@ pub fn run() {
             upload_file,
             get_environment_variable,
             get_executable_dir,
+            #[cfg(desktop)]
+            is_updater_disabled,
             allow_paths_in_scopes,
             dir_scanner::read_dir,
             epub_parser::parse_epub_metadata,
@@ -291,6 +341,8 @@ pub fn run() {
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
             discord_rpc::clear_book_presence,
             clip_url::clip_url,
+            #[cfg(desktop)]
+            spawn_fresh_browser::spawn_fresh_browser,
             nightly_update::verify_update_signature,
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
             nightly_update::install_nightly_update,
@@ -435,18 +487,13 @@ pub fn run() {
             #[cfg(not(target_os = "linux"))]
             let is_appimage = false;
 
-            // Flatpak mounts the app directory read-only, so the bundled updater can
-            // download but never apply an update. Disable it and leave updates to the
-            // Flatpak runtime. Detect via FLATPAK_ID or the /.flatpak-info sandbox file.
+            // The in-app updater is hidden for installs it can't actually update
+            // (Linux deb/rpm/pacman and Flatpak) and when READEST_DISABLE_UPDATER
+            // is set. This mirrors the `is_updater_disabled` command that
+            // `NativeAppService.init()` reads authoritatively; the injected global
+            // below is only a best-effort fast path.
             #[cfg(desktop)]
-            let updater_disabled = {
-                #[cfg(target_os = "linux")]
-                let is_flatpak = std::env::var("FLATPAK_ID").is_ok()
-                    || std::path::Path::new("/.flatpak-info").exists();
-                #[cfg(not(target_os = "linux"))]
-                let is_flatpak = false;
-                std::env::var("READEST_DISABLE_UPDATER").is_ok() || is_flatpak
-            };
+            let updater_disabled = updater_disabled();
             #[cfg(not(desktop))]
             let updater_disabled = false;
 
@@ -544,9 +591,14 @@ pub fn run() {
                 }
                 #[cfg(target_os = "linux")]
                 {
-                    builder = builder
-                        .transparent(true)
-                        .background_color(tauri::window::Color(0, 0, 0, 0));
+                    // Keep the window opaque on Linux. A transparent WebKitGTK
+                    // window (previously used to draw rounded corners, #1982)
+                    // composites as fully transparent whenever its web process is
+                    // too busy to repaint damaged regions (e.g. during a library
+                    // backup), so the app "turns invisible" on any interaction
+                    // (#3682). An opaque window instead retains its last painted
+                    // frame, at the cost of square corners.
+                    builder = builder.transparent(false);
                 }
 
                 builder
@@ -570,7 +622,17 @@ pub fn run() {
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = window_for_close.hide();
+                        // macOS 26 (Tahoe) regressed `NSWindow` ordering: `orderOut:`
+                        // (what `hide()` maps to) can leave a focused black phantom
+                        // window on screen instead of hiding it (#4875). Minimize
+                        // instead on Tahoe — a different AppKit path that still keeps
+                        // the app in the dock and preserves the open book. The Reopen
+                        // handler below already unminimizes on dock reopen.
+                        if macos::os_version::is_macos_tahoe_or_later() {
+                            let _ = window_for_close.minimize();
+                        } else {
+                            let _ = window_for_close.hide();
+                        }
                     }
                 });
             }
@@ -619,4 +681,41 @@ pub fn run() {
                 }
             },
         );
+}
+
+#[cfg(all(test, desktop))]
+mod tests {
+    use super::compute_updater_disabled;
+
+    #[test]
+    fn env_opt_out_disables_on_any_desktop() {
+        // READEST_DISABLE_UPDATER is an explicit opt-out on every desktop OS.
+        assert!(compute_updater_disabled(true, false, false, false));
+        assert!(compute_updater_disabled(true, true, false, true));
+    }
+
+    #[test]
+    fn linux_system_package_install_is_disabled() {
+        // deb/rpm/pacman installs are not AppImage and not Flatpak. Tauri's
+        // Linux updater can't self-update them, so the in-app updater is hidden.
+        assert!(compute_updater_disabled(false, true, false, false));
+    }
+
+    #[test]
+    fn linux_flatpak_is_disabled() {
+        assert!(compute_updater_disabled(false, true, true, false));
+    }
+
+    #[test]
+    fn linux_appimage_keeps_updater() {
+        // AppImage is the one Linux bundle Tauri can self-update.
+        assert!(!compute_updater_disabled(false, true, false, true));
+    }
+
+    #[test]
+    fn non_linux_desktop_keeps_updater_without_opt_out() {
+        // macOS / Windows: the flatpak/appimage clause must not apply, so the
+        // updater stays enabled unless the env opt-out is set.
+        assert!(!compute_updater_disabled(false, false, false, false));
+    }
 }
