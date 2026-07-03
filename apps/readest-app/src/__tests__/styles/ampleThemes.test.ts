@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import tinycolor from 'tinycolor2';
-import { themes } from '@/styles/themes';
+import { themes, resolveThemeName } from '@/styles/themes';
 
 const SCENE_THEMES = ['night-pond', 'starry-night', 'desert-sunset'];
 const QUIET_THEMES = ['paper', 'sepia', 'ink', 'contrast'];
@@ -40,4 +40,56 @@ describe('AmpleRead theme contrast (WCAG)', () => {
       });
     }
   }
+});
+
+describe('resolveThemeName legacy migration', () => {
+  it('maps every legacy Readest theme name to a current theme', () => {
+    const legacyMap: Record<string, string> = {
+      default: 'paper',
+      gray: 'paper',
+      solarized: 'paper',
+      gruvbox: 'sepia',
+      grass: 'night-pond',
+      sky: 'starry-night',
+      nord: 'starry-night',
+      cherry: 'desert-sunset',
+      sunset: 'desert-sunset',
+    };
+    for (const [legacy, expected] of Object.entries(legacyMap)) {
+      expect(resolveThemeName(legacy)).toBe(expected);
+    }
+  });
+
+  it('passes current theme names through unchanged (including the e-ink default)', () => {
+    for (const t of themes) {
+      expect(resolveThemeName(t.name)).toBe(t.name);
+    }
+    expect(resolveThemeName('contrast')).toBe('contrast');
+  });
+
+  it('falls back to paper for unknown or missing input', () => {
+    expect(resolveThemeName('no-such-theme')).toBe('paper');
+    expect(resolveThemeName(null)).toBe('paper');
+    expect(resolveThemeName(undefined)).toBe('paper');
+    expect(resolveThemeName('')).toBe('paper');
+  });
+
+  it('every resolved value is a real theme', () => {
+    const names = new Set(themes.map((t) => t.name));
+    for (const legacy of [
+      'default',
+      'gray',
+      'sepia',
+      'grass',
+      'cherry',
+      'sky',
+      'solarized',
+      'gruvbox',
+      'nord',
+      'contrast',
+      'sunset',
+    ]) {
+      expect(names.has(resolveThemeName(legacy))).toBe(true);
+    }
+  });
 });

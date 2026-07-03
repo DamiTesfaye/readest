@@ -185,6 +185,28 @@ export const themes = [
   },
 ] as Theme[];
 
+// Legacy Readest theme names → AmpleRead themes. Saved settings
+// (localStorage.themeColor) predate the collapse; resolve at the
+// entry points in themeStore so the rest of the app only ever sees
+// current names.
+const LEGACY_THEME_ALIASES: Record<string, string> = {
+  default: 'paper',
+  gray: 'paper',
+  solarized: 'paper',
+  gruvbox: 'sepia',
+  grass: 'night-pond',
+  sky: 'starry-night',
+  nord: 'starry-night',
+  cherry: 'desert-sunset',
+  sunset: 'desert-sunset',
+};
+
+export const resolveThemeName = (name: string | null | undefined): string => {
+  if (!name) return 'paper';
+  if (themes.some((t) => t.name === name)) return name;
+  return LEGACY_THEME_ALIASES[name] ?? 'paper';
+};
+
 const generateCustomThemeVariables = (palette: Palette, fallbackIncluded = false): string => {
   const colors = `
     --b1: ${hexToOklch(palette['base-100'])};

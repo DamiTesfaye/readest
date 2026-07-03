@@ -3,7 +3,7 @@ import { AppService } from '@/types/system';
 import { getThemeCode, ThemeCode } from '@/utils/style';
 import { getSystemColorScheme } from '@/utils/bridge';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { CustomTheme, Palette, ThemeMode } from '@/styles/themes';
+import { CustomTheme, Palette, ThemeMode, resolveThemeName } from '@/styles/themes';
 import { EnvConfigType, isWebAppPlatform } from '@/services/environment';
 import { SystemSettings } from '@/types/settings';
 import { Insets } from '@/types/misc';
@@ -53,10 +53,10 @@ const getInitialThemeMode = (): ThemeMode => {
 
 const getInitialThemeColor = (): string => {
   if (typeof window !== 'undefined' && localStorage) {
-    const defaultColor = window.__READEST_IS_EINK ? 'contrast' : 'default';
-    return localStorage.getItem('themeColor') || defaultColor;
+    const defaultColor = window.__READEST_IS_EINK ? 'contrast' : 'paper';
+    return resolveThemeName(localStorage.getItem('themeColor') || defaultColor);
   }
-  return 'default';
+  return 'paper';
 };
 
 export const useThemeStore = create<ThemeState>((set, get) => {
@@ -152,7 +152,7 @@ export const loadDataTheme = () => {
   if (typeof localStorage === 'undefined' || typeof document === 'undefined') return;
 
   const themeMode = localStorage.getItem('themeMode');
-  const themeColor = localStorage.getItem('themeColor');
+  const themeColor = resolveThemeName(localStorage.getItem('themeColor'));
   if (themeMode && themeColor) {
     const systemIsDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDarkMode = themeMode === 'dark' || (themeMode === 'auto' && systemIsDarkMode);
