@@ -178,8 +178,8 @@ export const themes = [
     name: 'desert-sunset',
     label: _('Desert Sunset'),
     colors: {
-      light: generateLightPalette({ fg: '#4a2b4e', bg: '#fbe7c9', primary: '#c15a1f' }),
-      dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3b2547', primary: '#f49e5c' }),
+      light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
+      dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
     },
     scene: {},
   },
