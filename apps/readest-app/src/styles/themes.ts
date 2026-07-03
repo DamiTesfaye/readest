@@ -20,6 +20,12 @@ export type Palette = {
   accent: string;
 };
 
+export type ThemeScene = {
+  textureId?: string; // rendered via customTextureStore/applyBackgroundTexture (Phase 2)
+  atmospherePreset?: string; // rendered via AtmosphereOverlay (Phase 2)
+  riveAmbient?: string; // ambient Rive file for the journey hub (Phase 3)
+};
+
 export type Theme = {
   name: string;
   label: string;
@@ -27,6 +33,7 @@ export type Theme = {
     light: Palette;
     dark: Palette;
   };
+  scene?: ThemeScene;
   isCustomizale?: boolean;
 };
 
@@ -118,75 +125,27 @@ const _ = (stubKey: string) => stubKey;
 
 export const themes = [
   {
-    name: 'default',
-    label: _('Default'),
+    name: 'paper',
+    label: _('Paper'),
     colors: {
-      light: generateLightPalette({ fg: '#171717', bg: '#ffffff', primary: '#0066cc' }),
-      dark: generateDarkPalette({ fg: '#e0e0e0', bg: '#222222', primary: '#77bbee' }),
-    },
-  },
-  {
-    name: 'gray',
-    label: _('Gray'),
-    colors: {
-      light: generateLightPalette({ fg: '#222222', bg: '#e0e0e0', primary: '#4488cc' }),
-      dark: generateDarkPalette({ fg: '#c6c6c6', bg: '#444444', primary: '#88ccee' }),
+      light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
+      dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
     },
   },
   {
     name: 'sepia',
     label: _('Sepia'),
     colors: {
-      light: generateLightPalette({ fg: '#5b4636', bg: '#f1e8d0', primary: '#008b8b' }),
+      light: generateLightPalette({ fg: '#4a3b2a', bg: '#f3e7d3', primary: '#b0713f' }),
       dark: generateDarkPalette({ fg: '#ffd595', bg: '#342e25', primary: '#48d1cc' }),
     },
   },
   {
-    name: 'grass',
-    label: _('Grass'),
+    name: 'ink',
+    label: _('Ink'),
     colors: {
-      light: generateLightPalette({ fg: '#232c16', bg: '#d7dbbd', primary: '#177b4d' }),
-      dark: generateDarkPalette({ fg: '#d8deba', bg: '#333627', primary: '#a6d608' }),
-    },
-  },
-  {
-    name: 'cherry',
-    label: _('Cherry'),
-    colors: {
-      light: generateLightPalette({ fg: '#4e1609', bg: '#f0d1d5', primary: '#de3838' }),
-      dark: generateDarkPalette({ fg: '#e5c4c8', bg: '#462f32', primary: '#ff646e' }),
-    },
-  },
-  {
-    name: 'sky',
-    label: _('Sky'),
-    colors: {
-      light: generateLightPalette({ fg: '#262d48', bg: '#cedef5', primary: '#2d53e5' }),
-      dark: generateDarkPalette({ fg: '#babee1', bg: '#282e47', primary: '#ff646e' }),
-    },
-  },
-  {
-    name: 'solarized',
-    label: _('Solarized'),
-    colors: {
-      light: generateLightPalette({ fg: '#586e75', bg: '#fdf6e3', primary: '#268bd2' }),
-      dark: generateDarkPalette({ fg: '#93a1a1', bg: '#002b36', primary: '#268bd2' }),
-    },
-  },
-  {
-    name: 'gruvbox',
-    label: _('Gruvbox'),
-    colors: {
-      light: generateLightPalette({ fg: '#3c3836', bg: '#fbf1c7', primary: '#076678' }),
-      dark: generateDarkPalette({ fg: '#ebdbb2', bg: '#282828', primary: '#83a598' }),
-    },
-  },
-  {
-    name: 'nord',
-    label: _('Nord'),
-    colors: {
-      light: generateLightPalette({ fg: '#2e3440', bg: '#eceff4', primary: '#5e81ac' }),
-      dark: generateDarkPalette({ fg: '#d8dee9', bg: '#2e3440', primary: '#88c0d0' }),
+      light: generateLightPalette({ fg: '#1a1a1a', bg: '#f2f2f2', primary: '#3a6b58' }),
+      dark: generateDarkPalette({ fg: '#e8e6e1', bg: '#121212', primary: '#8ab4a0' }),
     },
   },
   {
@@ -198,12 +157,31 @@ export const themes = [
     },
   },
   {
-    name: 'sunset',
-    label: _('Sunset'),
+    name: 'night-pond',
+    label: _('Night Pond'),
     colors: {
-      light: generateLightPalette({ fg: '#423126', bg: '#fff7f0', primary: '#fe6b64' }),
-      dark: generateDarkPalette({ fg: '#f6e1d7', bg: '#3c2b25', primary: '#ff9c94' }),
+      light: generateLightPalette({ fg: '#17313a', bg: '#e9f2ec', primary: '#e4574c' }),
+      dark: generateDarkPalette({ fg: '#f2eee3', bg: '#0e3b3a', primary: '#f26d5b' }),
     },
+    scene: {},
+  },
+  {
+    name: 'starry-night',
+    label: _('Starry Night'),
+    colors: {
+      light: generateLightPalette({ fg: '#1c2b4a', bg: '#eef1f8', primary: '#c55a3d' }),
+      dark: generateDarkPalette({ fg: '#f4e9da', bg: '#16294a', primary: '#f2a48d' }),
+    },
+    scene: {},
+  },
+  {
+    name: 'desert-sunset',
+    label: _('Desert Sunset'),
+    colors: {
+      light: generateLightPalette({ fg: '#4a2b4e', bg: '#fbe7c9', primary: '#c15a1f' }),
+      dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3b2547', primary: '#f49e5c' }),
+    },
+    scene: {},
   },
 ] as Theme[];
 
