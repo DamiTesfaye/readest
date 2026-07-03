@@ -34,6 +34,9 @@ export type Theme = {
     dark: Palette;
   };
   scene?: ThemeScene;
+  // Fixed mood: the theme renders only in this mode and the light/dark/auto
+  // toggle does not apply. Absent = dual-mood (follows themeMode).
+  mood?: 'light' | 'dark';
   isCustomizale?: boolean;
 };
 
@@ -135,6 +138,7 @@ export const themes = [
   {
     name: 'sepia',
     label: _('Sepia'),
+    mood: 'light',
     colors: {
       light: generateLightPalette({ fg: '#4a3b2a', bg: '#f3e7d3', primary: '#b0713f' }),
       dark: generateDarkPalette({ fg: '#ffd595', bg: '#342e25', primary: '#48d1cc' }),
@@ -143,6 +147,7 @@ export const themes = [
   {
     name: 'ink',
     label: _('Ink'),
+    mood: 'dark',
     colors: {
       light: generateLightPalette({ fg: '#1a1a1a', bg: '#f2f2f2', primary: '#3a6b58' }),
       dark: generateDarkPalette({ fg: '#e8e6e1', bg: '#121212', primary: '#8ab4a0' }),
@@ -159,6 +164,7 @@ export const themes = [
   {
     name: 'night-pond',
     label: _('Night Pond'),
+    mood: 'dark',
     colors: {
       light: generateLightPalette({ fg: '#17313a', bg: '#e9f2ec', primary: '#e4574c' }),
       dark: generateDarkPalette({ fg: '#f2eee3', bg: '#0e3b3a', primary: '#f26d5b' }),
@@ -168,6 +174,7 @@ export const themes = [
   {
     name: 'starry-night',
     label: _('Starry Night'),
+    mood: 'dark',
     colors: {
       light: generateLightPalette({ fg: '#1c2b4a', bg: '#eef1f8', primary: '#c55a3d' }),
       dark: generateDarkPalette({ fg: '#f4e9da', bg: '#16294a', primary: '#f2a48d' }),
@@ -177,6 +184,7 @@ export const themes = [
   {
     name: 'desert-sunset',
     label: _('Desert Sunset'),
+    mood: 'light',
     colors: {
       light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
       dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
@@ -205,6 +213,19 @@ export const resolveThemeName = (name: string | null | undefined): string => {
   if (!name) return 'paper';
   if (themes.some((t) => t.name === name)) return name;
   return LEGACY_THEME_ALIASES[name] ?? 'paper';
+};
+
+// Effective dark mode for a theme: fixed-mood themes ignore the
+// light/dark/auto toggle; dual-mood themes (and custom themes, which
+// have no mood) follow themeMode + system preference.
+export const getEffectiveDarkMode = (
+  themeName: string,
+  themeMode: ThemeMode,
+  systemIsDarkMode: boolean,
+): boolean => {
+  const mood = themes.find((t) => t.name === themeName)?.mood;
+  if (mood) return mood === 'dark';
+  return themeMode === 'dark' || (themeMode === 'auto' && systemIsDarkMode);
 };
 
 const generateCustomThemeVariables = (palette: Palette, fallbackIncluded = false): string => {

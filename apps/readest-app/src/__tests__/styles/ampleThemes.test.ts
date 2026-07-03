@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import tinycolor from 'tinycolor2';
-import { themes, resolveThemeName } from '@/styles/themes';
+import { themes, resolveThemeName, getEffectiveDarkMode } from '@/styles/themes';
 
 const SCENE_THEMES = ['night-pond', 'starry-night', 'desert-sunset'];
 const QUIET_THEMES = ['paper', 'sepia', 'ink', 'contrast'];
@@ -91,5 +91,41 @@ describe('resolveThemeName legacy migration', () => {
     ]) {
       expect(names.has(resolveThemeName(legacy))).toBe(true);
     }
+  });
+});
+
+describe('single-mood themes', () => {
+  it('assigns fixed moods: sepia light, ink dark, scenes fixed, paper/contrast dual', () => {
+    const moods = Object.fromEntries(themes.map((t) => [t.name, t.mood]));
+    expect(moods).toEqual({
+      paper: undefined,
+      sepia: 'light',
+      ink: 'dark',
+      contrast: undefined,
+      'night-pond': 'dark',
+      'starry-night': 'dark',
+      'desert-sunset': 'light',
+    });
+  });
+
+  it('getEffectiveDarkMode: fixed-mood themes ignore themeMode and system', () => {
+    expect(getEffectiveDarkMode('night-pond', 'light', false)).toBe(true);
+    expect(getEffectiveDarkMode('starry-night', 'auto', false)).toBe(true);
+    expect(getEffectiveDarkMode('desert-sunset', 'dark', true)).toBe(false);
+    expect(getEffectiveDarkMode('sepia', 'dark', true)).toBe(false);
+    expect(getEffectiveDarkMode('ink', 'light', false)).toBe(true);
+  });
+
+  it('getEffectiveDarkMode: dual-mood themes follow themeMode and system', () => {
+    expect(getEffectiveDarkMode('paper', 'dark', false)).toBe(true);
+    expect(getEffectiveDarkMode('paper', 'light', true)).toBe(false);
+    expect(getEffectiveDarkMode('paper', 'auto', true)).toBe(true);
+    expect(getEffectiveDarkMode('paper', 'auto', false)).toBe(false);
+    expect(getEffectiveDarkMode('contrast', 'auto', true)).toBe(true);
+  });
+
+  it('getEffectiveDarkMode: unknown/custom theme names follow themeMode', () => {
+    expect(getEffectiveDarkMode('my-custom-theme', 'dark', false)).toBe(true);
+    expect(getEffectiveDarkMode('my-custom-theme', 'auto', false)).toBe(false);
   });
 });

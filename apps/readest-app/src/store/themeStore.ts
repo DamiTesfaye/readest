@@ -3,7 +3,13 @@ import { AppService } from '@/types/system';
 import { getThemeCode, ThemeCode } from '@/utils/style';
 import { getSystemColorScheme } from '@/utils/bridge';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { CustomTheme, Palette, ThemeMode, resolveThemeName } from '@/styles/themes';
+import {
+  CustomTheme,
+  Palette,
+  ThemeMode,
+  resolveThemeName,
+  getEffectiveDarkMode,
+} from '@/styles/themes';
 import { EnvConfigType, isWebAppPlatform } from '@/services/environment';
 import { SystemSettings } from '@/types/settings';
 import { Insets } from '@/types/misc';
@@ -64,8 +70,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
   const initialThemeColor = getInitialThemeColor();
   const systemIsDarkMode =
     typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDarkMode =
-    initialThemeMode === 'dark' || (initialThemeMode === 'auto' && systemIsDarkMode);
+  const isDarkMode = getEffectiveDarkMode(initialThemeColor, initialThemeMode, systemIsDarkMode);
   const themeCode = getThemeCode();
 
   return {
@@ -88,7 +93,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeMode', mode);
       }
-      const isDarkMode = mode === 'dark' || (mode === 'auto' && get().systemIsDarkMode);
+      const isDarkMode = getEffectiveDarkMode(get().themeColor, mode, get().systemIsDarkMode);
       document.documentElement.setAttribute(
         'data-theme',
         `${get().themeColor}-${isDarkMode ? 'dark' : 'light'}`,
@@ -100,11 +105,12 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeColor', color);
       }
+      const isDarkMode = getEffectiveDarkMode(color, get().themeMode, get().systemIsDarkMode);
       document.documentElement.setAttribute(
         'data-theme',
-        `${color}-${get().isDarkMode ? 'dark' : 'light'}`,
+        `${color}-${isDarkMode ? 'dark' : 'light'}`,
       );
-      set({ themeColor: color });
+      set({ themeColor: color, isDarkMode });
       set({ themeCode: getThemeCode() });
     },
     updateAppTheme: (color) => {
@@ -134,7 +140,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     },
     handleSystemThemeChange: (systemIsDarkMode) => {
       const mode = get().themeMode;
-      const isDarkMode = mode === 'dark' || (mode === 'auto' && systemIsDarkMode);
+      const isDarkMode = getEffectiveDarkMode(get().themeColor, mode, systemIsDarkMode);
       document.documentElement.setAttribute(
         'data-theme',
         `${get().themeColor}-${isDarkMode ? 'dark' : 'light'}`,
@@ -155,7 +161,7 @@ export const loadDataTheme = () => {
   const themeColor = resolveThemeName(localStorage.getItem('themeColor'));
   if (themeMode && themeColor) {
     const systemIsDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDarkMode = themeMode === 'dark' || (themeMode === 'auto' && systemIsDarkMode);
+    const isDarkMode = getEffectiveDarkMode(themeColor, themeMode as ThemeMode, systemIsDarkMode);
     document.documentElement.setAttribute(
       'data-theme',
       `${themeColor}-${isDarkMode ? 'dark' : 'light'}`,
