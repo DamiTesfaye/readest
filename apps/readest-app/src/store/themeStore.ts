@@ -69,6 +69,18 @@ const getInitialThemeColor = (): string => {
   return 'default';
 };
 
+// Toggle the root attribute the High Contrast CSS in globals.css keys on.
+// Chrome (daisyUI) reacts through that CSS; book content reacts through
+// getThemeCode's boostContrast.
+const applyHighContrastAttr = (highContrast: boolean) => {
+  if (typeof document === 'undefined') return;
+  if (highContrast) {
+    document.documentElement.setAttribute('data-high-contrast', 'true');
+  } else {
+    document.documentElement.removeAttribute('data-high-contrast');
+  }
+};
+
 const getInitialHighContrast = (): boolean => {
   if (typeof window !== 'undefined' && localStorage) {
     const stored = localStorage.getItem('highContrast');
@@ -95,6 +107,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
   ) {
     localStorage.setItem('highContrast', initialHighContrast ? 'true' : 'false');
   }
+  applyHighContrastAttr(initialHighContrast);
   const systemIsDarkMode =
     typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const isDarkMode = getEffectiveDarkMode(initialThemeColor, initialThemeMode, systemIsDarkMode);
@@ -145,6 +158,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('highContrast', highContrast ? 'true' : 'false');
       }
+      applyHighContrastAttr(highContrast);
       set({ highContrast });
       // Recompute themeCode so the reader restyles book content with the
       // boosted palette (getThemeCode reads the persisted flag).
@@ -203,6 +217,11 @@ export const loadDataTheme = () => {
       'data-theme',
       `${themeColor}-${isDarkMode ? 'dark' : 'light'}`,
     );
+    if (localStorage.getItem('highContrast') === 'true') {
+      document.documentElement.setAttribute('data-high-contrast', 'true');
+    } else {
+      document.documentElement.removeAttribute('data-high-contrast');
+    }
   }
 };
 

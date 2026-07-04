@@ -14,6 +14,7 @@ import {
   ThemeMode,
   resolveThemeName,
   getEffectiveDarkMode,
+  boostContrast,
   generateLightPalette,
   generateDarkPalette,
 } from '@/styles/themes';
@@ -802,11 +803,13 @@ export const getThemeCode = () => {
   let themeMode = 'auto';
   let rawColor = 'default';
   let systemIsDarkMode = false;
+  let highContrast = false;
   let customThemes: CustomTheme[] = [];
   if (typeof window !== 'undefined') {
     rawColor = localStorage.getItem('themeColor') || 'default';
     themeMode = localStorage.getItem('themeMode') || 'auto';
     systemIsDarkMode = localStorage.getItem('systemIsDarkMode') === 'true';
+    highContrast = localStorage.getItem('highContrast') === 'true';
     customThemes = JSON.parse(localStorage.getItem('customThemes') || '[]');
   }
   const customTheme = customThemes.find((theme) => theme.name === rawColor);
@@ -828,7 +831,8 @@ export const getThemeCode = () => {
     };
   }
   if (!currentTheme) currentTheme = themes[0];
-  const defaultPalette = isDarkMode ? currentTheme!.colors.dark : currentTheme!.colors.light;
+  const basePalette = isDarkMode ? currentTheme!.colors.dark : currentTheme!.colors.light;
+  const defaultPalette = highContrast ? boostContrast(basePalette, isDarkMode) : basePalette;
   return {
     bg: defaultPalette['base-100'],
     fg: defaultPalette['base-content'],

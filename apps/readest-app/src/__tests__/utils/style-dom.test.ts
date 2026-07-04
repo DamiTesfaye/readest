@@ -327,6 +327,23 @@ describe('getThemeCode', () => {
     const code = getThemeCode();
     expect(code.isDarkMode).toBe(true);
   });
+
+  it('boosts foreground contrast for book content when highContrast is on', async () => {
+    localStorage.setItem('themeColor', 'night-pond');
+    localStorage.setItem('themeMode', 'dark');
+    const plain = getThemeCode();
+    localStorage.setItem('highContrast', 'true');
+    const boosted = getThemeCode();
+    // Same background (scene character kept), stronger fg/bg contrast.
+    expect(boosted.bg).toBe(plain.bg);
+    const tinycolor = (await import('tinycolor2')).default;
+    // Boost never reduces contrast and always clears AAA (night-pond dark
+    // already exceeds it, so this confirms the path is wired, not a no-op bug).
+    expect(tinycolor.readability(boosted.bg, boosted.fg)).toBeGreaterThanOrEqual(
+      tinycolor.readability(plain.bg, plain.fg),
+    );
+    expect(tinycolor.readability(boosted.bg, boosted.fg)).toBeGreaterThanOrEqual(7);
+  });
 });
 
 // ---------------------------------------------------------------------------

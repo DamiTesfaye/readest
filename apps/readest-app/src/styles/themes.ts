@@ -127,6 +127,25 @@ export const generateDarkPalette = ({ bg, fg, primary }: BaseColor) => {
   } as Palette;
 };
 
+// High Contrast boost: push the foreground away from the background until body
+// text clears the WCAG AAA ratio (7:1), keeping the background's character so a
+// scene still reads as itself. Pure and idempotent — a palette already at/above
+// the target is returned with an equivalent foreground.
+const HIGH_CONTRAST_TARGET_RATIO = 7;
+
+export const boostContrast = (palette: Palette, isDarkMode: boolean): Palette => {
+  const bg = palette['base-100'];
+  let fg = palette['base-content'];
+  let guard = 0;
+  while (tinycolor.readability(bg, fg) < HIGH_CONTRAST_TARGET_RATIO && guard < 100) {
+    fg = isDarkMode
+      ? tinycolor(fg).lighten(2).toHexString()
+      : tinycolor(fg).darken(2).toHexString();
+    guard += 1;
+  }
+  return { ...palette, 'base-content': fg };
+};
+
 const _ = (stubKey: string) => stubKey;
 
 export const themes = [

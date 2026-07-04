@@ -500,6 +500,17 @@ input[type='range'].slider-input {
   animation: spin-counterclockwise 1s linear;
 }
 
+/* High Contrast: push app-chrome text (daisyUI --bc base-content) to the
+   contrast extreme for the active mode, keeping the theme's background so a
+   scene still reads as itself. Book content is boosted separately via
+   getThemeCode/boostContrast. Mode is read from the data-theme suffix. */
+:root[data-high-contrast='true'][data-theme$='-light'] {
+  --bc: 0% 0 0deg;
+}
+:root[data-high-contrast='true'][data-theme$='-dark'] {
+  --bc: 100% 0 0deg;
+}
+
 [data-eink='true'] [class*='shadow-'] {
   box-shadow: none !important;
 }

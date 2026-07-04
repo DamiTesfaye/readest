@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import tinycolor from 'tinycolor2';
-import { themes, resolveThemeName, getEffectiveDarkMode } from '@/styles/themes';
+import { themes, resolveThemeName, getEffectiveDarkMode, boostContrast } from '@/styles/themes';
 
 // The hidden dual-mood default: follows the appearance toggle, never shown
 // as a picker card.
@@ -110,6 +110,58 @@ describe('resolveThemeName legacy migration', () => {
     ]) {
       expect(names.has(resolveThemeName(legacy))).toBe(true);
     }
+  });
+});
+
+describe('boostContrast (High Contrast)', () => {
+  it('lifts night-pond dark to AAA (>=7:1) while keeping its background', () => {
+    const nightPondDark = themes.find((t) => t.name === 'night-pond')!.colors.dark;
+    const boosted = boostContrast(nightPondDark, true);
+    expect(
+      tinycolor.readability(boosted['base-100'], boosted['base-content']),
+    ).toBeGreaterThanOrEqual(7);
+    // Background keeps its scene character — not forced to pure black.
+    expect(boosted['base-100']).toBe(nightPondDark['base-100']);
+    expect(tinycolor(boosted['base-100']).toHexString()).not.toBe('#000000');
+  });
+
+  it('lifts a light theme by darkening the foreground', () => {
+    const paperLight = themes.find((t) => t.name === 'paper')!.colors.light;
+    const boosted = boostContrast(paperLight, false);
+    expect(
+      tinycolor.readability(boosted['base-100'], boosted['base-content']),
+    ).toBeGreaterThanOrEqual(7);
+    expect(boosted['base-100']).toBe(paperLight['base-100']);
+  });
+
+  it('lifts a below-AAA palette up to the target ratio', () => {
+    // A muted grey-on-grey palette below 7:1 to prove the boost actually lifts.
+    const lowContrast = {
+      'base-100': '#3a3a3a',
+      'base-200': '#444444',
+      'base-300': '#4e4e4e',
+      'base-content': '#9a9a9a',
+      neutral: '#555555',
+      'neutral-content': '#cccccc',
+      primary: '#8888aa',
+      secondary: '#7777aa',
+      accent: '#9999bb',
+    };
+    const before = tinycolor.readability(lowContrast['base-100'], lowContrast['base-content']);
+    const boosted = boostContrast(lowContrast, true);
+    const after = tinycolor.readability(boosted['base-100'], boosted['base-content']);
+    expect(before).toBeLessThan(7);
+    expect(after).toBeGreaterThan(before);
+    expect(after).toBeGreaterThanOrEqual(7);
+  });
+
+  it('is pure (does not mutate input) and idempotent', () => {
+    const source = themes.find((t) => t.name === 'starry-night')!.colors.dark;
+    const snapshot = { ...source };
+    const once = boostContrast(source, true);
+    expect(source).toEqual(snapshot); // input untouched
+    const twice = boostContrast(once, true);
+    expect(twice['base-content']).toBe(once['base-content']); // stable
   });
 });
 
