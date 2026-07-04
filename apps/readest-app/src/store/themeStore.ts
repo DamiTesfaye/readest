@@ -24,6 +24,7 @@ declare global {
 interface ThemeState {
   themeMode: ThemeMode;
   themeColor: string;
+  highContrast: boolean;
   systemIsDarkMode: boolean;
   themeCode: ThemeCode;
   isDarkMode: boolean;
@@ -39,6 +40,7 @@ interface ThemeState {
   getIsDarkMode: () => boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setThemeColor: (color: string) => void;
+  setHighContrast: (highContrast: boolean) => void;
   updateAppTheme: (color: keyof Palette) => void;
   saveCustomTheme: (
     envConfig: EnvConfigType,
@@ -59,15 +61,40 @@ const getInitialThemeMode = (): ThemeMode => {
 
 const getInitialThemeColor = (): string => {
   if (typeof window !== 'undefined' && localStorage) {
-    const defaultColor = window.__READEST_IS_EINK ? 'contrast' : 'paper';
-    return resolveThemeName(localStorage.getItem('themeColor') || defaultColor);
+    // Every platform now starts on the dual-mood default appearance; e-ink no
+    // longer forces the removed `contrast` theme — it opts into High Contrast
+    // instead (see getInitialHighContrast).
+    return resolveThemeName(localStorage.getItem('themeColor') || 'default');
   }
-  return 'paper';
+  return 'default';
+};
+
+const getInitialHighContrast = (): boolean => {
+  if (typeof window !== 'undefined' && localStorage) {
+    const stored = localStorage.getItem('highContrast');
+    if (stored !== null) return stored === 'true';
+    // Migrate users on the removed `contrast` theme to the High Contrast flag.
+    if (localStorage.getItem('themeColor') === 'contrast') return true;
+    // E-ink screens default to High Contrast so text stays crisp and theme
+    // switching stays a single tap.
+    return Boolean(window.__READEST_IS_EINK);
+  }
+  return false;
 };
 
 export const useThemeStore = create<ThemeState>((set, get) => {
   const initialThemeMode = getInitialThemeMode();
   const initialThemeColor = getInitialThemeColor();
+  const initialHighContrast = getInitialHighContrast();
+  // Persist the resolved High Contrast value so migration (contrast theme) and
+  // the e-ink default survive a later theme change that overwrites themeColor.
+  if (
+    typeof window !== 'undefined' &&
+    localStorage &&
+    localStorage.getItem('highContrast') === null
+  ) {
+    localStorage.setItem('highContrast', initialHighContrast ? 'true' : 'false');
+  }
   const systemIsDarkMode =
     typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const isDarkMode = getEffectiveDarkMode(initialThemeColor, initialThemeMode, systemIsDarkMode);
@@ -76,6 +103,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
   return {
     themeMode: initialThemeMode,
     themeColor: initialThemeColor,
+    highContrast: initialHighContrast,
     systemIsDarkMode,
     isDarkMode,
     themeCode,
@@ -111,6 +139,15 @@ export const useThemeStore = create<ThemeState>((set, get) => {
         `${color}-${isDarkMode ? 'dark' : 'light'}`,
       );
       set({ themeColor: color, isDarkMode });
+      set({ themeCode: getThemeCode() });
+    },
+    setHighContrast: (highContrast) => {
+      if (typeof window !== 'undefined' && localStorage) {
+        localStorage.setItem('highContrast', highContrast ? 'true' : 'false');
+      }
+      set({ highContrast });
+      // Recompute themeCode so the reader restyles book content with the
+      // boosted palette (getThemeCode reads the persisted flag).
       set({ themeCode: getThemeCode() });
     },
     updateAppTheme: (color) => {

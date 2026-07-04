@@ -32,10 +32,12 @@ describe('themeStore', () => {
   beforeEach(() => {
     localStorage.clear();
     delete window.onNativeColorSchemeChange;
+    delete window.__READEST_IS_EINK;
     // Reset store to initial state
     useThemeStore.setState({
       themeMode: 'auto',
       themeColor: 'default',
+      highContrast: false,
       systemIsDarkMode: false,
       isDarkMode: false,
       systemUIVisible: false,
@@ -51,6 +53,7 @@ describe('themeStore', () => {
       const state = useThemeStore.getState();
       expect(state.themeMode).toBe('auto');
       expect(state.themeColor).toBe('default');
+      expect(state.highContrast).toBe(false);
       expect(state.systemUIVisible).toBe(false);
       expect(state.statusBarHeight).toBe(24);
       expect(state.systemUIAlwaysHidden).toBe(false);
@@ -101,21 +104,57 @@ describe('themeStore', () => {
 
   describe('setThemeColor', () => {
     test('stores color in localStorage', () => {
-      useThemeStore.getState().setThemeColor('sepia');
-      expect(localStorage.getItem('themeColor')).toBe('sepia');
+      useThemeStore.getState().setThemeColor('starry-night');
+      expect(localStorage.getItem('themeColor')).toBe('starry-night');
 
       const state = useThemeStore.getState();
-      expect(state.themeColor).toBe('sepia');
+      expect(state.themeColor).toBe('starry-night');
     });
 
-    test('sets data-theme attribute using color and current dark mode', () => {
-      useThemeStore.setState({ isDarkMode: false });
-      useThemeStore.getState().setThemeColor('sepia');
-      expect(document.documentElement.getAttribute('data-theme')).toBe('sepia-light');
+    test('data-theme for a dual-mood color follows themeMode', () => {
+      // A custom/unknown name has no mood lock, so setThemeColor computes dark
+      // mode from themeMode (not from any pre-set isDarkMode).
+      useThemeStore.setState({ themeMode: 'light' });
+      useThemeStore.getState().setThemeColor('ocean');
+      expect(document.documentElement.getAttribute('data-theme')).toBe('ocean-light');
 
-      useThemeStore.setState({ isDarkMode: true });
+      useThemeStore.setState({ themeMode: 'dark' });
       useThemeStore.getState().setThemeColor('ocean');
       expect(document.documentElement.getAttribute('data-theme')).toBe('ocean-dark');
+    });
+
+    test('a mode-locked theme forces its mood regardless of themeMode', () => {
+      // starry-night is dark-locked: isDarkMode true even in light mode.
+      useThemeStore.setState({ themeMode: 'light' });
+      useThemeStore.getState().setThemeColor('starry-night');
+      expect(useThemeStore.getState().isDarkMode).toBe(true);
+      expect(document.documentElement.getAttribute('data-theme')).toBe('starry-night-dark');
+    });
+
+    test('selecting a locked theme leaves themeMode untouched', () => {
+      useThemeStore.setState({ themeMode: 'auto' });
+      useThemeStore.getState().setThemeColor('night-pond');
+      expect(useThemeStore.getState().themeMode).toBe('auto');
+    });
+  });
+
+  describe('setHighContrast', () => {
+    test('persists to localStorage and updates state', () => {
+      useThemeStore.getState().setHighContrast(true);
+      expect(localStorage.getItem('highContrast')).toBe('true');
+      expect(useThemeStore.getState().highContrast).toBe(true);
+
+      useThemeStore.getState().setHighContrast(false);
+      expect(localStorage.getItem('highContrast')).toBe('false');
+      expect(useThemeStore.getState().highContrast).toBe(false);
+    });
+
+    test('recomputes themeCode so the reader restyles', async () => {
+      const styleModule = await import('@/utils/style');
+      const mockGetThemeCode = vi.mocked(styleModule.getThemeCode);
+      mockGetThemeCode.mockClear();
+      useThemeStore.getState().setHighContrast(true);
+      expect(mockGetThemeCode).toHaveBeenCalled();
     });
   });
 
@@ -231,9 +270,16 @@ describe('themeStore', () => {
   describe('loadDataTheme', () => {
     test('sets data-theme attribute when localStorage has themeMode and themeColor', () => {
       localStorage.setItem('themeMode', 'dark');
+      localStorage.setItem('themeColor', 'starry-night');
+      loadDataTheme();
+      expect(document.documentElement.getAttribute('data-theme')).toBe('starry-night-dark');
+    });
+
+    test('migrates a removed theme name to the default appearance', () => {
+      localStorage.setItem('themeMode', 'dark');
       localStorage.setItem('themeColor', 'sepia');
       loadDataTheme();
-      expect(document.documentElement.getAttribute('data-theme')).toBe('sepia-dark');
+      expect(document.documentElement.getAttribute('data-theme')).toBe('default-dark');
     });
 
     test('sets light theme in auto mode when system prefers light', () => {
@@ -251,11 +297,13 @@ describe('themeStore', () => {
       expect(document.documentElement.getAttribute('data-theme')).toBeNull();
     });
 
-    test('does nothing when themeColor is not in localStorage', () => {
+    test('applies the default appearance when only themeMode is stored', () => {
+      // themeColor resolves to `default` when absent, so a stored mode alone is
+      // enough to apply the default appearance.
       localStorage.setItem('themeMode', 'dark');
       document.documentElement.removeAttribute('data-theme');
       loadDataTheme();
-      expect(document.documentElement.getAttribute('data-theme')).toBeNull();
+      expect(document.documentElement.getAttribute('data-theme')).toBe('default-dark');
     });
   });
 
@@ -297,5 +345,51 @@ describe('themeStore', () => {
       useThemeStore.setState({ isDarkMode: false });
       expect(useThemeStore.getState().getIsDarkMode()).toBe(false);
     });
+  });
+});
+
+// Initialization + migration require a fresh store instance that reads
+// localStorage/window set up before the module loads. vi.resetModules() plus a
+// dynamic import gives that; the vi.mock calls above are hoisted and apply to
+// the re-imported module too.
+describe('themeStore initialization', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    delete window.__READEST_IS_EINK;
+    vi.resetModules();
+  });
+
+  const loadFreshStore = async () => {
+    const mod = await import('@/store/themeStore');
+    return mod.useThemeStore.getState();
+  };
+
+  test('fresh non-eink start: default theme, high contrast off', async () => {
+    const state = await loadFreshStore();
+    expect(state.themeColor).toBe('default');
+    expect(state.highContrast).toBe(false);
+    expect(localStorage.getItem('highContrast')).toBe('false');
+  });
+
+  test('fresh e-ink start: default theme, high contrast on', async () => {
+    window.__READEST_IS_EINK = true;
+    const state = await loadFreshStore();
+    expect(state.themeColor).toBe('default');
+    expect(state.highContrast).toBe(true);
+    expect(localStorage.getItem('highContrast')).toBe('true');
+  });
+
+  test('migrates a persisted contrast theme to default + high contrast on', async () => {
+    localStorage.setItem('themeColor', 'contrast');
+    const state = await loadFreshStore();
+    expect(state.themeColor).toBe('default');
+    expect(state.highContrast).toBe(true);
+  });
+
+  test('an explicit stored highContrast value overrides the e-ink default', async () => {
+    window.__READEST_IS_EINK = true;
+    localStorage.setItem('highContrast', 'false');
+    const state = await loadFreshStore();
+    expect(state.highContrast).toBe(false);
   });
 });
