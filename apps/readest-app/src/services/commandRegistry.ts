@@ -338,8 +338,8 @@ const layoutPanelItems = [
 const colorPanelItems = [
   {
     id: 'settings.color.themeMode',
-    labelKey: _('Theme Mode'),
-    keywords: ['theme', 'mode', 'dark', 'light', 'auto', 'system'],
+    labelKey: _('Select a default appearance'),
+    keywords: ['theme', 'mode', 'dark', 'light', 'auto', 'system', 'appearance', 'default'],
     section: 'Theme',
   },
   {
@@ -355,15 +355,15 @@ const colorPanelItems = [
     section: 'Theme',
   },
   {
-    id: 'settings.color.themeColor',
-    labelKey: _('Theme Color'),
-    keywords: ['theme', 'color', 'palette', 'accent'],
+    id: 'settings.color.highContrast',
+    labelKey: _('High Contrast'),
+    keywords: ['high', 'contrast', 'accessibility', 'a11y', 'legible', 'wcag'],
     section: 'Theme',
   },
   {
-    id: 'settings.color.backgroundTexture',
-    labelKey: _('Background Image'),
-    keywords: ['background', 'texture', 'image', 'paper', 'pattern'],
+    id: 'settings.color.themeColor',
+    labelKey: _('Theme Color'),
+    keywords: ['theme', 'color', 'palette', 'accent'],
     section: 'Theme',
   },
   {

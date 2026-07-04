@@ -19,7 +19,7 @@ import { SettingsPanelPanelProp } from './SettingsDialog';
 import { useAtmosphereStore } from '@/store/atmosphereStore';
 import { DefaultHighlightColor, HighlightColor, UserHighlightColor } from '@/types/book';
 import clsx from 'clsx';
-import { SettingLabel } from './primitives';
+import { SettingLabel, SettingsSwitchRow } from './primitives';
 import { HIGHLIGHT_COLOR_HEX } from '@/services/constants';
 import ThemeEditor from './color/ThemeEditor';
 import ThemeModeSelector from './color/ThemeModeSelector';
@@ -33,19 +33,37 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
   const {
     themeMode,
     themeColor,
+    highContrast,
     isDarkMode,
     systemIsDarkMode,
     setThemeMode,
     setThemeColor,
+    setHighContrast,
     saveCustomTheme,
   } = useThemeStore();
   const { envConfig } = useEnv();
   const { settings, setSettings, saveSettings } = useSettingsStore();
   const { getView, getViewSettings } = useReaderStore();
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
-  // Fixed-mood themes (scene themes, sepia, ink) render in one mode only;
-  // hide the light/dark/auto toggle while one is active.
+  // Mode-locked themes (scene cards) pin the effective mode. The appearance
+  // controls stay visible; acting on them returns to the default appearance.
   const activeThemeMood = themes.find((t) => t.name === themeColor)?.mood;
+
+  // Appearance controls double as the escape hatch out of a mode-locked theme:
+  // toggling light/dark or auto while a card is active returns to the default
+  // appearance in the intended mode.
+  const handleThemeModeChange = (mode: 'auto' | 'light' | 'dark') => {
+    if (activeThemeMood) {
+      setThemeColor('default');
+    }
+    setThemeMode(mode);
+  };
+
+  // Re-tapping the selected card returns to the default appearance while
+  // keeping the current mode preference (themeMode is left untouched).
+  const handleThemeColorChange = (name: string) => {
+    setThemeColor(name === themeColor ? 'default' : name);
+  };
 
   const [invertImgColorInDark, setInvertImgColorInDark] = useState(
     viewSettings.invertImgColorInDark,
@@ -86,8 +104,10 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
       readingRulerLines: setReadingRulerLines,
       readingRulerOpacity: setReadingRulerOpacity,
     });
-    setThemeColor('paper');
+    setThemeColor('default');
     setThemeMode('auto');
+    // Restore the platform's High Contrast default (on for e-ink screens).
+    setHighContrast(Boolean(window.__READEST_IS_EINK));
     setCustomHighlightColors(HIGHLIGHT_COLOR_HEX);
     setUserHighlightColors([]);
     setDefaultHighlightLabels({});
@@ -181,7 +201,7 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
   const handleDeleteCustomTheme = (customTheme: CustomTheme) => {
     saveCustomTheme(envConfig, settings, customTheme, true);
     setSettings({ ...settings });
-    setThemeColor('paper');
+    setThemeColor('default');
     setShowCustomThemeEditor(false);
   };
 
@@ -227,21 +247,19 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
         />
       ) : (
         <>
-          {!activeThemeMood && (
-            <ThemeModeSelector
-              themeMode={themeMode}
-              isDarkMode={isDarkMode}
-              systemIsDarkMode={systemIsDarkMode}
-              onThemeModeChange={setThemeMode}
-              data-setting-id='settings.color.themeMode'
-            />
-          )}
+          <ThemeModeSelector
+            themeMode={themeMode}
+            isDarkMode={isDarkMode}
+            systemIsDarkMode={systemIsDarkMode}
+            onThemeModeChange={handleThemeModeChange}
+            data-setting-id='settings.color.themeMode'
+          />
 
           <ThemeColorSelector
             themes={themes.concat(customThemes)}
             themeColor={themeColor}
             isDarkMode={isDarkMode}
-            onThemeColorChange={setThemeColor}
+            onThemeColorChange={handleThemeColorChange}
             onEditTheme={handleEditTheme}
             onCreateTheme={() => setShowCustomThemeEditor(true)}
             data-setting-id='settings.color.themeColor'
@@ -277,6 +295,14 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
               onChange={() => setOverrideColor(!overrideColor)}
             />
           </label>
+
+          <SettingsSwitchRow
+            data-setting-id='settings.color.highContrast'
+            label={_('High Contrast')}
+            description={_('Boost text contrast on top of any theme.')}
+            checked={highContrast}
+            onChange={() => setHighContrast(!highContrast)}
+          />
 
           <HighlightColorsEditor
             customHighlightColors={customHighlightColors}
