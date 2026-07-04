@@ -1,5 +1,7 @@
 import clsx from 'clsx';
 import React, { useState } from 'react';
+import { impactFeedback } from '@tauri-apps/plugin-haptics';
+import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SettingLabel } from '../primitives';
 
@@ -21,13 +23,26 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
   onThemeModeChange,
 }) => {
   const _ = useTranslation();
+  const { appService } = useEnv();
+
+  const haptic = () => {
+    if (appService?.hasHaptics) {
+      impactFeedback('light');
+    }
+  };
 
   // Bumping this key remounts the auto-button artwork so the squash-and-stretch
   // keyframes replay on every click (including rapid repeats).
   const [autoSquashKey, setAutoSquashKey] = useState(0);
   const handleAutoClick = () => {
+    haptic();
     setAutoSquashKey((k) => k + 1);
     onThemeModeChange('auto');
+  };
+
+  const handlePillClick = () => {
+    haptic();
+    onThemeModeChange(isDarkMode ? 'light' : 'dark');
   };
 
   const cloudBase =
@@ -68,7 +83,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
           aria-label={isDarkMode ? _('Light Mode') : _('Dark Mode')}
           className='eink-bordered relative h-12 w-36 overflow-hidden rounded-full transition-colors duration-500 motion-reduce:transition-none'
           style={{ backgroundColor: isDarkMode ? '#101a33' : '#9bd3f0' }}
-          onClick={() => onThemeModeChange(isDarkMode ? 'light' : 'dark')}
+          onClick={handlePillClick}
         >
           {/* Cloud stacking: layer 3 (back) → layer 2 → layer 1 (front).
               Bases sit below the pill edge so the clip makes them peek halfway. */}

@@ -6,6 +6,14 @@ vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (key: string) => key,
 }));
 
+vi.mock('@/context/EnvContext', () => ({
+  useEnv: () => ({ appService: { hasHaptics: false } }),
+}));
+
+vi.mock('@tauri-apps/plugin-haptics', () => ({
+  impactFeedback: vi.fn(),
+}));
+
 describe('ThemeModeSelector sky toggle', () => {
   const renderSelector = (overrides = {}) => {
     const onThemeModeChange = vi.fn();

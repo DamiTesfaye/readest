@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { CgColorPicker } from 'react-icons/cg';
-import { MdRadioButtonUnchecked, MdRadioButtonChecked } from 'react-icons/md';
 import { PiPlus } from 'react-icons/pi';
 import { Theme } from '@/styles/themes';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -19,6 +18,21 @@ interface ThemeColorSelectorProps {
   onCreateTheme: () => void;
 }
 
+// Custom pill radio: an open ring when idle, a filled dot when selected. The
+// ring inherits the card's text color (`border-current`) so it reads on any
+// artwork. Wobbles (via remount key) when the selection lands on it.
+const PillRadio = ({ selected, animKey }: { selected: boolean; animKey?: number }) => (
+  <span
+    key={animKey}
+    className={clsx(
+      'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-current',
+      selected && 'animate-wobble',
+    )}
+  >
+    {selected && <span className='h-2 w-2 rounded-full bg-current' />}
+  </span>
+);
+
 const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
   themes,
   themeColor,
@@ -31,6 +45,18 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
   const iconSize16 = useResponsiveSize(16);
   const iconSize24 = useResponsiveSize(24);
 
+  // Bump on selection change so only the newly-selected card's ring wobbles;
+  // skip the initial mount so nothing wobbles on open.
+  const [wobbleKey, setWobbleKey] = useState(0);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    setWobbleKey((k) => k + 1);
+  }, [themeColor]);
+
   // The hidden `default` appearance is controlled by the mode toggle above, not
   // shown as a card.
   const cards = themes.filter((t) => !t.hidden);
@@ -40,19 +66,66 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
   const cardFg = (theme: Theme) =>
     isDarkMode ? theme.colors.dark['base-content'] : theme.colors.light['base-content'];
 
-  const RadioPill = ({ theme, selected }: { theme: Theme; selected: boolean }) => (
-    <span
-      className='absolute right-2 top-2 flex items-center gap-1 rounded-full px-2 py-1 text-sm font-medium backdrop-blur-sm'
-      style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
-    >
-      <span className='max-w-[8rem] truncate'>{_(theme.label)}</span>
-      {selected ? (
-        <MdRadioButtonChecked size={iconSize16} />
-      ) : (
-        <MdRadioButtonUnchecked size={iconSize16} />
-      )}
-    </span>
-  );
+  const renderCard = (theme: Theme) => {
+    const { name, label, scene, isCustomizale } = theme;
+    const selected = themeColor === name;
+    return (
+      <button
+        key={name}
+        tabIndex={0}
+        onClick={() => onThemeColorChange(name)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            onThemeColorChange(name);
+          }
+          e.stopPropagation();
+        }}
+        aria-pressed={selected}
+        // Masonry item: no fixed height — artwork sets the natural aspect so
+        // differently-scaled scenes stagger. Selection reads via a 2px
+        // border-current ring (works on e-ink) plus the filled radio.
+        className={clsx(
+          'eink-bordered relative mb-4 flex w-full break-inside-avoid flex-col overflow-hidden rounded-xl border-2 shadow-md',
+          'transition-transform duration-200 ease-out hover:scale-[1.03] motion-reduce:transition-none',
+          selected ? 'border-current' : 'border-transparent',
+        )}
+        style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
+      >
+        {scene ? (
+          <img src={`${CARD_ASSETS}/${name}.svg`} alt='' className='block h-auto w-full' />
+        ) : (
+          <span className='flex min-h-[6rem] w-full items-center justify-center p-4' />
+        )}
+        <span
+          className='absolute right-2 top-2 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold backdrop-blur-sm'
+          style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
+        >
+          <span className='max-w-[8rem] truncate'>{_(label)}</span>
+          <PillRadio selected={selected} animKey={selected ? wobbleKey : undefined} />
+        </span>
+        {isCustomizale && selected && (
+          <span
+            role='button'
+            tabIndex={0}
+            aria-label={_('Edit theme')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditTheme(name);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                onEditTheme(name);
+              }
+            }}
+            className='absolute left-2 top-2'
+          >
+            <CgColorPicker size={iconSize16} />
+          </span>
+        )}
+      </button>
+    );
+  };
 
   return (
     <div>
@@ -61,80 +134,14 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
       </SectionTitle>
       {/* CSS-columns masonry: cards keep their natural artwork aspect and flow
           into two balanced columns. */}
-      <div className='columns-2 gap-4 [column-fill:_balance]'>
-        {cards.map((theme) => {
-          const { name, label, scene, isCustomizale } = theme;
-          const selected = themeColor === name;
-          return (
-            <button
-              key={name}
-              tabIndex={0}
-              onClick={() => onThemeColorChange(name)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  onThemeColorChange(name);
-                }
-                e.stopPropagation();
-              }}
-              aria-pressed={selected}
-              // Selection reads through a 2px border in the card's own text
-              // color (guaranteed contrast, works on e-ink where hover/shadow
-              // don't) plus the checked radio in the pill.
-              className={clsx(
-                'eink-bordered relative mb-4 flex w-full break-inside-avoid flex-col overflow-hidden rounded-lg border-2 shadow-md',
-                selected ? 'border-current' : 'border-transparent',
-              )}
-              style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
-            >
-              <input
-                aria-label={_(label)}
-                type='radio'
-                name='theme'
-                value={name}
-                checked={selected}
-                onChange={() => onThemeColorChange(name)}
-                className='hidden'
-              />
-              {scene ? (
-                // Scene card: artwork fills the card; the themed background
-                // shows through until the image loads (or if it is missing).
-                <img
-                  src={`${CARD_ASSETS}/${name}.svg`}
-                  alt=''
-                  className='h-auto min-h-[7rem] w-full object-cover'
-                />
-              ) : (
-                // Custom theme: no artwork — a themed swatch panel.
-                <span className='flex min-h-[7rem] w-full items-center justify-center p-4'>
-                  {_(label)}
-                </span>
-              )}
-              <RadioPill theme={theme} selected={selected} />
-              {isCustomizale && selected && (
-                <span
-                  role='button'
-                  tabIndex={0}
-                  aria-label={_('Edit theme')}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditTheme(name);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.stopPropagation();
-                      onEditTheme(name);
-                    }
-                  }}
-                  className='absolute left-2 top-2'
-                >
-                  <CgColorPicker size={iconSize16} />
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className='columns-2 gap-4 [column-fill:_balance]'>{cards.map(renderCard)}</div>
+      {/* The create-your-own tile sits centered on its own final row. */}
+      <div className='flex justify-center'>
         <button
-          className='eink-bordered mb-4 flex min-h-[7rem] w-full break-inside-avoid cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-4 shadow-md'
+          className={clsx(
+            'eink-bordered flex min-h-[6rem] w-[calc(50%-0.5rem)] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-4 shadow-md',
+            'transition-transform duration-200 ease-out hover:scale-[1.03] motion-reduce:transition-none',
+          )}
           onClick={onCreateTheme}
         >
           <PiPlus size={iconSize24} />
