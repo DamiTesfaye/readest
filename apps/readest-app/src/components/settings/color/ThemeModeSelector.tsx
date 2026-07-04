@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SettingLabel } from '../primitives';
 
@@ -22,6 +22,14 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
 }) => {
   const _ = useTranslation();
 
+  // Bumping this key remounts the auto-button artwork so the squash-and-stretch
+  // keyframes replay on every click (including rapid repeats).
+  const [autoSquashKey, setAutoSquashKey] = useState(0);
+  const handleAutoClick = () => {
+    setAutoSquashKey((k) => k + 1);
+    onThemeModeChange('auto');
+  };
+
   const cloudBase =
     'pointer-events-none absolute transition-all duration-500 ease-in-out motion-reduce:transition-none';
   const shown = 'translate-y-0 opacity-100';
@@ -29,7 +37,10 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
 
   return (
     <div className='flex items-center justify-between px-4'>
-      <SettingLabel>{_('Theme Mode')}</SettingLabel>
+      <div className='flex flex-col'>
+        <SettingLabel>{_('Select a default appearance')}</SettingLabel>
+        <span className='text-neutral-content text-xs'>{_('(System/Light/Dark)')}</span>
+      </div>
       <div className='flex items-center gap-3'>
         <button
           type='button'
@@ -40,12 +51,13 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
             'transition-colors duration-200 hover:bg-base-300 motion-reduce:transition-none',
             themeMode === 'auto' && 'bg-base-300',
           )}
-          onClick={() => onThemeModeChange('auto')}
+          onClick={handleAutoClick}
         >
           <img
+            key={autoSquashKey}
             src={`${ASSETS}/${systemIsDarkMode ? 'auto_dark' : 'auto_light'}.svg`}
             alt=''
-            className='h-full w-full'
+            className={clsx('h-full w-full', autoSquashKey > 0 && 'animate-squash-stretch')}
           />
         </button>
 

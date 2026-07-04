@@ -500,6 +500,33 @@ input[type='range'].slider-input {
   animation: spin-counterclockwise 1s linear;
 }
 
+/* Rubbery squash-and-stretch for the auto (system) theme button on click. */
+@keyframes squash-stretch {
+  0% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.2, 0.8);
+  }
+  55% {
+    transform: scale(0.9, 1.1);
+  }
+  75% {
+    transform: scale(1.05, 0.95);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+.animate-squash-stretch {
+  animation: squash-stretch 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-squash-stretch {
+    animation: none;
+  }
+}
+
 /* High Contrast: push app-chrome text (daisyUI --bc base-content) to the
    contrast extreme for the active mode, keeping the theme's background so a
    scene still reads as itself. Book content is boosted separately via

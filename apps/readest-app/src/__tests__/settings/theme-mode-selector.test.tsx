@@ -47,6 +47,23 @@ describe('ThemeModeSelector sky toggle', () => {
     cleanup();
   });
 
+  it('renders the default-appearance heading and hint', () => {
+    renderSelector();
+    expect(screen.getByText('Select a default appearance')).toBeTruthy();
+    expect(screen.getByText('(System/Light/Dark)')).toBeTruthy();
+    cleanup();
+  });
+
+  it('plays the squash-and-stretch animation on A-button click', () => {
+    renderSelector();
+    const button = screen.getByTitle('Auto Mode');
+    // No animation class before the first interaction.
+    expect(button.querySelector('img')?.className).not.toContain('animate-squash-stretch');
+    fireEvent.click(button);
+    expect(button.querySelector('img')?.className).toContain('animate-squash-stretch');
+    cleanup();
+  });
+
   it('the A button artwork indicates the current system state', () => {
     renderSelector({ systemIsDarkMode: true });
     const img = screen.getByTitle('Auto Mode').querySelector('img');
