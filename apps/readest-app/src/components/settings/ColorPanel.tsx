@@ -237,6 +237,16 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
             />
           )}
 
+          <ThemeColorSelector
+            themes={themes.concat(customThemes)}
+            themeColor={themeColor}
+            isDarkMode={isDarkMode}
+            onThemeColorChange={setThemeColor}
+            onEditTheme={handleEditTheme}
+            onCreateTheme={() => setShowCustomThemeEditor(true)}
+            data-setting-id='settings.color.themeColor'
+          />
+
           <label
             data-setting-id='settings.color.invertImageInDarkMode'
             className={clsx(
@@ -267,16 +277,6 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
               onChange={() => setOverrideColor(!overrideColor)}
             />
           </label>
-
-          <ThemeColorSelector
-            themes={themes.concat(customThemes)}
-            themeColor={themeColor}
-            isDarkMode={isDarkMode}
-            onThemeColorChange={setThemeColor}
-            onEditTheme={handleEditTheme}
-            onCreateTheme={() => setShowCustomThemeEditor(true)}
-            data-setting-id='settings.color.themeColor'
-          />
 
           <HighlightColorsEditor
             customHighlightColors={customHighlightColors}

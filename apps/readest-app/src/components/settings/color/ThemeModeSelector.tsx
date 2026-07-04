@@ -36,8 +36,9 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
           title={_('Auto Mode')}
           aria-pressed={themeMode === 'auto'}
           className={clsx(
-            'btn btn-ghost btn-circle btn-sm eink-bordered p-1',
-            themeMode === 'auto' && 'btn-active bg-base-300',
+            'eink-bordered flex h-10 w-10 items-center justify-center rounded-full p-2',
+            'transition-colors duration-200 hover:bg-base-300 motion-reduce:transition-none',
+            themeMode === 'auto' && 'bg-base-300',
           )}
           onClick={() => onThemeModeChange('auto')}
         >
@@ -57,7 +58,61 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
           style={{ backgroundColor: isDarkMode ? '#101a33' : '#9bd3f0' }}
           onClick={() => onThemeModeChange(isDarkMode ? 'light' : 'dark')}
         >
-          {/* Celestial body: travels left↔right; sun/moon crossfade mid-flight */}
+          {/* Cloud stacking: layer 3 (back) → layer 2 → layer 1 (front).
+              Bases sit below the pill edge so the clip makes them peek halfway. */}
+
+          {/* Day clouds: sink out through the bottom edge when going dark */}
+          <img
+            src={`${ASSETS}/cloud_day_layer_3.svg`}
+            alt=''
+            className={clsx(
+              cloudBase,
+              '-bottom-2 right-14 w-12 delay-150',
+              !isDarkMode ? shown : hidden,
+            )}
+          />
+          <img
+            src={`${ASSETS}/cloud_day_layer_2.svg`}
+            alt=''
+            className={clsx(
+              cloudBase,
+              '-bottom-2 right-1 w-16 delay-75',
+              !isDarkMode ? shown : hidden,
+            )}
+          />
+          <img
+            src={`${ASSETS}/cloud_day_layer_1.svg`}
+            alt=''
+            className={clsx(cloudBase, '-bottom-10 -right-1 w-28', !isDarkMode ? shown : hidden)}
+          />
+
+          {/* Night clouds: rise into the opposite side when going dark */}
+          {/* <img
+            src={`${ASSETS}/cloud_night_layer_3.svg`}
+            alt=''
+            className={clsx(cloudBase, '-bottom-3 right-24 w-12', isDarkMode ? shown : hidden)}
+          /> */}
+          <img
+            src={`${ASSETS}/cloud_night_layer_2.svg`}
+            alt=''
+            className={clsx(
+              cloudBase,
+              '-bottom-5 left-12 w-16 delay-150',
+              isDarkMode ? shown : hidden,
+            )}
+          />
+          <img
+            src={`${ASSETS}/cloud_night_layer_1.svg`}
+            alt=''
+            className={clsx(
+              cloudBase,
+              '-bottom-8 -left-5 w-28 delay-75',
+              isDarkMode ? shown : hidden,
+            )}
+          />
+
+          {/* Celestial body last in DOM: travels above every cloud layer,
+              sun/moon crossfade mid-flight */}
           <span
             className={clsx(
               'absolute left-1 top-1 block h-10 w-10 transition-transform duration-500 ease-in-out motion-reduce:transition-none',
@@ -81,56 +136,6 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
               )}
             />
           </span>
-
-          {/* Day clouds: sink out through the bottom edge when going dark */}
-          <img
-            src={`${ASSETS}/cloud_day_layer_1.svg`}
-            alt=''
-            className={clsx(cloudBase, '-bottom-3 -right-2 w-24', !isDarkMode ? shown : hidden)}
-          />
-          <img
-            src={`${ASSETS}/cloud_day_layer_2.svg`}
-            alt=''
-            className={clsx(
-              cloudBase,
-              'bottom-0 right-14 w-14 delay-75',
-              !isDarkMode ? shown : hidden,
-            )}
-          />
-          <img
-            src={`${ASSETS}/cloud_day_layer_3.svg`}
-            alt=''
-            className={clsx(
-              cloudBase,
-              'bottom-1 right-24 w-9 delay-150',
-              !isDarkMode ? shown : hidden,
-            )}
-          />
-
-          {/* Night clouds: rise into the opposite side when going dark */}
-          <img
-            src={`${ASSETS}/cloud_night_layer_1.svg`}
-            alt=''
-            className={clsx(
-              cloudBase,
-              '-bottom-3 -left-2 w-24 delay-75',
-              isDarkMode ? shown : hidden,
-            )}
-          />
-          <img
-            src={`${ASSETS}/cloud_night_layer_2.svg`}
-            alt=''
-            className={clsx(
-              cloudBase,
-              'bottom-0 left-14 w-14 delay-150',
-              isDarkMode ? shown : hidden,
-            )}
-          />
-          <img
-            src={`${ASSETS}/cloud_night_layer_3.svg`}
-            alt=''
-            className={clsx(cloudBase, 'bottom-1 left-24 w-9', isDarkMode ? shown : hidden)}
-          />
         </button>
       </div>
     </div>
