@@ -17,6 +17,7 @@ vi.mock('@/styles/themes', async (importOriginal) => {
 
 import type { ViewSettings } from '@/types/book';
 import type { ThemeCode } from '@/utils/style';
+import { themes } from '@/styles/themes';
 import {
   applyThemeModeClass,
   applyScrollModeClass,
@@ -300,6 +301,31 @@ describe('getThemeCode', () => {
     // auto mode with systemIsDarkMode not set => light
     expect(code.isDarkMode).toBe(false);
     expect(code.bg).toBeTruthy();
+  });
+
+  it('migrates a removed theme name to the default palette', () => {
+    localStorage.setItem('themeColor', 'sepia');
+    localStorage.setItem('themeMode', 'light');
+    const code = getThemeCode();
+    // sepia was removed; resolveThemeName maps it to the default appearance.
+    const defaultLight = themes.find((t) => t.name === 'default')!.colors.light;
+    expect(code.bg).toBe(defaultLight['base-100']);
+    expect(code.isDarkMode).toBe(false);
+  });
+
+  it('honors a dark-locked theme even when themeMode is light', () => {
+    localStorage.setItem('themeColor', 'starry-night');
+    localStorage.setItem('themeMode', 'light');
+    const code = getThemeCode();
+    expect(code.isDarkMode).toBe(true);
+  });
+
+  it('follows system scheme for the default appearance in auto mode', () => {
+    localStorage.setItem('themeColor', 'default');
+    localStorage.setItem('themeMode', 'auto');
+    localStorage.setItem('systemIsDarkMode', 'true');
+    const code = getThemeCode();
+    expect(code.isDarkMode).toBe(true);
   });
 });
 
