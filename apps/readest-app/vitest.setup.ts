@@ -39,6 +39,48 @@ if (typeof globalWithCSS.CSS.escape !== 'function') {
   };
 }
 
+// Node >= 22 ships an experimental global `localStorage` that, without a
+// backing `--localstorage-file`, exposes an object whose `getItem` is not a
+// function. That native global shadows jsdom's storage for unqualified
+// `localStorage` references in app code, crashing any module that reads
+// storage at import time (e.g. the theme store). Install a working in-memory
+// Storage polyfill on both `globalThis` and `window` when the ambient one is
+// unusable.
+if (typeof (globalThis.localStorage as Storage | undefined)?.getItem !== 'function') {
+  const createMemoryStorage = (): Storage => {
+    let store: Record<string, string> = {};
+    return {
+      getItem: (key: string) => (key in store ? store[key]! : null),
+      setItem: (key: string, value: string) => {
+        store[key] = String(value);
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+      clear: () => {
+        store = {};
+      },
+      key: (index: number) => Object.keys(store)[index] ?? null,
+      get length() {
+        return Object.keys(store).length;
+      },
+    } as Storage;
+  };
+  const memoryStorage = createMemoryStorage();
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: memoryStorage,
+    configurable: true,
+    writable: true,
+  });
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'localStorage', {
+      value: memoryStorage,
+      configurable: true,
+      writable: true,
+    });
+  }
+}
+
 // matchMedia mock
 if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = (query: string) =>
