@@ -2,17 +2,25 @@ import { describe, it, expect } from 'vitest';
 import tinycolor from 'tinycolor2';
 import { themes, resolveThemeName, getEffectiveDarkMode } from '@/styles/themes';
 
-const SCENE_THEMES = ['night-pond', 'starry-night', 'desert-sunset'];
-const QUIET_THEMES = ['paper', 'sepia', 'ink', 'contrast'];
+// The hidden dual-mood default: follows the appearance toggle, never shown
+// as a picker card.
+const DEFAULT_THEME = 'default';
+// Mode-locked scene cards, in picker display order.
+const CARD_THEMES = ['paper', 'desert-sunset', 'starry-night', 'night-pond'];
 
 describe('AmpleRead theme list', () => {
-  it('contains exactly the 7 curated themes with paper first', () => {
-    expect(themes.map((t) => t.name)).toEqual([...QUIET_THEMES, ...SCENE_THEMES]);
+  it('contains the hidden default plus the 4 scene cards in display order', () => {
+    expect(themes.map((t) => t.name)).toEqual([DEFAULT_THEME, ...CARD_THEMES]);
   });
 
-  it('scene themes carry a scene field; quiet themes do not', () => {
+  it('default is first (fallback anchor) and the only hidden theme', () => {
+    expect(themes[0]!.name).toBe(DEFAULT_THEME);
+    expect(themes.filter((t) => t.hidden).map((t) => t.name)).toEqual([DEFAULT_THEME]);
+  });
+
+  it('card themes carry a scene field; the default does not', () => {
     for (const t of themes) {
-      if (SCENE_THEMES.includes(t.name)) {
+      if (CARD_THEMES.includes(t.name)) {
         expect(t.scene, `${t.name} should have a scene`).toBeDefined();
       } else {
         expect(t.scene, `${t.name} should be quiet`).toBeUndefined();
@@ -25,11 +33,18 @@ describe('AmpleRead theme list', () => {
       expect(t.name).toMatch(/^[a-z]+(-[a-z]+)*$/);
     }
   });
+
+  it('default shares paper light palette seeds but stays dual-mood', () => {
+    const def = themes.find((t) => t.name === DEFAULT_THEME)!;
+    expect(def.mood).toBeUndefined();
+    expect(def.colors.light).toBeDefined();
+    expect(def.colors.dark).toBeDefined();
+  });
 });
 
 describe('AmpleRead theme contrast (WCAG)', () => {
   for (const mode of ['light', 'dark'] as const) {
-    for (const themeName of [...QUIET_THEMES, ...SCENE_THEMES]) {
+    for (const themeName of [DEFAULT_THEME, ...CARD_THEMES]) {
       it(`${themeName} ${mode}: fg/bg >= 4.5 and primary/bg >= 3.0`, () => {
         const theme = themes.find((t) => t.name === themeName)!;
         const palette = theme.colors[mode];
@@ -43,12 +58,16 @@ describe('AmpleRead theme contrast (WCAG)', () => {
 });
 
 describe('resolveThemeName legacy migration', () => {
-  it('maps every legacy Readest theme name to a current theme', () => {
+  it('maps removed AmpleRead themes and legacy Readest names to current themes', () => {
     const legacyMap: Record<string, string> = {
-      default: 'paper',
-      gray: 'paper',
-      solarized: 'paper',
-      gruvbox: 'sepia',
+      // Removed AmpleRead themes → default appearance
+      sepia: 'default',
+      ink: 'default',
+      contrast: 'default',
+      // Legacy Readest names (pre-collapse)
+      gray: 'default',
+      solarized: 'default',
+      gruvbox: 'default',
       grass: 'night-pond',
       sky: 'starry-night',
       nord: 'starry-night',
@@ -60,18 +79,17 @@ describe('resolveThemeName legacy migration', () => {
     }
   });
 
-  it('passes current theme names through unchanged (including the e-ink default)', () => {
+  it('passes current theme names through unchanged', () => {
     for (const t of themes) {
       expect(resolveThemeName(t.name)).toBe(t.name);
     }
-    expect(resolveThemeName('contrast')).toBe('contrast');
   });
 
-  it('falls back to paper for unknown or missing input', () => {
-    expect(resolveThemeName('no-such-theme')).toBe('paper');
-    expect(resolveThemeName(null)).toBe('paper');
-    expect(resolveThemeName(undefined)).toBe('paper');
-    expect(resolveThemeName('')).toBe('paper');
+  it('falls back to default for unknown or missing input', () => {
+    expect(resolveThemeName('no-such-theme')).toBe('default');
+    expect(resolveThemeName(null)).toBe('default');
+    expect(resolveThemeName(undefined)).toBe('default');
+    expect(resolveThemeName('')).toBe('default');
   });
 
   it('every resolved value is a real theme', () => {
@@ -80,6 +98,7 @@ describe('resolveThemeName legacy migration', () => {
       'default',
       'gray',
       'sepia',
+      'ink',
       'grass',
       'cherry',
       'sky',
@@ -95,33 +114,29 @@ describe('resolveThemeName legacy migration', () => {
 });
 
 describe('single-mood themes', () => {
-  it('assigns fixed moods: sepia light, ink dark, scenes fixed, paper/contrast dual', () => {
+  it('locks every card theme to its mood; default stays dual', () => {
     const moods = Object.fromEntries(themes.map((t) => [t.name, t.mood]));
     expect(moods).toEqual({
-      paper: undefined,
-      sepia: 'light',
-      ink: 'dark',
-      contrast: undefined,
-      'night-pond': 'dark',
-      'starry-night': 'dark',
+      default: undefined,
+      paper: 'light',
       'desert-sunset': 'light',
+      'starry-night': 'dark',
+      'night-pond': 'dark',
     });
   });
 
-  it('getEffectiveDarkMode: fixed-mood themes ignore themeMode and system', () => {
+  it('getEffectiveDarkMode: mode-locked cards ignore themeMode and system', () => {
     expect(getEffectiveDarkMode('night-pond', 'light', false)).toBe(true);
     expect(getEffectiveDarkMode('starry-night', 'auto', false)).toBe(true);
     expect(getEffectiveDarkMode('desert-sunset', 'dark', true)).toBe(false);
-    expect(getEffectiveDarkMode('sepia', 'dark', true)).toBe(false);
-    expect(getEffectiveDarkMode('ink', 'light', false)).toBe(true);
+    expect(getEffectiveDarkMode('paper', 'dark', true)).toBe(false);
   });
 
-  it('getEffectiveDarkMode: dual-mood themes follow themeMode and system', () => {
-    expect(getEffectiveDarkMode('paper', 'dark', false)).toBe(true);
-    expect(getEffectiveDarkMode('paper', 'light', true)).toBe(false);
-    expect(getEffectiveDarkMode('paper', 'auto', true)).toBe(true);
-    expect(getEffectiveDarkMode('paper', 'auto', false)).toBe(false);
-    expect(getEffectiveDarkMode('contrast', 'auto', true)).toBe(true);
+  it('getEffectiveDarkMode: default follows themeMode and system', () => {
+    expect(getEffectiveDarkMode('default', 'dark', false)).toBe(true);
+    expect(getEffectiveDarkMode('default', 'light', true)).toBe(false);
+    expect(getEffectiveDarkMode('default', 'auto', true)).toBe(true);
+    expect(getEffectiveDarkMode('default', 'auto', false)).toBe(false);
   });
 
   it('getEffectiveDarkMode: unknown/custom theme names follow themeMode', () => {

@@ -131,25 +131,27 @@ export const ColorPanel: React.FC<ColorPanelProps> = ({
           className='flex gap-3 overflow-x-auto p-2'
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {themes.map(({ name, label, colors }) => (
-            <button
-              key={name}
-              onClick={() => setThemeColor(name)}
-              className={clsx(
-                'flex flex-shrink-0 flex-col items-center justify-center rounded-lg p-3 transition-all',
-                'h-[40px] min-w-[80px]',
-                themeColor === name
-                  ? 'ring-primary ring-offset-base-200 ring-2 ring-offset-2'
-                  : 'hover:opacity-80',
-              )}
-              style={{
-                backgroundColor: isDarkMode ? colors.dark['base-100'] : colors.light['base-100'],
-                color: isDarkMode ? colors.dark['base-content'] : colors.light['base-content'],
-              }}
-            >
-              <span className='text-xs font-medium'>{_(label)}</span>
-            </button>
-          ))}
+          {themes
+            .filter((t) => !t.hidden)
+            .map(({ name, label, colors }) => (
+              <button
+                key={name}
+                onClick={() => setThemeColor(name)}
+                className={clsx(
+                  'flex flex-shrink-0 flex-col items-center justify-center rounded-lg p-3 transition-all',
+                  'h-[40px] min-w-[80px]',
+                  themeColor === name
+                    ? 'ring-primary ring-offset-base-200 ring-2 ring-offset-2'
+                    : 'hover:opacity-80',
+                )}
+                style={{
+                  backgroundColor: isDarkMode ? colors.dark['base-100'] : colors.light['base-100'],
+                  color: isDarkMode ? colors.dark['base-content'] : colors.light['base-content'],
+                }}
+              >
+                <span className='text-xs font-medium'>{_(label)}</span>
+              </button>
+            ))}
           <button
             onClick={() => cycleThemeMode()}
             className={clsx(

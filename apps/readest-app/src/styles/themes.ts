@@ -37,6 +37,9 @@ export type Theme = {
   // Fixed mood: the theme renders only in this mode and the light/dark/auto
   // toggle does not apply. Absent = dual-mood (follows themeMode).
   mood?: 'light' | 'dark';
+  // Hidden themes back a real daisyUI theme (so build-time CSS exists) but are
+  // never shown as a picker card. The dual-mood `default` appearance uses this.
+  hidden?: boolean;
   isCustomizale?: boolean;
 };
 
@@ -128,46 +131,33 @@ const _ = (stubKey: string) => stubKey;
 
 export const themes = [
   {
-    name: 'paper',
-    label: _('Paper'),
+    // The default appearance: dual-mood, follows the light/dark/auto toggle.
+    // Hidden from the picker (the toggle IS its control); seeded from paper.
+    name: 'default',
+    label: _('Default'),
+    hidden: true,
     colors: {
       light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
       dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
     },
   },
   {
-    name: 'sepia',
-    label: _('Sepia'),
+    name: 'paper',
+    label: _('Paper'),
     mood: 'light',
     colors: {
-      light: generateLightPalette({ fg: '#4a3b2a', bg: '#f3e7d3', primary: '#b0713f' }),
-      dark: generateDarkPalette({ fg: '#ffd595', bg: '#342e25', primary: '#48d1cc' }),
+      light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
+      dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
     },
+    scene: {},
   },
   {
-    name: 'ink',
-    label: _('Ink'),
-    mood: 'dark',
+    name: 'desert-sunset',
+    label: _('Desert Sunset'),
+    mood: 'light',
     colors: {
-      light: generateLightPalette({ fg: '#1a1a1a', bg: '#f2f2f2', primary: '#3a6b58' }),
-      dark: generateDarkPalette({ fg: '#e8e6e1', bg: '#121212', primary: '#8ab4a0' }),
-    },
-  },
-  {
-    name: 'contrast',
-    label: _('Contrast'),
-    colors: {
-      light: generateLightPalette({ fg: '#000000', bg: '#ffffff', primary: '#4488cc' }),
-      dark: generateDarkPalette({ fg: '#ffffff', bg: '#000000', primary: '#88ccee' }),
-    },
-  },
-  {
-    name: 'night-pond',
-    label: _('Night Pond'),
-    mood: 'dark',
-    colors: {
-      light: generateLightPalette({ fg: '#17313a', bg: '#e9f2ec', primary: '#e4574c' }),
-      dark: generateDarkPalette({ fg: '#f2eee3', bg: '#0e3b3a', primary: '#f26d5b' }),
+      light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
+      dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
     },
     scene: {},
   },
@@ -182,26 +172,30 @@ export const themes = [
     scene: {},
   },
   {
-    name: 'desert-sunset',
-    label: _('Desert Sunset'),
-    mood: 'light',
+    name: 'night-pond',
+    label: _('Night Pond'),
+    mood: 'dark',
     colors: {
-      light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
-      dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
+      light: generateLightPalette({ fg: '#17313a', bg: '#e9f2ec', primary: '#e4574c' }),
+      dark: generateDarkPalette({ fg: '#f2eee3', bg: '#0e3b3a', primary: '#f26d5b' }),
     },
     scene: {},
   },
 ] as Theme[];
 
-// Legacy Readest theme names → AmpleRead themes. Saved settings
+// Legacy theme names → current themes. Saved settings
 // (localStorage.themeColor) predate the collapse; resolve at the
 // entry points in themeStore so the rest of the app only ever sees
-// current names.
+// current names. sepia/ink/contrast were removed in the redesign:
+// sepia/ink fold into the default appearance, and contrast migrates
+// to default + High Contrast (the toggle side effect lives in themeStore).
 const LEGACY_THEME_ALIASES: Record<string, string> = {
-  default: 'paper',
-  gray: 'paper',
-  solarized: 'paper',
-  gruvbox: 'sepia',
+  sepia: 'default',
+  ink: 'default',
+  contrast: 'default',
+  gray: 'default',
+  solarized: 'default',
+  gruvbox: 'default',
   grass: 'night-pond',
   sky: 'starry-night',
   nord: 'starry-night',
@@ -210,9 +204,9 @@ const LEGACY_THEME_ALIASES: Record<string, string> = {
 };
 
 export const resolveThemeName = (name: string | null | undefined): string => {
-  if (!name) return 'paper';
+  if (!name) return 'default';
   if (themes.some((t) => t.name === name)) return name;
-  return LEGACY_THEME_ALIASES[name] ?? 'paper';
+  return LEGACY_THEME_ALIASES[name] ?? 'default';
 };
 
 // Effective dark mode for a theme: fixed-mood themes ignore the
