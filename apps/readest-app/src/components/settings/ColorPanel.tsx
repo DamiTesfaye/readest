@@ -30,8 +30,15 @@ import ReadingRulerSettings from './color/ReadingRulerSettings';
 
 const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }) => {
   const _ = useTranslation();
-  const { themeMode, themeColor, isDarkMode, setThemeMode, setThemeColor, saveCustomTheme } =
-    useThemeStore();
+  const {
+    themeMode,
+    themeColor,
+    isDarkMode,
+    systemIsDarkMode,
+    setThemeMode,
+    setThemeColor,
+    saveCustomTheme,
+  } = useThemeStore();
   const { envConfig } = useEnv();
   const { settings, setSettings, saveSettings } = useSettingsStore();
   const { getView, getViewSettings } = useReaderStore();
@@ -223,6 +230,8 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
           {!activeThemeMood && (
             <ThemeModeSelector
               themeMode={themeMode}
+              isDarkMode={isDarkMode}
+              systemIsDarkMode={systemIsDarkMode}
               onThemeModeChange={setThemeMode}
               data-setting-id='settings.color.themeMode'
             />
