@@ -163,6 +163,49 @@ describe('boostContrast (High Contrast)', () => {
     const twice = boostContrast(once, true);
     expect(twice['base-content']).toBe(once['base-content']); // stable
   });
+
+  it('accepts a custom target ratio (AA floor at 4.5)', () => {
+    const lowContrast = {
+      'base-100': '#f0e8d8',
+      'base-200': '#e6dcc8',
+      'base-300': '#d8ccb4',
+      'base-content': '#b0a890', // ~1.6:1 on the bg — well below AA
+      neutral: '#cccccc',
+      'neutral-content': '#333333',
+      primary: '#c15a1f',
+      secondary: '#d97b42',
+      accent: '#e0a060',
+    };
+    const boosted = boostContrast(lowContrast, false, 4.5);
+    const ratio = tinycolor.readability(boosted['base-100'], boosted['base-content']);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+    expect(boosted['base-100']).toBe(lowContrast['base-100']);
+    // The AA target must stop earlier than the AAA default — otherwise the
+    // ratio argument is being ignored.
+    expect(boosted['base-content']).not.toBe(boostContrast(lowContrast, false)['base-content']);
+  });
+
+  it('falls back to the most readable of fg/black/white on a mid-tone trap', () => {
+    // Mid-gray background: pushing a light fg lighter in light mode can never
+    // reach 7:1. The fallback must land on black or white — whichever reads best.
+    const midTone = {
+      'base-100': '#808080',
+      'base-200': '#8a8a8a',
+      'base-300': '#949494',
+      'base-content': '#9a9a9a',
+      neutral: '#777777',
+      'neutral-content': '#222222',
+      primary: '#446688',
+      secondary: '#557799',
+      accent: '#6688aa',
+    };
+    const boosted = boostContrast(midTone, false, 7);
+    const best = tinycolor
+      .mostReadable('#808080', ['#000000', '#ffffff'])
+      .toHexString()
+      .toLowerCase();
+    expect(boosted['base-content'].toLowerCase()).toBe(best);
+  });
 });
 
 describe('single-mood themes', () => {

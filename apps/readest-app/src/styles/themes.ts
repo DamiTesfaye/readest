@@ -128,20 +128,32 @@ export const generateDarkPalette = ({ bg, fg, primary }: BaseColor) => {
 };
 
 // High Contrast boost: push the foreground away from the background until body
-// text clears the WCAG AAA ratio (7:1), keeping the background's character so a
-// scene still reads as itself. Pure and idempotent — a palette already at/above
-// the target is returned with an equivalent foreground.
+// text clears the target ratio, keeping the background's character so a scene
+// still reads as itself. Pure and idempotent — a palette already at/above the
+// target is returned with an equivalent foreground. Defaults to WCAG AAA (7:1),
+// the High Contrast toggle's contract; BODY_MIN_CONTRAST (AA, 4.5:1) is the
+// unconditional floor the palette pipeline applies to every palette.
 const HIGH_CONTRAST_TARGET_RATIO = 7;
+export const BODY_MIN_CONTRAST = 4.5;
 
-export const boostContrast = (palette: Palette, isDarkMode: boolean): Palette => {
+export const boostContrast = (
+  palette: Palette,
+  isDarkMode: boolean,
+  targetRatio: number = HIGH_CONTRAST_TARGET_RATIO,
+): Palette => {
   const bg = palette['base-100'];
   let fg = palette['base-content'];
   let guard = 0;
-  while (tinycolor.readability(bg, fg) < HIGH_CONTRAST_TARGET_RATIO && guard < 100) {
+  while (tinycolor.readability(bg, fg) < targetRatio && guard < 100) {
     fg = isDarkMode
       ? tinycolor(fg).lighten(2).toHexString()
       : tinycolor(fg).darken(2).toHexString();
     guard += 1;
+  }
+  // Mid-tone backgrounds can make the target unreachable in the push
+  // direction; land on whichever of the pushed fg, black, or white reads best.
+  if (tinycolor.readability(bg, fg) < targetRatio) {
+    fg = tinycolor.mostReadable(bg, [fg, '#000000', '#ffffff']).toHexString();
   }
   return { ...palette, 'base-content': fg };
 };
