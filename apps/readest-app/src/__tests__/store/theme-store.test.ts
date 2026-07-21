@@ -34,9 +34,11 @@ describe('themeStore', () => {
     delete window.onNativeColorSchemeChange;
     delete window.__READEST_IS_EINK;
     // Reset store to initial state
+    document.getElementById('theme-background-override')?.remove();
     useThemeStore.setState({
       themeMode: 'auto',
       themeColor: 'default',
+      themeBackground: null,
       highContrast: false,
       systemIsDarkMode: false,
       isDarkMode: false,
@@ -158,6 +160,45 @@ describe('themeStore', () => {
       const mockGetThemeCode = vi.mocked(styleModule.getThemeCode);
       mockGetThemeCode.mockClear();
       useThemeStore.getState().setHighContrast(true);
+      expect(mockGetThemeCode).toHaveBeenCalled();
+    });
+  });
+
+  describe('setThemeBackground', () => {
+    test('persists the background and clears the key when reset to null', () => {
+      useThemeStore.getState().setThemeBackground({ kind: 'preset', index: 4 });
+      expect(JSON.parse(localStorage.getItem('themeBackground')!)).toEqual({
+        kind: 'preset',
+        index: 4,
+      });
+      expect(useThemeStore.getState().themeBackground).toEqual({ kind: 'preset', index: 4 });
+
+      useThemeStore.getState().setThemeBackground(null);
+      expect(localStorage.getItem('themeBackground')).toBeNull();
+      expect(useThemeStore.getState().themeBackground).toBeNull();
+    });
+
+    test('changing theme resets the background (swatches are theme specific)', () => {
+      useThemeStore.getState().setThemeBackground({ kind: 'preset', index: 1 });
+      useThemeStore.getState().setThemeColor('starry-night');
+      expect(useThemeStore.getState().themeBackground).toBeNull();
+      expect(localStorage.getItem('themeBackground')).toBeNull();
+    });
+
+    test('injects and removes the chrome override style tag', () => {
+      useThemeStore.getState().setThemeColor('paper');
+      useThemeStore.getState().setThemeBackground({ kind: 'preset', index: 0 });
+      expect(document.getElementById('theme-background-override')).not.toBeNull();
+
+      useThemeStore.getState().setThemeBackground(null);
+      expect(document.getElementById('theme-background-override')).toBeNull();
+    });
+
+    test('recomputes themeCode so the reader restyles', async () => {
+      const styleModule = await import('@/utils/style');
+      const mockGetThemeCode = vi.mocked(styleModule.getThemeCode);
+      mockGetThemeCode.mockClear();
+      useThemeStore.getState().setThemeBackground({ kind: 'preset', index: 2 });
       expect(mockGetThemeCode).toHaveBeenCalled();
     });
   });

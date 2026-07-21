@@ -16,6 +16,7 @@ vi.mock('@/styles/themes', async (importOriginal) => {
 });
 
 import tinycolor from 'tinycolor2';
+import { getBackgroundSwatches } from '@/styles/backgrounds';
 import type { ViewSettings } from '@/types/book';
 import type { ThemeCode } from '@/utils/style';
 import { themes } from '@/styles/themes';
@@ -329,6 +330,53 @@ describe('getThemeCode', () => {
     localStorage.setItem('systemIsDarkMode', 'true');
     const code = getThemeCode();
     expect(code.isDarkMode).toBe(true);
+  });
+
+  it('resolves a preset background through the mode-appropriate swatch row', () => {
+    localStorage.setItem('themeColor', 'desert-sunset');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'preset', index: 4 }));
+    expect(getThemeCode().bg.toLowerCase()).toBe(
+      getBackgroundSwatches('desert-sunset', false)[4]!.toLowerCase(),
+    );
+  });
+
+  it('carries a background across a mode flip by slot, not by hex', () => {
+    localStorage.setItem('themeColor', 'desert-sunset');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'preset', index: 4 }));
+    localStorage.setItem('themeMode', 'dark');
+    expect(getThemeCode().bg.toLowerCase()).toBe(
+      getBackgroundSwatches('desert-sunset', true)[4]!.toLowerCase(),
+    );
+  });
+
+  it('applies a custom background and keeps it above the AA floor', () => {
+    localStorage.setItem('themeColor', 'paper');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'custom', light: '#e8e4da' }));
+    const { bg, fg } = getThemeCode();
+    expect(bg.toLowerCase()).toBe('#e8e4da');
+    expect(tinycolor.readability(bg, fg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('ignores a stored background for custom themes', () => {
+    localStorage.setItem(
+      'customThemes',
+      JSON.stringify([
+        {
+          name: 'my-custom',
+          label: 'My Custom',
+          colors: {
+            light: { bg: '#fafafa', fg: '#111111', primary: '#cc0000' },
+            dark: { bg: '#111111', fg: '#fafafa', primary: '#ff4444' },
+          },
+        },
+      ]),
+    );
+    localStorage.setItem('themeColor', 'my-custom');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'preset', index: 0 }));
+    expect(getThemeCode().bg).toBe('#fafafa');
   });
 
   it('floors a low-contrast custom theme to AA (4.5:1) even without High Contrast', () => {

@@ -19,6 +19,11 @@ import {
   generateLightPalette,
   generateDarkPalette,
 } from '@/styles/themes';
+import {
+  ThemeBackground,
+  applyBackgroundToPalette,
+  resolveBackgroundColor,
+} from '@/styles/backgrounds';
 import { createFontCSS, CustomFont } from '@/styles/fonts';
 import { getOSPlatform } from './misc';
 import { SCROLL_WRAPPER_CLASS, SCROLL_WRAPPER_FIT_CLASS } from './scrollable';
@@ -806,12 +811,18 @@ export const getThemeCode = () => {
   let systemIsDarkMode = false;
   let highContrast = false;
   let customThemes: CustomTheme[] = [];
+  let themeBackground: ThemeBackground | null = null;
   if (typeof window !== 'undefined') {
     rawColor = localStorage.getItem('themeColor') || 'default';
     themeMode = localStorage.getItem('themeMode') || 'auto';
     systemIsDarkMode = localStorage.getItem('systemIsDarkMode') === 'true';
     highContrast = localStorage.getItem('highContrast') === 'true';
     customThemes = JSON.parse(localStorage.getItem('customThemes') || '[]');
+    try {
+      themeBackground = JSON.parse(localStorage.getItem('themeBackground') || 'null');
+    } catch {
+      themeBackground = null;
+    }
   }
   const customTheme = customThemes.find((theme) => theme.name === rawColor);
   // Custom themes keep their raw name (they are not in the theme list and must
@@ -833,9 +844,17 @@ export const getThemeCode = () => {
   }
   if (!currentTheme) currentTheme = themes[0];
   const basePalette = isDarkMode ? currentTheme!.colors.dark : currentTheme!.colors.light;
+  // Custom themes manage their colors through the ThemeEditor, so the swatch row
+  // does not apply to them.
+  const overrideBg = customTheme
+    ? null
+    : resolveBackgroundColor(themeBackground, themeColor, isDarkMode);
+  const withBackground = overrideBg
+    ? applyBackgroundToPalette(basePalette, overrideBg, isDarkMode)
+    : basePalette;
   // No theme, custom theme, or custom background may render body text below
   // 4.5:1. High Contrast raises the target to AAA.
-  const flooredPalette = boostContrast(basePalette, isDarkMode, BODY_MIN_CONTRAST);
+  const flooredPalette = boostContrast(withBackground, isDarkMode, BODY_MIN_CONTRAST);
   const defaultPalette = highContrast ? boostContrast(flooredPalette, isDarkMode) : flooredPalette;
   return {
     bg: defaultPalette['base-100'],

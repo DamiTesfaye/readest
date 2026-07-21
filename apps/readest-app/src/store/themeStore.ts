@@ -10,6 +10,7 @@ import {
   resolveThemeName,
   getEffectiveDarkMode,
 } from '@/styles/themes';
+import { ThemeBackground, applyBackgroundOverride } from '@/styles/backgrounds';
 import { EnvConfigType, isWebAppPlatform } from '@/services/environment';
 import { SystemSettings } from '@/types/settings';
 import { Insets } from '@/types/misc';
@@ -24,6 +25,7 @@ declare global {
 interface ThemeState {
   themeMode: ThemeMode;
   themeColor: string;
+  themeBackground: ThemeBackground | null;
   highContrast: boolean;
   systemIsDarkMode: boolean;
   themeCode: ThemeCode;
@@ -40,6 +42,7 @@ interface ThemeState {
   getIsDarkMode: () => boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setThemeColor: (color: string) => void;
+  setThemeBackground: (background: ThemeBackground | null) => void;
   setHighContrast: (highContrast: boolean) => void;
   updateAppTheme: (color: keyof Palette) => void;
   saveCustomTheme: (
@@ -57,6 +60,15 @@ const getInitialThemeMode = (): ThemeMode => {
     return (localStorage.getItem('themeMode') as ThemeMode) || 'auto';
   }
   return 'auto';
+};
+
+const getInitialThemeBackground = (): ThemeBackground | null => {
+  if (typeof window === 'undefined' || !localStorage) return null;
+  try {
+    return JSON.parse(localStorage.getItem('themeBackground') || 'null');
+  } catch {
+    return null;
+  }
 };
 
 const getInitialThemeColor = (): string => {
@@ -108,6 +120,8 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     localStorage.setItem('highContrast', initialHighContrast ? 'true' : 'false');
   }
   applyHighContrastAttr(initialHighContrast);
+  const initialThemeBackground = getInitialThemeBackground();
+  applyBackgroundOverride(initialThemeColor, initialThemeBackground);
   const systemIsDarkMode =
     typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const isDarkMode = getEffectiveDarkMode(initialThemeColor, initialThemeMode, systemIsDarkMode);
@@ -116,6 +130,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
   return {
     themeMode: initialThemeMode,
     themeColor: initialThemeColor,
+    themeBackground: initialThemeBackground,
     highContrast: initialHighContrast,
     systemIsDarkMode,
     isDarkMode,
@@ -145,13 +160,30 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     setThemeColor: (color) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeColor', color);
+        // Swatches are derived from the theme's own background, so a stored
+        // slot means nothing once the theme changes.
+        localStorage.removeItem('themeBackground');
       }
+      applyBackgroundOverride(color, null);
       const isDarkMode = getEffectiveDarkMode(color, get().themeMode, get().systemIsDarkMode);
       document.documentElement.setAttribute(
         'data-theme',
         `${color}-${isDarkMode ? 'dark' : 'light'}`,
       );
-      set({ themeColor: color, isDarkMode });
+      set({ themeColor: color, themeBackground: null, isDarkMode });
+      set({ themeCode: getThemeCode() });
+    },
+    setThemeBackground: (background) => {
+      if (typeof window !== 'undefined' && localStorage) {
+        if (background) {
+          localStorage.setItem('themeBackground', JSON.stringify(background));
+        } else {
+          localStorage.removeItem('themeBackground');
+        }
+      }
+      applyBackgroundOverride(get().themeColor, background);
+      set({ themeBackground: background });
+      // Recompute themeCode so the reader restyles book content with the new bg.
       set({ themeCode: getThemeCode() });
     },
     setHighContrast: (highContrast) => {
