@@ -45,19 +45,6 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
   const { settings, setSettings, saveSettings } = useSettingsStore();
   const { getView, getViewSettings } = useReaderStore();
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
-  // Mode-locked themes (scene cards) pin the effective mode. The appearance
-  // controls stay visible; acting on them returns to the default appearance.
-  const activeThemeMood = themes.find((t) => t.name === themeColor)?.mood;
-
-  // Appearance controls double as the escape hatch out of a mode-locked theme:
-  // toggling light/dark or auto while a card is active returns to the default
-  // appearance in the intended mode.
-  const handleThemeModeChange = (mode: 'auto' | 'light' | 'dark') => {
-    if (activeThemeMood) {
-      setThemeColor('default');
-    }
-    setThemeMode(mode);
-  };
 
   // Re-tapping the selected card returns to the default appearance while
   // keeping the current mode preference (themeMode is left untouched).
@@ -251,7 +238,7 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
             themeMode={themeMode}
             isDarkMode={isDarkMode}
             systemIsDarkMode={systemIsDarkMode}
-            onThemeModeChange={handleThemeModeChange}
+            onThemeModeChange={setThemeMode}
             data-setting-id='settings.color.themeMode'
           />
 

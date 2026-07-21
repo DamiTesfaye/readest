@@ -314,11 +314,13 @@ describe('getThemeCode', () => {
     expect(code.isDarkMode).toBe(false);
   });
 
-  it('honors a dark-locked theme even when themeMode is light', () => {
+  it('lets a card theme follow themeMode in both directions', () => {
     localStorage.setItem('themeColor', 'starry-night');
     localStorage.setItem('themeMode', 'light');
-    const code = getThemeCode();
-    expect(code.isDarkMode).toBe(true);
+    expect(getThemeCode().isDarkMode).toBe(false);
+
+    localStorage.setItem('themeMode', 'dark');
+    expect(getThemeCode().isDarkMode).toBe(true);
   });
 
   it('follows system scheme for the default appearance in auto mode', () => {
@@ -337,7 +339,7 @@ describe('getThemeCode', () => {
           name: 'washed-out',
           label: 'Washed Out',
           colors: {
-            light: { fg: '#b8b0a0', bg: '#efe8da', primary: '#c15a1f' }, // ~1.5:1
+            light: { fg: '#b8b0a0', bg: '#efe8da', primary: '#c15a1f' }, // about 1.5:1
             dark: { fg: '#4a4a4a', bg: '#1f1f1f', primary: '#f49e5c' },
           },
         },
@@ -355,7 +357,7 @@ describe('getThemeCode', () => {
     localStorage.setItem('themeMode', 'light');
     localStorage.setItem('highContrast', 'false');
     const { fg } = getThemeCode();
-    // desert-sunset light fg seed — floor must be a no-op for compliant themes
+    // desert-sunset light fg seed. The floor must be a no-op for compliant themes.
     expect(fg.toLowerCase()).toBe('#4a3222');
   });
 

@@ -123,15 +123,19 @@ describe('themeStore', () => {
       expect(document.documentElement.getAttribute('data-theme')).toBe('ocean-dark');
     });
 
-    test('a mode-locked theme forces its mood regardless of themeMode', () => {
-      // starry-night is dark-locked: isDarkMode true even in light mode.
+    test('a card theme follows themeMode instead of pinning a mood', () => {
       useThemeStore.setState({ themeMode: 'light' });
+      useThemeStore.getState().setThemeColor('starry-night');
+      expect(useThemeStore.getState().isDarkMode).toBe(false);
+      expect(document.documentElement.getAttribute('data-theme')).toBe('starry-night-light');
+
+      useThemeStore.setState({ themeMode: 'dark' });
       useThemeStore.getState().setThemeColor('starry-night');
       expect(useThemeStore.getState().isDarkMode).toBe(true);
       expect(document.documentElement.getAttribute('data-theme')).toBe('starry-night-dark');
     });
 
-    test('selecting a locked theme leaves themeMode untouched', () => {
+    test('selecting a card theme leaves themeMode untouched', () => {
       useThemeStore.setState({ themeMode: 'auto' });
       useThemeStore.getState().setThemeColor('night-pond');
       expect(useThemeStore.getState().themeMode).toBe('auto');

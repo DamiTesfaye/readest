@@ -833,8 +833,8 @@ export const getThemeCode = () => {
   }
   if (!currentTheme) currentTheme = themes[0];
   const basePalette = isDarkMode ? currentTheme!.colors.dark : currentTheme!.colors.light;
-  // Unconditional AA floor: no theme, custom theme, or (later) custom background
-  // may render body text below 4.5:1. High Contrast raises the target to AAA.
+  // No theme, custom theme, or custom background may render body text below
+  // 4.5:1. High Contrast raises the target to AAA.
   const flooredPalette = boostContrast(basePalette, isDarkMode, BODY_MIN_CONTRAST);
   const defaultPalette = highContrast ? boostContrast(flooredPalette, isDarkMode) : flooredPalette;
   return {

@@ -5,7 +5,7 @@ import { themes, resolveThemeName, getEffectiveDarkMode, boostContrast } from '@
 // The hidden dual-mood default: follows the appearance toggle, never shown
 // as a picker card.
 const DEFAULT_THEME = 'default';
-// Mode-locked scene cards, in picker display order.
+// Dual-mood scene cards, in picker display order.
 const CARD_THEMES = ['paper', 'desert-sunset', 'starry-night', 'night-pond'];
 
 describe('AmpleRead theme list', () => {
@@ -169,7 +169,7 @@ describe('boostContrast (High Contrast)', () => {
       'base-100': '#f0e8d8',
       'base-200': '#e6dcc8',
       'base-300': '#d8ccb4',
-      'base-content': '#b0a890', // ~1.6:1 on the bg — well below AA
+      'base-content': '#b0a890', // about 1.6:1 on the bg, well below AA
       neutral: '#cccccc',
       'neutral-content': '#333333',
       primary: '#c15a1f',
@@ -180,14 +180,14 @@ describe('boostContrast (High Contrast)', () => {
     const ratio = tinycolor.readability(boosted['base-100'], boosted['base-content']);
     expect(ratio).toBeGreaterThanOrEqual(4.5);
     expect(boosted['base-100']).toBe(lowContrast['base-100']);
-    // The AA target must stop earlier than the AAA default — otherwise the
-    // ratio argument is being ignored.
+    // The AA target must stop earlier than the AAA default, otherwise the ratio
+    // argument is being ignored.
     expect(boosted['base-content']).not.toBe(boostContrast(lowContrast, false)['base-content']);
   });
 
   it('falls back to the most readable of fg/black/white on a mid-tone trap', () => {
-    // Mid-gray background: pushing a light fg lighter in light mode can never
-    // reach 7:1. The fallback must land on black or white — whichever reads best.
+    // On a mid-gray background, darkening a light fg can never reach 7:1, so the
+    // fallback must land on whichever of black or white reads best.
     const midTone = {
       'base-100': '#808080',
       'base-200': '#8a8a8a',
@@ -208,33 +208,23 @@ describe('boostContrast (High Contrast)', () => {
   });
 });
 
-describe('single-mood themes', () => {
-  it('locks every card theme to its mood; default stays dual', () => {
-    const moods = Object.fromEntries(themes.map((t) => [t.name, t.mood]));
-    expect(moods).toEqual({
-      default: undefined,
-      paper: 'light',
-      'desert-sunset': 'light',
-      'starry-night': 'dark',
-      'night-pond': 'dark',
-    });
+describe('dual-mood themes', () => {
+  it('no theme is mode-locked — every card follows the appearance toggle', () => {
+    for (const t of themes) {
+      expect(t.mood, `${t.name} must be dual-mood`).toBeUndefined();
+    }
   });
 
-  it('getEffectiveDarkMode: mode-locked cards ignore themeMode and system', () => {
-    expect(getEffectiveDarkMode('night-pond', 'light', false)).toBe(true);
-    expect(getEffectiveDarkMode('starry-night', 'auto', false)).toBe(true);
-    expect(getEffectiveDarkMode('desert-sunset', 'dark', true)).toBe(false);
-    expect(getEffectiveDarkMode('paper', 'dark', true)).toBe(false);
+  it('getEffectiveDarkMode follows themeMode and system for every theme', () => {
+    for (const name of [DEFAULT_THEME, ...CARD_THEMES]) {
+      expect(getEffectiveDarkMode(name, 'dark', false)).toBe(true);
+      expect(getEffectiveDarkMode(name, 'light', true)).toBe(false);
+      expect(getEffectiveDarkMode(name, 'auto', true)).toBe(true);
+      expect(getEffectiveDarkMode(name, 'auto', false)).toBe(false);
+    }
   });
 
-  it('getEffectiveDarkMode: default follows themeMode and system', () => {
-    expect(getEffectiveDarkMode('default', 'dark', false)).toBe(true);
-    expect(getEffectiveDarkMode('default', 'light', true)).toBe(false);
-    expect(getEffectiveDarkMode('default', 'auto', true)).toBe(true);
-    expect(getEffectiveDarkMode('default', 'auto', false)).toBe(false);
-  });
-
-  it('getEffectiveDarkMode: unknown/custom theme names follow themeMode', () => {
+  it('custom/unknown theme names follow themeMode', () => {
     expect(getEffectiveDarkMode('my-custom-theme', 'dark', false)).toBe(true);
     expect(getEffectiveDarkMode('my-custom-theme', 'auto', false)).toBe(false);
   });

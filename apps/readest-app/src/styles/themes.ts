@@ -127,12 +127,10 @@ export const generateDarkPalette = ({ bg, fg, primary }: BaseColor) => {
   } as Palette;
 };
 
-// High Contrast boost: push the foreground away from the background until body
-// text clears the target ratio, keeping the background's character so a scene
-// still reads as itself. Pure and idempotent — a palette already at/above the
-// target is returned with an equivalent foreground. Defaults to WCAG AAA (7:1),
-// the High Contrast toggle's contract; BODY_MIN_CONTRAST (AA, 4.5:1) is the
-// unconditional floor the palette pipeline applies to every palette.
+// Pushes the foreground away from the background until body text clears the
+// target ratio, so a scene keeps its own background character instead of being
+// flattened to black or white. Defaults to WCAG AAA (7:1) for the High Contrast
+// toggle; BODY_MIN_CONTRAST (AA, 4.5:1) is the floor applied to every palette.
 const HIGH_CONTRAST_TARGET_RATIO = 7;
 export const BODY_MIN_CONTRAST = 4.5;
 
@@ -150,8 +148,8 @@ export const boostContrast = (
       : tinycolor(fg).darken(2).toHexString();
     guard += 1;
   }
-  // Mid-tone backgrounds can make the target unreachable in the push
-  // direction; land on whichever of the pushed fg, black, or white reads best.
+  // Mid-tone backgrounds can put the target out of reach in the push direction,
+  // so fall back to whichever of the pushed fg, black, or white reads best.
   if (tinycolor.readability(bg, fg) < targetRatio) {
     fg = tinycolor.mostReadable(bg, [fg, '#000000', '#ffffff']).toHexString();
   }
@@ -175,7 +173,6 @@ export const themes = [
   {
     name: 'paper',
     label: _('Paper'),
-    mood: 'light',
     colors: {
       light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
       dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
@@ -185,7 +182,6 @@ export const themes = [
   {
     name: 'desert-sunset',
     label: _('Desert Sunset'),
-    mood: 'light',
     colors: {
       light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
       dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
@@ -195,7 +191,6 @@ export const themes = [
   {
     name: 'starry-night',
     label: _('Starry Night'),
-    mood: 'dark',
     colors: {
       light: generateLightPalette({ fg: '#1c2b4a', bg: '#eef1f8', primary: '#c55a3d' }),
       dark: generateDarkPalette({ fg: '#f4e9da', bg: '#16294a', primary: '#f2a48d' }),
@@ -205,7 +200,6 @@ export const themes = [
   {
     name: 'night-pond',
     label: _('Night Pond'),
-    mood: 'dark',
     colors: {
       light: generateLightPalette({ fg: '#17313a', bg: '#e9f2ec', primary: '#e4574c' }),
       dark: generateDarkPalette({ fg: '#f2eee3', bg: '#0e3b3a', primary: '#f26d5b' }),
