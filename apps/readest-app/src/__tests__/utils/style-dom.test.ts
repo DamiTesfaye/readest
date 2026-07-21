@@ -15,6 +15,7 @@ vi.mock('@/styles/themes', async (importOriginal) => {
   };
 });
 
+import tinycolor from 'tinycolor2';
 import type { ViewSettings } from '@/types/book';
 import type { ThemeCode } from '@/utils/style';
 import { themes } from '@/styles/themes';
@@ -326,6 +327,36 @@ describe('getThemeCode', () => {
     localStorage.setItem('systemIsDarkMode', 'true');
     const code = getThemeCode();
     expect(code.isDarkMode).toBe(true);
+  });
+
+  it('floors a low-contrast custom theme to AA (4.5:1) even without High Contrast', () => {
+    localStorage.setItem(
+      'customThemes',
+      JSON.stringify([
+        {
+          name: 'washed-out',
+          label: 'Washed Out',
+          colors: {
+            light: { fg: '#b8b0a0', bg: '#efe8da', primary: '#c15a1f' }, // ~1.5:1
+            dark: { fg: '#4a4a4a', bg: '#1f1f1f', primary: '#f49e5c' },
+          },
+        },
+      ]),
+    );
+    localStorage.setItem('themeColor', 'washed-out');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('highContrast', 'false');
+    const { bg, fg } = getThemeCode();
+    expect(tinycolor.readability(bg, fg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps built-in palettes byte-identical (they already pass AA)', () => {
+    localStorage.setItem('themeColor', 'desert-sunset');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('highContrast', 'false');
+    const { fg } = getThemeCode();
+    // desert-sunset light fg seed — floor must be a no-op for compliant themes
+    expect(fg.toLowerCase()).toBe('#4a3222');
   });
 
   it('boosts foreground contrast for book content when highContrast is on', async () => {

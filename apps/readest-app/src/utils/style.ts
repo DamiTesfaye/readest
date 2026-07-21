@@ -15,6 +15,7 @@ import {
   resolveThemeName,
   getEffectiveDarkMode,
   boostContrast,
+  BODY_MIN_CONTRAST,
   generateLightPalette,
   generateDarkPalette,
 } from '@/styles/themes';
@@ -832,7 +833,10 @@ export const getThemeCode = () => {
   }
   if (!currentTheme) currentTheme = themes[0];
   const basePalette = isDarkMode ? currentTheme!.colors.dark : currentTheme!.colors.light;
-  const defaultPalette = highContrast ? boostContrast(basePalette, isDarkMode) : basePalette;
+  // Unconditional AA floor: no theme, custom theme, or (later) custom background
+  // may render body text below 4.5:1. High Contrast raises the target to AAA.
+  const flooredPalette = boostContrast(basePalette, isDarkMode, BODY_MIN_CONTRAST);
+  const defaultPalette = highContrast ? boostContrast(flooredPalette, isDarkMode) : flooredPalette;
   return {
     bg: defaultPalette['base-100'],
     fg: defaultPalette['base-content'],
