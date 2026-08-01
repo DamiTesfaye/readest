@@ -46,6 +46,17 @@ export const getBackgroundSwatches = (themeName: string, isDarkMode: boolean): s
   ];
 };
 
+// Selecting the theme's own bg slot is stored as null, so the choice survives
+// later tweaks to the swatch derivation.
+export const getSelectedSwatchIndex = (background: ThemeBackground | null): number => {
+  if (!background) return BASE_SWATCH_INDEX;
+  return background.kind === 'preset' ? background.index : -1;
+};
+
+export const backgroundForSwatchTap = (index: number): ThemeBackground | null => {
+  return index === BASE_SWATCH_INDEX ? null : { kind: 'preset', index };
+};
+
 export const resolveBackgroundColor = (
   background: ThemeBackground | null,
   themeName: string,

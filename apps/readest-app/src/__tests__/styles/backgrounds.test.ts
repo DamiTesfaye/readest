@@ -4,7 +4,9 @@ import { themes, boostContrast, BODY_MIN_CONTRAST } from '@/styles/themes';
 import {
   BACKGROUND_SWATCH_COUNT,
   BASE_SWATCH_INDEX,
+  backgroundForSwatchTap,
   getBackgroundSwatches,
+  getSelectedSwatchIndex,
   resolveBackgroundColor,
   applyBackgroundToPalette,
 } from '@/styles/backgrounds';
@@ -68,6 +70,23 @@ describe('resolveBackgroundColor', () => {
     const bg = { kind: 'custom' as const, light: '#f6e7cf' };
     expect(resolveBackgroundColor(bg, 'desert-sunset', false)).toBe('#f6e7cf');
     expect(resolveBackgroundColor(bg, 'desert-sunset', true)).toBeNull();
+  });
+});
+
+describe('swatch row selection helpers', () => {
+  it('null (theme default) highlights the base slot', () => {
+    expect(getSelectedSwatchIndex(null)).toBe(BASE_SWATCH_INDEX);
+  });
+
+  it('presets highlight their slot; custom highlights nothing', () => {
+    expect(getSelectedSwatchIndex({ kind: 'preset', index: 1 })).toBe(1);
+    expect(getSelectedSwatchIndex({ kind: 'custom', light: '#ffffff' })).toBe(-1);
+  });
+
+  it('tapping the base slot stores null (theme default), others store a preset', () => {
+    expect(backgroundForSwatchTap(BASE_SWATCH_INDEX)).toBeNull();
+    expect(backgroundForSwatchTap(0)).toEqual({ kind: 'preset', index: 0 });
+    expect(backgroundForSwatchTap(5)).toEqual({ kind: 'preset', index: 5 });
   });
 });
 

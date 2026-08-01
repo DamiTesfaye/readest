@@ -24,6 +24,7 @@ import { HIGHLIGHT_COLOR_HEX } from '@/services/constants';
 import ThemeEditor from './color/ThemeEditor';
 import ThemeModeSelector from './color/ThemeModeSelector';
 import ThemeColorSelector from './color/ThemeColorSelector';
+import BackgroundSwatchRow from './color/BackgroundSwatchRow';
 import HighlightColorsEditor from './color/HighlightColorsEditor';
 import CodeHighlightingSettings from './color/CodeHighlightingSettings';
 import ReadingRulerSettings from './color/ReadingRulerSettings';
@@ -38,6 +39,7 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
     systemIsDarkMode,
     setThemeMode,
     setThemeColor,
+    setThemeBackground,
     setHighContrast,
     saveCustomTheme,
   } = useThemeStore();
@@ -93,6 +95,7 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
     });
     setThemeColor('default');
     setThemeMode('auto');
+    setThemeBackground(null);
     // Restore the platform's High Contrast default (on for e-ink screens).
     setHighContrast(Boolean(window.__READEST_IS_EINK));
     setCustomHighlightColors(HIGHLIGHT_COLOR_HEX);
@@ -251,6 +254,8 @@ const ColorPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset
             onCreateTheme={() => setShowCustomThemeEditor(true)}
             data-setting-id='settings.color.themeColor'
           />
+
+          {themes.some((t) => t.name === themeColor) && <BackgroundSwatchRow />}
 
           <label
             data-setting-id='settings.color.invertImageInDarkMode'
