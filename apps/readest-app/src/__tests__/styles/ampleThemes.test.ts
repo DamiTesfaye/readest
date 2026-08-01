@@ -6,11 +6,26 @@ import { themes, resolveThemeName, getEffectiveDarkMode, boostContrast } from '@
 // as a picker card.
 const DEFAULT_THEME = 'default';
 // Dual-mood scene cards, in picker display order.
-const CARD_THEMES = ['paper', 'desert-sunset', 'starry-night', 'night-pond'];
+const CARD_THEMES = [
+  'paper',
+  'desert-sunset',
+  'starry-night',
+  'forest-pond',
+  'ocean-wave',
+  'cherry-bloom',
+];
 
 describe('AmpleRead theme list', () => {
-  it('contains the hidden default plus the 4 scene cards in display order', () => {
+  it('contains the hidden default plus the 6 scene cards in display order', () => {
     expect(themes.map((t) => t.name)).toEqual([DEFAULT_THEME, ...CARD_THEMES]);
+  });
+
+  it('displays the AmpleRead card labels', () => {
+    const labels = Object.fromEntries(themes.map((t) => [t.name, t.label]));
+    expect(labels['paper']).toBe('Neue Paper');
+    expect(labels['forest-pond']).toBe('Forest Pond');
+    expect(labels['ocean-wave']).toBe('Ocean Wave');
+    expect(labels['cherry-bloom']).toBe('Cherry Bloom');
   });
 
   it('default is first (fallback anchor) and the only hidden theme', () => {
@@ -68,7 +83,8 @@ describe('resolveThemeName legacy migration', () => {
       gray: 'default',
       solarized: 'default',
       gruvbox: 'default',
-      grass: 'night-pond',
+      grass: 'forest-pond',
+      'night-pond': 'forest-pond',
       sky: 'starry-night',
       nord: 'starry-night',
       cherry: 'desert-sunset',
@@ -107,6 +123,7 @@ describe('resolveThemeName legacy migration', () => {
       'nord',
       'contrast',
       'sunset',
+      'night-pond',
     ]) {
       expect(names.has(resolveThemeName(legacy))).toBe(true);
     }
@@ -114,14 +131,14 @@ describe('resolveThemeName legacy migration', () => {
 });
 
 describe('boostContrast (High Contrast)', () => {
-  it('lifts night-pond dark to AAA (>=7:1) while keeping its background', () => {
-    const nightPondDark = themes.find((t) => t.name === 'night-pond')!.colors.dark;
-    const boosted = boostContrast(nightPondDark, true);
+  it('lifts forest-pond dark to AAA (>=7:1) while keeping its background', () => {
+    const forestPondDark = themes.find((t) => t.name === 'forest-pond')!.colors.dark;
+    const boosted = boostContrast(forestPondDark, true);
     expect(
       tinycolor.readability(boosted['base-100'], boosted['base-content']),
     ).toBeGreaterThanOrEqual(7);
     // Background keeps its scene character — not forced to pure black.
-    expect(boosted['base-100']).toBe(nightPondDark['base-100']);
+    expect(boosted['base-100']).toBe(forestPondDark['base-100']);
     expect(tinycolor(boosted['base-100']).toHexString()).not.toBe('#000000');
   });
 

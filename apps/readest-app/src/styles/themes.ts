@@ -172,7 +172,7 @@ export const themes = [
   },
   {
     name: 'paper',
-    label: _('Paper'),
+    label: _('Neue Paper'),
     colors: {
       light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
       dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
@@ -198,11 +198,29 @@ export const themes = [
     scene: {},
   },
   {
-    name: 'night-pond',
-    label: _('Night Pond'),
+    name: 'forest-pond',
+    label: _('Forest Pond'),
     colors: {
-      light: generateLightPalette({ fg: '#17313a', bg: '#e9f2ec', primary: '#e4574c' }),
-      dark: generateDarkPalette({ fg: '#f2eee3', bg: '#0e3b3a', primary: '#f26d5b' }),
+      light: generateLightPalette({ fg: '#1e3327', bg: '#e9f1e6', primary: '#c34633' }),
+      dark: generateDarkPalette({ fg: '#f2eee3', bg: '#16301f', primary: '#f26d5b' }),
+    },
+    scene: {},
+  },
+  {
+    name: 'ocean-wave',
+    label: _('Ocean Wave'),
+    colors: {
+      light: generateLightPalette({ fg: '#1d3a4f', bg: '#e7f0f6', primary: '#2f6d99' }),
+      dark: generateDarkPalette({ fg: '#dfeaf2', bg: '#143247', primary: '#85b8d8' }),
+    },
+    scene: {},
+  },
+  {
+    name: 'cherry-bloom',
+    label: _('Cherry Bloom'),
+    colors: {
+      light: generateLightPalette({ fg: '#46262a', bg: '#f9ecec', primary: '#b64d62' }),
+      dark: generateDarkPalette({ fg: '#f5e6e2', bg: '#382125', primary: '#e59aa4' }),
     },
     scene: {},
   },
@@ -221,7 +239,8 @@ const LEGACY_THEME_ALIASES: Record<string, string> = {
   gray: 'default',
   solarized: 'default',
   gruvbox: 'default',
-  grass: 'night-pond',
+  grass: 'forest-pond',
+  'night-pond': 'forest-pond',
   sky: 'starry-night',
   nord: 'starry-night',
   cherry: 'desert-sunset',

@@ -11,7 +11,15 @@ import {
   applyBackgroundToPalette,
 } from '@/styles/backgrounds';
 
-const CARD_THEMES = ['default', 'paper', 'desert-sunset', 'starry-night', 'night-pond'];
+const CARD_THEMES = [
+  'default',
+  'paper',
+  'desert-sunset',
+  'starry-night',
+  'forest-pond',
+  'ocean-wave',
+  'cherry-bloom',
+];
 
 describe('getBackgroundSwatches', () => {
   for (const name of CARD_THEMES) {
