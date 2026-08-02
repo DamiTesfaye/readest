@@ -9,20 +9,12 @@ import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useSettingsStore } from '@/store/settingsStore';
 import { useTrafficLightStore } from '@/store/trafficLightStore';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
-import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { useSpatialNavigation } from '@/app/reader/hooks/useSpatialNavigation';
-import { getHighlightColorHex } from '../utils/annotatorUtil';
-import { annotationToolQuickActions } from './annotator/AnnotationTools';
-import { AnnotationToolType } from '@/types/annotator';
-import { saveViewSettings } from '@/helpers/settings';
-import { HighlighterIcon } from '@/components/HighlighterIcon';
 import Dropdown from '@/components/Dropdown';
 import ModalPortal from '@/components/ModalPortal';
 import WindowButtons from '@/components/WindowButtons';
-import QuickActionMenu from './annotator/QuickActionMenu';
 import BookmarkToggler from './BookmarkToggler';
 import NotebookToggler from './NotebookToggler';
 import SettingsToggler from './SettingsToggler';
@@ -60,8 +52,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   onDropdownOpenChange,
 }) => {
   const _ = useTranslation();
-  const { envConfig, appService } = useEnv();
-  const { settings } = useSettingsStore();
+  const { appService } = useEnv();
   const headerRef = useRef<HTMLDivElement>(null);
   const { isTrafficLightVisible } = useTrafficLight(headerRef);
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
@@ -75,9 +66,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     toggleSideBar,
   } = useSidebarStore();
   const { isNotebookVisible, toggleNotebook } = useNotebookStore();
-  const { getView, getViewSettings, getViewState, setHoveredBookKey } = useReaderStore();
+  const { getView, getViewState, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
-  const viewSettings = getViewSettings(bookKey);
   const bookData = getBookData(bookKey);
   const bookConfig = getConfig(bookKey);
   const lastSyncedAt =
@@ -89,31 +79,14 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const themeFontsAnchorRef = useRef<HTMLButtonElement>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
-  const iconSize18 = useResponsiveSize(18);
 
   const docs = view?.renderer.getContents() ?? [];
   const pointerInDoc = docs.some(({ doc }) => doc?.body?.style.cursor === 'pointer');
-
-  const enableAnnotationQuickActions = viewSettings?.enableAnnotationQuickActions;
-  const annotationQuickActionButton =
-    annotationToolQuickActions.find(
-      (button) => button.type === viewSettings?.annotationQuickAction,
-    ) || annotationToolQuickActions[0]!;
-  const annotationQuickAction = viewSettings?.annotationQuickAction;
-  const AnnotationToolQuickActionIcon = annotationQuickActionButton.Icon;
-  const highlightStyle = settings.globalReadSettings.highlightStyle;
-  const highlightColor = settings.globalReadSettings.highlightStyles[highlightStyle];
-  const highlightHexColor = getHighlightColorHex(settings, highlightColor);
 
   const handleToggleDropdown = (isOpen: boolean) => {
     setIsDropdownOpen(isOpen);
     onDropdownOpenChange?.(isOpen);
     if (!isOpen) setHoveredBookKey('');
-  };
-
-  const handleAnnotationQuickActionSelect = (action: AnnotationToolType | null) => {
-    if (viewSettings?.annotationQuickAction === action) action = null;
-    saveViewSettings(envConfig, bookKey, 'annotationQuickAction', action, false, true);
   };
 
   const chromeColor = getChromeColor(themeColor, isDarkMode);
@@ -258,7 +231,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           }
         }}
       >
-        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2'>
+        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2 sm:bg-transparent'>
           <div
             className='flex min-w-0 items-center gap-x-4 overflow-x-auto max-[350px]:gap-x-2'
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -287,7 +260,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 <img
                   src={getToolbarIconSrc('library', themeColor, isDarkMode)}
                   alt=''
-                  className='h-6 w-6 object-contain'
+                  className='h-5 w-5 object-contain'
                 />
               </button>
               <button
@@ -318,48 +291,13 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               <TranslationToggler bookKey={bookKey} />
             </div>
           </div>
-          {enableAnnotationQuickActions && (
-            <Dropdown
-              label={
-                annotationQuickAction
-                  ? _('Disable Quick Action')
-                  : _('Enable Quick Action on Selection')
-              }
-              className='exclude-title-bar-mousedown dropdown-bottom dropdown-center'
-              menuClassName='!relative'
-              buttonClassName={clsx(
-                'btn btn-ghost h-8 min-h-8 w-8 p-0',
-                viewSettings?.annotationQuickAction && 'bg-base-300/50',
-              )}
-              toggleButton={
-                annotationQuickAction === 'highlight' || annotationQuickAction === null ? (
-                  <HighlighterIcon
-                    size={iconSize18}
-                    tipColor={annotationQuickAction === null ? '#8F8F8F' : highlightHexColor}
-                    tipStyle={{
-                      opacity: annotationQuickAction === null ? 0.5 : 0.8,
-                      mixBlendMode: isDarkMode ? 'screen' : 'multiply',
-                    }}
-                  />
-                ) : (
-                  <AnnotationToolQuickActionIcon size={iconSize18} />
-                )
-              }
-              onToggle={handleToggleDropdown}
-            >
-              <QuickActionMenu
-                selectedAction={viewSettings.annotationQuickAction}
-                onActionSelect={handleAnnotationQuickActionSelect}
-              />
-            </Dropdown>
-          )}
         </div>
 
         <div
           role='contentinfo'
           aria-label={_('Title') + ' - ' + bookTitle}
           className={clsx(
-            'header-title z-15 bg-base-100 pointer-events-none hidden flex-1 items-center justify-center sm:flex',
+            'header-title z-15 bg-base-100 pointer-events-none hidden flex-1 items-center justify-center sm:flex sm:bg-transparent',
             !windowButtonVisible && 'absolute inset-0',
             isHeaderCompact && '!hidden',
           )}
@@ -383,7 +321,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               className='btn btn-ghost h-8 min-h-8 w-8 p-0'
               onClick={handleToggleTTS}
             >
-              <img src='/images/toolbar/amply.svg' alt='' className='h-6 w-6 object-contain' />
+              <img src='/images/toolbar/amply.svg' alt='' className='h-5 w-5 object-contain' />
             </button>
             <button
               ref={themeFontsAnchorRef}
@@ -396,12 +334,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 <img
                   src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
                   alt=''
-                  className='h-4 object-contain'
+                  className='h-3.5 object-contain'
                 />
                 <img
                   src={getThemeFontsTriggerSrc('large', themeColor, isDarkMode)}
                   alt=''
-                  className='h-6 object-contain'
+                  className='h-5 object-contain'
                 />
               </span>
             </button>
@@ -413,7 +351,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               <img
                 src={getToolbarIconSrc('bookmark', themeColor, isDarkMode)}
                 alt=''
-                className='h-6 w-6 object-contain'
+                className='h-5 w-5 object-contain'
               />
             </button>
           </div>

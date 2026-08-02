@@ -17,7 +17,6 @@ import { Overlay } from '@/components/Overlay';
 import useShortcuts from '@/hooks/useShortcuts';
 import SidebarHeader from './Header';
 import SidebarContent from './Content';
-import BookCard from './BookCard';
 import useSidebar from '../../hooks/useSidebar';
 import SearchBar from './SearchBar';
 import SearchResults from './SearchResults';
@@ -32,7 +31,7 @@ const SideBar = ({}) => {
   const { updateAppTheme, safeAreaInsets, systemUIVisible, statusBarHeight } = useThemeStore();
   const { sideBarBookKey, setSideBarBookKey, getSearchNavState, setSearchTerm, clearSearch } =
     useSidebarStore();
-  const { isSearchBarVisible, setSearchBarVisible } = useSidebarStore();
+  const { setSearchBarVisible } = useSidebarStore();
   const searchNavState = sideBarBookKey ? getSearchNavState(sideBarBookKey) : null;
   const { searchTerm = '', searchResults = null } = searchNavState || {};
   const { getBookData } = useBookDataStore();
@@ -47,11 +46,7 @@ const SideBar = ({}) => {
     getSideBarWidth,
     setSideBarVisible,
     handleSideBarResize,
-    handleSideBarTogglePin,
-  } = useSidebar(
-    settings.globalReadSettings.sideBarWidth,
-    isMobile ? false : settings.globalReadSettings.isSideBarPinned,
-  );
+  } = useSidebar(settings.globalReadSettings.sideBarWidth, false);
 
   const onSearchEvent = async (event: CustomEvent) => {
     const { term, bookKey } = event.detail;
@@ -121,14 +116,6 @@ const SideBar = ({}) => {
     setSideBarVisible(false);
   };
 
-  const handleToggleSearchBar = () => {
-    if (isSearchBarVisible) {
-      handleHideSearchBar();
-    } else {
-      setSearchBarVisible(true);
-    }
-  };
-
   const handleShowSearchBar = useCallback(() => {
     setTimeout(() => {
       setSideBarVisible(true);
@@ -171,7 +158,7 @@ const SideBar = ({}) => {
   if (!bookData || !bookData.book || !bookData.bookDoc) {
     return null;
   }
-  const { book, bookDoc } = bookData;
+  const { bookDoc } = bookData;
   const languageDir = getBookDirFromLanguage(bookDoc.metadata.language);
 
   return isSideBarVisible ? (
@@ -248,30 +235,18 @@ const SideBar = ({}) => {
               <div className='bg-base-content/50 h-1 w-10 rounded-full'></div>
             </div>
           )}
-          <SidebarHeader
-            bookKey={sideBarBookKey!}
-            isPinned={isSideBarPinned}
-            isSearchBarVisible={isSearchBarVisible}
-            onClose={() => setSideBarVisible(false)}
-            onTogglePin={handleSideBarTogglePin}
-            onToggleSearchBar={handleToggleSearchBar}
-          />
-          <div
-            className={clsx('search-bar', {
-              'search-bar-visible': isSearchBarVisible,
-            })}
-          >
-            <SearchBar
-              isVisible={isSearchBarVisible}
-              bookKey={sideBarBookKey!}
-              onHideSearchBar={handleHideSearchBar}
-            />
-          </div>
-          <div className='border-base-300/50 border-b px-3'>
-            <BookCard book={book} />
+          <div className='flex items-center pe-2'>
+            <SidebarHeader bookKey={sideBarBookKey!} onClose={() => setSideBarVisible(false)} />
+            <div className='search-bar search-bar-visible min-w-0 flex-1'>
+              <SearchBar
+                isVisible={true}
+                bookKey={sideBarBookKey!}
+                onHideSearchBar={handleHideSearchBar}
+              />
+            </div>
           </div>
         </div>
-        {isSearchBarVisible && searchResults ? (
+        {searchTerm && searchResults ? (
           <SearchResults
             bookKey={sideBarBookKey!}
             results={searchResults}

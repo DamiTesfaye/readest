@@ -248,14 +248,16 @@ const BookCellInner: React.FC<BookCellProps> = ({
       <SearchResultsNav bookKey={bookKey} gridInsets={gridInsets} />
       <BooknotesNav bookKey={bookKey} gridInsets={gridInsets} toc={bookDoc.toc || []} />
       <FootnotePopup bookKey={bookKey} bookDoc={bookDoc} />
-      <FooterBar
-        bookKey={bookKey}
-        bookFormat={book.format}
-        section={section}
-        pageinfo={pageinfo}
-        isHoveredAnim={false}
-        gridInsets={gridInsets}
-      />
+      {window.innerWidth < 640 && (
+        <FooterBar
+          bookKey={bookKey}
+          bookFormat={book.format}
+          section={section}
+          pageinfo={pageinfo}
+          isHoveredAnim={false}
+          gridInsets={gridInsets}
+        />
+      )}
       <ReadingStatsTracker bookKey={bookKey} />
     </div>
   );

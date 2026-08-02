@@ -28,6 +28,7 @@ const SidebarContent: React.FC<{
   const [targetTab, setTargetTab] = useState(activeTab);
   const isMobile = window.innerWidth < 640 || window.innerHeight < 640;
   const aiEnabled = settings?.aiSettings?.enabled ?? false;
+  const effectiveTab = isMobile ? targetTab : 'toc';
 
   useEffect(() => {
     if (!sideBarBookKey) return;
@@ -74,7 +75,7 @@ const SidebarContent: React.FC<{
           'font-sans text-base font-normal sm:text-sm',
         )}
       >
-        {targetTab === 'history' ? (
+        {effectiveTab === 'history' ? (
           <ChatHistoryView bookKey={sideBarBookKey} />
         ) : (
           <OverlayScrollbarsComponent
@@ -94,29 +95,24 @@ const SidebarContent: React.FC<{
                 },
               )}
             >
-              {targetTab === 'toc' && bookDoc.toc && (
+              {effectiveTab === 'toc' && bookDoc.toc && (
                 <TOCView toc={bookDoc.toc} bookKey={sideBarBookKey} />
               )}
-              {targetTab === 'annotations' && (
+              {effectiveTab === 'annotations' && (
                 <BooknoteView type='annotation' toc={bookDoc.toc ?? []} bookKey={sideBarBookKey} />
               )}
-              {targetTab === 'bookmarks' && (
+              {effectiveTab === 'bookmarks' && (
                 <BooknoteView type='bookmark' toc={bookDoc.toc ?? []} bookKey={sideBarBookKey} />
               )}
             </div>
           </OverlayScrollbarsComponent>
         )}
       </div>
-      <div
-        className='flex-shrink-0'
-        style={
-          {
-            // paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) / 2)',
-          }
-        }
-      >
-        <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
-      </div>
+      {isMobile && (
+        <div className='flex-shrink-0'>
+          <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
+        </div>
+      )}
     </>
   );
 };
