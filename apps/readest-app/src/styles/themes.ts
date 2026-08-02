@@ -34,8 +34,6 @@ export type Theme = {
     dark: Palette;
   };
   scene?: ThemeScene;
-  // Toolbar/popover chrome: a scene surface deeper than base-100. Absent =
-  // the bar keeps the page surface (paper family, custom themes).
   chrome?: {
     light: string;
     dark: string;

@@ -128,7 +128,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     localStorage.setItem('lastConfigPanel', tab);
   };
 
-  // sync localStorage when activePanel changes
   const activePanelRef = useRef(activePanel);
   useEffect(() => {
     if (activePanelRef.current !== activePanel) {
