@@ -243,7 +243,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 onClick={handleToggleToc}
               >
                 <img
-                  src={getToolbarIconSrc('menu', themeColor, isDarkMode)}
+                  src={getToolbarIconSrc('sidebar', themeColor, isDarkMode)}
                   alt=''
                   className='h-5 w-5 object-contain'
                 />

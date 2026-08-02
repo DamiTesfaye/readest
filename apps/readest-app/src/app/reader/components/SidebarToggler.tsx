@@ -1,8 +1,9 @@
 import React from 'react';
-import { TbLayoutSidebar, TbLayoutSidebarFilled } from 'react-icons/tb';
 
 import { useSidebarStore } from '@/store/sidebarStore';
+import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getToolbarIconSrc } from '@/utils/toolbarIcons';
 import Button from '@/components/Button';
 
 interface SidebarTogglerProps {
@@ -12,6 +13,7 @@ interface SidebarTogglerProps {
 const SidebarToggler: React.FC<SidebarTogglerProps> = ({ bookKey }) => {
   const _ = useTranslation();
   const { sideBarBookKey, isSideBarVisible, setSideBarBookKey, toggleSideBar } = useSidebarStore();
+  const { themeColor, isDarkMode } = useThemeStore();
   const handleToggleSidebar = () => {
     if (sideBarBookKey === bookKey) {
       toggleSideBar();
@@ -23,11 +25,11 @@ const SidebarToggler: React.FC<SidebarTogglerProps> = ({ bookKey }) => {
   return (
     <Button
       icon={
-        sideBarBookKey === bookKey && isSideBarVisible ? (
-          <TbLayoutSidebarFilled className='text-base-content' />
-        ) : (
-          <TbLayoutSidebar className='text-base-content' />
-        )
+        <img
+          src={getToolbarIconSrc('sidebar', themeColor, isDarkMode)}
+          alt=''
+          className='h-5 w-5 object-contain'
+        />
       }
       onClick={handleToggleSidebar}
       label={_('Toggle Sidebar')}
