@@ -41,8 +41,6 @@ export type Theme = {
     dark: string;
   };
   previewFont?: string;
-  // Fixed mood: the theme renders only in this mode and the light/dark/auto
-  // toggle does not apply. Absent = dual-mood (follows themeMode).
   mood?: 'light' | 'dark';
   // Hidden themes back a real daisyUI theme (so build-time CSS exists) but are
   // never shown as a picker card. The dual-mood `default` appearance uses this.
