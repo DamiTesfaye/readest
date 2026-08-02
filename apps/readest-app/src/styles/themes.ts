@@ -34,6 +34,12 @@ export type Theme = {
     dark: Palette;
   };
   scene?: ThemeScene;
+  // Toolbar/popover chrome: a scene surface deeper than base-100. Absent =
+  // the bar keeps the page surface (paper family, custom themes).
+  chrome?: {
+    light: string;
+    dark: string;
+  };
   // Fixed mood: the theme renders only in this mode and the light/dark/auto
   // toggle does not apply. Absent = dual-mood (follows themeMode).
   mood?: 'light' | 'dark';
@@ -186,6 +192,7 @@ export const themes = [
       light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
       dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
     },
+    chrome: { light: '#b3826b', dark: '#3f2a1f' },
     scene: {},
   },
   {
@@ -195,6 +202,7 @@ export const themes = [
       light: generateLightPalette({ fg: '#1c2b4a', bg: '#eef1f8', primary: '#c55a3d' }),
       dark: generateDarkPalette({ fg: '#f4e9da', bg: '#16294a', primary: '#f2a48d' }),
     },
+    chrome: { light: '#16294a', dark: '#101c33' },
     scene: {},
   },
   {
@@ -204,6 +212,7 @@ export const themes = [
       light: generateLightPalette({ fg: '#1e3327', bg: '#e9f1e6', primary: '#c34633' }),
       dark: generateDarkPalette({ fg: '#f2eee3', bg: '#16301f', primary: '#f26d5b' }),
     },
+    chrome: { light: '#2e5741', dark: '#16301f' },
     scene: {},
   },
   {
@@ -213,6 +222,7 @@ export const themes = [
       light: generateLightPalette({ fg: '#1d3a4f', bg: '#e7f0f6', primary: '#2f6d99' }),
       dark: generateDarkPalette({ fg: '#dfeaf2', bg: '#143247', primary: '#85b8d8' }),
     },
+    chrome: { light: '#8fb4cd', dark: '#143247' },
     scene: {},
   },
   {
@@ -222,9 +232,16 @@ export const themes = [
       light: generateLightPalette({ fg: '#46262a', bg: '#f9ecec', primary: '#b64d62' }),
       dark: generateDarkPalette({ fg: '#f5e6e2', bg: '#382125', primary: '#e59aa4' }),
     },
+    chrome: { light: '#c993a0', dark: '#382125' },
     scene: {},
   },
 ] as Theme[];
+
+export const getChromeColor = (themeName: string, isDarkMode: boolean): string | null => {
+  const chrome = themes.find((t) => t.name === themeName)?.chrome;
+  if (!chrome) return null;
+  return isDarkMode ? chrome.dark : chrome.light;
+};
 
 // Legacy theme names → current themes. Saved settings
 // (localStorage.themeColor) predate the collapse; resolve at the

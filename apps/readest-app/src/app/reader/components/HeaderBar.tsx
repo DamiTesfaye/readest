@@ -1,6 +1,5 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { VscLibrary } from 'react-icons/vsc';
 import { MdOutlineMenu } from 'react-icons/md';
 
 import { Insets } from '@/types/misc';
@@ -24,13 +23,18 @@ import Dropdown from '@/components/Dropdown';
 import ModalPortal from '@/components/ModalPortal';
 import WindowButtons from '@/components/WindowButtons';
 import QuickActionMenu from './annotator/QuickActionMenu';
-import SidebarToggler from './SidebarToggler';
 import BookmarkToggler from './BookmarkToggler';
 import NotebookToggler from './NotebookToggler';
 import SettingsToggler from './SettingsToggler';
 import TranslationToggler from './TranslationToggler';
 import ViewMenu from './ViewMenu';
 import SyncInfoDialog from './SyncInfoDialog';
+import ToolbarPopover from '@/components/ToolbarPopover';
+import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
+import { useNotebookStore } from '@/store/notebookStore';
+import { eventDispatcher } from '@/utils/event';
+import { getChromeColor, getContrastHex } from '@/styles/themes';
+import { getThemeFontsTriggerSrc, getToolbarIconSrc } from '@/utils/toolbarIcons';
 
 interface HeaderBarProps {
   bookKey: string;
@@ -62,9 +66,16 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const { isTrafficLightVisible } = useTrafficLight(headerRef);
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
   const { bookKeys, hoveredBookKey } = useReaderStore();
-  const { isDarkMode, systemUIVisible, statusBarHeight } = useThemeStore();
-  const { isSideBarVisible, getIsSideBarVisible } = useSidebarStore();
-  const { getView, getViewSettings, setHoveredBookKey } = useReaderStore();
+  const { isDarkMode, themeColor, systemUIVisible, statusBarHeight } = useThemeStore();
+  const {
+    sideBarBookKey,
+    isSideBarVisible,
+    getIsSideBarVisible,
+    setSideBarBookKey,
+    toggleSideBar,
+  } = useSidebarStore();
+  const { isNotebookVisible, toggleNotebook } = useNotebookStore();
+  const { getView, getViewSettings, getViewState, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
   const viewSettings = getViewSettings(bookKey);
   const bookData = getBookData(bookKey);
@@ -74,6 +85,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMetaHashDialogOpen, setIsMetaHashDialogOpen] = useState(false);
+  const [isThemeFontsOpen, setIsThemeFontsOpen] = useState(false);
+  const themeFontsAnchorRef = useRef<HTMLButtonElement>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
   const iconSize18 = useResponsiveSize(18);
@@ -101,6 +114,46 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const handleAnnotationQuickActionSelect = (action: AnnotationToolType | null) => {
     if (viewSettings?.annotationQuickAction === action) action = null;
     saveViewSettings(envConfig, bookKey, 'annotationQuickAction', action, false, true);
+  };
+
+  const chromeColor = getChromeColor(themeColor, isDarkMode);
+  const chromeTextColor = chromeColor ? getContrastHex(chromeColor) : undefined;
+
+  const handleToggleToc = () => {
+    if (sideBarBookKey === bookKey) {
+      toggleSideBar();
+    } else {
+      setSideBarBookKey(bookKey);
+      if (!isSideBarVisible) toggleSideBar();
+    }
+  };
+
+  const handleToggleNotebook = () => {
+    if (sideBarBookKey === bookKey) {
+      toggleNotebook();
+    } else {
+      setSideBarBookKey(bookKey);
+      if (!isNotebookVisible) toggleNotebook();
+    }
+  };
+
+  const handleToggleBookmark = () => {
+    eventDispatcher.dispatch('toggle-bookmark', { bookKey });
+  };
+
+  const handleToggleTTS = () => {
+    const ttsEnabled = getViewState(bookKey)?.ttsEnabled;
+    eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
+  };
+
+  const handleThemeFontsOpen = () => {
+    setIsThemeFontsOpen(true);
+    handleToggleDropdown(true);
+  };
+
+  const handleThemeFontsClose = () => {
+    setIsThemeFontsOpen(false);
+    handleToggleDropdown(false);
   };
 
   useEffect(() => {
@@ -195,6 +248,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           marginTop: systemUIVisible
             ? `${Math.max(insets.top, statusBarHeight)}px`
             : `${insets.top}px`,
+          backgroundColor: chromeColor ?? undefined,
+          color: chromeTextColor,
         }}
         onFocus={() => !appService?.isMobile && setHoveredBookKey(bookKey)}
         onMouseLeave={(e) => {
@@ -208,20 +263,60 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             className='flex min-w-0 items-center gap-x-4 overflow-x-auto max-[350px]:gap-x-2'
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {!isSideBarVisible && (
-              <div className='hidden sm:flex'>
-                <SidebarToggler bookKey={bookKey} />
-              </div>
-            )}
-            <button
-              title={_('Go to Library')}
-              className='btn btn-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex'
-              onClick={onGoToLibrary}
-            >
-              <VscLibrary size={iconSize18} className='fill-base-content' />
-            </button>
-            <BookmarkToggler bookKey={bookKey} />
-            <TranslationToggler bookKey={bookKey} />
+            <div className='hidden items-center gap-x-3 sm:flex'>
+              <button
+                title={_('Contents')}
+                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                onClick={handleToggleToc}
+              >
+                <img
+                  src={getToolbarIconSrc('menu', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-5 object-contain'
+                />
+              </button>
+              <div
+                className='bg-base-content/20 h-5 w-px'
+                style={{ backgroundColor: chromeTextColor ? `${chromeTextColor}33` : undefined }}
+              />
+              <button
+                title={_('Library')}
+                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                onClick={onGoToLibrary}
+              >
+                <img
+                  src={getToolbarIconSrc('library', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-6 w-6 object-contain'
+                />
+              </button>
+              <button
+                title={_('Bookmarks & Notes')}
+                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                onClick={handleToggleNotebook}
+              >
+                <img
+                  src={getToolbarIconSrc('bookmarks-notes', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-5 object-contain'
+                />
+              </button>
+              <button
+                title={_('Annotations')}
+                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                onClick={handleToggleNotebook}
+              >
+                <img
+                  src={getToolbarIconSrc('annotations-cup', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-5 object-contain'
+                />
+              </button>
+            </div>
+            <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
+              <BookmarkToggler bookKey={bookKey} />
+              <TranslationToggler bookKey={bookKey} />
+            </div>
           </div>
           {enableAnnotationQuickActions && (
             <Dropdown
@@ -275,14 +370,65 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               'line-clamp-1 text-center text-xs font-semibold',
               !windowButtonVisible && 'max-w-[50%]',
             )}
+            style={{ color: chromeTextColor }}
           >
             {bookTitle}
           </div>
         </div>
 
-        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2'>
-          {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
-          <NotebookToggler bookKey={bookKey} />
+        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2 sm:bg-transparent'>
+          <div className='hidden items-center gap-x-3 sm:flex'>
+            <button
+              title={_('AI')}
+              className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              onClick={handleToggleTTS}
+            >
+              <img src='/images/toolbar/amply.svg' alt='' className='h-6 w-6 object-contain' />
+            </button>
+            <button
+              ref={themeFontsAnchorRef}
+              title={_('Theme & Fonts')}
+              aria-expanded={isThemeFontsOpen}
+              className='btn btn-ghost h-8 min-h-8 w-12 p-0'
+              onClick={handleThemeFontsOpen}
+            >
+              <span className='flex items-end justify-center gap-0.5'>
+                <img
+                  src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-4 object-contain'
+                />
+                <img
+                  src={getThemeFontsTriggerSrc('large', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-6 object-contain'
+                />
+              </span>
+            </button>
+            <button
+              title={_('Bookmark')}
+              className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              onClick={handleToggleBookmark}
+            >
+              <img
+                src={getToolbarIconSrc('bookmark', themeColor, isDarkMode)}
+                alt=''
+                className='h-6 w-6 object-contain'
+              />
+            </button>
+          </div>
+          <ToolbarPopover
+            isOpen={isThemeFontsOpen}
+            anchorEl={themeFontsAnchorRef.current}
+            width={300}
+            onClose={handleThemeFontsClose}
+          >
+            <ThemeFontsPanel bookKey={bookKey} />
+          </ToolbarPopover>
+          <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
+            {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
+            <NotebookToggler bookKey={bookKey} />
+          </div>
           <Dropdown
             label={_('View Options')}
             containerClassName='h-8'
@@ -312,6 +458,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             headerRef={headerRef}
             showMinimize={bookKeys.length == 1 && windowButtonVisible}
             showMaximize={bookKeys.length == 1 && windowButtonVisible}
+            showClose={window.innerWidth < 640 || windowButtonVisible}
             closeButtonLabel={_('Close Book')}
             onClose={() => {
               setHoveredBookKey(null);
