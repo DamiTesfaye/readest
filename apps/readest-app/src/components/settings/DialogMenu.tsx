@@ -2,10 +2,8 @@ import clsx from 'clsx';
 import React from 'react';
 import { MdCheck } from 'react-icons/md';
 import { useEnv } from '@/context/EnvContext';
-import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useReaderStore } from '@/store/readerStore';
-import { useCustomFontStore } from '@/store/customFontStore';
 import { saveViewSettings } from '@/helpers/settings';
 import { SettingsPanelType } from './SettingsDialog';
 import Menu from '@/components/Menu';
@@ -21,16 +19,14 @@ interface DialogMenuProps {
 
 const DialogMenu: React.FC<DialogMenuProps> = ({
   bookKey,
-  activePanel,
+  activePanel: _activePanel,
   setIsDropdownOpen,
   onReset,
   resetLabel,
 }) => {
   const _ = useTranslation();
-  const { envConfig, appService } = useEnv();
-  const { setFontPanelView } = useSettingsStore();
+  const { envConfig } = useEnv();
   const { getViewSettings } = useReaderStore();
-  const { getAllFonts, removeFont, saveCustomFonts } = useCustomFontStore();
   const viewSettings = getViewSettings(bookKey);
   const isSettingsGlobal = viewSettings?.isGlobal ?? true;
 
@@ -41,21 +37,6 @@ const DialogMenu: React.FC<DialogMenuProps> = ({
 
   const handleResetToDefaults = () => {
     onReset();
-    setIsDropdownOpen?.(false);
-  };
-
-  const handleManageCustomFont = () => {
-    setFontPanelView('custom-fonts');
-    setIsDropdownOpen?.(false);
-  };
-
-  const handleClearCustomFont = () => {
-    getAllFonts().forEach((font) => {
-      if (removeFont(font.id)) {
-        appService!.deleteFont(font);
-      }
-    });
-    saveCustomFonts(envConfig);
     setIsDropdownOpen?.(false);
   };
 
@@ -70,12 +51,6 @@ const DialogMenu: React.FC<DialogMenuProps> = ({
         onClick={handleToggleGlobal}
       />
       <MenuItem label={resetLabel || _('Reset Settings')} onClick={handleResetToDefaults} />
-      {activePanel === 'Font' && (
-        <>
-          <MenuItem label={_('Clear Custom Fonts')} onClick={handleClearCustomFont} />
-          <MenuItem label={_('Manage Custom Fonts')} onClick={handleManageCustomFont} />
-        </>
-      )}
     </Menu>
   );
 };

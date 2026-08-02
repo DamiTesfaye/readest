@@ -82,9 +82,6 @@ describe('buildCommandRegistry', () => {
 
     // Check that multiple panels are represented
     const panels = new Set(settingsItems.map((i) => i.panel));
-    expect(panels.has('Font')).toBe(true);
-    expect(panels.has('Layout')).toBe(true);
-    expect(panels.has('Color')).toBe(true);
     expect(panels.has('Control')).toBe(true);
     expect(panels.has('Language')).toBe(true);
     expect(panels.has('Custom')).toBe(true);
@@ -106,17 +103,14 @@ describe('buildCommandRegistry', () => {
   it('should use the provided translation function for localized labels', () => {
     const translate = (key: string) => `translated:${key}`;
     const items = buildCommandRegistry(createMockOptions({ _: translate }));
-    const fontItem = items.find((i) => i.id === 'settings.font.defaultFontSize');
-    expect(fontItem).toBeDefined();
-    expect(fontItem!.localizedLabel).toBe('translated:Default Font Size');
+    const controlItem = items.find((i) => i.id === 'settings.control.scrolledMode');
+    expect(controlItem).toBeDefined();
+    expect(controlItem!.localizedLabel).toBe('translated:Scrolled Mode');
   });
 
   it('should set panelLabel using translation function', () => {
     const translate = (key: string) => `t:${key}`;
     const items = buildCommandRegistry(createMockOptions({ _: translate }));
-
-    const fontItem = items.find((i) => i.id === 'settings.font.defaultFontSize');
-    expect(fontItem!.panelLabel).toBe('t:Font');
 
     // Control panel items use panelLabel 'Behavior'
     const controlItem = items.find((i) => i.id === 'settings.control.scrolledMode');
@@ -126,9 +120,9 @@ describe('buildCommandRegistry', () => {
   it('should call openSettingsPanel when settings item action is invoked', () => {
     const openSettingsPanel = vi.fn();
     const items = buildCommandRegistry(createMockOptions({ openSettingsPanel }));
-    const fontItem = items.find((i) => i.id === 'settings.font.defaultFontSize')!;
-    fontItem.action();
-    expect(openSettingsPanel).toHaveBeenCalledWith('Font', 'settings.font.defaultFontSize');
+    const controlItem = items.find((i) => i.id === 'settings.control.scrolledMode')!;
+    controlItem.action();
+    expect(openSettingsPanel).toHaveBeenCalledWith('Control', 'settings.control.scrolledMode');
   });
 
   it('should call correct action handler for action items', () => {
@@ -208,13 +202,12 @@ describe('searchCommands', () => {
   });
 
   it('should find items matching the query', () => {
-    const results = searchCommands('font', items);
+    const results = searchCommands('scroll', items);
     expect(results.length).toBeGreaterThan(0);
-    // At least some results should be font-related
-    const hasFontResult = results.some(
-      (r) => r.item.id.includes('font') || r.item.labelKey.toLowerCase().includes('font'),
+    const hasScrollResult = results.some(
+      (r) => r.item.id.includes('scroll') || r.item.labelKey.toLowerCase().includes('scroll'),
     );
-    expect(hasFontResult).toBe(true);
+    expect(hasScrollResult).toBe(true);
   });
 
   it('should filter out unavailable items', () => {
@@ -242,10 +235,10 @@ describe('searchCommands', () => {
   });
 
   it('should search across keywords', () => {
-    const results = searchCommands('hyphen', items);
+    const results = searchCommands('awake', items);
     expect(results.length).toBeGreaterThan(0);
-    const hasHyphenation = results.some((r) => r.item.id === 'settings.layout.hyphenation');
-    expect(hasHyphenation).toBe(true);
+    const hasWakeLock = results.some((r) => r.item.id === 'settings.control.screenWakeLock');
+    expect(hasWakeLock).toBe(true);
   });
 
   it('should search across panel label', () => {

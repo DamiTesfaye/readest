@@ -95,6 +95,11 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
 
   const openFontLayoutMenu = () => {
     setIsDropdownOpen?.(false);
+    eventDispatcher.dispatch('open-theme-fonts', { bookKey });
+  };
+
+  const openSettingsDialog = () => {
+    setIsDropdownOpen?.(false);
     setSettingsDialogBookKey(bookKey);
     setSettingsDialogOpen(true);
   };
@@ -373,7 +378,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         </>
       )}
 
-      <MenuItem label={_('Font & Layout')} shortcut='Shift+F' onClick={openFontLayoutMenu} />
+      <MenuItem label={_('Theme & Fonts')} shortcut='Shift+F' onClick={openFontLayoutMenu} />
+      <MenuItem label={_('Settings')} onClick={openSettingsDialog} />
 
       <MenuItem
         label={_('Scrolled Mode')}

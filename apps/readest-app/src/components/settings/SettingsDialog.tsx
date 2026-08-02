@@ -5,9 +5,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useCommandPalette } from '@/components/command-palette';
-import { RiFontSize, RiShareLine } from 'react-icons/ri';
-import { RiDashboardLine, RiTranslate } from 'react-icons/ri';
-import { VscSymbolColor } from 'react-icons/vsc';
+import { RiShareLine, RiTranslate } from 'react-icons/ri';
 import { PiDotsThreeVerticalBold, PiRobot, PiSpeakerHigh } from 'react-icons/pi';
 import { LiaHandPointerSolid } from 'react-icons/lia';
 import { IoAccessibilityOutline } from 'react-icons/io5';
@@ -21,9 +19,6 @@ import {
 import { FiSearch } from 'react-icons/fi';
 import { getDirFromUILanguage } from '@/utils/rtl';
 import { getCommandPaletteShortcut } from '@/services/environment';
-import FontPanel from './FontPanel';
-import LayoutPanel from './LayoutPanel';
-import ColorPanel from './ColorPanel';
 import IntegrationsPanel from './IntegrationsPanel';
 import Dropdown from '@/components/Dropdown';
 import Dialog from '@/components/Dialog';
@@ -34,16 +29,7 @@ import MiscPanel from './MiscPanel';
 import AIPanel from './AIPanel';
 import TTSPanel from './TTSPanel';
 
-export type SettingsPanelType =
-  | 'Font'
-  | 'Layout'
-  | 'Color'
-  | 'Control'
-  | 'TTS'
-  | 'Language'
-  | 'AI'
-  | 'Integrations'
-  | 'Custom';
+export type SettingsPanelType = 'Control' | 'TTS' | 'Language' | 'AI' | 'Integrations' | 'Custom';
 export type SettingsPanelPanelProp = {
   bookKey: string;
   onRegisterReset: (resetFn: () => void) => void;
@@ -66,7 +52,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const [showAllTabLabels, setShowAllTabLabels] = useState(false);
   const [canScrollTabsForward, setCanScrollTabsForward] = useState(false);
   const {
-    setFontPanelView,
     setSettingsDialogOpen,
     activeSettingsItemId,
     setActiveSettingsItemId,
@@ -81,21 +66,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   };
 
   const tabConfig = [
-    {
-      tab: 'Font',
-      icon: RiFontSize,
-      label: _('Font'),
-    },
-    {
-      tab: 'Layout',
-      icon: RiDashboardLine,
-      label: _('Layout'),
-    },
-    {
-      tab: 'Color',
-      icon: VscSymbolColor,
-      label: _('Color'),
-    },
     {
       tab: 'Control',
       icon: LiaHandPointerSolid,
@@ -141,7 +111,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     if (lastPanel && tabConfig.some((tab) => tab.tab === lastPanel)) {
       return lastPanel as SettingsPanelType;
     }
-    return 'Font' as SettingsPanelType;
+    return 'Control' as SettingsPanelType;
   });
 
   // Clear the deep-link request after the initial render has consumed it,
@@ -155,26 +125,21 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   const handleSetActivePanel = (tab: SettingsPanelType) => {
     setActivePanel(tab);
-    setFontPanelView('main-fonts');
     localStorage.setItem('lastConfigPanel', tab);
   };
 
-  // sync localStorage and fontPanelView when activePanel changes
+  // sync localStorage when activePanel changes
   const activePanelRef = useRef(activePanel);
   useEffect(() => {
     if (activePanelRef.current !== activePanel) {
       activePanelRef.current = activePanel;
-      setFontPanelView('main-fonts');
       localStorage.setItem('lastConfigPanel', activePanel);
     }
-  }, [activePanel, setFontPanelView]);
+  }, [activePanel]);
 
   const [resetFunctions, setResetFunctions] = useState<
     Record<SettingsPanelType, (() => void) | null>
   >({
-    Font: null,
-    Layout: null,
-    Color: null,
     Control: null,
     TTS: null,
     Language: null,
@@ -206,9 +171,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     const parts = activeSettingsItemId.split('.');
     if (parts.length >= 2) {
       const panelMap: Record<string, SettingsPanelType> = {
-        font: 'Font',
-        layout: 'Layout',
-        color: 'Color',
         control: 'Control',
         tts: 'TTS',
         language: 'Language',
@@ -241,8 +203,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   }, [activeSettingsItemId, activePanel, setActiveSettingsItemId]);
 
   useEffect(() => {
-    setFontPanelView('main-fonts');
-
     const container = tabsRef.current;
     if (!container) return;
 
@@ -297,7 +257,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       mutationObserver.disconnect();
       container.removeEventListener('scroll', updateScrollState);
     };
-  }, [setFontPanelView]);
+  }, []);
 
   const handleScrollTabsForward = () => {
     const container = tabsRef.current;
@@ -439,24 +399,6 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         role='group'
         aria-label={`${_(currentPanel?.label || '')} - ${_('Settings')}`}
       >
-        {activePanel === 'Font' && (
-          <FontPanel
-            bookKey={bookKey}
-            onRegisterReset={(fn) => registerResetFunction('Font', fn)}
-          />
-        )}
-        {activePanel === 'Layout' && (
-          <LayoutPanel
-            bookKey={bookKey}
-            onRegisterReset={(fn) => registerResetFunction('Layout', fn)}
-          />
-        )}
-        {activePanel === 'Color' && (
-          <ColorPanel
-            bookKey={bookKey}
-            onRegisterReset={(fn) => registerResetFunction('Color', fn)}
-          />
-        )}
         {activePanel === 'Control' && (
           <ControlPanel
             bookKey={bookKey}

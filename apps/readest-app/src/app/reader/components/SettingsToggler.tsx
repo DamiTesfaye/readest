@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RiFontSize } from 'react-icons/ri';
 
 import { useReaderStore } from '@/store/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
+import { eventDispatcher } from '@/utils/event';
 import Button from '@/components/Button';
 import Dialog from '@/components/Dialog';
 import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
@@ -18,6 +19,17 @@ const SettingsToggler: React.FC<SettingsTogglerProps> = ({ bookKey }) => {
   const { isSettingsDialogOpen, setSettingsDialogOpen } = useSettingsStore();
   const { setSettingsDialogBookKey } = useSettingsStore();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenThemeFonts = (e: CustomEvent) => {
+      if (e.detail?.bookKey && e.detail.bookKey !== bookKey) return;
+      setIsSheetOpen(true);
+    };
+    eventDispatcher.on('open-theme-fonts', handleOpenThemeFonts);
+    return () => {
+      eventDispatcher.off('open-theme-fonts', handleOpenThemeFonts);
+    };
+  }, [bookKey]);
 
   const handleToggleSettings = () => {
     setHoveredBookKey('');
