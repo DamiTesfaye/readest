@@ -40,6 +40,7 @@ export type Theme = {
     light: string;
     dark: string;
   };
+  previewFont?: string;
   // Fixed mood: the theme renders only in this mode and the light/dark/auto
   // toggle does not apply. Absent = dual-mood (follows themeMode).
   mood?: 'light' | 'dark';
@@ -183,6 +184,7 @@ export const themes = [
       light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
       dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
     },
+    previewFont: 'Bitter, Georgia, serif',
     scene: {},
   },
   {
@@ -193,6 +195,7 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
     },
     chrome: { light: '#b3826b', dark: '#3f2a1f' },
+    previewFont: "'Roboto Slab', Rockwell, 'Courier New', serif",
     scene: {},
   },
   {
@@ -203,6 +206,7 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#f4e9da', bg: '#16294a', primary: '#f2a48d' }),
     },
     chrome: { light: '#16294a', dark: '#101c33' },
+    previewFont: "Literata, Palatino, 'Times New Roman', serif",
     scene: {},
   },
   {
@@ -213,6 +217,7 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#f2eee3', bg: '#16301f', primary: '#f26d5b' }),
     },
     chrome: { light: '#2e5741', dark: '#16301f' },
+    previewFont: "'Open Sans', Verdana, sans-serif",
     scene: {},
   },
   {
@@ -223,6 +228,7 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#dfeaf2', bg: '#143247', primary: '#85b8d8' }),
     },
     chrome: { light: '#8fb4cd', dark: '#143247' },
+    previewFont: "'PT Sans', 'Trebuchet MS', sans-serif",
     scene: {},
   },
   {
@@ -233,6 +239,7 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#f5e6e2', bg: '#382125', primary: '#e59aa4' }),
     },
     chrome: { light: '#c993a0', dark: '#382125' },
+    previewFont: "'Noto Serif', 'Book Antiqua', cursive, serif",
     scene: {},
   },
 ] as Theme[];

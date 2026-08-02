@@ -66,8 +66,8 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
         maxHeight={maxHeight}
         position={placement.body}
         trianglePosition={placement.pointer}
-        className={clsx('!bg-base-100', className)}
-        triangleClassName={clsx('!text-base-100', triangleClassName)}
+        className={clsx('!bg-base-200', className)}
+        triangleClassName={clsx('!text-base-200', triangleClassName)}
         onDismiss={onClose}
       >
         {children}

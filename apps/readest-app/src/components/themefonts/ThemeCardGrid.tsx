@@ -27,11 +27,15 @@ const ThemeCardGrid: React.FC = () => {
             style={{ backgroundImage: `url('/images/theme-cards/${theme.name}.svg')` }}
             onClick={() => setThemeColor(theme.name)}
           >
-            <img
-              src={`/images/theme-fonts/${theme.name}-large.svg`}
-              alt=''
-              className='h-8 w-auto'
-            />
+            <span
+              className='text-2xl font-bold leading-none'
+              style={{
+                fontFamily: theme.previewFont,
+                color: theme.name === 'paper' ? '#2b2b28' : '#ffffff',
+              }}
+            >
+              Aa
+            </span>
             <span
               className='mt-1 max-w-full truncate px-1 text-[10px] font-medium'
               style={{ color: theme.name === 'paper' ? '#2b2b28' : '#ffffff' }}

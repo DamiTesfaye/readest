@@ -5,6 +5,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { saveViewSettings } from '@/helpers/settings';
+import { getThemeFontsTriggerSrc } from '@/utils/toolbarIcons';
 import { FONT_SIZE_STEP, stepFontSize } from './model';
 
 const TOGGLE_ASSETS = '/images/theme-toggle';
@@ -16,7 +17,7 @@ interface ControlRowProps {
 const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
   const _ = useTranslation();
   const { envConfig } = useEnv();
-  const { themeMode, isDarkMode, setThemeMode } = useThemeStore();
+  const { themeMode, themeColor, isDarkMode, setThemeMode } = useThemeStore();
   const { getViewSettings } = useReaderStore();
   const viewSettings = getViewSettings(bookKey);
 
@@ -52,7 +53,11 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
           className='hover:bg-base-300 flex h-full w-10 items-center justify-center'
           onClick={() => adjustFontSize(-FONT_SIZE_STEP)}
         >
-          <span className='text-base-content text-xs font-bold'>A</span>
+          <img
+            src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
+            alt=''
+            className='h-3 object-contain'
+          />
         </button>
         <div className='bg-base-300 h-5 w-px' />
         <button
@@ -61,7 +66,11 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
           className='hover:bg-base-300 flex h-full w-10 items-center justify-center'
           onClick={() => adjustFontSize(FONT_SIZE_STEP)}
         >
-          <span className='text-base-content text-lg font-bold'>A</span>
+          <img
+            src={getThemeFontsTriggerSrc('large', themeColor, isDarkMode)}
+            alt=''
+            className='h-4.5 max-h-5 object-contain'
+          />
         </button>
       </div>
 
