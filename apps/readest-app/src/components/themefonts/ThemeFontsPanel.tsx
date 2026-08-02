@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import ControlRow from './ControlRow';
 import ThemeCardGrid from './ThemeCardGrid';
+import CustomizeSection from './CustomizeSection';
 
 interface ThemeFontsPanelProps {
   bookKey: string;
@@ -16,7 +17,9 @@ const ThemeFontsPanel: React.FC<ThemeFontsPanelProps> = ({ bookKey }) => {
       <h2 className='text-base-content text-center text-sm font-semibold'>{_('Theme & Fonts')}</h2>
       <ControlRow bookKey={bookKey} />
       <ThemeCardGrid />
-      {!expanded && (
+      {expanded ? (
+        <CustomizeSection bookKey={bookKey} onCollapse={() => setExpanded(false)} />
+      ) : (
         <div className='px-4'>
           <button
             type='button'
