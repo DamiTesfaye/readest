@@ -13,20 +13,23 @@ const ThemeFontsPanel: React.FC<ThemeFontsPanelProps> = ({ bookKey }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className='flex flex-col gap-3 py-4'>
-      <h2 className='text-base-content text-center text-sm font-semibold'>{_('Theme & Fonts')}</h2>
+    <div className='flex flex-col gap-3 pb-5 pt-4'>
+      <h2 className='text-base-content popover-title text-center text-sm'>{_('Theme & Fonts')}</h2>
+      <div className='bg-base-content/15 mx-4 h-px' />
       <ControlRow bookKey={bookKey} />
-      <ThemeCardGrid />
+      <div className='mt-2'>
+        <ThemeCardGrid />
+      </div>
       {expanded ? (
         <CustomizeSection bookKey={bookKey} onCollapse={() => setExpanded(false)} />
       ) : (
-        <div className='px-4'>
+        <div className='mt-4 flex justify-center px-4'>
           <button
             type='button'
-            className='eink-bordered bg-base-200 hover:bg-base-300 text-base-content flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium'
+            className='eink-bordered bg-base-300 hover:bg-base-content/10 text-base-content flex w-2/3 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-black [font-family:"Avenir_Next_LT_Pro"]'
             onClick={() => setExpanded(true)}
           >
-            <img src='/images/theme-fonts/brush.svg' alt='' className='h-3.5 w-3.5' />
+            <img src='/images/theme-fonts/brush.svg' alt='' className='h-4 w-4' />
             {_('Customize')}
           </button>
         </div>

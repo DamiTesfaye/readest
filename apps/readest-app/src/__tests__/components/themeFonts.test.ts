@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   stepFontSize,
   getCardThemes,
+  rangeOptions,
+  uniformValue,
+  filterFonts,
   MAX_FONT_SIZE,
   CUSTOMIZE_VIEW_KEYS,
   CUSTOMIZE_DEFAULTS,
@@ -63,6 +66,57 @@ describe('customize snapshot/rollback', () => {
     expect(CUSTOMIZE_DEFAULTS['defaultFontSize']).toBe(16);
     expect(CUSTOMIZE_DEFAULTS['marginTopPx']).toBe(44);
     expect(CUSTOMIZE_DEFAULTS['maxColumnCount']).toBe(2);
+    expect(CUSTOMIZE_DEFAULTS['paragraphMargin']).toBe(0.6);
+  });
+
+  it('tracks paragraph margin so cancel and reset cover the slider', () => {
+    expect(CUSTOMIZE_VIEW_KEYS).toContain('paragraphMargin');
+  });
+
+  it('tracks overrideFont so font picks beat publisher CSS and reset restores it', () => {
+    expect(CUSTOMIZE_VIEW_KEYS).toContain('overrideFont');
+    expect(CUSTOMIZE_DEFAULTS['overrideFont']).toBe(false);
+  });
+
+  it('tracks overrideLayout so paragraph margin beats publisher CSS and reset restores it', () => {
+    expect(CUSTOMIZE_VIEW_KEYS).toContain('overrideLayout');
+    expect(CUSTOMIZE_DEFAULTS['overrideLayout']).toBe(false);
+  });
+});
+
+describe('rangeOptions', () => {
+  it('builds an inclusive stepped range', () => {
+    expect(rangeOptions(1, 2, 0.5, 1.5)).toEqual([1, 1.5, 2]);
+  });
+
+  it('handles fractional steps without float drift', () => {
+    expect(rangeOptions(1.0, 1.3, 0.1, 1.2)).toEqual([1, 1.1, 1.2, 1.3]);
+  });
+
+  it('injects an off-step current value in sorted position', () => {
+    expect(rangeOptions(0, 10, 5, 7)).toEqual([0, 5, 7, 10]);
+  });
+});
+
+describe('uniformValue', () => {
+  it('returns the shared value when all entries match', () => {
+    expect(uniformValue([16, 16, 16, 16])).toBe(16);
+  });
+
+  it('returns null when entries diverge', () => {
+    expect(uniformValue([44, 44, 16, 16])).toBeNull();
+  });
+});
+
+describe('filterFonts', () => {
+  const fonts = ['Bitter', 'Roboto', 'Roboto Slab', 'Fira Code'];
+
+  it('matches case-insensitively on substrings', () => {
+    expect(filterFonts(fonts, 'rob')).toEqual(['Roboto', 'Roboto Slab']);
+  });
+
+  it('returns every font when the query is blank', () => {
+    expect(filterFonts(fonts, '  ')).toEqual(fonts);
   });
 });
 

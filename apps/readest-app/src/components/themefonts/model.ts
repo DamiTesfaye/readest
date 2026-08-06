@@ -16,13 +16,38 @@ export const stepFontSize = (
 
 export const getCardThemes = (): Theme[] => themes.filter((t) => !t.hidden);
 
+export const rangeOptions = (min: number, max: number, step: number, value: number): number[] => {
+  const options: number[] = [];
+  for (let v = min; v <= max + 1e-9; v += step) {
+    options.push(Math.round(v * 100) / 100);
+  }
+  if (!options.includes(value)) {
+    options.push(value);
+    options.sort((a, b) => a - b);
+  }
+  return options;
+};
+
+export const filterFonts = (fonts: string[], query: string): string[] => {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return fonts;
+  return fonts.filter((font) => font.toLowerCase().includes(needle));
+};
+
+export const uniformValue = (values: number[]): number | null => {
+  return values.every((v) => v === values[0]) ? (values[0] ?? null) : null;
+};
+
 export const CUSTOMIZE_VIEW_KEYS = [
   'defaultFont',
+  'overrideFont',
+  'overrideLayout',
   'serifFont',
   'sansSerifFont',
   'defaultFontSize',
   'fontWeight',
   'lineHeight',
+  'paragraphMargin',
   'letterSpacing',
   'wordSpacing',
   'marginTopPx',

@@ -46,30 +46,30 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
 
   return (
     <div className='flex items-center justify-between gap-2 px-4'>
-      <div className='eink-bordered bg-base-200 flex h-9 items-center overflow-hidden rounded-full'>
+      <div className='eink-bordered bg-base-300 flex h-9 items-center overflow-hidden rounded-full'>
         <button
           type='button'
           title={_('Decrease Font Size')}
-          className='hover:bg-base-300 flex h-full w-10 items-center justify-center'
+          className='hover:bg-base-content/10 group flex h-full w-14 items-center justify-center'
           onClick={() => adjustFontSize(-FONT_SIZE_STEP)}
         >
           <img
             src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
             alt=''
-            className='h-3 object-contain'
+            className='group-active:scale-x-110 group-active:scale-y-75 h-3 object-contain transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
           />
         </button>
-        <div className='bg-base-300 h-5 w-px' />
+        <div className='bg-base-content/20 h-5 w-px' />
         <button
           type='button'
           title={_('Increase Font Size')}
-          className='hover:bg-base-300 flex h-full w-10 items-center justify-center'
+          className='hover:bg-base-content/10 group flex h-full w-14 items-center justify-center'
           onClick={() => adjustFontSize(FONT_SIZE_STEP)}
         >
           <img
             src={getThemeFontsTriggerSrc('large', themeColor, isDarkMode)}
             alt=''
-            className='h-4.5 max-h-5 object-contain'
+            className='group-active:scale-x-110 group-active:scale-y-75 h-4.5 max-h-5 object-contain transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
           />
         </button>
       </div>
@@ -78,13 +78,18 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
         type='button'
         title={_('Follow System Appearance')}
         aria-pressed={themeMode === 'auto'}
-        className={clsx(
-          'eink-bordered hover:bg-base-300 flex h-9 w-9 items-center justify-center rounded-full p-1.5',
-          themeMode === 'auto' && 'bg-base-300',
-        )}
+        className='eink-bordered bg-base-300 hover:bg-base-content/10 group flex h-9 w-9 items-center justify-center rounded-full p-1.5'
         onClick={handleSystemToggle}
       >
-        <img src={`${TOGGLE_ASSETS}/system_preference.svg`} alt='' className='h-full w-full' />
+        <img
+          src={
+            themeMode === 'auto'
+              ? `${TOGGLE_ASSETS}/system_preference_theme_${isDarkMode ? 'light' : 'dark'}.svg`
+              : `${TOGGLE_ASSETS}/system_preference_theme.svg`
+          }
+          alt=''
+          className='group-active:scale-75 h-full w-full transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
+        />
       </button>
 
       <button
@@ -131,7 +136,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
         <span
           className={clsx(
             'absolute left-1 top-1 block h-7 w-7 transition-transform duration-500 ease-in-out motion-reduce:transition-none',
-            isDarkMode && 'translate-x-14',
+            isDarkMode && 'translate-x-[60px]',
           )}
         >
           <img

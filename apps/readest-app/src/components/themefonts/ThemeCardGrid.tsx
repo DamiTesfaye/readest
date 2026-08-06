@@ -10,7 +10,7 @@ const ThemeCardGrid: React.FC = () => {
   const cards = getCardThemes();
 
   return (
-    <div className='grid grid-cols-3 gap-2.5 px-4'>
+    <div className='grid grid-cols-3 gap-4 px-4'>
       {cards.map((theme) => {
         const selected = themeColor === theme.name;
         return (

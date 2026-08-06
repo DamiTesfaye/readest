@@ -10,7 +10,7 @@ import { SettingLabel } from '../primitives';
 
 // Each slot swaps to its light or dark equivalent when the appearance flips, so
 // the stored choice (a slot, not a hex) carries across modes.
-const BackgroundSwatchRow = () => {
+const BackgroundSwatchRow = ({ labelClassName }: { labelClassName?: string }) => {
   const _ = useTranslation();
   const { themeColor, isDarkMode, themeBackground, setThemeBackground } = useThemeStore();
   const swatches = getBackgroundSwatches(themeColor, isDarkMode);
@@ -18,7 +18,7 @@ const BackgroundSwatchRow = () => {
 
   return (
     <div className='px-4' data-setting-id='settings.color.background'>
-      <SettingLabel>{_('Background')}</SettingLabel>
+      <SettingLabel className={labelClassName}>{_('Background')}</SettingLabel>
       <div role='radiogroup' aria-label={_('Background')} className='mt-2 flex items-center gap-3'>
         {swatches.map((hex, index) => (
           <button
