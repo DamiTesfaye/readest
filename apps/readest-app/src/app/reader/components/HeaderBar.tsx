@@ -23,6 +23,7 @@ import ViewMenu from './ViewMenu';
 import SyncInfoDialog from './SyncInfoDialog';
 import ToolbarPopover from '@/components/ToolbarPopover';
 import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
+import TocPopover from './TocPopover';
 import { useNotebookStore } from '@/store/notebookStore';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
@@ -58,13 +59,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
   const { bookKeys, hoveredBookKey } = useReaderStore();
   const { isDarkMode, themeColor, systemUIVisible, statusBarHeight } = useThemeStore();
-  const {
-    sideBarBookKey,
-    isSideBarVisible,
-    getIsSideBarVisible,
-    setSideBarBookKey,
-    toggleSideBar,
-  } = useSidebarStore();
+  const { sideBarBookKey, isSideBarVisible, getIsSideBarVisible, setSideBarBookKey } =
+    useSidebarStore();
   const { isNotebookVisible, toggleNotebook } = useNotebookStore();
   const { getView, getViewState, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
@@ -77,6 +73,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isMetaHashDialogOpen, setIsMetaHashDialogOpen] = useState(false);
   const [isThemeFontsOpen, setIsThemeFontsOpen] = useState(false);
   const themeFontsAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const tocAnchorRef = useRef<HTMLButtonElement>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
 
@@ -93,12 +91,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const chromeTextColor = chromeColor ? getContrastHex(chromeColor) : undefined;
 
   const handleToggleToc = () => {
-    if (sideBarBookKey === bookKey) {
-      toggleSideBar();
-    } else {
-      setSideBarBookKey(bookKey);
-      if (!isSideBarVisible) toggleSideBar();
-    }
+    setIsTocOpen((prev) => !prev);
   };
 
   const handleToggleNotebook = () => {
@@ -238,51 +231,49 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           >
             <div className='hidden items-center gap-x-3 sm:flex'>
               <button
+                ref={tocAnchorRef}
                 title={_('Contents')}
-                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                aria-expanded={isTocOpen}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
                 onClick={handleToggleToc}
               >
                 <img
-                  src={getToolbarIconSrc('sidebar', themeColor, isDarkMode)}
+                  src={getToolbarIconSrc('book-toc', themeColor, isDarkMode)}
                   alt=''
-                  className='h-5 w-5 object-contain'
+                  className='h-6 w-auto object-contain'
                 />
               </button>
-              <div
-                className='bg-base-content/20 h-5 w-px'
-                style={{ backgroundColor: chromeTextColor ? `${chromeTextColor}33` : undefined }}
-              />
               <button
                 title={_('Library')}
-                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
                 onClick={onGoToLibrary}
               >
                 <img
                   src={getToolbarIconSrc('library', themeColor, isDarkMode)}
                   alt=''
-                  className='h-5 w-5 object-contain'
+                  className='h-5 w-auto object-contain'
                 />
               </button>
               <button
                 title={_('Bookmarks & Notes')}
-                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
                 onClick={handleToggleNotebook}
               >
                 <img
                   src={getToolbarIconSrc('bookmarks-notes', themeColor, isDarkMode)}
                   alt=''
-                  className='h-5 w-5 object-contain'
+                  className='h-5 w-auto object-contain'
                 />
               </button>
               <button
                 title={_('Annotations')}
-                className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
                 onClick={handleToggleNotebook}
               >
                 <img
-                  src={getToolbarIconSrc('annotations-cup', themeColor, isDarkMode)}
+                  src={getToolbarIconSrc('annotations', themeColor, isDarkMode)}
                   alt=''
-                  className='h-5 w-5 object-contain'
+                  className='h-5 w-auto object-contain'
                 />
               </button>
             </div>
@@ -318,16 +309,20 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           <div className='hidden items-center gap-x-3 sm:flex'>
             <button
               title={_('AI')}
-              className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
               onClick={handleToggleTTS}
             >
-              <img src='/images/toolbar/amply.svg' alt='' className='h-5 w-5 object-contain' />
+              <img
+                src={getToolbarIconSrc('amply', themeColor, isDarkMode)}
+                alt=''
+                className='h-5 w-auto object-contain'
+              />
             </button>
             <button
               ref={themeFontsAnchorRef}
               title={_('Theme & Fonts')}
               aria-expanded={isThemeFontsOpen}
-              className='btn btn-ghost h-8 min-h-8 w-12 p-0'
+              className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-12 p-0'
               onClick={handleThemeFontsOpen}
             >
               <span className='flex items-end justify-center gap-0.5'>
@@ -345,13 +340,13 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             </button>
             <button
               title={_('Bookmark')}
-              className='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
               onClick={handleToggleBookmark}
             >
               <img
                 src={getToolbarIconSrc('bookmark', themeColor, isDarkMode)}
                 alt=''
-                className='h-5 w-5 object-contain'
+                className='h-5 w-auto object-contain'
               />
             </button>
           </div>
@@ -363,6 +358,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           >
             <ThemeFontsPanel bookKey={bookKey} />
           </ToolbarPopover>
+          <TocPopover
+            bookKey={bookKey}
+            isOpen={isTocOpen}
+            anchorEl={tocAnchorRef.current}
+            onClose={() => setIsTocOpen(false)}
+          />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
             {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
             <NotebookToggler bookKey={bookKey} />
@@ -371,7 +372,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             label={_('View Options')}
             containerClassName='h-8'
             className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-            buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0 mt-0'
+            buttonClassName='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0 mt-0'
             toggleButton={<MdOutlineMenu />}
             onToggle={handleToggleDropdown}
           >

@@ -26,7 +26,7 @@ const SidebarToggler: React.FC<SidebarTogglerProps> = ({ bookKey }) => {
     <Button
       icon={
         <img
-          src={getToolbarIconSrc('sidebar', themeColor, isDarkMode)}
+          src={getToolbarIconSrc('book-toc', themeColor, isDarkMode)}
           alt=''
           className='h-5 w-5 object-contain'
         />

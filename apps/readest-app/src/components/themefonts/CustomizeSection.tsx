@@ -267,7 +267,7 @@ const CustomizeSection: React.FC<CustomizeSectionProps> = ({ bookKey, onCollapse
             onChange={(value) => apply('gapPercent', value)}
           />
           <div className='flex flex-col justify-end gap-1'>
-            <span className='text-base-content/70 text-xxs flex items-center gap-1.5'>
+            <span className='text-base-content/70 text-xxs flex items-center justify-between'>
               {_('Margins')}
               <button
                 type='button'
