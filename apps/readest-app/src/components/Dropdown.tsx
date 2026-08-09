@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import React, { useState, isValidElement, ReactElement, ReactNode, useRef, useId } from 'react';
 import { useDropdownContext } from '@/context/DropdownContext';
+import { forwardBackdropClickToToolbar } from '@/utils/popover';
 import { Overlay } from './Overlay';
 import MenuItem from './MenuItem';
 
@@ -120,7 +121,16 @@ const Dropdown: React.FC<DropdownProps> = ({
 
   return (
     <div ref={containerRef} className={clsx('dropdown-container flex', containerClassName)}>
-      {isOpen && <Overlay onDismiss={() => setIsDropdownOpen(false)} />}
+      {isOpen && (
+        <Overlay
+          onDismiss={(event) => {
+            setIsDropdownOpen(false);
+            if (event?.type === 'click') {
+              forwardBackdropClickToToolbar(event as React.MouseEvent<HTMLElement>);
+            }
+          }}
+        />
+      )}
       <div className={clsx('relative', isOpen && 'z-50')}>
         <button
           tabIndex={0}

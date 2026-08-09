@@ -1,7 +1,11 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Position, getPopupPosition } from '@/utils/sel';
-import { POPOVER_EDGE_PADDING, getToolbarAnchorPosition } from '@/utils/popover';
+import {
+  POPOVER_EDGE_PADDING,
+  forwardBackdropClickToToolbar,
+  getToolbarAnchorPosition,
+} from '@/utils/popover';
 import ModalPortal from '@/components/ModalPortal';
 import Popup from '@/components/Popup';
 
@@ -54,7 +58,10 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
       <div
         role='none'
         className='fixed inset-0 z-40'
-        onClick={onClose}
+        onClick={(e) => {
+          onClose();
+          forwardBackdropClickToToolbar(e, anchorEl);
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           onClose();

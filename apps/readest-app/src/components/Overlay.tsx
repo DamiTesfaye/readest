@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import React from 'react';
 
 interface OverlayProps {
-  onDismiss: () => void;
+  onDismiss: (event?: React.SyntheticEvent) => void;
   dismissLabel?: string;
   className?: string;
 }
