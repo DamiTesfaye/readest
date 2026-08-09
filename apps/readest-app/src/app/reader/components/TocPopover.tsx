@@ -6,6 +6,7 @@ import { useSidebarStore } from '@/store/sidebarStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { eventDispatcher } from '@/utils/event';
 import ToolbarPopover from '@/components/ToolbarPopover';
+import PopoverTitleBar from '@/components/PopoverTitleBar';
 import SearchBar from './sidebar/SearchBar';
 import SearchResults from './sidebar/SearchResults';
 import TOCView from './sidebar/TOCView';
@@ -58,8 +59,7 @@ const TocPopover: React.FC<TocPopoverProps> = ({ bookKey, isOpen, anchorEl, onCl
     >
       <div className='flex flex-col pb-2'>
         <div className='bg-base-200 sticky top-0 z-10 flex flex-col gap-2 px-4 pb-2 pt-4'>
-          <h2 className='text-base-content popover-title text-center text-sm'>{_('Contents')}</h2>
-          <div className='bg-base-content/15 h-px' />
+          <PopoverTitleBar title={_('Contents')} showDivider />
           <SearchBar isVisible={true} bookKey={bookKey} onHideSearchBar={handleHideSearchBar} />
         </div>
         {searchTerm && searchResults ? (

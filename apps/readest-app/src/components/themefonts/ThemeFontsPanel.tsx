@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import PopoverTitleBar from '@/components/PopoverTitleBar';
 import ControlRow from './ControlRow';
 import ThemeCardGrid from './ThemeCardGrid';
 import CustomizeSection from './CustomizeSection';
@@ -14,8 +15,7 @@ const ThemeFontsPanel: React.FC<ThemeFontsPanelProps> = ({ bookKey }) => {
 
   return (
     <div className='flex flex-col gap-3 pb-5 pt-4'>
-      <h2 className='text-base-content popover-title text-center text-sm'>{_('Theme & Fonts')}</h2>
-      <div className='bg-base-content/15 mx-4 h-px' />
+      <PopoverTitleBar title={_('Theme & Fonts')} showDivider dividerClassName='mx-4' />
       <ControlRow bookKey={bookKey} />
       <div className='mt-2'>
         <ThemeCardGrid />
