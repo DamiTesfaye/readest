@@ -826,6 +826,20 @@ input[type='range'].slider-input {
   transition: none !important;
 }
 
+[data-ui-anim='off'] *,
+[data-ui-anim='off'] *::before,
+[data-ui-anim='off'] *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}
+
+[data-ui-anim='off']::view-transition-old(root),
+[data-ui-anim='off']::view-transition-new(root) {
+  animation: none !important;
+}
+
 /* settings highlight animation for command palette */
 @keyframes settings-highlight-pulse {
   0%,

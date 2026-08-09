@@ -17,6 +17,8 @@ import { useSettingsSync } from '@/hooks/useSettingsSync';
 import { useDefaultIconSize } from '@/hooks/useResponsiveSize';
 import { useBackgroundTexture } from '@/hooks/useBackgroundTexture';
 import { useEinkMode } from '@/hooks/useEinkMode';
+import { useUIAnimationsMode } from '@/hooks/useUIAnimationsMode';
+import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { getLocale } from '@/utils/misc';
 import { getDirFromUILanguage } from '@/utils/rtl';
 import { getAndroidPatchedViewportContent } from '@/utils/viewport';
@@ -106,6 +108,7 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
   const { applyUILanguage } = useSettingsStore();
   const { applyBackgroundTexture } = useBackgroundTexture();
   const { applyEinkMode } = useEinkMode();
+  const { applyUIAnimationsMode } = useUIAnimationsMode();
   const {
     isInitialized: isLockInitialized,
     isUnlocked,
@@ -168,6 +171,9 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
         if (globalViewSettings.isEink) {
           applyEinkMode(true);
         }
+        if (!resolveUIAnimationsEnabled(settings)) {
+          applyUIAnimationsMode(false);
+        }
         // Initialize the app-lock gate from on-disk settings. Until
         // this runs, the gate renders nothing — guarantees the
         // library can't flash on screen before the lock screen does.
@@ -195,6 +201,7 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
     applyUILanguage,
     applyBackgroundTexture,
     applyEinkMode,
+    applyUIAnimationsMode,
     initializeAppLock,
   ]);
 
