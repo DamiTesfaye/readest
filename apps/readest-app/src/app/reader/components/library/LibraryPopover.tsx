@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import type { Book } from '@/types/book';
@@ -82,6 +83,7 @@ const LibraryPopover: React.FC<LibraryPopoverProps> = ({ bookKey, isOpen, anchor
   );
 
   const isEmpty = reading.length === 0 && others.length === 0;
+  const showLabels = reading.length > 0 && others.length > 0;
 
   return (
     <>
@@ -94,17 +96,27 @@ const LibraryPopover: React.FC<LibraryPopoverProps> = ({ bookKey, isOpen, anchor
         onClose={onClose}
       >
         <div className='flex max-h-full flex-col'>
-          <div className='bg-base-200 flex flex-col px-4 pb-2 pt-4'>
+          <div className='bg-base-200 flex flex-col gap-2 px-4 pb-2 pt-4'>
             <PopoverTitleBar
               title={_('Library')}
+              showDivider
               end={<LibrarySearchInput value={query} onChange={setQuery} onEscape={onClose} />}
             />
           </div>
-          <div className='no-scrollbar flex flex-col gap-2 overflow-y-auto overscroll-contain px-4 pb-4'>
+          <div className='no-scrollbar flex flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-4 pt-2'>
             {reading.length > 0 && (
-              <>
-                <span className='text-base-content/70 text-sm'>{_('Currently reading')}</span>
-                <div className='no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain'>
+              <div className='flex flex-col gap-1'>
+                {showLabels && (
+                  <span className='text-base-content/70 popover-label'>
+                    {_('Currently reading')}
+                  </span>
+                )}
+                <div
+                  className={clsx(
+                    'no-scrollbar -mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4',
+                    showLabels && '-mt-2',
+                  )}
+                >
                   {reading.map((book) => (
                     <LibraryBookItem
                       key={book.hash}
@@ -115,22 +127,29 @@ const LibraryPopover: React.FC<LibraryPopoverProps> = ({ bookKey, isOpen, anchor
                     />
                   ))}
                 </div>
-              </>
-            )}
-            {reading.length > 0 && others.length > 0 && (
-              <div className='bg-base-content/15 mx-2 my-2 h-px' />
+              </div>
             )}
             {others.length > 0 && (
-              <div className='no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain'>
-                {others.map((book) => (
-                  <LibraryBookItem
-                    key={book.hash}
-                    book={book}
-                    isOpen={openHashes.has(book.hash)}
-                    showProgress={false}
-                    onSelect={handleSelect}
-                  />
-                ))}
+              <div className='flex flex-col gap-1'>
+                {showLabels && (
+                  <span className='text-base-content/70 popover-label'>{_('On the shelf')}</span>
+                )}
+                <div
+                  className={clsx(
+                    'no-scrollbar -mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4',
+                    showLabels && '-mt-2',
+                  )}
+                >
+                  {others.map((book) => (
+                    <LibraryBookItem
+                      key={book.hash}
+                      book={book}
+                      isOpen={openHashes.has(book.hash)}
+                      showProgress={false}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </div>
               </div>
             )}
             {isEmpty && (

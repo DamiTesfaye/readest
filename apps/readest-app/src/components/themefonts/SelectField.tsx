@@ -38,7 +38,7 @@ const SelectField = ({
         if (e.key === 'Escape') setOpen(false);
       }}
     >
-      {label && <span className='text-base-content/70 text-xxs'>{label}</span>}
+      {label && <span className='text-base-content/70 popover-field-label'>{label}</span>}
       <button
         type='button'
         aria-haspopup='listbox'

@@ -24,7 +24,7 @@ const LibrarySearchInput: React.FC<LibrarySearchInputProps> = ({ value, onChange
         value={value}
         placeholder={_('Search')}
         aria-label={_('Search')}
-        className='placeholder:text-base-content/50 text-base-content w-24 border-0 bg-transparent p-0 text-sm outline-none focus:outline-none focus:ring-0'
+        className='placeholder:text-base-content/50 text-base-content w-24 border-0 bg-transparent p-0 text-sm outline-none [font-family:"Avenir_Next_LT_Pro"] focus:outline-none focus:ring-0'
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key !== 'Escape') return;

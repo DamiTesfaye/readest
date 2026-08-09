@@ -71,6 +71,68 @@ describe('LibraryPopover', () => {
     expect(screen.getByTitle('Moby-Dick')).toBeTruthy();
   });
 
+  it('separates the title bar from the content with a divider', () => {
+    renderPopover();
+    const header = screen.getByText('Library').closest('div.bg-base-200');
+    expect(header?.querySelector('.h-px')).toBeTruthy();
+  });
+
+  it('renders the Currently reading heading with the popover label font', () => {
+    renderPopover();
+    expect(screen.getByText('Currently reading').className).toContain('popover-label');
+  });
+
+  it('renders book title in medium Avenir Next and author and progress in the label font', () => {
+    renderPopover();
+    const title = screen.getByText('Zero to One', { selector: 'span' });
+    expect(title.className).toContain('font-medium');
+    expect(title.className).toContain('Avenir_Next_LT_Pro');
+    const [author] = screen.getAllByText('Anonymous');
+    expect(author!.className).toContain('popover-label');
+    const progress = screen.getByText('Open');
+    expect(progress.className).toContain('font-light');
+    expect(progress.className).toContain('Avenir');
+    expect(progress.className).not.toContain('popover-label');
+  });
+
+  it('keeps the hover halo symmetric while offsetting the card padding from the label gap', () => {
+    renderPopover();
+    const card = screen.getByTitle('Zero to One');
+    expect(card.className).toMatch(/\bp-2\b/);
+    const row = card.parentElement as HTMLElement;
+    expect(row.className).toContain('-mt-2');
+  });
+
+  it('lets rows scroll to the popover edges while keeping resting alignment', () => {
+    renderPopover();
+    for (const title of ['Zero to One', 'Moby-Dick']) {
+      const row = screen.getByTitle(title).parentElement as HTMLElement;
+      expect(row.className).toContain('-mx-4');
+      expect(row.className).toContain('px-4');
+    }
+  });
+
+  it('does not offset the rows when labels are hidden', () => {
+    renderPopover();
+    fireEvent.change(screen.getByPlaceholderText('Search'), { target: { value: 'moby' } });
+    const row = screen.getByTitle('Moby-Dick').parentElement as HTMLElement;
+    expect(row.className).not.toContain('-mt-2');
+  });
+
+  it('labels the second row instead of a divider when both rows exist', () => {
+    renderPopover();
+    expect(screen.getByText('On the shelf')).toBeTruthy();
+    expect(document.querySelectorAll('.h-px')).toHaveLength(1);
+  });
+
+  it('hides both labels when only one row exists', () => {
+    renderPopover();
+    fireEvent.change(screen.getByPlaceholderText('Search'), { target: { value: 'zero' } });
+    expect(screen.getByTitle('Zero to One')).toBeTruthy();
+    expect(screen.queryByText('Currently reading')).toBeNull();
+    expect(screen.queryByText('On the shelf')).toBeNull();
+  });
+
   it('focuses an already-open book without prompting', () => {
     const onClose = vi.fn();
     renderPopover(onClose);
@@ -134,6 +196,11 @@ describe('LibraryPopover', () => {
     expect(screen.getByTitle('Moby-Dick')).toBeTruthy();
     expect(screen.queryByTitle('Zero to One')).toBeNull();
     expect(screen.queryByText('Currently reading')).toBeNull();
+  });
+
+  it('renders the search input in Avenir Next', () => {
+    renderPopover();
+    expect(screen.getByPlaceholderText('Search').className).toContain('Avenir_Next_LT_Pro');
   });
 
   it('shows an empty line when nothing matches', () => {

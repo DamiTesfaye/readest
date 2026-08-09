@@ -267,7 +267,7 @@ const CustomizeSection: React.FC<CustomizeSectionProps> = ({ bookKey, onCollapse
             onChange={(value) => apply('gapPercent', value)}
           />
           <div className='flex flex-col justify-end gap-1'>
-            <span className='text-base-content/70 text-xxs flex items-center justify-between'>
+            <span className='text-base-content/70 popover-field-label flex items-center justify-between'>
               {_('Margins')}
               <button
                 type='button'
@@ -342,7 +342,7 @@ const CustomizeSection: React.FC<CustomizeSectionProps> = ({ bookKey, onCollapse
         </div>
 
         <div className='flex flex-col gap-1'>
-          <span className='text-base-content/70 text-xxs'>{_('Paragraph Margin')}</span>
+          <span className='text-base-content/70 popover-field-label'>{_('Paragraph Margin')}</span>
           <div className='flex items-center gap-2'>
             <input
               type='range'

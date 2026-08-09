@@ -38,9 +38,13 @@ const LibraryBookItem: React.FC<LibraryBookItemProps> = ({
         }}
       />
       <div className='flex min-w-0 flex-col gap-0.5'>
-        <span className='text-base-content line-clamp-3 text-sm font-bold'>{book.title}</span>
-        <span className='text-base-content/60 line-clamp-2 text-xs'>{book.author}</span>
-        <span className='text-base-content/60 mt-1 text-xs'>{status || ' '}</span>
+        <span className='text-base-content line-clamp-3 text-sm font-medium [font-family:"Avenir_Next_LT_Pro"]'>
+          {book.title}
+        </span>
+        <span className='text-base-content/60 popover-label line-clamp-2'>{book.author}</span>
+        <span className='text-base-content/60 mt-1 text-xs font-light [font-family:Avenir,"Avenir_Next_LT_Pro",sans-serif]'>
+          {status || ' '}
+        </span>
       </div>
     </button>
   );

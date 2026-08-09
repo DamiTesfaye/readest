@@ -156,6 +156,27 @@ there rather than rolling their own `<p>` below the header. Top-level panels cur
 inline the title + description; if a third or fourth panel needs the same pattern,
 extract a `<PanelHeader>` primitive following the same shape.
 
+**Popover headings.** Toolbar popovers (e.g. Theme & Fonts) use the `.popover-title`
+class from `globals.css` instead of the panel typography: Literata at semibold (600).
+This is the default font + weight for every popover title; pair it with a full-row
+`bg-base-content/15 h-px mx-4` divider directly under the heading.
+
+**Popover section labels.** Text that sits over a group of controls inside a popover
+(e.g. "Background", "Typography and Layout Options") uses `.popover-label` from
+`globals.css`: Avenir Next LT Pro at medium (500), 12px. These are labels, not
+headers — the popover counterpart to `SettingLabel`. Section labels sit 8px (`gap-2`)
+above their content, except over dense rows of cards (the Library popover book rows)
+where the gap tightens to 4px (`gap-1`); when the cards carry their own padding for a
+hover halo, offset it with a negative margin on the row rather than stripping the
+padding, so the halo stays symmetric.
+
+**Popover field labels.** The smaller caption over a single control (e.g. "Line
+Height", "Letter Spacing", "Margins", "Paragraph Margin") uses `.popover-field-label`
+from `globals.css`: Avenir Next LT Pro at medium (500), 11px, dimmed with
+`text-base-content/70`, and a 4px (`gap-1`) gap to its control. Use section labels to
+title a group, field labels to caption one control; don't mix the tiers within a
+group.
+
 **Examples.**
 
 ```tsx

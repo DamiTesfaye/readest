@@ -53,6 +53,12 @@
   font-size: 0.75rem;
 }
 
+.popover-field-label {
+  font-family: 'Avenir Next LT Pro', sans-serif;
+  font-weight: 500;
+  font-size: 0.6875rem;
+}
+
 .text-xxs {
   font-size: 0.6875rem;
   line-height: 0.875rem;
