@@ -1,4 +1,3 @@
-import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import SearchBar from '@/app/reader/components/sidebar/SearchBar';
