@@ -6,6 +6,8 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useResetViewSettings } from '@/hooks/useResetSettings';
 import { useEinkMode } from '@/hooks/useEinkMode';
+import { useUIAnimationsMode } from '@/hooks/useUIAnimationsMode';
+import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { getStyles } from '@/utils/style';
 import { getMaxInlineSize } from '@/utils/config';
 import { saveSysSettings, saveViewSettings } from '@/helpers/settings';
@@ -32,6 +34,7 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
   const { getBookData } = useBookDataStore();
   const { settings } = useSettingsStore();
   const { applyEinkMode } = useEinkMode();
+  const { applyUIAnimationsMode } = useUIAnimationsMode();
   const bookData = getBookData(bookKey);
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
 
@@ -67,6 +70,9 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
   const [isAutoCheckUpdates, setIsAutoCheckUpdates] = useState(settings.autoCheckUpdates);
   const [isNightlyChannel, setIsNightlyChannel] = useState(settings.updateChannel === 'nightly');
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(settings.telemetryEnabled);
+  const [isUIAnimationsEnabled, setIsUIAnimationsEnabled] = useState(() =>
+    resolveUIAnimationsEnabled(settings),
+  );
 
   const resetToDefaults = useResetViewSettings();
   const pageTurnerResetRef = useRef<() => void>(() => {});
@@ -254,6 +260,13 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copyToNotebook]);
 
+  const toggleUIAnimations = () => {
+    const newValue = !isUIAnimationsEnabled;
+    saveSysSettings(envConfig, 'uiAnimationsEnabled', newValue);
+    setIsUIAnimationsEnabled(newValue);
+    applyUIAnimationsMode(newValue);
+  };
+
   const toggleAutoCheckUpdates = () => {
     const newValue = !isAutoCheckUpdates;
     saveSysSettings(envConfig, 'autoCheckUpdates', newValue);
@@ -425,6 +438,14 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
           label={_('Paging Animation')}
           checked={animated}
           onChange={() => setAnimated(!animated)}
+        />
+      </BoxedList>
+
+      <BoxedList title={_('Interface')} data-setting-id='settings.control.uiAnimations'>
+        <SettingsSwitchRow
+          label={_('UI Animations')}
+          checked={isUIAnimationsEnabled}
+          onChange={toggleUIAnimations}
         />
       </BoxedList>
 
