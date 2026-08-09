@@ -3,22 +3,12 @@ import { memo, useMemo } from 'react';
 import type { Book } from '@/types/book';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SHOW_UNREAD_STATUS_BADGE } from '@/services/constants';
+import { getProgressPercentage } from '@/utils/bookProgress';
 import StatusBadge from './StatusBadge';
 
 interface ReadingProgressProps {
   book: Book;
 }
-
-const getProgressPercentage = (book: Book) => {
-  if (!book.progress || !book.progress[1]) {
-    return null;
-  }
-  if (book.progress && book.progress[1] === 1) {
-    return 100;
-  }
-  const percentage = Math.round((book.progress[0] / book.progress[1]) * 100);
-  return Math.max(0, Math.min(100, percentage));
-};
 
 const ReadingProgress: React.FC<ReadingProgressProps> = memo(
   ({ book }) => {
