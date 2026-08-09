@@ -31,9 +31,16 @@ describe('ThemeColorSelector masonry cards', () => {
     return { onThemeColorChange, onEditTheme, onCreateTheme };
   };
 
-  it('renders the four scene cards but not the hidden default', () => {
+  it('renders the six scene cards but not the hidden default', () => {
     renderSelector();
-    for (const name of [/Paper/, /Desert Sunset/, /Starry Night/, /Night Pond/]) {
+    for (const name of [
+      /Neue Paper/,
+      /Desert Sunset/,
+      /Starry Night/,
+      /Forest Pond/,
+      /Ocean Wave/,
+      /Cherry Bloom/,
+    ]) {
       expect(screen.getByRole('button', { name })).toBeTruthy();
     }
     expect(screen.queryByRole('button', { name: /^Default/ })).toBeNull();
@@ -53,9 +60,9 @@ describe('ThemeColorSelector masonry cards', () => {
   });
 
   it('clicking the selected card still fires the handler (deselect is caller-owned)', () => {
-    const { onThemeColorChange } = renderSelector({ themeColor: 'night-pond' });
-    fireEvent.click(screen.getByRole('button', { name: /Night Pond/ }));
-    expect(onThemeColorChange).toHaveBeenCalledWith('night-pond');
+    const { onThemeColorChange } = renderSelector({ themeColor: 'forest-pond' });
+    fireEvent.click(screen.getByRole('button', { name: /Forest Pond/ }));
+    expect(onThemeColorChange).toHaveBeenCalledWith('forest-pond');
     cleanup();
   });
 
