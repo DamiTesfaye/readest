@@ -45,8 +45,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
     onThemeModeChange(isDarkMode ? 'light' : 'dark');
   };
 
-  const cloudBase =
-    'pointer-events-none absolute transition-all duration-500 ease-in-out motion-reduce:transition-none';
+  const cloudBase = 'pointer-events-none absolute transition-all duration-500 ease-in-out';
   const shown = 'translate-y-0 opacity-100';
   const hidden = 'translate-y-[130%] opacity-0';
 
@@ -63,7 +62,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
           aria-pressed={themeMode === 'auto'}
           className={clsx(
             'eink-bordered flex h-10 w-10 items-center justify-center rounded-full p-2',
-            'transition-colors duration-200 hover:bg-base-300 motion-reduce:transition-none',
+            'transition-colors duration-200 hover:bg-base-300',
             themeMode === 'auto' && 'bg-base-300',
           )}
           onClick={handleAutoClick}
@@ -81,7 +80,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
           role='switch'
           aria-checked={isDarkMode}
           aria-label={isDarkMode ? _('Light Mode') : _('Dark Mode')}
-          className='eink-bordered relative h-12 w-36 overflow-hidden rounded-full transition-colors duration-500 motion-reduce:transition-none'
+          className='eink-bordered relative h-12 w-36 overflow-hidden rounded-full transition-colors duration-500'
           style={{ backgroundColor: isDarkMode ? '#101a33' : '#9bd3f0' }}
           onClick={handlePillClick}
         >
@@ -142,7 +141,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
               sun/moon crossfade mid-flight */}
           <span
             className={clsx(
-              'absolute left-1 top-1 block h-10 w-10 transition-transform duration-500 ease-in-out motion-reduce:transition-none',
+              'absolute left-1 top-1 block h-10 w-10 transition-transform duration-500 ease-in-out',
               isDarkMode && 'translate-x-24',
             )}
           >
@@ -150,7 +149,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
               src={`${ASSETS}/sun.svg`}
               alt=''
               className={clsx(
-                'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200 motion-reduce:transition-none',
+                'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200',
                 isDarkMode ? 'opacity-0' : 'opacity-100',
               )}
             />
@@ -158,7 +157,7 @@ const ThemeModeSelector: React.FC<ThemeModeSelectorProps> = ({
               src={`${ASSETS}/moon.svg`}
               alt=''
               className={clsx(
-                'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200 motion-reduce:transition-none',
+                'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200',
                 isDarkMode ? 'opacity-100' : 'opacity-0',
               )}
             />

@@ -567,12 +567,6 @@ input[type='range'].slider-input {
 .animate-squash-stretch {
   animation: squash-stretch 0.45s ease-out;
 }
-@media (prefers-reduced-motion: reduce) {
-  .animate-squash-stretch {
-    animation: none;
-  }
-}
-
 /* Wobble for the theme-card radio when a selection lands on it. */
 @keyframes wobble {
   0%,
@@ -592,12 +586,6 @@ input[type='range'].slider-input {
 .animate-wobble {
   animation: wobble 0.4s ease-in-out;
 }
-@media (prefers-reduced-motion: reduce) {
-  .animate-wobble {
-    animation: none;
-  }
-}
-
 /* High Contrast: push app-chrome text (daisyUI --bc base-content) to the
    contrast extreme for the active mode, keeping the theme's background so a
    scene still reads as itself. Book content is boosted separately via
@@ -923,34 +911,6 @@ html[data-nav-direction='back'] ::view-transition-new(root) {
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-/* Simpler fade for reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 0.15s;
-  }
-
-  ::view-transition-old(root) {
-    animation-name: simple-fade-out !important;
-  }
-
-  ::view-transition-new(root) {
-    animation-name: simple-fade-in !important;
-  }
-
-  @keyframes simple-fade-out {
-    to {
-      opacity: 0;
-    }
-  }
-
-  @keyframes simple-fade-in {
-    from {
-      opacity: 0;
-    }
   }
 }
 

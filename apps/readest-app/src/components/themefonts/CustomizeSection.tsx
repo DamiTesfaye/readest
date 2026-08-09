@@ -278,7 +278,7 @@ const CustomizeSection: React.FC<CustomizeSectionProps> = ({ bookKey, onCollapse
               >
                 <GearIcon
                   className={clsx(
-                    'h-3.5 w-3.5 transition-transform duration-300 motion-reduce:transition-none',
+                    'h-3.5 w-3.5 transition-transform duration-300',
                     marginsExpanded ? 'rotate-90' : 'opacity-60',
                   )}
                 />

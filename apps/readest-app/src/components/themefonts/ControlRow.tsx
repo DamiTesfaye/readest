@@ -39,8 +39,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
     }
   };
 
-  const cloudBase =
-    'pointer-events-none absolute transition-all duration-500 ease-in-out motion-reduce:transition-none';
+  const cloudBase = 'pointer-events-none absolute transition-all duration-500 ease-in-out';
   const shown = 'translate-y-0 opacity-100';
   const hidden = 'translate-y-[130%] opacity-0';
 
@@ -56,7 +55,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
           <img
             src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
             alt=''
-            className='group-active:scale-x-110 group-active:scale-y-75 h-3 object-contain transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
+            className='group-active:scale-x-110 group-active:scale-y-75 h-3 object-contain transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
           />
         </button>
         <div className='bg-base-content/20 h-5 w-px' />
@@ -69,7 +68,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
           <img
             src={getThemeFontsTriggerSrc('large', themeColor, isDarkMode)}
             alt=''
-            className='group-active:scale-x-110 group-active:scale-y-75 h-4.5 max-h-5 object-contain transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
+            className='group-active:scale-x-110 group-active:scale-y-75 h-4.5 max-h-5 object-contain transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
           />
         </button>
       </div>
@@ -88,7 +87,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
               : `${TOGGLE_ASSETS}/system_preference_theme.svg`
           }
           alt=''
-          className='group-active:scale-75 h-full w-full transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none'
+          className='group-active:scale-75 h-full w-full transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
         />
       </button>
 
@@ -97,7 +96,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
         role='switch'
         aria-checked={isDarkMode}
         aria-label={isDarkMode ? _('Light Mode') : _('Dark Mode')}
-        className='eink-bordered relative h-9 w-24 overflow-hidden rounded-full transition-colors duration-500 motion-reduce:transition-none'
+        className='eink-bordered relative h-9 w-24 overflow-hidden rounded-full transition-colors duration-500'
         style={{ backgroundColor: isDarkMode ? '#101a33' : '#9bd3f0' }}
         onClick={() => setThemeMode(isDarkMode ? 'light' : 'dark')}
       >
@@ -135,7 +134,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
         />
         <span
           className={clsx(
-            'absolute left-1 top-1 block h-7 w-7 transition-transform duration-500 ease-in-out motion-reduce:transition-none',
+            'absolute left-1 top-1 block h-7 w-7 transition-transform duration-500 ease-in-out',
             isDarkMode && 'translate-x-[60px]',
           )}
         >
@@ -143,7 +142,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
             src={`${TOGGLE_ASSETS}/sun.svg`}
             alt=''
             className={clsx(
-              'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200 motion-reduce:transition-none',
+              'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200',
               isDarkMode ? 'opacity-0' : 'opacity-100',
             )}
           />
@@ -151,7 +150,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
             src={`${TOGGLE_ASSETS}/moon.svg`}
             alt=''
             className={clsx(
-              'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200 motion-reduce:transition-none',
+              'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200',
               isDarkMode ? 'opacity-100' : 'opacity-0',
             )}
           />

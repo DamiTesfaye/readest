@@ -86,7 +86,7 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
         // border-current ring (works on e-ink) plus the filled radio.
         className={clsx(
           'eink-bordered relative mb-4 flex w-full break-inside-avoid flex-col overflow-hidden rounded-xl border-2 shadow-md',
-          'transition-transform duration-200 ease-out hover:scale-[1.03] motion-reduce:transition-none',
+          'transition-transform duration-200 ease-out hover:scale-[1.03]',
           selected ? 'border-current' : 'border-transparent',
         )}
         style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
@@ -140,7 +140,7 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
         <button
           className={clsx(
             'eink-bordered flex min-h-[6rem] w-[calc(50%-0.5rem)] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-4 shadow-md',
-            'transition-transform duration-200 ease-out hover:scale-[1.03] motion-reduce:transition-none',
+            'transition-transform duration-200 ease-out hover:scale-[1.03]',
           )}
           onClick={onCreateTheme}
         >
