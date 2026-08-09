@@ -21,6 +21,11 @@ export const matchesQuery = (book: Book, query: string): boolean => {
   );
 };
 
+export const isCurrentlyReading = (book: Book): boolean =>
+  (book.progress?.[0] ?? 0) > 0 &&
+  book.readingStatus !== 'finished' &&
+  book.readingStatus !== 'abandoned';
+
 const byUpdatedAtDesc = (a: Book, b: Book) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
 
 export const selectLibraryPopoverBooks = (
@@ -29,7 +34,7 @@ export const selectLibraryPopoverBooks = (
 ): LibraryPopoverSegments => {
   const visible = library.filter((book) => isOpenableBook(book) && matchesQuery(book, query));
   return {
-    reading: visible.filter((book) => book.readingStatus === 'reading').sort(byUpdatedAtDesc),
-    others: visible.filter((book) => book.readingStatus !== 'reading').sort(byUpdatedAtDesc),
+    reading: visible.filter(isCurrentlyReading).sort(byUpdatedAtDesc),
+    others: visible.filter((book) => !isCurrentlyReading(book)).sort(byUpdatedAtDesc),
   };
 };

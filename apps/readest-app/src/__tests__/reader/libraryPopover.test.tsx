@@ -56,7 +56,7 @@ beforeEach(() => {
   currentBookFormat = 'EPUB';
   bookKeys = ['open1-abc'];
   library = [
-    makeBook({ hash: 'open1', title: 'Zero to One', readingStatus: 'reading', updatedAt: 10 }),
+    makeBook({ hash: 'open1', title: 'Zero to One', progress: [6, 100], updatedAt: 10 }),
     makeBook({ hash: 'other1', title: 'Moby-Dick', readingStatus: 'unread', updatedAt: 5 }),
   ];
 });

@@ -25,7 +25,7 @@ const LibraryBookItem: React.FC<LibraryBookItemProps> = ({
     <button
       type='button'
       title={book.title}
-      className='hover:bg-base-content/5 flex items-start gap-3 rounded-md p-2 text-start'
+      className='hover:bg-base-content/5 flex w-56 shrink-0 items-start gap-3 rounded-md p-2 text-start'
       onClick={() => onSelect(book)}
     >
       <img

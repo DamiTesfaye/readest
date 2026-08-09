@@ -63,16 +63,17 @@ describe('selectLibraryPopoverBooks', () => {
   const reading1 = makeBook({
     hash: 'r1',
     title: 'Zero to One',
-    readingStatus: 'reading',
+    progress: [6, 100],
     updatedAt: 10,
   });
   const reading2 = makeBook({
     hash: 'r2',
     title: 'A Tale of Two Cities',
+    progress: [4, 100],
     readingStatus: 'reading',
     updatedAt: 30,
   });
-  const unread = makeBook({
+  const unstarted = makeBook({
     hash: 'o1',
     title: 'Moby-Dick',
     readingStatus: 'unread',
@@ -81,30 +82,58 @@ describe('selectLibraryPopoverBooks', () => {
   const finished = makeBook({
     hash: 'o2',
     title: 'The Art of War',
+    progress: [100, 100],
     readingStatus: 'finished',
     updatedAt: 40,
   });
   const abandoned = makeBook({
     hash: 'o3',
     title: 'Ulysses',
+    progress: [5, 100],
     readingStatus: 'abandoned',
     updatedAt: 5,
   });
-  const statusless = makeBook({ hash: 'o4', title: 'Pride and Prejudice', updatedAt: 1 });
+  const zeroProgress = makeBook({
+    hash: 'o4',
+    title: 'Pride and Prejudice',
+    progress: [0, 300],
+    updatedAt: 1,
+  });
   const deleted = makeBook({
     hash: 'd1',
     title: 'Deleted',
-    readingStatus: 'reading',
+    progress: [3, 100],
     deletedAt: 1,
   });
   const remote = makeBook({ hash: 'n1', title: 'Not downloaded', downloadedAt: null });
 
-  const library = [reading1, reading2, unread, finished, abandoned, statusless, deleted, remote];
+  const library = [
+    reading1,
+    reading2,
+    unstarted,
+    finished,
+    abandoned,
+    zeroProgress,
+    deleted,
+    remote,
+  ];
 
-  it("puts only readingStatus 'reading' in the first segment", () => {
+  it('puts started, unfinished books in the first segment regardless of status', () => {
     const { reading, others } = selectLibraryPopoverBooks(library, '');
     expect(reading.map((b) => b.hash)).toEqual(['r2', 'r1']);
     expect(others.map((b) => b.hash)).toEqual(['o2', 'o1', 'o3', 'o4']);
+  });
+
+  it('keeps finished and abandoned books out of the first segment even with progress', () => {
+    const { reading } = selectLibraryPopoverBooks(library, '');
+    expect(reading.map((b) => b.hash)).not.toContain('o2');
+    expect(reading.map((b) => b.hash)).not.toContain('o3');
+  });
+
+  it('treats zero and missing progress as not started', () => {
+    const { reading } = selectLibraryPopoverBooks(library, '');
+    expect(reading.map((b) => b.hash)).not.toContain('o4');
+    expect(reading.map((b) => b.hash)).not.toContain('o1');
   });
 
   it('excludes deleted and not-downloaded books from both segments', () => {

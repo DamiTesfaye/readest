@@ -18,7 +18,6 @@ import ParallelReadPrompt from './ParallelReadPrompt';
 import { selectLibraryPopoverBooks } from './selectors';
 
 const MAX_POPOVER_WIDTH = 720;
-const TWO_COLUMN_MAX_WIDTH = 520;
 const MAX_POPOVER_HEIGHT = 520;
 
 interface LibraryPopoverProps {
@@ -82,8 +81,6 @@ const LibraryPopover: React.FC<LibraryPopoverProps> = ({ bookKey, isOpen, anchor
       !FIXED_LAYOUT_FORMATS.has(currentBook.format),
   );
 
-  const columns = width < TWO_COLUMN_MAX_WIDTH ? 2 : 3;
-  const gridStyle = { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` };
   const isEmpty = reading.length === 0 && others.length === 0;
 
   return (
@@ -107,7 +104,7 @@ const LibraryPopover: React.FC<LibraryPopoverProps> = ({ bookKey, isOpen, anchor
             {reading.length > 0 && (
               <>
                 <span className='text-base-content/70 text-sm'>{_('Currently reading')}</span>
-                <div className='grid gap-2' style={gridStyle}>
+                <div className='no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain'>
                   {reading.map((book) => (
                     <LibraryBookItem
                       key={book.hash}
@@ -124,7 +121,7 @@ const LibraryPopover: React.FC<LibraryPopoverProps> = ({ bookKey, isOpen, anchor
               <div className='bg-base-content/15 mx-2 my-2 h-px' />
             )}
             {others.length > 0 && (
-              <div className='grid gap-2' style={gridStyle}>
+              <div className='no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain'>
                 {others.map((book) => (
                   <LibraryBookItem
                     key={book.hash}
