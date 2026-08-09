@@ -97,6 +97,7 @@ const useBooksManager = () => {
     dismissBook,
     getNextBookKey,
     openParallelView,
+    openBookInReader,
   };
 };
 

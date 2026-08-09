@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSidebarStore } from '@/store/sidebarStore';
+import { useParallelViewStore } from '@/store/parallelViewStore';
 import { useGamepad } from '@/hooks/useGamepad';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SystemSettings } from '@/types/settings';
@@ -44,7 +45,8 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const router = useRouter();
   const searchParams = useSearchParams();
   const { envConfig, appService } = useEnv();
-  const { bookKeys, dismissBook, getNextBookKey } = useBooksManager();
+  const { bookKeys, dismissBook, getNextBookKey, openBookInReader } = useBooksManager();
+  const { unsetParallel } = useParallelViewStore();
   const { sideBarBookKey, setSideBarBookKey } = useSidebarStore();
   const { saveSettings } = useSettingsStore();
   const { getConfig, getBookData, saveConfig } = useBookDataStore();
@@ -246,6 +248,28 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       saveSettingsAndGoToLibrary();
     }
   };
+
+  const openBookSingleRef = useRef<(bookHash: string) => Promise<void>>(async () => {});
+  openBookSingleRef.current = async (bookHash: string) => {
+    const existing = bookKeys.find((key) => key.startsWith(bookHash));
+    if (existing) {
+      setSideBarBookKey(existing);
+      return;
+    }
+    const previousKeys = [...bookKeys];
+    unsetParallel(previousKeys);
+    await Promise.all(previousKeys.map((key) => saveConfigAndCloseBook(key)));
+    openBookInReader(bookHash);
+  };
+
+  useEffect(() => {
+    const handle = (event: CustomEvent) => {
+      const { bookHash } = event.detail as { bookHash: string };
+      openBookSingleRef.current(bookHash);
+    };
+    eventDispatcher.on('open-book-single', handle);
+    return () => eventDispatcher.off('open-book-single', handle);
+  }, []);
 
   if (!bookKeys || bookKeys.length === 0) return null;
   const bookData = getBookData(bookKeys[0]!);
