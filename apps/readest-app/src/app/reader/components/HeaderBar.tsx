@@ -24,6 +24,7 @@ import SyncInfoDialog from './SyncInfoDialog';
 import ToolbarPopover from '@/components/ToolbarPopover';
 import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
 import TocPopover from './TocPopover';
+import LibraryPopover from './library/LibraryPopover';
 import { useNotebookStore } from '@/store/notebookStore';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
@@ -75,6 +76,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const themeFontsAnchorRef = useRef<HTMLButtonElement>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const tocAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const libraryAnchorRef = useRef<HTMLButtonElement>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
 
@@ -92,6 +95,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const handleToggleToc = () => {
     setIsTocOpen((prev) => !prev);
+  };
+
+  const handleToggleLibrary = () => {
+    const next = !isLibraryOpen;
+    setIsLibraryOpen(next);
+    handleToggleDropdown(next);
+  };
+
+  const handleCloseLibrary = () => {
+    setIsLibraryOpen(false);
+    handleToggleDropdown(false);
   };
 
   const handleToggleNotebook = () => {
@@ -231,6 +245,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           >
             <div className='hidden items-center gap-x-3 sm:flex'>
               <button
+                title={_('Go home')}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
+                onClick={onGoToLibrary}
+              >
+                <img
+                  src={getToolbarIconSrc('go-home', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-auto object-contain'
+                />
+              </button>
+              <button
                 ref={tocAnchorRef}
                 title={_('Contents')}
                 aria-expanded={isTocOpen}
@@ -244,9 +269,11 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 />
               </button>
               <button
+                ref={libraryAnchorRef}
                 title={_('Library')}
+                aria-expanded={isLibraryOpen}
                 className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={onGoToLibrary}
+                onClick={handleToggleLibrary}
               >
                 <img
                   src={getToolbarIconSrc('library', themeColor, isDarkMode)}
@@ -278,6 +305,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               </button>
             </div>
             <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
+              <button
+                title={_('Go home')}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
+                onClick={onGoToLibrary}
+              >
+                <img
+                  src={getToolbarIconSrc('go-home', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-auto object-contain'
+                />
+              </button>
               <BookmarkToggler bookKey={bookKey} />
               <TranslationToggler bookKey={bookKey} />
             </div>
@@ -363,6 +401,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             isOpen={isTocOpen}
             anchorEl={tocAnchorRef.current}
             onClose={() => setIsTocOpen(false)}
+          />
+          <LibraryPopover
+            bookKey={bookKey}
+            isOpen={isLibraryOpen}
+            anchorEl={libraryAnchorRef.current}
+            onClose={handleCloseLibrary}
           />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
             {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
