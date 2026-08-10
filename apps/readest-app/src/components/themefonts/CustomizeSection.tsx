@@ -366,10 +366,10 @@ const CustomizeSection: React.FC<CustomizeSectionProps> = ({ bookKey, onCollapse
         </div>
       </div>
 
-      <div className='flex items-center justify-between px-4 pt-1'>
+      <div className='flex items-center justify-between px-4 pt-5'>
         <button
           type='button'
-          className='text-base-content px-2 py-1.5 text-sm font-medium'
+          className='text-base-content popover-action-label px-2 py-1.5 text-xs'
           onClick={handleReset}
         >
           {_('Reset')}
@@ -377,14 +377,14 @@ const CustomizeSection: React.FC<CustomizeSectionProps> = ({ bookKey, onCollapse
         <div className='flex items-center gap-2'>
           <button
             type='button'
-            className='eink-bordered bg-base-300 hover:bg-base-content/10 text-base-content rounded-lg px-4 py-1.5 text-sm font-medium'
+            className='eink-bordered bg-base-300 hover:bg-base-content/10 text-base-content popover-action-label rounded-lg px-4 py-1.5 text-xs'
             onClick={handleCancel}
           >
             {_('Cancel')}
           </button>
           <button
             type='button'
-            className='btn-primary bg-base-content text-base-100 rounded-lg px-5 py-1.5 text-sm font-medium'
+            className='btn-primary bg-base-content text-base-100 popover-action-label rounded-lg px-5 py-1.5 text-xs'
             onClick={onCollapse}
           >
             {_('Done')}
