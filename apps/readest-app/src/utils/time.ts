@@ -1,8 +1,10 @@
 import dayjs from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(duration);
+dayjs.extend(advancedFormat);
 
 import 'dayjs/locale/en';
 import 'dayjs/locale/zh';
@@ -34,3 +36,6 @@ export const initDayjs = (locale: string) => {
   dayjs.locale(locale);
   dayjs.extend(relativeTime);
 };
+
+export const formatBooknoteDate = (timestamp: number) =>
+  dayjs(timestamp).format('dddd Do MMMM, YYYY');
