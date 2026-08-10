@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
  *   101  RSVP immersive controls (start dialog / hint chip)
  *   110  Settings app dialog (raised above RSVP for dictionary management)
  *   120  modal / command-palette layer (ModalPortal, CommandPalette)
+ *   125  anchored dropdown panel opened from inside a modal or popover
  *   130  toast / alert
  *   200  security lock screen (AppLockScreen)
  *
@@ -42,6 +43,7 @@ const RSVP_CONTROLS = firstZ(
   read('src/app/reader/components/rsvp/RSVPStartDialog.tsx'),
   /z-\[(\d+)\]/,
 );
+const ANCHORED = firstZ(read('src/components/AnchoredPanel.tsx'), /fixed z-\[(\d+)\]/);
 const TOAST = firstZ(read('src/components/Toast.tsx'), /toast z-\[(\d+)\]/);
 const APP_LOCK = firstZ(read('src/components/AppLockScreen.tsx'), /z-\[(\d+)\]/);
 
@@ -71,13 +73,18 @@ describe('overlay z-index scale', () => {
     expect(TOAST).toBeGreaterThan(SETTINGS);
   });
 
+  it('lifts an anchored dropdown above the popover it was opened from', () => {
+    expect(ANCHORED).toBeGreaterThan(MODAL);
+    expect(TOAST).toBeGreaterThan(ANCHORED);
+  });
+
   it('keeps the security lock screen on top of every modal and toast', () => {
     expect(APP_LOCK).toBeGreaterThan(MODAL);
     expect(APP_LOCK).toBeGreaterThan(TOAST);
   });
 
   it('uses a compact scale with no four-digit z-index', () => {
-    for (const value of [RSVP_OVERLAY, RSVP_CONTROLS, SETTINGS, MODAL, TOAST, APP_LOCK]) {
+    for (const value of [RSVP_OVERLAY, RSVP_CONTROLS, SETTINGS, MODAL, ANCHORED, TOAST, APP_LOCK]) {
       expect(value).toBeLessThan(1000);
     }
   });

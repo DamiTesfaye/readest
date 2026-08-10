@@ -1,5 +1,6 @@
 import clsx from 'clsx';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import AnchoredPanel from '@/components/AnchoredPanel';
 import { rangeOptions } from './model';
 import { ChevronDownIcon } from './icons';
 
@@ -27,19 +28,13 @@ const SelectField = ({
   onChange,
 }: SelectFieldProps) => {
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div
-      className={clsx('relative flex flex-col justify-end gap-1', className)}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false);
-      }}
-    >
+    <div className={clsx('flex flex-col justify-end gap-1', className)}>
       {label && <span className='text-base-content/70 popover-field-label'>{label}</span>}
       <button
+        ref={anchorRef}
         type='button'
         aria-haspopup='listbox'
         aria-expanded={open}
@@ -50,10 +45,15 @@ const SelectField = ({
         <span className='min-w-0 flex-1 truncate text-center text-xs'>{display ?? value}</span>
         <ChevronDownIcon className='h-[7px] w-[11px] shrink-0' />
       </button>
-      {open && (
+      <AnchoredPanel
+        anchorEl={anchorRef.current}
+        isOpen={open}
+        matchAnchorWidth
+        onDismiss={() => setOpen(false)}
+      >
         <ul
           role='listbox'
-          className='eink-bordered bg-base-100 border-base-content/10 not-eink:shadow-lg absolute top-full z-50 mt-1 max-h-44 w-full overflow-y-auto rounded-lg border'
+          className='eink-bordered bg-base-100 border-base-content/10 not-eink:shadow-lg max-h-44 w-full overflow-y-auto rounded-lg border'
           onMouseDown={(e) => e.preventDefault()}
         >
           {rangeOptions(min, max, step, value).map((option) => (
@@ -76,7 +76,7 @@ const SelectField = ({
             </li>
           ))}
         </ul>
-      )}
+      </AnchoredPanel>
     </div>
   );
 };

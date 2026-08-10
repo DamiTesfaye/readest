@@ -1,7 +1,8 @@
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MdCheck } from 'react-icons/md';
 import { useTranslation } from '@/hooks/useTranslation';
+import AnchoredPanel from '@/components/AnchoredPanel';
 import { filterFonts } from './model';
 import { ChevronDownIcon } from './icons';
 
@@ -15,6 +16,7 @@ const FontSelector = ({ selected, options, onSelect }: FontSelectorProps) => {
   const _ = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const anchorRef = useRef<HTMLButtonElement>(null);
 
   const close = () => {
     setOpen(false);
@@ -24,16 +26,9 @@ const FontSelector = ({ selected, options, onSelect }: FontSelectorProps) => {
   const matches = filterFonts(options, query);
 
   return (
-    <div
-      className='relative'
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) close();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') close();
-      }}
-    >
+    <div>
       <button
+        ref={anchorRef}
         type='button'
         aria-haspopup='listbox'
         aria-expanded={open}
@@ -48,8 +43,8 @@ const FontSelector = ({ selected, options, onSelect }: FontSelectorProps) => {
         </span>
         <ChevronDownIcon className='h-[7px] w-[11px] shrink-0' />
       </button>
-      {open && (
-        <div className='eink-bordered bg-base-100 border-base-content/10 not-eink:shadow-lg absolute left-0 top-full z-50 mt-1 flex w-56 flex-col gap-1 rounded-lg border p-2'>
+      <AnchoredPanel anchorEl={anchorRef.current} isOpen={open} onDismiss={close}>
+        <div className='eink-bordered bg-base-100 border-base-content/10 not-eink:shadow-lg flex w-56 flex-col gap-1 rounded-lg border p-2'>
           <input
             type='search'
             autoFocus
@@ -91,7 +86,7 @@ const FontSelector = ({ selected, options, onSelect }: FontSelectorProps) => {
             )}
           </ul>
         </div>
-      )}
+      </AnchoredPanel>
     </div>
   );
 };
