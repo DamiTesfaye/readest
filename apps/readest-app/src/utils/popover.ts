@@ -1,8 +1,15 @@
 import React from 'react';
-import { Position, Rect } from '@/utils/sel';
+import { Position, Rect, getPopupPosition } from '@/utils/sel';
 
 export const POPOVER_EDGE_PADDING = 8;
 const ANCHOR_GAP = 6;
+const SIDE_PANEL_GAP = 12;
+const SIDE_PANEL_POINTER_INSET = 110;
+
+export interface PopoverPlacement {
+  body: Position;
+  pointer: Position;
+}
 
 export const forwardBackdropClickToToolbar = (
   event: React.MouseEvent<HTMLElement>,
@@ -25,3 +32,25 @@ export const getToolbarAnchorPosition = (anchorRect: Rect, gap: number = ANCHOR_
     y: anchorRect.bottom + gap,
   },
 });
+
+export const getToolbarSidePanelPlacement = (
+  anchorRect: Rect,
+  viewport: Rect,
+  anchorPopoverWidth: number,
+  panelWidth: number,
+): PopoverPlacement => {
+  const anchorPointer = getToolbarAnchorPosition(anchorRect);
+  const anchorBody = getPopupPosition(
+    anchorPointer,
+    viewport,
+    anchorPopoverWidth,
+    0,
+    POPOVER_EDGE_PADDING,
+  );
+  const x = Math.max(POPOVER_EDGE_PADDING, anchorBody.point.x - SIDE_PANEL_GAP - panelWidth);
+  const y = anchorBody.point.y;
+  return {
+    body: { dir: 'down', point: { x, y } },
+    pointer: { dir: 'left', point: { x: x + panelWidth, y: y + SIDE_PANEL_POINTER_INSET } },
+  };
+};

@@ -11,6 +11,8 @@ import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { eventDispatcher } from '@/utils/event';
 import { writeTextToClipboard } from '@/utils/clipboard';
+import type { PopoverPlacement } from '@/utils/popover';
+import type { Rect } from '@/utils/sel';
 import ToolbarPopover from '@/components/ToolbarPopover';
 import PopoverTitleBar from '@/components/PopoverTitleBar';
 import { removeBookNoteOverlays } from '../../utils/annotatorUtil';
@@ -18,13 +20,14 @@ import BooknoteEntryItem from './BooknoteEntryItem';
 import { BOOKMARK_RIBBON_COLOR, BookmarkPlaceholderIcon } from './BooknoteIcons';
 import { selectBooknoteEntries } from './selectors';
 
-const POPOVER_WIDTH = 320;
+export const BOOKNOTES_POPOVER_WIDTH = 320;
 const MAX_POPOVER_HEIGHT = 480;
 
 interface BooknotesPopoverProps {
   bookKey: string;
   isOpen: boolean;
   anchorEl: HTMLElement | null;
+  getPlacement?: (anchorRect: Rect, viewport: Rect) => PopoverPlacement;
   onClose: () => void;
 }
 
@@ -32,6 +35,7 @@ const BooknotesPopover: React.FC<BooknotesPopoverProps> = ({
   bookKey,
   isOpen,
   anchorEl,
+  getPlacement,
   onClose,
 }) => {
   const _ = useTranslation();
@@ -94,8 +98,9 @@ const BooknotesPopover: React.FC<BooknotesPopoverProps> = ({
     <ToolbarPopover
       isOpen={isOpen}
       anchorEl={anchorEl}
-      width={POPOVER_WIDTH}
+      width={BOOKNOTES_POPOVER_WIDTH}
       maxHeight={MAX_POPOVER_HEIGHT}
+      getPlacement={getPlacement}
       className='!overflow-hidden'
       onClose={onClose}
     >
@@ -118,7 +123,7 @@ const BooknotesPopover: React.FC<BooknotesPopoverProps> = ({
             <button
               type='button'
               className={clsx(
-                'eink-bordered mt-4 h-9 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-90',
+                'popover-action-label eink-bordered mt-4 h-9 rounded-lg px-4 text-sm transition-opacity hover:opacity-90',
                 isDarkMode ? 'bg-base-content text-base-100' : 'bg-base-300 text-base-content/70',
               )}
               onClick={handleBookmarkThisPage}

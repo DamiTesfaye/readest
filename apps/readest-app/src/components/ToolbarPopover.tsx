@@ -1,8 +1,9 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Position, getPopupPosition } from '@/utils/sel';
+import { Rect, getPopupPosition } from '@/utils/sel';
 import {
   POPOVER_EDGE_PADDING,
+  PopoverPlacement,
   forwardBackdropClickToToolbar,
   getToolbarAnchorPosition,
 } from '@/utils/popover';
@@ -16,6 +17,7 @@ interface ToolbarPopoverProps {
   maxHeight?: number;
   className?: string;
   triangleClassName?: string;
+  getPlacement?: (anchorRect: Rect, viewport: Rect) => PopoverPlacement;
   onClose: () => void;
   children: React.ReactNode;
 }
@@ -27,19 +29,24 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
   maxHeight,
   className,
   triangleClassName,
+  getPlacement,
   onClose,
   children,
 }) => {
-  const [placement, setPlacement] = useState<{ body: Position; pointer: Position } | null>(null);
+  const [placement, setPlacement] = useState<PopoverPlacement | null>(null);
 
   const updatePlacement = useCallback(() => {
     if (!anchorEl) return;
     const rect = anchorEl.getBoundingClientRect();
-    const pointer = getToolbarAnchorPosition(rect);
     const viewport = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    if (getPlacement) {
+      setPlacement(getPlacement(rect, viewport));
+      return;
+    }
+    const pointer = getToolbarAnchorPosition(rect);
     const body = getPopupPosition(pointer, viewport, width, 0, POPOVER_EDGE_PADDING);
     setPlacement({ body, pointer });
-  }, [anchorEl, width]);
+  }, [anchorEl, width, getPlacement]);
 
   useEffect(() => {
     if (!isOpen) {

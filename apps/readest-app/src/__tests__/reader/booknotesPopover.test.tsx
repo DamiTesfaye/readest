@@ -216,6 +216,15 @@ describe('BooknotesPopover', () => {
     expect(screen.queryByLabelText('Copy')).toBeNull();
   });
 
+  it('renders the empty-state action in the popover action label font', () => {
+    booknotes = [];
+    renderPopover();
+
+    const action = screen.getByRole('button', { name: 'Bookmark This Page' });
+    expect(action.className).toContain('popover-action-label');
+    expect(action.className).not.toContain('font-medium');
+  });
+
   it('bookmarks the current page from the empty state and closes', () => {
     booknotes = [];
     const onClose = vi.fn();

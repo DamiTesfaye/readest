@@ -25,11 +25,16 @@ import ToolbarPopover from '@/components/ToolbarPopover';
 import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
 import TocPopover from './TocPopover';
 import LibraryPopover from './library/LibraryPopover';
-import BooknotesPopover from './booknotes/BooknotesPopover';
+import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
+import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
+import { getToolbarSidePanelPlacement } from '@/utils/popover';
+import type { Rect } from '@/utils/sel';
 import { useNotebookStore } from '@/store/notebookStore';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
-import { getThemeFontsTriggerSrc, getToolbarIconSrc } from '@/utils/toolbarIcons';
+import { getToolbarIconSrc } from '@/utils/toolbarIcons';
+
+const THEME_FONTS_WIDTH = 300;
 
 interface HeaderBarProps {
   bookKey: string;
@@ -74,13 +79,13 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMetaHashDialogOpen, setIsMetaHashDialogOpen] = useState(false);
   const [isThemeFontsOpen, setIsThemeFontsOpen] = useState(false);
-  const themeFontsAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreAnchorRef = useRef<HTMLButtonElement>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const tocAnchorRef = useRef<HTMLButtonElement>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const libraryAnchorRef = useRef<HTMLButtonElement>(null);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
-  const booknotesAnchorRef = useRef<HTMLButtonElement>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
 
@@ -111,14 +116,14 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
-  const handleToggleBooknotes = () => {
-    const next = !isBooknotesOpen;
-    setIsBooknotesOpen(next);
-    handleToggleDropdown(next);
+  const handleOpenBooknotes = () => {
+    setIsBooknotesOpen(true);
+    handleToggleDropdown(true);
   };
 
   const handleCloseBooknotes = () => {
     setIsBooknotesOpen(false);
+    setIsMoreOpen(false);
     handleToggleDropdown(false);
   };
 
@@ -129,10 +134,6 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
       setSideBarBookKey(bookKey);
       if (!isNotebookVisible) toggleNotebook();
     }
-  };
-
-  const handleToggleBookmark = () => {
-    eventDispatcher.dispatch('toggle-bookmark', { bookKey });
   };
 
   const handleToggleTTS = () => {
@@ -147,6 +148,35 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const handleThemeFontsClose = () => {
     setIsThemeFontsOpen(false);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  const getThemeFontsPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(anchorRect, viewport, MORE_POPOVER_WIDTH, THEME_FONTS_WIDTH),
+    [],
+  );
+
+  const getBooknotesPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        BOOKNOTES_POPOVER_WIDTH,
+      ),
+    [],
+  );
+
+  const handleToggleMore = () => {
+    const next = !isMoreOpen;
+    setIsMoreOpen(next);
+    handleToggleDropdown(next);
+  };
+
+  const handleCloseMore = () => {
+    setIsMoreOpen(false);
     handleToggleDropdown(false);
   };
 
@@ -259,17 +289,6 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           >
             <div className='hidden items-center gap-x-3 sm:flex'>
               <button
-                title={_('Go home')}
-                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={onGoToLibrary}
-              >
-                <img
-                  src={getToolbarIconSrc('go-home', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-5 w-auto object-contain'
-                />
-              </button>
-              <button
                 ref={tocAnchorRef}
                 title={_('Contents')}
                 aria-expanded={isTocOpen}
@@ -296,25 +315,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 />
               </button>
               <button
-                ref={booknotesAnchorRef}
-                title={_('Bookmarks & Notes')}
-                aria-expanded={isBooknotesOpen}
+                title={_('AI')}
                 className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={handleToggleBooknotes}
+                onClick={handleToggleTTS}
               >
                 <img
-                  src={getToolbarIconSrc('bookmarks-notes', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-5 w-auto object-contain'
-                />
-              </button>
-              <button
-                title={_('Annotations')}
-                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={handleToggleNotebook}
-              >
-                <img
-                  src={getToolbarIconSrc('annotations', themeColor, isDarkMode)}
+                  src={getToolbarIconSrc('amply', themeColor, isDarkMode)}
                   alt=''
                   className='h-5 w-auto object-contain'
                 />
@@ -362,52 +368,34 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2 sm:bg-transparent'>
           <div className='hidden items-center gap-x-3 sm:flex'>
             <button
-              title={_('AI')}
+              ref={moreAnchorRef}
+              title={_('More')}
+              aria-expanded={isMoreOpen}
               className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-              onClick={handleToggleTTS}
+              onClick={handleToggleMore}
             >
               <img
-                src={getToolbarIconSrc('amply', themeColor, isDarkMode)}
+                src={getToolbarIconSrc('more-menu', themeColor, isDarkMode)}
                 alt=''
-                className='h-5 w-auto object-contain'
-              />
-            </button>
-            <button
-              ref={themeFontsAnchorRef}
-              title={_('Theme & Fonts')}
-              aria-expanded={isThemeFontsOpen}
-              className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-12 p-0'
-              onClick={handleThemeFontsOpen}
-            >
-              <span className='flex items-end justify-center gap-0.5'>
-                <img
-                  src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-3.5 object-contain'
-                />
-                <img
-                  src={getThemeFontsTriggerSrc('large', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-5 object-contain'
-                />
-              </span>
-            </button>
-            <button
-              title={_('Bookmark')}
-              className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-              onClick={handleToggleBookmark}
-            >
-              <img
-                src={getToolbarIconSrc('bookmark', themeColor, isDarkMode)}
-                alt=''
-                className='h-5 w-auto object-contain'
+                className='h-4 w-auto object-contain'
               />
             </button>
           </div>
+          <MorePopover
+            bookKey={bookKey}
+            isOpen={isMoreOpen}
+            anchorEl={moreAnchorRef.current}
+            onClose={handleCloseMore}
+            onGoHome={onGoToLibrary}
+            onOpenThemeFonts={handleThemeFontsOpen}
+            onOpenBooknotes={handleOpenBooknotes}
+            onToggleAnnotations={handleToggleNotebook}
+          />
           <ToolbarPopover
             isOpen={isThemeFontsOpen}
-            anchorEl={themeFontsAnchorRef.current}
-            width={300}
+            anchorEl={moreAnchorRef.current}
+            width={THEME_FONTS_WIDTH}
+            getPlacement={getThemeFontsPlacement}
             onClose={handleThemeFontsClose}
           >
             <ThemeFontsPanel bookKey={bookKey} />
@@ -427,7 +415,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           <BooknotesPopover
             bookKey={bookKey}
             isOpen={isBooknotesOpen}
-            anchorEl={booknotesAnchorRef.current}
+            anchorEl={moreAnchorRef.current}
+            getPlacement={getBooknotesPlacement}
             onClose={handleCloseBooknotes}
           />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
@@ -436,7 +425,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           </div>
           <Dropdown
             label={_('View Options')}
-            containerClassName='h-8'
+            containerClassName='h-8 sm:hidden'
             className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
             buttonClassName='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0 mt-0'
             toggleButton={<MdOutlineMenu />}

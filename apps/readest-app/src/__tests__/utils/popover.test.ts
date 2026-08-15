@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { forwardBackdropClickToToolbar } from '@/utils/popover';
+import {
+  POPOVER_EDGE_PADDING,
+  forwardBackdropClickToToolbar,
+  getToolbarSidePanelPlacement,
+} from '@/utils/popover';
 
 describe('forwardBackdropClickToToolbar', () => {
   let tocButton: HTMLButtonElement;
@@ -92,5 +96,31 @@ describe('forwardBackdropClickToToolbar', () => {
     forwardBackdropClickToToolbar(makeEvent());
 
     expect(onClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('getToolbarSidePanelPlacement', () => {
+  const viewport = { left: 0, top: 0, right: 1400, bottom: 800 };
+  const anchorRect = { left: 1360, right: 1392, top: 8, bottom: 40 };
+
+  it('places the panel to the left of the anchored popover, tops aligned', () => {
+    const { body } = getToolbarSidePanelPlacement(anchorRect, viewport, 300, 300);
+    const anchorPopoverLeft = 1400 - POPOVER_EDGE_PADDING - 300;
+    expect(body.point.x).toBeLessThan(anchorPopoverLeft);
+    expect(body.point.x + 300).toBeLessThanOrEqual(anchorPopoverLeft);
+    expect(body.point.y).toBe(40 + 6 + 6);
+  });
+
+  it('points the pointer right, at the panel edge facing the anchored popover', () => {
+    const { body, pointer } = getToolbarSidePanelPlacement(anchorRect, viewport, 300, 300);
+    expect(pointer.dir).toBe('left');
+    expect(pointer.point.x).toBe(body.point.x + 300);
+    expect(pointer.point.y).toBeGreaterThan(body.point.y);
+  });
+
+  it('clamps the panel inside the viewport on narrow screens', () => {
+    const narrow = { left: 0, top: 0, right: 600, bottom: 800 };
+    const { body } = getToolbarSidePanelPlacement(anchorRect, narrow, 300, 300);
+    expect(body.point.x).toBe(POPOVER_EDGE_PADDING);
   });
 });
