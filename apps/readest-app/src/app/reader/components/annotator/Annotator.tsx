@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { RiDeleteBinLine } from 'react-icons/ri';
 
 import * as CFI from 'foliate-js/epubcfi.js';
 import { Overlayer } from 'foliate-js/overlayer.js';
@@ -51,8 +50,7 @@ import { getWordCount } from '@/utils/word';
 import { getIndexFromCfi } from '@/utils/cfi';
 import { writeTextToClipboard } from '@/utils/clipboard';
 import { canShareText, shareSelectedText } from '@/utils/share';
-import { getToolbarToolTypes } from '@/utils/annotationToolbar';
-import { AnnotationToolType } from '@/types/annotator';
+import { saveSysSettings } from '@/helpers/settings';
 import { TransformContext } from '@/services/transformers/types';
 import { transformContent } from '@/services/transformService';
 import {
@@ -70,7 +68,6 @@ import {
   removeGlobalAnnotationOverlays,
   sourceCfiFromSyntheticValue,
 } from '../../utils/globalAnnotations';
-import { annotationToolButtons } from './AnnotationTools';
 import AnnotationRangeEditor from './AnnotationRangeEditor';
 import SelectionRangeEditor from './SelectionRangeEditor';
 import AnnotationPopup from './AnnotationPopup';
@@ -151,7 +148,6 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const [dictPopupPosition, setDictPopupPosition] = useState<Position>();
   const [translatorPopupPosition, setTranslatorPopupPosition] = useState<Position>();
   const [proofreadPopupPosition, setProofreadPopupPosition] = useState<Position>();
-  const [highlightOptionsVisible, setHighlightOptionsVisible] = useState(false);
   const [showAnnotationNotes, setShowAnnotationNotes] = useState(false);
   const [annotationNotes, setAnnotationNotes] = useState<BookNote[]>([]);
   const [editingAnnotation, setEditingAnnotation] = useState<BookNote | null>(null);
@@ -204,20 +200,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const proofreadPopupWidth = Math.min(440, maxWidth);
   const proofreadPopupHeight = Math.min(200, maxHeight);
   const canShare = canShareText(appService);
-  // The toolbar is now customizable, so size the selection popup to the number
-  // of visible tools (responsive) up to a max — otherwise a 2-tool toolbar
-  // renders a sparse, full-width bar. Annotated selections keep the max width
-  // since they show the wider highlight options / notes instead of the buttons.
-  const annotPopupMaxWidth = Math.min(useResponsiveSize(300), maxWidth);
-  const annotPopupToolSize = useResponsiveSize(44);
-  const visibleToolCount = getToolbarToolTypes(
-    viewSettings.annotationToolbarItems,
-    canShare,
-  ).length;
-  const annotPopupWidth = selection?.annotated
-    ? annotPopupMaxWidth
-    : Math.min(Math.max(visibleToolCount, 1) * annotPopupToolSize, annotPopupMaxWidth);
-  const annotPopupHeight = useResponsiveSize(44);
+  const annotPopupWidth = Math.min(useResponsiveSize(240), maxWidth);
+  const annotPopupHeight = Math.min(useResponsiveSize(390), maxHeight);
   const androidSelectionHandlerHeight = 0;
 
   // Reposition popups on scroll without dismissing them
@@ -230,8 +214,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     const annotPopupPos = getPopupPosition(
       triangPos,
       rect,
-      viewSettings.vertical ? annotPopupHeight : annotPopupWidth,
-      viewSettings.vertical ? annotPopupWidth : annotPopupHeight,
+      annotPopupWidth,
+      annotPopupHeight,
       popupPadding,
     );
     if (annotPopupPos.dir === 'down' && osPlatform === 'android') {
@@ -503,6 +487,15 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
         color: isBwEink ? einkBgColor : hexColor,
         vertical: viewSettings.vertical,
       });
+    } else if (kind === 'strikethrough') {
+      const { defaultView } = doc;
+      const node = range.startContainer;
+      const el = node.nodeType === 1 ? node : node.parentElement;
+      const { writingMode } = defaultView.getComputedStyle(el);
+      draw(Overlayer.strikethrough, {
+        writingMode,
+        color: isBwEink ? einkFgColor : hexColor,
+      });
     } else if (kind === 'underline' || kind === 'squiggly') {
       const { defaultView } = doc;
       const node = range.startContainer;
@@ -557,7 +550,6 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     };
     if (isNote) {
       setShowAnnotationNotes(true);
-      setHighlightOptionsVisible(false);
       setEditingAnnotation(null);
     } else {
       setShowAnnotPopup(false);
@@ -909,7 +901,6 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   };
 
   useEffect(() => {
-    setHighlightOptionsVisible(!!(selection && selection.annotated));
     if (selection && selection.text.trim().length > 0) {
       // Read-and-reset the Word Lens dictionary flag up front so it can never
       // stick to a later selection if an early return below fires (e.g. a gloss
@@ -923,8 +914,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       const annotPopupPos = getPopupPosition(
         triangPos,
         rect,
-        viewSettings.vertical ? annotPopupHeight : annotPopupWidth,
-        viewSettings.vertical ? annotPopupWidth : annotPopupHeight,
+        annotPopupWidth,
+        annotPopupHeight,
         popupPadding,
       );
       if (annotPopupPos.dir === 'down' && osPlatform === 'android') {
@@ -1111,7 +1102,6 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
 
   const handleHighlight = (update = false, highlightStyle?: HighlightStyle): BookNote | null => {
     if (!selection || !selection.text) return null;
-    setHighlightOptionsVisible(true);
     const { booknotes: annotations = [] } = config;
     const cfi = view?.getCFI(selection.index, selection.range);
     if (!cfi) return null;
@@ -1204,43 +1194,6 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     }
     const views = getViewsById(bookKey.split('-')[0]!);
     views.forEach((view) => view?.addAnnotation(annotation));
-  };
-
-  /**
-   * Toggle the `global` flag on the annotation currently anchored at
-   * `selection.cfi`. When enabling, fan out overlays for every other
-   * occurrence of `selection.text` in the same section; when disabling,
-   * tear them down. The original anchor highlight at `cfi` is left
-   * untouched in either direction.
-   *
-   * Hidden for fixed-layout formats (PDF/CBZ) because they don't expose
-   * a per-section text DOM we can scan.
-   */
-  const handleToggleGlobal = () => {
-    if (!selection || !selection.cfi || !selection.text) return;
-    if (bookData.isFixedLayout) return;
-    const { booknotes: annotations = [] } = config;
-    const idx = annotations.findIndex(
-      (a) => a.type === 'annotation' && a.style && !a.deletedAt && a.cfi === selection.cfi,
-    );
-    if (idx === -1) return;
-    const existing = annotations[idx]!;
-    const nextGlobal = !existing.global;
-    annotations[idx] = { ...existing, global: nextGlobal, updatedAt: Date.now() };
-    const updatedConfig = updateBooknotes(bookKey, annotations);
-    if (updatedConfig) {
-      saveConfig(envConfig, bookKey, updatedConfig, settings);
-    }
-
-    const views = getViewsById(bookKey.split('-')[0]!);
-    if (nextGlobal) {
-      const updated = annotations[idx]!;
-      views.forEach((v) => {
-        if (v) expandAllRenderedSections(v, updated);
-      });
-    } else {
-      views.forEach((v) => removeGlobalAnnotationOverlays(v, existing));
-    }
   };
 
   const handleAnnotate = () => {
@@ -1636,62 +1589,40 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   };
 
   const selectionAnnotated = selection?.annotated;
-  // For the ✓ (global) toggle in HighlightOptions: figure out whether
-  // the booknote anchored at the current selection is currently global,
-  // and whether the toggle should be shown at all (only meaningful for
-  // re-flowable formats with a non-empty selection text).
   const currentAnnotation = selection?.cfi
     ? config.booknotes?.find(
         (a) => a.type === 'annotation' && a.style && !a.deletedAt && a.cfi === selection.cfi,
       )
     : undefined;
-  const globalToggleAvailable =
-    !bookData.isFixedLayout &&
-    !!selection?.annotated &&
-    !!currentAnnotation &&
-    !!selection?.text &&
-    selection.text.trim().length > 0;
-  const globalToggleActive = !!currentAnnotation?.global;
-  const buildToolButton = (type: AnnotationToolType) => {
-    const def = annotationToolButtons.find((button) => button.type === type);
-    if (!def) return null;
-    const { label, Icon } = def;
-    switch (type) {
-      case 'copy':
-        return { tooltipText: _(label), Icon, onClick: handleCopy };
-      case 'highlight':
-        return {
-          tooltipText: selectionAnnotated ? _('Delete Highlight') : _(label),
-          Icon: selectionAnnotated ? RiDeleteBinLine : Icon,
-          onClick: handleHighlight,
-        };
-      case 'annotate':
-        return { tooltipText: _(label), Icon, onClick: handleAnnotate };
-      case 'search':
-        return { tooltipText: _(label), Icon, onClick: handleSearch };
-      case 'dictionary':
-        return { tooltipText: _(label), Icon, onClick: handleDictionary };
-      case 'translate':
-        return { tooltipText: _(label), Icon, onClick: handleTranslation };
-      case 'tts':
-        return { tooltipText: _(label), Icon, onClick: handleSpeakText };
-      case 'proofread':
-        return {
-          tooltipText: _(label),
-          Icon,
-          onClick: handleProofread,
-          disabled: bookData.book?.format !== 'EPUB',
-        };
-      case 'share':
-        return { tooltipText: _(label), Icon, onClick: handleShare };
-      default:
-        return null;
+
+  const handleSelectStyle = (style: HighlightStyle) => {
+    if (selectionAnnotated && currentAnnotation?.style === style) {
+      handleHighlight(false);
+      return;
+    }
+    saveSysSettings(envConfig, 'globalReadSettings', {
+      ...settings.globalReadSettings,
+      highlightStyle: style,
+    });
+    handleHighlight(true, style);
+  };
+
+  const handleSelectColor = (color: HighlightColor) => {
+    saveSysSettings(envConfig, 'globalReadSettings', {
+      ...settings.globalReadSettings,
+      highlightStyle: selectedStyle,
+      highlightStyles: { ...settings.globalReadSettings.highlightStyles, [selectedStyle]: color },
+    });
+    setSelectedColor(color);
+    if (selectionAnnotated) {
+      handleHighlight(true, selectedStyle);
     }
   };
 
-  const toolButtons = getToolbarToolTypes(viewSettings.annotationToolbarItems, canShare)
-    .map(buildToolButton)
-    .filter((button): button is NonNullable<typeof button> => button !== null);
+  const handleBookmark = () => {
+    eventDispatcher.dispatch('toggle-bookmark', { bookKey });
+    handleDismissPopupAndSelection();
+  };
 
   return (
     <div ref={containerRef} role='toolbar' tabIndex={-1}>
@@ -1744,33 +1675,33 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           onDismiss={handleDismissPopupAndSelection}
         />
       )}
-      {showAnnotPopup &&
-        trianglePosition &&
-        annotPopupPosition &&
-        // With an empty toolbar, suppress the popup on a plain selection rather
-        // than showing an empty bar. Still allow it for editing an existing
-        // highlight (options) or viewing its notes.
-        (toolButtons.length > 0 || highlightOptionsVisible || annotationNotes.length > 0) && (
-          <AnnotationPopup
-            bookKey={bookKey}
-            dir={viewSettings.rtl ? 'rtl' : 'ltr'}
-            isVertical={viewSettings.vertical}
-            buttons={toolButtons}
-            notes={annotationNotes}
-            position={annotPopupPosition}
-            trianglePosition={trianglePosition}
-            highlightOptionsVisible={highlightOptionsVisible}
-            selectedStyle={selectedStyle}
-            selectedColor={selectedColor}
-            popupWidth={annotPopupWidth}
-            popupHeight={annotPopupHeight}
-            globalToggleAvailable={globalToggleAvailable}
-            globalToggleActive={globalToggleActive}
-            onToggleGlobal={handleToggleGlobal}
-            onHighlight={handleHighlight}
-            onDismiss={handleDismissPopupAndSelection}
-          />
-        )}
+      {showAnnotPopup && trianglePosition && annotPopupPosition && (
+        <AnnotationPopup
+          bookKey={bookKey}
+          dir={viewSettings.rtl ? 'rtl' : 'ltr'}
+          isVertical={viewSettings.vertical}
+          selectedText={selection?.text ?? ''}
+          notes={annotationNotes}
+          position={annotPopupPosition}
+          trianglePosition={trianglePosition}
+          selectedStyle={selectedStyle}
+          selectedColor={selectedColor}
+          annotatedStyle={selectionAnnotated ? (currentAnnotation?.style ?? null) : null}
+          popupWidth={annotPopupWidth}
+          popupHeight={annotPopupHeight}
+          canShare={canShare}
+          onSelectStyle={handleSelectStyle}
+          onSelectColor={handleSelectColor}
+          onBookmark={handleBookmark}
+          onAddNote={handleAnnotate}
+          onLookup={handleDictionary}
+          onTranslate={handleTranslation}
+          onSearch={handleSearch}
+          onCopy={() => handleCopy(true)}
+          onShare={handleShare}
+          onDismiss={handleDismissPopupAndSelection}
+        />
+      )}
       {showProofreadPopup && trianglePosition && proofreadPopupPosition && selection && (
         <ProofreadPopup
           bookKey={bookKey}

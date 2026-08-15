@@ -18,7 +18,7 @@ export type BookFormat =
   | 'MD';
 export type BookNoteType = 'bookmark' | 'annotation' | 'excerpt';
 export type ReadingStatus = 'unread' | 'reading' | 'finished' | 'abandoned';
-export type HighlightStyle = 'highlight' | 'underline' | 'squiggly';
+export type HighlightStyle = 'highlight' | 'underline' | 'squiggly' | 'strikethrough';
 // Predefined highlight colors, can be extended with custom hex colors
 export type HighlightColor = 'red' | 'yellow' | 'green' | 'blue' | 'violet' | string;
 export const DEFAULT_HIGHLIGHT_COLORS = ['red', 'yellow', 'green', 'blue', 'violet'] as const;
@@ -442,6 +442,8 @@ export interface BookSearchConfig {
   mode: SearchMode;
   matchCase: boolean;
   matchDiacritics: boolean;
+  fuzzy: boolean;
+  ignorePunctuation: boolean;
   // nearby-words: maximum number of words separating the matched words
   nearbyWords?: number;
   /** @deprecated since schema v3 — mirrors `mode === 'whole-words'`; kept for sync wire back-compat. */

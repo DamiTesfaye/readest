@@ -10,6 +10,10 @@ export const getToolbarIconSrc = (icon: string, themeName: string, isDarkMode: b
     : `/images/toolbar/${icon}-muted.svg`;
 };
 
+export const getSelectionIconSrc = (icon: string, isDarkMode: boolean): string => {
+  return isDarkMode ? `/images/selection/${icon}-muted.svg` : `/images/selection/${icon}.svg`;
+};
+
 export const getThemeFontsTriggerSrc = (
   size: 'small' | 'large',
   themeName: string,

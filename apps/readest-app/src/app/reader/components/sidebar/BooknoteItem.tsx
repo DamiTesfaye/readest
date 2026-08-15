@@ -202,6 +202,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({ bookKey, item, isNearest, o
                 item.note && 'content font-size-xs text-base-content',
                 (item.style === 'underline' || item.style === 'squiggly') &&
                   'underline decoration-2',
+                item.style === 'strikethrough' && 'line-through decoration-2',
                 item.style === 'highlight' && 'rounded-[4px] px-[2px] py-[1px]',
                 item.style === 'squiggly' && 'decoration-wavy',
               )}
@@ -212,7 +213,9 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({ bookKey, item, isNearest, o
                         backgroundColor: `color-mix(in srgb, ${customColors[item.color as HighlightColor] || item.color} calc(var(--overlayer-highlight-opacity, 0.3) * 100%), transparent)`,
                       }
                     : {}),
-                  ...(item.style === 'underline' || item.style === 'squiggly'
+                  ...(item.style === 'underline' ||
+                  item.style === 'squiggly' ||
+                  item.style === 'strikethrough'
                     ? {
                         textDecorationColor: `color-mix(in srgb, ${customColors[item.color as HighlightColor] || item.color} 80%, transparent)`,
                       }

@@ -198,11 +198,11 @@ export const DEFAULT_MOBILE_SYSTEM_SETTINGS: Partial<SystemSettings> = {
 };
 
 export const HIGHLIGHT_COLOR_HEX: Record<HighlightColor, string> = {
-  red: '#f87171', // red-400
-  yellow: '#facc15', // yellow-400
-  green: '#4ade80', // green-400
-  blue: '#60a5fa', // blue-400
-  violet: '#a78bfa', // violet-400
+  red: '#E58CA4',
+  yellow: '#FBDC40',
+  green: '#99DC83',
+  blue: '#95B8FF',
+  violet: '#C5AEFB',
 };
 
 export const READING_RULER_COLORS: Record<ReadingRulerColor, string> = {
@@ -230,6 +230,7 @@ export const DEFAULT_READSETTINGS: ReadSettings = {
     highlight: 'yellow',
     underline: 'green',
     squiggly: 'blue',
+    strikethrough: 'red',
   },
   customHighlightColors: HIGHLIGHT_COLOR_HEX,
   userHighlightColors: [],
@@ -451,6 +452,8 @@ export const DEFAULT_BOOK_SEARCH_CONFIG: BookSearchConfig = {
   mode: 'contains',
   matchCase: false,
   matchDiacritics: false,
+  fuzzy: false,
+  ignorePunctuation: false,
   nearbyWords: 10,
   // kept for sync wire back-compat with pre-v3 clients (mirrors mode === 'whole-words')
   matchWholeWords: false,

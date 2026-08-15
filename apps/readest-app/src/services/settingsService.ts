@@ -137,6 +137,10 @@ export async function loadSettings(ctx: Context): Promise<SystemSettings> {
     ...DEFAULT_READSETTINGS,
     ...(ctx.isMobile ? DEFAULT_MOBILE_READSETTINGS : {}),
     ...settings.globalReadSettings,
+    highlightStyles: {
+      ...DEFAULT_READSETTINGS.highlightStyles,
+      ...settings.globalReadSettings?.highlightStyles,
+    },
   };
   migrateHighlightColorPrefs(settings.globalReadSettings);
   settings.globalViewSettings = {

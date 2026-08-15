@@ -48,7 +48,12 @@ export const getHighlightColorLabel = (
   return undefined;
 };
 
-const ALL_HIGHLIGHT_STYLES: readonly HighlightStyle[] = ['highlight', 'underline', 'squiggly'];
+const ALL_HIGHLIGHT_STYLES: readonly HighlightStyle[] = [
+  'highlight',
+  'underline',
+  'squiggly',
+  'strikethrough',
+];
 
 export interface ExportFilter {
   excludedColors: HighlightColor[];
@@ -327,7 +332,13 @@ export function buildTTSSentenceHighlight(
   };
 }
 
-export type AnnotationDrawKind = 'bubble' | 'highlight' | 'underline' | 'squiggly' | 'none';
+export type AnnotationDrawKind =
+  | 'bubble'
+  | 'highlight'
+  | 'underline'
+  | 'squiggly'
+  | 'strikethrough'
+  | 'none';
 
 /**
  * Decide what an overlay should draw for an annotation. The bubble vs.
@@ -341,7 +352,7 @@ export function decideAnnotationDraw(
 ): AnnotationDrawKind {
   if (value?.startsWith(NOTE_PREFIX)) return 'bubble';
   if (style === 'highlight') return 'highlight';
-  if (style === 'underline' || style === 'squiggly') return style;
+  if (style === 'underline' || style === 'squiggly' || style === 'strikethrough') return style;
   return 'none';
 }
 
