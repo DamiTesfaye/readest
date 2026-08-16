@@ -67,6 +67,22 @@ describe('forwardBackdropClickToToolbar', () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it('forwards the click to a popover row button under the backdrop', () => {
+    const popup = document.createElement('div');
+    popup.className = 'popup-container';
+    popup.innerHTML = '<button id="row"><span id="row-label"></span></button>';
+    document.body.appendChild(popup);
+    const rowButton = popup.querySelector('#row') as HTMLButtonElement;
+    const rowLabel = popup.querySelector('#row-label') as HTMLElement;
+    const onClick = vi.fn();
+    rowButton.addEventListener('click', onClick);
+    stubStack([backdrop, portalWrapper, rowLabel, rowButton, popup, document.body]);
+
+    forwardBackdropClickToToolbar(makeEvent(), libraryButton);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('does not forward clicks landing outside the header bar', () => {
     const onClick = vi.fn();
     contentButton.addEventListener('click', onClick);
@@ -116,6 +132,18 @@ describe('getToolbarSidePanelPlacement', () => {
     expect(pointer.dir).toBe('left');
     expect(pointer.point.x).toBe(body.point.x + 300);
     expect(pointer.point.y).toBeGreaterThan(body.point.y);
+  });
+
+  it('aligns the pointer with the triggering row and drops the panel top near it', () => {
+    const { body, pointer } = getToolbarSidePanelPlacement(anchorRect, viewport, 300, 300, 360);
+    expect(pointer.point.y).toBe(360);
+    expect(body.point.y).toBe(360 - 64);
+  });
+
+  it('keeps the panel top-aligned when the row sits near the popover top', () => {
+    const { body, pointer } = getToolbarSidePanelPlacement(anchorRect, viewport, 300, 300, 80);
+    expect(pointer.point.y).toBe(80);
+    expect(body.point.y).toBe(40 + 6 + 6);
   });
 
   it('clamps the panel inside the viewport on narrow screens', () => {

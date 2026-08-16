@@ -26,10 +26,10 @@ import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
 import TocPopover from './TocPopover';
 import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
+import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
 import { getToolbarSidePanelPlacement } from '@/utils/popover';
 import type { Rect } from '@/utils/sel';
-import { useNotebookStore } from '@/store/notebookStore';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
 import { getToolbarIconSrc } from '@/utils/toolbarIcons';
@@ -66,9 +66,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
   const { bookKeys, hoveredBookKey } = useReaderStore();
   const { isDarkMode, themeColor, systemUIVisible, statusBarHeight } = useThemeStore();
-  const { sideBarBookKey, isSideBarVisible, getIsSideBarVisible, setSideBarBookKey } =
-    useSidebarStore();
-  const { isNotebookVisible, toggleNotebook } = useNotebookStore();
+  const { isSideBarVisible, getIsSideBarVisible } = useSidebarStore();
   const { getView, getViewState, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
   const bookData = getBookData(bookKey);
@@ -86,6 +84,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const libraryAnchorRef = useRef<HTMLButtonElement>(null);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
+  const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
+  const [sidePanelPointerY, setSidePanelPointerY] = useState<number | null>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
 
@@ -116,9 +116,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
-  const handleOpenBooknotes = () => {
-    setIsBooknotesOpen(true);
+  const openSidePanel = (panel: 'themeFonts' | 'booknotes' | 'annotations', pointerY: number) => {
+    setSidePanelPointerY(pointerY);
+    setIsThemeFontsOpen(panel === 'themeFonts');
+    setIsBooknotesOpen(panel === 'booknotes');
+    setIsAnnotationsOpen(panel === 'annotations');
+    setIsMoreOpen(true);
     handleToggleDropdown(true);
+  };
+
+  const handleOpenBooknotes = (pointerY: number) => {
+    openSidePanel('booknotes', pointerY);
   };
 
   const handleCloseBooknotes = () => {
@@ -127,13 +135,14 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
-  const handleToggleNotebook = () => {
-    if (sideBarBookKey === bookKey) {
-      toggleNotebook();
-    } else {
-      setSideBarBookKey(bookKey);
-      if (!isNotebookVisible) toggleNotebook();
-    }
+  const handleOpenAnnotations = (pointerY: number) => {
+    openSidePanel('annotations', pointerY);
+  };
+
+  const handleCloseAnnotations = () => {
+    setIsAnnotationsOpen(false);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
   };
 
   const handleToggleTTS = () => {
@@ -141,9 +150,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
   };
 
-  const handleThemeFontsOpen = () => {
-    setIsThemeFontsOpen(true);
-    handleToggleDropdown(true);
+  const handleThemeFontsOpen = (pointerY: number) => {
+    openSidePanel('themeFonts', pointerY);
   };
 
   const handleThemeFontsClose = () => {
@@ -154,8 +162,26 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const getThemeFontsPlacement = useCallback(
     (anchorRect: Rect, viewport: Rect) =>
-      getToolbarSidePanelPlacement(anchorRect, viewport, MORE_POPOVER_WIDTH, THEME_FONTS_WIDTH),
-    [],
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        THEME_FONTS_WIDTH,
+        sidePanelPointerY ?? undefined,
+      ),
+    [sidePanelPointerY],
+  );
+
+  const getAnnotationsPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        ANNOTATIONS_POPOVER_WIDTH,
+        sidePanelPointerY ?? undefined,
+      ),
+    [sidePanelPointerY],
   );
 
   const getBooknotesPlacement = useCallback(
@@ -165,8 +191,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         viewport,
         MORE_POPOVER_WIDTH,
         BOOKNOTES_POPOVER_WIDTH,
+        sidePanelPointerY ?? undefined,
       ),
-    [],
+    [sidePanelPointerY],
   );
 
   const handleToggleMore = () => {
@@ -389,7 +416,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             onGoHome={onGoToLibrary}
             onOpenThemeFonts={handleThemeFontsOpen}
             onOpenBooknotes={handleOpenBooknotes}
-            onToggleAnnotations={handleToggleNotebook}
+            onOpenAnnotations={handleOpenAnnotations}
           />
           <ToolbarPopover
             isOpen={isThemeFontsOpen}
@@ -418,6 +445,13 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             anchorEl={moreAnchorRef.current}
             getPlacement={getBooknotesPlacement}
             onClose={handleCloseBooknotes}
+          />
+          <AnnotationsPopover
+            bookKey={bookKey}
+            isOpen={isAnnotationsOpen}
+            anchorEl={moreAnchorRef.current}
+            getPlacement={getAnnotationsPlacement}
+            onClose={handleCloseAnnotations}
           />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
             {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}

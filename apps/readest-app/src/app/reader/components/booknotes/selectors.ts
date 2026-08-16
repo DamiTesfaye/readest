@@ -9,7 +9,13 @@ export type BooknoteEntry =
   | { kind: 'note'; id: string; item: BookNote };
 
 const isListed = (note: BookNote) =>
-  !note.deletedAt && (note.type === 'bookmark' || note.type === 'annotation');
+  !note.deletedAt && (note.type === 'bookmark' || (note.type === 'annotation' && !!note.note));
+
+export const selectAnnotationEntries = (booknotes: BookNote[]): BookNote[] =>
+  booknotes
+    .filter((note) => !note.deletedAt && note.type === 'annotation')
+    .slice()
+    .sort((a, b) => CFI.compare(a.cfi, b.cfi));
 
 export const selectBooknoteEntries = (booknotes: BookNote[], toc: TOCItem[]): BooknoteEntry[] =>
   booknotes

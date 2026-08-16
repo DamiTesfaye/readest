@@ -30,7 +30,7 @@ const renderPopover = (overrides: Partial<React.ComponentProps<typeof MorePopove
     onGoHome: vi.fn(),
     onOpenThemeFonts: vi.fn(),
     onOpenBooknotes: vi.fn(),
-    onToggleAnnotations: vi.fn(),
+    onOpenAnnotations: vi.fn(),
     ...overrides,
   };
   render(<MorePopover {...props} />);
@@ -136,11 +136,32 @@ describe('MorePopover', () => {
     expect(props.onClose).not.toHaveBeenCalled();
   });
 
-  it('toggles annotations and closes', () => {
+  it('opens the Annotations popover while staying open itself', () => {
     const props = renderPopover();
     fireEvent.click(screen.getByRole('button', { name: 'Annotations' }));
-    expect(props.onToggleAnnotations).toHaveBeenCalledTimes(1);
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onOpenAnnotations).toHaveBeenCalledTimes(1);
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  it('reports the clicked row center so the side panel can point at it', () => {
+    const props = renderPopover();
+    const row = screen.getByRole('button', { name: 'Annotations' });
+    row.getBoundingClientRect = () =>
+      ({ top: 300, height: 60, bottom: 360, left: 0, right: 0, width: 0 }) as DOMRect;
+    fireEvent.click(row);
+    expect(props.onOpenAnnotations).toHaveBeenCalledWith(330);
+
+    const booknotes = screen.getByRole('button', { name: 'Bookmarks & Notes' });
+    booknotes.getBoundingClientRect = () =>
+      ({ top: 300, height: 80, bottom: 380, left: 0, right: 0, width: 0 }) as DOMRect;
+    fireEvent.click(booknotes);
+    expect(props.onOpenBooknotes).toHaveBeenCalledWith(340);
+
+    const themeFonts = screen.getByRole('button', { name: 'Theme & Fonts' });
+    themeFonts.getBoundingClientRect = () =>
+      ({ top: 100, height: 60, bottom: 160, left: 0, right: 0, width: 0 }) as DOMRect;
+    fireEvent.click(themeFonts);
+    expect(props.onOpenThemeFonts).toHaveBeenCalledWith(130);
   });
 
   it('enables the reading ruler and closes when it is off', () => {
@@ -168,7 +189,7 @@ describe('MorePopover', () => {
         onGoHome={vi.fn()}
         onOpenThemeFonts={vi.fn()}
         onOpenBooknotes={vi.fn()}
-        onToggleAnnotations={vi.fn()}
+        onOpenAnnotations={vi.fn()}
       />,
     );
     const rulerOn = screen.getByRole('button', { name: 'Reading Ruler' });

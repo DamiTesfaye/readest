@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { BookNote } from '@/types/book';
 import type { TOCItem } from '@/libs/document';
-import { selectBooknoteEntries } from '@/app/reader/components/booknotes/selectors';
+import {
+  selectAnnotationEntries,
+  selectBooknoteEntries,
+} from '@/app/reader/components/booknotes/selectors';
 
 const makeNote = (overrides: Partial<BookNote>): BookNote =>
   ({
@@ -25,7 +28,12 @@ describe('selectBooknoteEntries', () => {
     const entries = selectBooknoteEntries(
       [
         makeNote({ id: 'later-bookmark', type: 'bookmark', cfi: 'epubcfi(/6/6!/4/2)' }),
-        makeNote({ id: 'note', cfi: 'epubcfi(/6/4!/4/6)', text: 'You would have spoken' }),
+        makeNote({
+          id: 'note',
+          cfi: 'epubcfi(/6/4!/4/6)',
+          text: 'You would have spoken',
+          note: 'my thoughts',
+        }),
         makeNote({ id: 'first-bookmark', type: 'bookmark', cfi: 'epubcfi(/6/4!/4/2)' }),
       ],
       toc,
@@ -72,12 +80,58 @@ describe('selectBooknoteEntries', () => {
   it('drops deleted notes and excerpts', () => {
     const entries = selectBooknoteEntries(
       [
-        makeNote({ id: 'gone', deletedAt: 1 }),
-        makeNote({ id: 'excerpt', type: 'excerpt' }),
-        makeNote({ id: 'kept' }),
+        makeNote({ id: 'gone', note: 'deleted note', deletedAt: 1 }),
+        makeNote({ id: 'excerpt', type: 'excerpt', note: 'excerpt note' }),
+        makeNote({ id: 'kept', note: 'kept note' }),
       ],
       toc,
     );
+
+    expect(entries.map((entry) => entry.id)).toEqual(['kept']);
+  });
+
+  it('keeps annotations without note text out of the bookmarks and notes list', () => {
+    const entries = selectBooknoteEntries(
+      [
+        makeNote({ id: 'highlight', text: 'A styled highlight', style: 'highlight' }),
+        makeNote({ id: 'noted', text: 'An annotated passage', note: 'my thoughts' }),
+      ],
+      toc,
+    );
+
+    expect(entries.map((entry) => entry.id)).toEqual(['noted']);
+  });
+
+  it('leaves the order of the array it was given alone', () => {
+    const booknotes = [
+      makeNote({ id: 'b', cfi: 'epubcfi(/6/6!/4/2)', note: 'b note' }),
+      makeNote({ id: 'a', cfi: 'epubcfi(/6/4!/4/2)', note: 'a note' }),
+    ];
+
+    selectBooknoteEntries(booknotes, toc);
+
+    expect(booknotes.map((note) => note.id)).toEqual(['b', 'a']);
+  });
+});
+
+describe('selectAnnotationEntries', () => {
+  it('lists annotations in reading order whether or not they carry notes', () => {
+    const entries = selectAnnotationEntries([
+      makeNote({ id: 'later', cfi: 'epubcfi(/6/6!/4/2)', style: 'squiggly' }),
+      makeNote({ id: 'noted', cfi: 'epubcfi(/6/4!/4/6)', note: 'my thoughts' }),
+      makeNote({ id: 'first', cfi: 'epubcfi(/6/4!/4/2)', style: 'highlight' }),
+    ]);
+
+    expect(entries.map((entry) => entry.id)).toEqual(['first', 'noted', 'later']);
+  });
+
+  it('drops bookmarks, excerpts and deleted annotations', () => {
+    const entries = selectAnnotationEntries([
+      makeNote({ id: 'bookmark', type: 'bookmark' }),
+      makeNote({ id: 'excerpt', type: 'excerpt' }),
+      makeNote({ id: 'gone', deletedAt: 1 }),
+      makeNote({ id: 'kept', style: 'highlight' }),
+    ]);
 
     expect(entries.map((entry) => entry.id)).toEqual(['kept']);
   });
@@ -88,7 +142,7 @@ describe('selectBooknoteEntries', () => {
       makeNote({ id: 'a', cfi: 'epubcfi(/6/4!/4/2)' }),
     ];
 
-    selectBooknoteEntries(booknotes, toc);
+    selectAnnotationEntries(booknotes);
 
     expect(booknotes.map((note) => note.id)).toEqual(['b', 'a']);
   });

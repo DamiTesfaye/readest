@@ -17,9 +17,9 @@ interface MorePopoverProps {
   anchorEl: HTMLElement | null;
   onClose: () => void;
   onGoHome: () => void;
-  onOpenThemeFonts: () => void;
-  onOpenBooknotes: () => void;
-  onToggleAnnotations: () => void;
+  onOpenThemeFonts: (pointerY: number) => void;
+  onOpenBooknotes: (pointerY: number) => void;
+  onOpenAnnotations: (pointerY: number) => void;
 }
 
 const ITEM_CLASS = 'flex flex-col items-center justify-center gap-2 px-2 pb-1';
@@ -34,7 +34,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
   onGoHome,
   onOpenThemeFonts,
   onOpenBooknotes,
-  onToggleAnnotations,
+  onOpenAnnotations,
 }) => {
   const _ = useTranslation();
   const { envConfig } = useEnv();
@@ -48,10 +48,11 @@ const MorePopover: React.FC<MorePopoverProps> = ({
     onClose();
   };
 
-  const handleToggleAnnotations = () => {
-    onClose();
-    onToggleAnnotations();
-  };
+  const openFromRow =
+    (open: (pointerY: number) => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      open(rect.top + rect.height / 2);
+    };
 
   const handleGoHome = () => {
     onClose();
@@ -70,7 +71,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
         <div className='flex flex-col gap-1'>
           <span className={SECTION_LABEL_CLASS}>{_('Appearance')}</span>
           <div className='grid grid-cols-2'>
-            <button type='button' className={ITEM_CLASS} onClick={onOpenThemeFonts}>
+            <button type='button' className={ITEM_CLASS} onClick={openFromRow(onOpenThemeFonts)}>
               <span className='flex h-8 items-end justify-center gap-0.5 pb-1.5'>
                 <img
                   src={getThemeFontsTriggerSrc('small', themeColor, isDarkMode)}
@@ -90,7 +91,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
         <div className='flex flex-col gap-1'>
           <span className={SECTION_LABEL_CLASS}>{_('Notes & Highlights')}</span>
           <div className='grid grid-cols-2'>
-            <button type='button' className={ITEM_CLASS} onClick={handleToggleAnnotations}>
+            <button type='button' className={ITEM_CLASS} onClick={openFromRow(onOpenAnnotations)}>
               <span className='flex h-8 items-center justify-center'>
                 <img
                   src={getToolbarIconSrc('annotations-cup', themeColor, isDarkMode)}
@@ -100,7 +101,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
               </span>
               <span className={CAPTION_CLASS}>{_('Annotations')}</span>
             </button>
-            <button type='button' className={ITEM_CLASS} onClick={onOpenBooknotes}>
+            <button type='button' className={ITEM_CLASS} onClick={openFromRow(onOpenBooknotes)}>
               <span className='flex h-8 items-center justify-center'>
                 <img
                   src={getToolbarIconSrc('bookmarks-notes', themeColor, isDarkMode)}

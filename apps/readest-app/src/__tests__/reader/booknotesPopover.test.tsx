@@ -86,6 +86,7 @@ beforeEach(() => {
       cfi: 'epubcfi(/6/4!/4/6)',
       page: 29,
       text: 'You would have spoken to the art director',
+      note: 'my thoughts on this',
     }),
     makeNote({
       id: 'bm2',
@@ -249,9 +250,18 @@ describe('BooknotesPopover', () => {
   });
 
   it('hides deleted notes from the list', () => {
-    booknotes = [makeNote({ id: 'gone', text: 'Hidden', deletedAt: 1 })];
+    booknotes = [makeNote({ id: 'gone', text: 'Hidden', note: 'hidden note', deletedAt: 1 })];
     renderPopover();
     expect(screen.queryByText('Hidden')).toBeNull();
+    expect(screen.getByText('No Bookmarks')).toBeTruthy();
+  });
+
+  it('keeps highlights without notes out of the list', () => {
+    booknotes = [
+      makeNote({ id: 'hl', text: 'A plain highlight', style: 'highlight', color: 'yellow' }),
+    ];
+    renderPopover();
+    expect(screen.queryByText('A plain highlight')).toBeNull();
     expect(screen.getByText('No Bookmarks')).toBeTruthy();
   });
 });
