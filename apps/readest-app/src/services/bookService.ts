@@ -510,6 +510,13 @@ export async function importBook(
       } else {
         await fs.writeFile(bookFilename, 'Books', fileobj);
       }
+      // A write that reports success but leaves nothing behind (browser storage
+      // pressure, a backend that swallows its own errors) would otherwise mint a
+      // library entry with a cover, config and nav but no book — unopenable, and
+      // still flagged as downloaded. Fail the import instead.
+      if (!(await fs.exists(bookFilename, 'Books'))) {
+        throw new Error(`Failed to save book file: ${bookFilename}`);
+      }
     }
     if (saveCover && (!(await fs.exists(getCoverFilename(book), 'Books')) || overwrite)) {
       let cover = await loadedBook.getCover();

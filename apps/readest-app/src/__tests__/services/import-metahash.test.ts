@@ -90,6 +90,22 @@ class TestAppService extends BaseAppService {
   }
 }
 
+type TestFs = ReturnType<TestAppService['getFs']>;
+
+// importBook verifies the book file is really there after writing it, so the
+// mocked fs has to behave like one: a path it just wrote must exist afterwards.
+// `extraExists` covers the pre-existing files a test wants to pretend are there.
+function trackWrites(fs: TestFs, extraExists: (path: string) => boolean = () => false) {
+  const written = new Set<string>();
+  fs.writeFile.mockImplementation(async (path: string) => {
+    written.add(path);
+  });
+  fs.copyFile.mockImplementation(async (_src: string, _srcBase: string, dst: string) => {
+    written.add(dst);
+  });
+  fs.exists.mockImplementation(async (path: string) => written.has(path) || extraExists(path));
+}
+
 function makeBook(overrides: Partial<Book> = {}): Book {
   return {
     hash: 'old-hash-123',
@@ -127,11 +143,10 @@ describe('importBook metaHash deduplication', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
+    trackWrites(fs);
   });
 
   it('should detect metaHash match and override existing book with new hash', async () => {
@@ -213,11 +228,7 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      if (path === 'old-hash-123/config.json') return true;
-      if (path === 'old-hash-123') return true;
-      return false;
-    });
+    trackWrites(fs, (path) => path === 'old-hash-123/config.json' || path === 'old-hash-123');
     fs.readFile.mockResolvedValue('{"readProgress":0.5}');
 
     const mockFile = new File(['new content'], 'test.epub', { type: 'application/epub+zip' });
@@ -303,11 +314,10 @@ describe('importBook metaHash aggregation', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
+    trackWrites(fs);
   });
 
   it('should remove all duplicates with same metaHash and format', async () => {
@@ -346,11 +356,10 @@ describe('importBook metaHash aggregation', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      if (path.endsWith('/config.json')) return true;
-      if (['hash-1', 'hash-2', 'hash-3'].includes(path)) return true;
-      return false;
-    });
+    trackWrites(
+      fs,
+      (path) => path.endsWith('/config.json') || ['hash-1', 'hash-2', 'hash-3'].includes(path),
+    );
     fs.readFile.mockImplementation(async (path: string) => {
       if (path === 'hash-1/config.json')
         return JSON.stringify({ updatedAt: 3000, progress: [10, 200], location: 'loc1' });
@@ -386,11 +395,7 @@ describe('importBook metaHash aggregation', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      if (path.endsWith('/config.json')) return true;
-      if (['hash-1', 'hash-2'].includes(path)) return true;
-      return false;
-    });
+    trackWrites(fs, (path) => path.endsWith('/config.json') || ['hash-1', 'hash-2'].includes(path));
     fs.readFile.mockImplementation(async (path: string) => {
       if (path === 'hash-1/config.json')
         return JSON.stringify({
@@ -466,11 +471,7 @@ describe('importBook metaHash aggregation', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      if (path.endsWith('/config.json')) return true;
-      if (['hash-1', 'hash-2'].includes(path)) return true;
-      return false;
-    });
+    trackWrites(fs, (path) => path.endsWith('/config.json') || ['hash-1', 'hash-2'].includes(path));
     fs.readFile.mockImplementation(async (path: string) => {
       if (path === 'hash-1/config.json')
         return JSON.stringify({ updatedAt: 1000, location: 'loc1' });
@@ -528,9 +529,7 @@ describe('importBook metaHash aggregation', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      return ['hash-2', 'hash-3'].includes(path);
-    });
+    trackWrites(fs, (path) => ['hash-2', 'hash-3'].includes(path));
 
     const mockFile = new File(['content'], 'test.epub', { type: 'application/epub+zip' });
     await service.importBook(mockFile, books);
@@ -555,9 +554,7 @@ describe('importBook metaHash aggregation', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      return ['dup-1', 'dup-2'].includes(path);
-    });
+    trackWrites(fs, (path) => ['dup-1', 'dup-2'].includes(path));
 
     const mockFile = new File(['content'], 'test.epub', { type: 'application/epub+zip' });
     const result = await service.importBook(mockFile, books);
@@ -579,11 +576,7 @@ describe('importBook metaHash aggregation', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => {
-      if (path.endsWith('/config.json')) return true;
-      if (path === 'dup-hash') return true;
-      return false;
-    });
+    trackWrites(fs, (path) => path.endsWith('/config.json') || path === 'dup-hash');
     fs.readFile.mockImplementation(async (path: string) => {
       if (path === 'exact-hash/config.json')
         return JSON.stringify({
@@ -630,11 +623,10 @@ describe('importBook with BookLookupIndex', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
+    trackWrites(fs);
   });
 
   it('updates the lookup index after a successful new-book import', async () => {
@@ -694,5 +686,37 @@ describe('importBook with BookLookupIndex', () => {
     expect(lookupIndex.byFilePath.get('/lib/a.epub')).toBe(inPlaceBook);
     expect(lookupIndex.byFilePath.has('/lib/b.epub')).toBe(false);
     expect(lookupIndex.byFilePath.has('https://example.com/c.epub')).toBe(false);
+  });
+});
+
+describe('importBook write verification', () => {
+  let service: TestAppService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new TestAppService();
+    const fs = service.getFs();
+    fs.createDir.mockResolvedValue(undefined);
+    fs.removeDir.mockResolvedValue(undefined);
+    fs.readFile.mockResolvedValue('{}');
+    trackWrites(fs);
+  });
+
+  it('rejects the import when the book file never lands', async () => {
+    const books: Book[] = [];
+    mockPartialMD5.mockResolvedValue('vanishing-hash');
+    setupMockBookDoc();
+
+    const fs = service.getFs();
+    const recordWrite = fs.writeFile.getMockImplementation()!;
+    fs.writeFile.mockImplementation(async (path: string, base: string, content: unknown) => {
+      if (path.endsWith('.epub')) return;
+      return recordWrite(path, base, content);
+    });
+
+    const mockFile = new File(['content'], 'test.epub', { type: 'application/epub+zip' });
+
+    await expect(service.importBook(mockFile, books)).rejects.toThrow(/Failed to save book file/);
+    expect(books).toHaveLength(0);
   });
 });
