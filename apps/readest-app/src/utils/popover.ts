@@ -36,6 +36,16 @@ export const getToolbarAnchorPosition = (anchorRect: Rect, gap: number = ANCHOR_
   },
 });
 
+export const getToolbarStackedPanelPlacement = (
+  rowRect: Rect,
+  viewport: Rect,
+  panelWidth: number,
+): PopoverPlacement => {
+  const pointer = getToolbarAnchorPosition(rowRect);
+  const body = getPopupPosition(pointer, viewport, panelWidth, 0, POPOVER_EDGE_PADDING);
+  return { body, pointer };
+};
+
 export const getToolbarSidePanelPlacement = (
   anchorRect: Rect,
   viewport: Rect,

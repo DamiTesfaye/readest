@@ -28,7 +28,7 @@ import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
-import { getToolbarSidePanelPlacement } from '@/utils/popover';
+import { getToolbarSidePanelPlacement, getToolbarStackedPanelPlacement } from '@/utils/popover';
 import type { Rect } from '@/utils/sel';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
@@ -85,7 +85,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const libraryAnchorRef = useRef<HTMLButtonElement>(null);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
-  const [sidePanelPointerY, setSidePanelPointerY] = useState<number | null>(null);
+  const [sidePanelAnchorRect, setSidePanelAnchorRect] = useState<Rect | null>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
 
@@ -116,8 +116,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
-  const openSidePanel = (panel: 'themeFonts' | 'booknotes' | 'annotations', pointerY: number) => {
-    setSidePanelPointerY(pointerY);
+  const openSidePanel = (panel: 'themeFonts' | 'booknotes' | 'annotations', anchorRect: Rect) => {
+    setSidePanelAnchorRect(anchorRect);
     setIsThemeFontsOpen(panel === 'themeFonts');
     setIsBooknotesOpen(panel === 'booknotes');
     setIsAnnotationsOpen(panel === 'annotations');
@@ -125,8 +125,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(true);
   };
 
-  const handleOpenBooknotes = (pointerY: number) => {
-    openSidePanel('booknotes', pointerY);
+  const handleOpenBooknotes = (anchorRect: Rect) => {
+    openSidePanel('booknotes', anchorRect);
   };
 
   const handleCloseBooknotes = () => {
@@ -135,8 +135,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
-  const handleOpenAnnotations = (pointerY: number) => {
-    openSidePanel('annotations', pointerY);
+  const handleOpenAnnotations = (anchorRect: Rect) => {
+    openSidePanel('annotations', anchorRect);
   };
 
   const handleCloseAnnotations = () => {
@@ -150,8 +150,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
   };
 
-  const handleThemeFontsOpen = (pointerY: number) => {
-    openSidePanel('themeFonts', pointerY);
+  const handleThemeFontsOpen = (anchorRect: Rect) => {
+    openSidePanel('themeFonts', anchorRect);
   };
 
   const handleThemeFontsClose = () => {
@@ -160,6 +160,10 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
+  const sidePanelPointerY = sidePanelAnchorRect
+    ? (sidePanelAnchorRect.top + sidePanelAnchorRect.bottom) / 2
+    : undefined;
+
   const getThemeFontsPlacement = useCallback(
     (anchorRect: Rect, viewport: Rect) =>
       getToolbarSidePanelPlacement(
@@ -167,7 +171,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         viewport,
         MORE_POPOVER_WIDTH,
         THEME_FONTS_WIDTH,
-        sidePanelPointerY ?? undefined,
+        sidePanelPointerY,
       ),
     [sidePanelPointerY],
   );
@@ -179,21 +183,22 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
         viewport,
         MORE_POPOVER_WIDTH,
         ANNOTATIONS_POPOVER_WIDTH,
-        sidePanelPointerY ?? undefined,
+        sidePanelPointerY,
       ),
     [sidePanelPointerY],
   );
 
   const getBooknotesPlacement = useCallback(
     (anchorRect: Rect, viewport: Rect) =>
-      getToolbarSidePanelPlacement(
-        anchorRect,
-        viewport,
-        MORE_POPOVER_WIDTH,
-        BOOKNOTES_POPOVER_WIDTH,
-        sidePanelPointerY ?? undefined,
-      ),
-    [sidePanelPointerY],
+      sidePanelAnchorRect
+        ? getToolbarStackedPanelPlacement(sidePanelAnchorRect, viewport, BOOKNOTES_POPOVER_WIDTH)
+        : getToolbarSidePanelPlacement(
+            anchorRect,
+            viewport,
+            MORE_POPOVER_WIDTH,
+            BOOKNOTES_POPOVER_WIDTH,
+          ),
+    [sidePanelAnchorRect],
   );
 
   const handleToggleMore = () => {

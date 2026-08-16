@@ -8,6 +8,7 @@ import { saveViewSettings } from '@/helpers/settings';
 import ToolbarPopover from '@/components/ToolbarPopover';
 import PopoverTitleBar from '@/components/PopoverTitleBar';
 import { getThemeFontsTriggerSrc, getToolbarIconSrc } from '@/utils/toolbarIcons';
+import type { Rect } from '@/utils/sel';
 
 export const MORE_POPOVER_WIDTH = 300;
 
@@ -17,9 +18,9 @@ interface MorePopoverProps {
   anchorEl: HTMLElement | null;
   onClose: () => void;
   onGoHome: () => void;
-  onOpenThemeFonts: (pointerY: number) => void;
-  onOpenBooknotes: (pointerY: number) => void;
-  onOpenAnnotations: (pointerY: number) => void;
+  onOpenThemeFonts: (anchorRect: Rect) => void;
+  onOpenBooknotes: (anchorRect: Rect) => void;
+  onOpenAnnotations: (anchorRect: Rect) => void;
 }
 
 const ITEM_CLASS = 'flex flex-col items-center justify-center gap-2 px-2 pb-1';
@@ -49,9 +50,8 @@ const MorePopover: React.FC<MorePopoverProps> = ({
   };
 
   const openFromRow =
-    (open: (pointerY: number) => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      open(rect.top + rect.height / 2);
+    (open: (anchorRect: Rect) => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
+      open(event.currentTarget.getBoundingClientRect());
     };
 
   const handleGoHome = () => {

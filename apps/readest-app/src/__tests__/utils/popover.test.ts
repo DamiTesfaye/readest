@@ -3,6 +3,7 @@ import {
   POPOVER_EDGE_PADDING,
   forwardBackdropClickToToolbar,
   getToolbarSidePanelPlacement,
+  getToolbarStackedPanelPlacement,
 } from '@/utils/popover';
 
 describe('forwardBackdropClickToToolbar', () => {
@@ -150,5 +151,24 @@ describe('getToolbarSidePanelPlacement', () => {
     const narrow = { left: 0, top: 0, right: 600, bottom: 800 };
     const { body } = getToolbarSidePanelPlacement(anchorRect, narrow, 300, 300);
     expect(body.point.x).toBe(POPOVER_EDGE_PADDING);
+  });
+});
+
+describe('getToolbarStackedPanelPlacement', () => {
+  const viewport = { left: 0, top: 0, right: 1400, bottom: 800 };
+  const rowRect = { left: 1000, right: 1200, top: 300, bottom: 360 };
+
+  it('drops the panel below the row with an up pointer at the row center', () => {
+    const { body, pointer } = getToolbarStackedPanelPlacement(rowRect, viewport, 320);
+    expect(pointer.dir).toBe('down');
+    expect(pointer.point).toEqual({ x: 1100, y: 366 });
+    expect(body.point).toEqual({ x: 940, y: 372 });
+  });
+
+  it('clamps the panel inside the viewport near the right edge', () => {
+    const edgeRow = { left: 1250, right: 1390, top: 300, bottom: 360 };
+    const { body, pointer } = getToolbarStackedPanelPlacement(edgeRow, viewport, 320);
+    expect(body.point.x).toBe(1400 - POPOVER_EDGE_PADDING - 320);
+    expect(pointer.point.x).toBe(1320);
   });
 });

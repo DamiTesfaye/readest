@@ -143,25 +143,31 @@ describe('MorePopover', () => {
     expect(props.onClose).not.toHaveBeenCalled();
   });
 
-  it('reports the clicked row center so the side panel can point at it', () => {
+  it('reports the clicked row rect so the panel can anchor to it', () => {
     const props = renderPopover();
     const row = screen.getByRole('button', { name: 'Annotations' });
     row.getBoundingClientRect = () =>
-      ({ top: 300, height: 60, bottom: 360, left: 0, right: 0, width: 0 }) as DOMRect;
+      ({ top: 300, bottom: 360, left: 700, right: 900, height: 60, width: 200 }) as DOMRect;
     fireEvent.click(row);
-    expect(props.onOpenAnnotations).toHaveBeenCalledWith(330);
+    expect(props.onOpenAnnotations).toHaveBeenCalledWith(
+      expect.objectContaining({ top: 300, bottom: 360, left: 700, right: 900 }),
+    );
 
     const booknotes = screen.getByRole('button', { name: 'Bookmarks & Notes' });
     booknotes.getBoundingClientRect = () =>
-      ({ top: 300, height: 80, bottom: 380, left: 0, right: 0, width: 0 }) as DOMRect;
+      ({ top: 300, bottom: 380, left: 950, right: 1150, height: 80, width: 200 }) as DOMRect;
     fireEvent.click(booknotes);
-    expect(props.onOpenBooknotes).toHaveBeenCalledWith(340);
+    expect(props.onOpenBooknotes).toHaveBeenCalledWith(
+      expect.objectContaining({ top: 300, bottom: 380, left: 950, right: 1150 }),
+    );
 
     const themeFonts = screen.getByRole('button', { name: 'Theme & Fonts' });
     themeFonts.getBoundingClientRect = () =>
-      ({ top: 100, height: 60, bottom: 160, left: 0, right: 0, width: 0 }) as DOMRect;
+      ({ top: 100, bottom: 160, left: 700, right: 900, height: 60, width: 200 }) as DOMRect;
     fireEvent.click(themeFonts);
-    expect(props.onOpenThemeFonts).toHaveBeenCalledWith(130);
+    expect(props.onOpenThemeFonts).toHaveBeenCalledWith(
+      expect.objectContaining({ top: 100, bottom: 160 }),
+    );
   });
 
   it('enables the reading ruler and closes when it is off', () => {
