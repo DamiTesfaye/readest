@@ -2,7 +2,6 @@ import clsx from 'clsx';
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PiPlus } from 'react-icons/pi';
 import { useOverlayScrollbars } from 'overlayscrollbars-react';
 import 'overlayscrollbars/overlayscrollbars.css';
 import {
@@ -26,7 +25,6 @@ import { useAutoFocus } from '@/hooks/useAutoFocus';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLibraryStore } from '@/store/libraryStore';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { navigateToLibrary, navigateToReader, showReaderWindow } from '@/utils/nav';
 import {
   createBookFilter,
@@ -45,6 +43,8 @@ import {
   resolveEffectiveSecondarySort,
   selectRecentShelfBooks,
   withReadingStatus,
+  ensureLibraryStatusFilter,
+  matchesStatusFilter,
 } from '../utils/libraryUtils';
 import { eventDispatcher } from '@/utils/event';
 import { getLocalBookFilename } from '@/utils/book';
@@ -70,7 +70,6 @@ interface BookshelfProps {
   isSelectAll: boolean;
   isSelectNone: boolean;
   onScrollerRef: (el: HTMLDivElement | null) => void;
-  handleImportBooks: () => void;
   handleBookDownload: (
     book: Book,
     options?: { redownload?: boolean; queued?: boolean },
@@ -104,7 +103,7 @@ type BookshelfListContext = {
 
 const BOOKSHELF_GRID_CLASSES =
   'bookshelf-items transform-wrapper grid gap-x-4 px-4 sm:gap-x-0 sm:px-2 ' +
-  'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12';
+  'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5';
 
 const BOOKSHELF_LIST_CLASSES = 'bookshelf-items transform-wrapper flex flex-col';
 
@@ -160,7 +159,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   isSelectAll,
   isSelectNone,
   onScrollerRef,
-  handleImportBooks,
   handleBookUpload,
   handleBookDownload,
   handleBookDelete,
@@ -203,7 +201,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const abortDeletionRef = useRef(false);
   const isImportingBook = useRef(false);
-  const iconSize15 = useResponsiveSize(15);
   const autofocusRef = useAutoFocus<HTMLDivElement>();
   useSpatialNavigation(autofocusRef);
 
@@ -241,10 +238,15 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     [router, searchParams],
   );
 
+  const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
+
   const filteredBooks = useMemo(() => {
     const bookFilter = createBookFilter(queryTerm);
-    return queryTerm ? libraryBooks.filter((book) => bookFilter(book)) : libraryBooks;
-  }, [libraryBooks, queryTerm]);
+    const queried = queryTerm ? libraryBooks.filter((book) => bookFilter(book)) : libraryBooks;
+    return statusFilter === 'all'
+      ? queried
+      : queried.filter((book) => matchesStatusFilter(book, statusFilter));
+  }, [libraryBooks, queryTerm, statusFilter]);
 
   const currentBookshelfItems = useMemo(() => {
     if (groupBy === LibraryGroupByType.Group) {
@@ -680,10 +682,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   const selectedBooks = getSelectedBooks();
   const isGridMode = viewMode === 'grid';
   const hasItems = sortedBookshelfItems.length > 0;
-  // In grid mode the Import-Books "+" tile is rendered as an extra grid cell
-  // after all books. We represent it to Virtuoso as an extra index past the
-  // last book; list mode doesn't have an import tile.
-  const gridTotalCount = hasItems ? sortedBookshelfItems.length + 1 : 0;
 
   // Recently-read shelf: shares the availability-aware open path with per-item
   // taps so cloud-only synced books download before opening. `openBook` is
@@ -705,6 +703,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     settings.libraryRecentShelfEnabled &&
     !queryTerm &&
     !groupId &&
+    statusFilter === 'all' &&
     !isSelectMode &&
     recentBooks.length > 0;
 
@@ -746,32 +745,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const renderBookshelfItem = useCallback(
     (index: number) => {
-      if (isGridMode && index === sortedBookshelfItems.length) {
-        return (
-          <div
-            className={clsx('bookshelf-import-item mx-0 my-2 sm:mx-4 sm:my-4')}
-            style={
-              coverFit === 'fit'
-                ? { display: 'flex', paddingBottom: `${iconSize15 + 24}px` }
-                : undefined
-            }
-          >
-            <button
-              aria-label={_('Import Books')}
-              className={clsx(
-                'bookitem-main bg-base-100 hover:bg-base-300/50',
-                'flex items-center justify-center',
-                'aspect-[28/41] w-full',
-              )}
-              onClick={handleImportBooks}
-            >
-              <div className='flex items-center justify-center'>
-                <PiPlus className='size-10' color='gray' />
-              </div>
-            </button>
-          </div>
-        );
-      }
       const item = sortedBookshelfItems[index];
       if (!item) return null;
       const itemSelected =
@@ -803,13 +776,10 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     [
       sortedBookshelfItems,
       selectedBooks,
-      isGridMode,
       viewMode,
       coverFit,
       isSelectMode,
       booksTransferProgress,
-      iconSize15,
-      handleImportBooks,
       toggleSelection,
       handleBookUpload,
       handleBookDownload,
@@ -823,14 +793,11 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const computeItemKey = useCallback(
     (index: number) => {
-      if (isGridMode && index === sortedBookshelfItems.length) {
-        return 'library-import-tile';
-      }
       const item = sortedBookshelfItems[index];
       if (!item) return `library-item-${index}`;
       return `library-item-${'hash' in item ? item.hash : item.id}`;
     },
-    [sortedBookshelfItems, isGridMode],
+    [sortedBookshelfItems],
   );
 
   return (
@@ -845,7 +812,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
         {hasItems && isGridMode && (
           <VirtuosoGrid<unknown, BookshelfListContext>
             overscan={200}
-            totalCount={gridTotalCount}
+            totalCount={sortedBookshelfItems.length}
             components={GRID_VIRTUOSO_COMPONENTS}
             context={listContext}
             computeItemKey={computeItemKey}

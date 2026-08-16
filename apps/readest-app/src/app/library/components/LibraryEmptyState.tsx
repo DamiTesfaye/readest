@@ -1,8 +1,6 @@
 import * as React from 'react';
 import clsx from 'clsx';
-import { PiBooks } from 'react-icons/pi';
 
-import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppRouter } from '@/hooks/useAppRouter';
@@ -14,33 +12,35 @@ interface LibraryEmptyStateProps {
 
 const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
   const _ = useTranslation();
-  const { appService } = useEnv();
   const { user } = useAuth();
   const router = useAppRouter();
-  const isMobile = appService?.isMobile ?? false;
 
   return (
-    <div className='hero-content text-neutral-content text-center'>
+    <div className='hero-content text-center'>
       <div className='flex max-w-md flex-col items-center'>
-        <PiBooks aria-hidden className='text-base-content/60 mb-10 size-16' />
-        <h1 className='mb-5 text-balance text-4xl font-semibold leading-tight tracking-tight'>
-          {_('Start your library')}
+        <img
+          src='/images/homepage/import-library-placeholder.svg'
+          alt=''
+          aria-hidden
+          className='mb-6 h-32 w-auto'
+        />
+        <h1 className='mb-3 text-balance text-3xl font-semibold [font-family:Literata,serif]'>
+          {_("Let's Fill These Shelves")}
         </h1>
-        <p className='text-base-content/70 mb-12 text-pretty text-base leading-relaxed'>
-          {isMobile
-            ? _('Pick a book from your device to add it to your library.')
-            : _('Drop a book anywhere on this window, or pick one from your computer.')}
+        <p className='text-base-content/80 mb-8 max-w-xs text-pretty font-sans text-base leading-relaxed'>
+          {_("Import your books and keep everything you're reading in one place")}
         </p>
-        <div className='flex w-full max-w-xs flex-col gap-3'>
+        <div className='flex w-full max-w-xs flex-col items-center gap-3'>
           <button
             type='button'
-            className='btn btn-primary h-11 min-h-11 rounded-lg'
+            className={clsx(
+              'bg-base-300 eink-bordered hover:bg-base-300/70 flex h-9 items-center rounded-lg px-4',
+              'font-sans text-sm font-medium',
+            )}
             onClick={onImport}
           >
-            {_('Import Books')}
+            {_('Import to Library')}
           </button>
-          {/* TODO: add a 'Browse free catalogs' secondary action that opens the
-              OPDS dialog (handleShowOPDSDialog) once we settle on placement. */}
           {!user && (
             <button
               type='button'
@@ -48,6 +48,7 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
                 'text-base-content/70 hover:text-base-content mt-1 py-2 text-sm font-medium',
                 'underline underline-offset-4',
                 'focus-visible:text-base-content focus-visible:outline-none',
+                'sm:hidden',
               )}
               onClick={() => navigateToLogin(router)}
             >

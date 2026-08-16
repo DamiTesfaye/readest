@@ -1,4 +1,5 @@
 import type { Book } from '@/types/book';
+import { isCurrentlyReadingBook } from '@/app/library/utils/libraryUtils';
 
 export interface LibraryPopoverSegments {
   reading: Book[];
@@ -21,10 +22,7 @@ export const matchesQuery = (book: Book, query: string): boolean => {
   );
 };
 
-export const isCurrentlyReading = (book: Book): boolean =>
-  (book.progress?.[0] ?? 0) > 0 &&
-  book.readingStatus !== 'finished' &&
-  book.readingStatus !== 'abandoned';
+export const isCurrentlyReading = (book: Book): boolean => isCurrentlyReadingBook(book);
 
 const byUpdatedAtDesc = (a: Book, b: Book) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
 

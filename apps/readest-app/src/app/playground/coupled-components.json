@@ -1,0 +1,1682 @@
+[
+  {
+    "name": "renderShareOgImage",
+    "names": ["renderShareOgImage"],
+    "path": "app/api/share/[token]/og.png/render.tsx",
+    "dir": "app/api/share/[token]/og.png",
+    "status": "used",
+    "coupling": ["services", "libs"]
+  },
+  {
+    "name": "AuthCallback",
+    "names": ["AuthCallback"],
+    "path": "app/auth/callback/page.tsx",
+    "dir": "app/auth/callback",
+    "status": "framework",
+    "coupling": ["context", "router"]
+  },
+  {
+    "name": "AuthErrorPage",
+    "names": ["AuthErrorPage"],
+    "path": "app/auth/error/page.tsx",
+    "dir": "app/auth/error",
+    "status": "framework",
+    "coupling": ["router", "data-hooks"]
+  },
+  {
+    "name": "AuthPage",
+    "names": ["AuthPage"],
+    "path": "app/auth/page.tsx",
+    "dir": "app/auth",
+    "status": "framework",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "ResetPasswordPage",
+    "names": ["ResetPasswordPage"],
+    "path": "app/auth/recovery/page.tsx",
+    "dir": "app/auth/recovery",
+    "status": "framework",
+    "coupling": ["store", "context", "router", "data-hooks"]
+  },
+  {
+    "name": "UpdateEmailPage",
+    "names": ["UpdateEmailPage"],
+    "path": "app/auth/update/page.tsx",
+    "dir": "app/auth/update",
+    "status": "framework",
+    "coupling": ["store", "context", "router", "data-hooks"]
+  },
+  {
+    "name": "ErrorPage",
+    "names": ["ErrorPage"],
+    "path": "app/error.tsx",
+    "dir": "app",
+    "status": "framework",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "RootLayout",
+    "names": ["RootLayout"],
+    "path": "app/layout.tsx",
+    "dir": "app",
+    "status": "framework",
+    "coupling": ["context"]
+  },
+  {
+    "name": "BackupWindow",
+    "names": ["BackupWindow"],
+    "path": "app/library/components/BackupWindow.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "BookItem",
+    "names": ["BookItem"],
+    "path": "app/library/components/BookItem.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "data-hooks"]
+  },
+  {
+    "name": "Bookshelf",
+    "names": ["Bookshelf"],
+    "path": "app/library/components/Bookshelf.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "libs", "data-hooks"]
+  },
+  {
+    "name": "BookshelfItem",
+    "names": ["BookshelfItem"],
+    "path": "app/library/components/BookshelfItem.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "CacheManagerWindow",
+    "names": ["CacheManagerWindow"],
+    "path": "app/library/components/CacheManagerWindow.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["context", "tauri", "env", "data-hooks"]
+  },
+  {
+    "name": "FailedImportsDialog",
+    "names": ["FailedImportsDialog"],
+    "path": "app/library/components/FailedImportsDialog.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "GroupHeader",
+    "names": ["GroupHeader"],
+    "path": "app/library/components/GroupHeader.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["router", "data-hooks"]
+  },
+  {
+    "name": "GroupingModal",
+    "names": ["GroupingModal"],
+    "path": "app/library/components/GroupingModal.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "GroupItem",
+    "names": ["GroupItem"],
+    "path": "app/library/components/GroupItem.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "DEFAULT_FORMAT_GROUPS",
+    "names": ["DEFAULT_FORMAT_GROUPS", "ImportFromFolderDialog"],
+    "path": "app/library/components/ImportFromFolderDialog.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["services", "data-hooks"]
+  },
+  {
+    "name": "ImportFromUrlDialog",
+    "names": ["ImportFromUrlDialog"],
+    "path": "app/library/components/ImportFromUrlDialog.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "ImportMenu",
+    "names": ["ImportMenu"],
+    "path": "app/library/components/ImportMenu.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "LibraryEmptyState",
+    "names": ["LibraryEmptyState"],
+    "path": "app/library/components/LibraryEmptyState.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "LibraryHeader",
+    "names": ["LibraryHeader"],
+    "path": "app/library/components/LibraryHeader.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "data-hooks"]
+  },
+  {
+    "name": "MigrateDataWindow",
+    "names": ["MigrateDataWindow"],
+    "path": "app/library/components/MigrateDataWindow.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "CatalogDialog",
+    "names": ["CatalogDialog"],
+    "path": "app/library/components/OPDSDialog.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "ReadingProgress",
+    "names": ["ReadingProgress"],
+    "path": "app/library/components/ReadingProgress.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["services", "data-hooks"]
+  },
+  {
+    "name": "SelectModeActions",
+    "names": ["SelectModeActions"],
+    "path": "app/library/components/SelectModeActions.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SetStatusAlert",
+    "names": ["SetStatusAlert"],
+    "path": "app/library/components/SetStatusAlert.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SettingsMenu",
+    "names": ["SettingsMenu"],
+    "path": "app/library/components/SettingsMenu.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "ShareBookDialog",
+    "names": ["ShareBookDialog"],
+    "path": "app/library/components/ShareBookDialog.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["context", "env", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "TransferQueuePanel",
+    "names": ["TransferQueuePanel"],
+    "path": "app/library/components/TransferQueuePanel.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "ViewMenu",
+    "names": ["ViewMenu"],
+    "path": "app/library/components/ViewMenu.tsx",
+    "dir": "app/library/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "data-hooks"]
+  },
+  {
+    "name": "LibraryPage",
+    "names": ["LibraryPage"],
+    "path": "app/library/page.tsx",
+    "dir": "app/library",
+    "status": "framework",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "Page",
+    "names": ["Page"],
+    "path": "app/o/page.tsx",
+    "dir": "app/o",
+    "status": "framework",
+    "coupling": ["router", "services", "data-hooks"]
+  },
+  {
+    "name": "Offline",
+    "names": ["Offline"],
+    "path": "app/offline/page.tsx",
+    "dir": "app/offline",
+    "status": "framework",
+    "coupling": []
+  },
+  {
+    "name": "CatalogManager",
+    "names": ["CatalogManager"],
+    "path": "app/opds/components/CatalogManager.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "FailedDownloadsDialog",
+    "names": ["FailedDownloadsDialog"],
+    "path": "app/opds/components/FailedDownloadsDialog.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "FeedView",
+    "names": ["FeedView"],
+    "path": "app/opds/components/FeedView.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "Navigation",
+    "names": ["Navigation"],
+    "path": "app/opds/components/Navigation.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "data-hooks"]
+  },
+  {
+    "name": "NavigationCard",
+    "names": ["NavigationCard"],
+    "path": "app/opds/components/NavigationCard.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "PublicationCard",
+    "names": ["PublicationCard"],
+    "path": "app/opds/components/PublicationCard.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "PublicationView",
+    "names": ["PublicationView"],
+    "path": "app/opds/components/PublicationView.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "SearchView",
+    "names": ["SearchView"],
+    "path": "app/opds/components/SearchView.tsx",
+    "dir": "app/opds/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "BrowserPage",
+    "names": ["BrowserPage"],
+    "path": "app/opds/page.tsx",
+    "dir": "app/opds",
+    "status": "framework",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "HomePage",
+    "names": ["HomePage"],
+    "path": "app/page.tsx",
+    "dir": "app",
+    "status": "framework",
+    "coupling": []
+  },
+  {
+    "name": "AnnotationNotes",
+    "names": ["AnnotationNotes"],
+    "path": "app/reader/components/annotator/AnnotationNotes.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Handle",
+    "names": ["Handle", "AnnotationRangeEditor"],
+    "path": "app/reader/components/annotator/AnnotationRangeEditor.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Annotator",
+    "names": ["Annotator"],
+    "path": "app/reader/components/annotator/Annotator.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "DictionaryResultsHeader",
+    "names": ["DictionaryResultsHeader", "DictionaryResultsBody"],
+    "path": "app/reader/components/annotator/DictionaryResultsView.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "ExportMarkdownDialog",
+    "names": ["ExportMarkdownDialog"],
+    "path": "app/reader/components/annotator/ExportMarkdownDialog.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "HighlightOptions",
+    "names": ["HighlightOptions"],
+    "path": "app/reader/components/annotator/HighlightOptions.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "ImportAnnotationsDialog",
+    "names": ["ImportAnnotationsDialog"],
+    "path": "app/reader/components/annotator/ImportAnnotationsDialog.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "MagnifierLoupe",
+    "names": ["MagnifierLoupe"],
+    "path": "app/reader/components/annotator/MagnifierLoupe.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "ProofreadPopup",
+    "names": ["ProofreadPopup"],
+    "path": "app/reader/components/annotator/ProofreadPopup.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "QuickActionMenu",
+    "names": ["QuickActionMenu"],
+    "path": "app/reader/components/annotator/QuickActionMenu.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SelectionRangeEditor",
+    "names": ["SelectionRangeEditor"],
+    "path": "app/reader/components/annotator/SelectionRangeEditor.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "env"]
+  },
+  {
+    "name": "TranslatorPopup",
+    "names": ["TranslatorPopup"],
+    "path": "app/reader/components/annotator/TranslatorPopup.tsx",
+    "dir": "app/reader/components/annotator",
+    "status": "used",
+    "coupling": ["store", "context", "services", "data-hooks"]
+  },
+  {
+    "name": "BookmarkToggler",
+    "names": ["BookmarkToggler"],
+    "path": "app/reader/components/BookmarkToggler.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "BooksGrid",
+    "names": ["BooksGrid"],
+    "path": "app/reader/components/BooksGrid.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "FoliateViewer",
+    "names": ["FoliateViewer"],
+    "path": "app/reader/components/FoliateViewer.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "ColorPanel",
+    "names": ["ColorPanel"],
+    "path": "app/reader/components/footerbar/ColorPanel.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "DesktopFooterBar",
+    "names": ["DesktopFooterBar"],
+    "path": "app/reader/components/footerbar/DesktopFooterBar.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "FontLayoutPanel",
+    "names": ["FontLayoutPanel"],
+    "path": "app/reader/components/footerbar/FontLayoutPanel.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "FooterBar",
+    "names": ["FooterBar"],
+    "path": "app/reader/components/footerbar/FooterBar.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "MobileFooterBar",
+    "names": ["MobileFooterBar"],
+    "path": "app/reader/components/footerbar/MobileFooterBar.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "NavigationBar",
+    "names": ["NavigationBar"],
+    "path": "app/reader/components/footerbar/NavigationBar.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "NavigationPanel",
+    "names": ["NavigationPanel"],
+    "path": "app/reader/components/footerbar/NavigationPanel.tsx",
+    "dir": "app/reader/components/footerbar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "FootnotePopup",
+    "names": ["FootnotePopup"],
+    "path": "app/reader/components/FootnotePopup.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "libs", "data-hooks"]
+  },
+  {
+    "name": "HeaderBar",
+    "names": ["HeaderBar"],
+    "path": "app/reader/components/HeaderBar.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "HintInfo",
+    "names": ["HintInfo"],
+    "path": "app/reader/components/HintInfo.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env"]
+  },
+  {
+    "name": "ImageViewer",
+    "names": ["ImageViewer"],
+    "path": "app/reader/components/ImageViewer.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "KOSyncConflictResolver",
+    "names": ["KOSyncConflictResolver"],
+    "path": "app/reader/components/KOSyncResolver.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "AIAssistant",
+    "names": ["AIAssistant"],
+    "path": "app/reader/components/notebook/AIAssistant.tsx",
+    "dir": "app/reader/components/notebook",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "NotebookHeader",
+    "names": ["NotebookHeader"],
+    "path": "app/reader/components/notebook/Header.tsx",
+    "dir": "app/reader/components/notebook",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "Notebook",
+    "names": ["Notebook"],
+    "path": "app/reader/components/notebook/Notebook.tsx",
+    "dir": "app/reader/components/notebook",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "NotebookTabNavigation",
+    "names": ["NotebookTabNavigation"],
+    "path": "app/reader/components/notebook/NotebookTabNavigation.tsx",
+    "dir": "app/reader/components/notebook",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "NoteEditor",
+    "names": ["NoteEditor"],
+    "path": "app/reader/components/notebook/NoteEditor.tsx",
+    "dir": "app/reader/components/notebook",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "SearchBar",
+    "names": ["SearchBar"],
+    "path": "app/reader/components/notebook/SearchBar.tsx",
+    "dir": "app/reader/components/notebook",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "NotebookToggler",
+    "names": ["NotebookToggler"],
+    "path": "app/reader/components/NotebookToggler.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "PageNavigationButtons",
+    "names": ["PageNavigationButtons"],
+    "path": "app/reader/components/PageNavigationButtons.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "ParagraphBar",
+    "names": ["ParagraphBar"],
+    "path": "app/reader/components/paragraph/ParagraphBar.tsx",
+    "dir": "app/reader/components/paragraph",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "ParagraphControl",
+    "names": ["ParagraphControl"],
+    "path": "app/reader/components/paragraph/ParagraphControl.tsx",
+    "dir": "app/reader/components/paragraph",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "ParagraphOverlay",
+    "names": ["ParagraphOverlay"],
+    "path": "app/reader/components/paragraph/ParagraphOverlay.tsx",
+    "dir": "app/reader/components/paragraph",
+    "status": "used",
+    "coupling": ["context", "env", "services"]
+  },
+  {
+    "name": "ProgressBar",
+    "names": ["ProgressBar"],
+    "path": "app/reader/components/ProgressBar.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "ProofreadRulesManager",
+    "names": ["ProofreadRulesManager"],
+    "path": "app/reader/components/ProofreadRules.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Reader",
+    "names": ["Reader"],
+    "path": "app/reader/components/Reader.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "ReaderContent",
+    "names": ["ReaderContent"],
+    "path": "app/reader/components/ReaderContent.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "ReadingRuler",
+    "names": ["ReadingRuler"],
+    "path": "app/reader/components/ReadingRuler.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services"]
+  },
+  {
+    "name": "ReadingStatsTracker",
+    "names": ["ReadingStatsTracker"],
+    "path": "app/reader/components/ReadingStatsTracker.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "libs"]
+  },
+  {
+    "name": "Ribbon",
+    "names": ["Ribbon"],
+    "path": "app/reader/components/Ribbon.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store"]
+  },
+  {
+    "name": "RSVPControl",
+    "names": ["RSVPControl"],
+    "path": "app/reader/components/rsvp/RSVPControl.tsx",
+    "dir": "app/reader/components/rsvp",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "RSVPOverlay",
+    "names": ["RSVPOverlay"],
+    "path": "app/reader/components/rsvp/RSVPOverlay.tsx",
+    "dir": "app/reader/components/rsvp",
+    "status": "used",
+    "coupling": ["store", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "RSVPStartDialog",
+    "names": ["RSVPStartDialog"],
+    "path": "app/reader/components/rsvp/RSVPStartDialog.tsx",
+    "dir": "app/reader/components/rsvp",
+    "status": "used",
+    "coupling": ["store", "services", "data-hooks"]
+  },
+  {
+    "name": "SectionInfo",
+    "names": ["SectionInfo"],
+    "path": "app/reader/components/SectionInfo.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "SettingsToggler",
+    "names": ["SettingsToggler"],
+    "path": "app/reader/components/SettingsToggler.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "BookCard",
+    "names": ["BookCard"],
+    "path": "app/reader/components/sidebar/BookCard.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "BookMenu",
+    "names": ["BookMenu"],
+    "path": "app/reader/components/sidebar/BookMenu.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "BooknoteItem",
+    "names": [],
+    "path": "app/reader/components/sidebar/BooknoteItem.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "BooknotesNav",
+    "names": ["BooknotesNav"],
+    "path": "app/reader/components/sidebar/BooknotesNav.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "libs", "data-hooks"]
+  },
+  {
+    "name": "BooknoteView",
+    "names": ["BooknoteView"],
+    "path": "app/reader/components/sidebar/BooknoteView.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "ChatHistoryView",
+    "names": ["ChatHistoryView"],
+    "path": "app/reader/components/sidebar/ChatHistoryView.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "SidebarContent",
+    "names": ["SidebarContent"],
+    "path": "app/reader/components/sidebar/Content.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "libs"]
+  },
+  {
+    "name": "ContentNavBar",
+    "names": ["ContentNavBar"],
+    "path": "app/reader/components/sidebar/ContentNavBar.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "SidebarHeader",
+    "names": ["SidebarHeader"],
+    "path": "app/reader/components/sidebar/Header.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SearchBar",
+    "names": ["SearchBar"],
+    "path": "app/reader/components/sidebar/SearchBar.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "SearchOptions",
+    "names": ["SearchOptions"],
+    "path": "app/reader/components/sidebar/SearchOptions.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SearchResults",
+    "names": ["SearchResults"],
+    "path": "app/reader/components/sidebar/SearchResults.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store"]
+  },
+  {
+    "name": "SearchResultsNav",
+    "names": ["SearchResultsNav"],
+    "path": "app/reader/components/sidebar/SearchResultsNav.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "SideBar",
+    "names": ["SideBar"],
+    "path": "app/reader/components/sidebar/SideBar.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "TabNavigation",
+    "names": ["TabNavigation"],
+    "path": "app/reader/components/sidebar/TabNavigation.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "StaticListRow",
+    "names": ["StaticListRow", "CurrentPositionRow"],
+    "path": "app/reader/components/sidebar/TOCItem.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["libs", "data-hooks"]
+  },
+  {
+    "name": "TOCView",
+    "names": ["TOCView"],
+    "path": "app/reader/components/sidebar/TOCView.tsx",
+    "dir": "app/reader/components/sidebar",
+    "status": "used",
+    "coupling": ["store", "libs"]
+  },
+  {
+    "name": "SidebarToggler",
+    "names": ["SidebarToggler"],
+    "path": "app/reader/components/SidebarToggler.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "SyncInfoDialog",
+    "names": ["SyncInfoDialog"],
+    "path": "app/reader/components/SyncInfoDialog.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["libs", "data-hooks"]
+  },
+  {
+    "name": "TableViewer",
+    "names": ["TableViewer"],
+    "path": "app/reader/components/TableViewer.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "TranslationToggler",
+    "names": ["TranslationToggler"],
+    "path": "app/reader/components/TranslationToggler.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "TTSBar",
+    "names": ["TTSBar"],
+    "path": "app/reader/components/tts/TTSBar.tsx",
+    "dir": "app/reader/components/tts",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "TTSControl",
+    "names": ["TTSControl"],
+    "path": "app/reader/components/tts/TTSControl.tsx",
+    "dir": "app/reader/components/tts",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "TTSFollowIndicator",
+    "names": ["TTSFollowIndicator"],
+    "path": "app/reader/components/tts/TTSFollowIndicator.tsx",
+    "dir": "app/reader/components/tts",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "TTSPanel",
+    "names": ["TTSPanel"],
+    "path": "app/reader/components/tts/TTSPanel.tsx",
+    "dir": "app/reader/components/tts",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "ViewMenu",
+    "names": ["ViewMenu"],
+    "path": "app/reader/components/ViewMenu.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "ZoomControls",
+    "names": ["ZoomControls"],
+    "path": "app/reader/components/ZoomControls.tsx",
+    "dir": "app/reader/components",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "Page",
+    "names": ["Page"],
+    "path": "app/reader/page.tsx",
+    "dir": "app/reader",
+    "status": "framework",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Page",
+    "names": ["Page"],
+    "path": "app/s/page.tsx",
+    "dir": "app/s",
+    "status": "framework",
+    "coupling": ["services", "libs"]
+  },
+  {
+    "name": "ShareLanding",
+    "names": ["ShareLanding"],
+    "path": "app/s/ShareLanding.tsx",
+    "dir": "app/s",
+    "status": "used",
+    "coupling": ["context", "env", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "SendPage",
+    "names": ["SendPage"],
+    "path": "app/send/page.tsx",
+    "dir": "app/send",
+    "status": "framework",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "UpdaterPage",
+    "names": ["UpdaterPage"],
+    "path": "app/updater/page.tsx",
+    "dir": "app/updater",
+    "status": "framework",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "AccountActions",
+    "names": ["AccountActions"],
+    "path": "app/user/components/AccountActions.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "Checkout",
+    "names": ["Checkout"],
+    "path": "app/user/components/Checkout.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["libs", "data-hooks"]
+  },
+  {
+    "name": "ProfileHeader",
+    "names": ["ProfileHeader"],
+    "path": "app/user/components/Header.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "PlanActionButton",
+    "names": ["PlanActionButton"],
+    "path": "app/user/components/PlanActionButton.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "PlanCard",
+    "names": ["PlanCard"],
+    "path": "app/user/components/PlanCard.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "PlanNavigation",
+    "names": ["PlanNavigation"],
+    "path": "app/user/components/PlanNavigation.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "PlansComparison",
+    "names": ["PlansComparison"],
+    "path": "app/user/components/PlansComparison.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["context", "env"]
+  },
+  {
+    "name": "PurchaseCallToActions",
+    "names": ["PurchaseCallToActions"],
+    "path": "app/user/components/PurchaseCallToActions.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SharedLinksSection",
+    "names": ["SharedLinksSection"],
+    "path": "app/user/components/SharedLinksSection.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["context", "env", "libs", "data-hooks"]
+  },
+  {
+    "name": "StorageManager",
+    "names": ["StorageManager"],
+    "path": "app/user/components/StorageManager.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "libs", "data-hooks"]
+  },
+  {
+    "name": "SyncCategoriesSection",
+    "names": ["SyncCategoriesSection"],
+    "path": "app/user/components/SyncCategoriesSection.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "SyncPassphraseSection",
+    "names": ["SyncPassphraseSection"],
+    "path": "app/user/components/SyncPassphraseSection.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["store", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "UserInfo",
+    "names": ["UserInfo"],
+    "path": "app/user/components/UserInfo.tsx",
+    "dir": "app/user/components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "ProfileLayout",
+    "names": ["ProfileLayout"],
+    "path": "app/user/layout.tsx",
+    "dir": "app/user",
+    "status": "framework",
+    "coupling": []
+  },
+  {
+    "name": "ProfilePage",
+    "names": ["ProfilePage"],
+    "path": "app/user/page.tsx",
+    "dir": "app/user",
+    "status": "framework",
+    "coupling": ["store", "context", "tauri", "env", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "SuccessPage",
+    "names": ["SuccessPage"],
+    "path": "app/user/subscription/success/page.tsx",
+    "dir": "app/user/subscription/success",
+    "status": "framework",
+    "coupling": ["context", "tauri", "router", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "AboutWindow",
+    "names": ["AboutWindow"],
+    "path": "components/AboutWindow.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Alert",
+    "names": ["Alert"],
+    "path": "components/Alert.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "AppLockScreen",
+    "names": ["AppLockScreen"],
+    "path": "components/AppLockScreen.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "Thread",
+    "names": ["Thread"],
+    "path": "components/assistant/Thread.tsx",
+    "dir": "components/assistant",
+    "status": "used",
+    "coupling": ["services"]
+  },
+  {
+    "name": "AtmosphereOverlay",
+    "names": ["AtmosphereOverlay"],
+    "path": "components/AtmosphereOverlay.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store"]
+  },
+  {
+    "name": "Button",
+    "names": ["Button"],
+    "path": "components/Button.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["context", "env"]
+  },
+  {
+    "name": "CommandPalette",
+    "names": ["CommandPalette"],
+    "path": "components/command-palette/CommandPalette.tsx",
+    "dir": "components/command-palette",
+    "status": "used",
+    "coupling": ["services", "data-hooks"]
+  },
+  {
+    "name": "CommandPaletteProvider",
+    "names": ["CommandPaletteProvider"],
+    "path": "components/command-palette/CommandPaletteProvider.tsx",
+    "dir": "components/command-palette",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "DeleteConfirmAlert",
+    "names": ["DeleteConfirmAlert"],
+    "path": "components/DeleteConfirmAlert.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "Dialog",
+    "names": ["Dialog"],
+    "path": "components/Dialog.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "data-hooks"]
+  },
+  {
+    "name": "Dropdown",
+    "names": ["Dropdown"],
+    "path": "components/Dropdown.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["context"]
+  },
+  {
+    "name": "DropIndicator",
+    "names": ["DropIndicator"],
+    "path": "components/DropIndicator.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "KeyboardShortcutsHelp",
+    "names": ["KeyboardShortcutsHelp"],
+    "path": "components/KeyboardShortcutsHelp.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["tauri", "services", "data-hooks"]
+  },
+  {
+    "name": "LegalLinks",
+    "names": ["LegalLinks"],
+    "path": "components/LegalLinks.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "Link",
+    "names": ["Link"],
+    "path": "components/Link.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["tauri", "services"]
+  },
+  {
+    "name": "Menu",
+    "names": ["Menu"],
+    "path": "components/Menu.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "MenuItem",
+    "names": ["MenuItem"],
+    "path": "components/MenuItem.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "BookDetailEdit",
+    "names": ["BookDetailEdit"],
+    "path": "components/metadata/BookDetailEdit.tsx",
+    "dir": "components/metadata",
+    "status": "used",
+    "coupling": ["context", "env", "libs", "data-hooks"]
+  },
+  {
+    "name": "BookDetailModal",
+    "names": ["BookDetailModal"],
+    "path": "components/metadata/BookDetailModal.tsx",
+    "dir": "components/metadata",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "BookDetailView",
+    "names": ["BookDetailView"],
+    "path": "components/metadata/BookDetailView.tsx",
+    "dir": "components/metadata",
+    "status": "used",
+    "coupling": ["store", "context", "env", "libs", "data-hooks"]
+  },
+  {
+    "name": "FormField",
+    "names": ["FormField", "SourceIndicator"],
+    "path": "components/metadata/FormField.tsx",
+    "dir": "components/metadata",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SourceSelector",
+    "names": ["SourceSelector"],
+    "path": "components/metadata/SourceSelector.tsx",
+    "dir": "components/metadata",
+    "status": "used",
+    "coupling": ["services", "libs", "data-hooks"]
+  },
+  {
+    "name": "PassphrasePrompt",
+    "names": ["PassphrasePrompt"],
+    "path": "components/PassphrasePrompt.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["services", "data-hooks"]
+  },
+  {
+    "name": "PinInput",
+    "names": ["PinInput"],
+    "path": "components/PinInput.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["libs"]
+  },
+  {
+    "name": "Popup",
+    "names": ["Popup"],
+    "path": "components/Popup.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "Providers",
+    "names": ["Providers"],
+    "path": "components/Providers.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "Quota",
+    "names": ["Quota"],
+    "path": "components/Quota.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "AIPanel",
+    "names": ["AIPanel"],
+    "path": "components/settings/AIPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "AnnotationToolbarCustomizer",
+    "names": ["AnnotationToolbarCustomizer"],
+    "path": "components/settings/AnnotationToolbarCustomizer.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "AppLockDialog",
+    "names": ["AppLockDialog"],
+    "path": "components/settings/AppLockDialog.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "libs", "data-hooks"]
+  },
+  {
+    "name": "BackgroundTextureSelector",
+    "names": ["BackgroundTextureSelector"],
+    "path": "components/settings/color/BackgroundTextureSelector.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "CodeHighlightingSettings",
+    "names": ["CodeHighlightingSettings"],
+    "path": "components/settings/color/CodeHighlightingSettings.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "HighlightColorsEditor",
+    "names": ["HighlightColorsEditor"],
+    "path": "components/settings/color/HighlightColorsEditor.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "ReadingRulerSettings",
+    "names": ["ReadingRulerSettings"],
+    "path": "components/settings/color/ReadingRulerSettings.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "ThemeColorSelector",
+    "names": ["ThemeColorSelector"],
+    "path": "components/settings/color/ThemeColorSelector.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "ThemeEditor",
+    "names": ["ThemeEditor"],
+    "path": "components/settings/color/ThemeEditor.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["store", "services", "data-hooks"]
+  },
+  {
+    "name": "ThemeModeSelector",
+    "names": ["ThemeModeSelector"],
+    "path": "components/settings/color/ThemeModeSelector.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "TTSHighlightStyleEditor",
+    "names": ["TTSHighlightStyleEditor"],
+    "path": "components/settings/color/TTSHighlightStyleEditor.tsx",
+    "dir": "components/settings/color",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "ColorPanel",
+    "names": ["ColorPanel"],
+    "path": "components/settings/ColorPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "ControlPanel",
+    "names": ["ControlPanel"],
+    "path": "components/settings/ControlPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "CustomDictionaries",
+    "names": ["CustomDictionaries"],
+    "path": "components/settings/CustomDictionaries.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "CustomFonts",
+    "names": ["CustomFonts"],
+    "path": "components/settings/CustomFonts.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "DialogMenu",
+    "names": ["DialogMenu"],
+    "path": "components/settings/DialogMenu.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "FontDropdown",
+    "names": ["FontDropdown"],
+    "path": "components/settings/FontDropDown.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["context", "env", "data-hooks"]
+  },
+  {
+    "name": "FontPanel",
+    "names": ["FontPanel"],
+    "path": "components/settings/FontPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "HardcoverForm",
+    "names": ["HardcoverForm"],
+    "path": "components/settings/integrations/HardcoverForm.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "KOSyncForm",
+    "names": ["KOSyncForm"],
+    "path": "components/settings/integrations/KOSyncForm.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "ReadwiseForm",
+    "names": ["ReadwiseForm"],
+    "path": "components/settings/integrations/ReadwiseForm.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "SendToReadestForm",
+    "names": ["SendToReadestForm"],
+    "path": "components/settings/integrations/SendToReadestForm.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["context", "tauri", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "SyncHistoryPanel",
+    "names": ["SyncHistoryPanel"],
+    "path": "components/settings/integrations/SyncHistoryPanel.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "WebDAVBrowsePane",
+    "names": ["WebDAVBrowsePane"],
+    "path": "components/settings/integrations/WebDAVBrowsePane.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "WebDAVForm",
+    "names": ["WebDAVForm"],
+    "path": "components/settings/integrations/WebDAVForm.tsx",
+    "dir": "components/settings/integrations",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "IntegrationsPanel",
+    "names": ["IntegrationsPanel"],
+    "path": "components/settings/IntegrationsPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "router", "data-hooks"]
+  },
+  {
+    "name": "LangPanel",
+    "names": ["LangPanel"],
+    "path": "components/settings/LangPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "LayoutPanel",
+    "names": ["LayoutPanel"],
+    "path": "components/settings/LayoutPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "MiscPanel",
+    "names": ["MiscPanel"],
+    "path": "components/settings/MiscPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "NumberInput",
+    "names": ["NumberInput"],
+    "path": "components/settings/NumberInput.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "PageTurnerSettings",
+    "names": ["PageTurnerSettings"],
+    "path": "components/settings/PageTurnerSettings.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Tips",
+    "names": ["Tips"],
+    "path": "components/settings/primitives/Tips.tsx",
+    "dir": "components/settings/primitives",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "SettingsDialog",
+    "names": ["SettingsDialog"],
+    "path": "components/settings/SettingsDialog.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "tauri", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "TTSPanel",
+    "names": ["TTSPanel"],
+    "path": "components/settings/TTSPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "WordLensPanel",
+    "names": ["WordLensPanel"],
+    "path": "components/settings/WordLensPanel.tsx",
+    "dir": "components/settings",
+    "status": "used",
+    "coupling": ["store", "context", "env", "services", "data-hooks"]
+  },
+  {
+    "name": "Spinner",
+    "names": ["Spinner"],
+    "path": "components/Spinner.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store", "data-hooks"]
+  },
+  {
+    "name": "SupportLinks",
+    "names": ["SupportLinks"],
+    "path": "components/SupportLinks.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["data-hooks"]
+  },
+  {
+    "name": "TelemetryConsentDialog",
+    "names": ["TelemetryConsentDialog"],
+    "path": "components/TelemetryConsentDialog.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store", "context", "env", "data-hooks"]
+  },
+  {
+    "name": "Toast",
+    "names": ["Toast"],
+    "path": "components/Toast.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["store"]
+  },
+  {
+    "name": "UpdaterContent",
+    "names": ["UpdaterContent", "UpdaterWindow"],
+    "path": "components/UpdaterWindow.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["context", "tauri", "env", "router", "services", "data-hooks"]
+  },
+  {
+    "name": "WindowButtons",
+    "names": ["WindowButtons"],
+    "path": "components/WindowButtons.tsx",
+    "dir": "components",
+    "status": "used",
+    "coupling": ["context", "tauri", "env", "services", "data-hooks"]
+  }
+]

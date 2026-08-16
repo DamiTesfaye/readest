@@ -3,10 +3,11 @@ import { selectRecentShelfBooks } from '../../../app/library/utils/libraryUtils'
 import { Book } from '../../../types/book';
 import { BookMetadata } from '@/libs/document';
 
-// The shelf is "recently read", so a book counts only once it has reading
-// progress. The shared helper in library-utils.test.ts does NOT set `progress`,
-// so this local helper defaults a read book; cases that need an unread book
-// override `progress: undefined`.
+// The shelf shows what is currently being read, so a book counts only while it
+// has reading progress and has not been finished or abandoned. The shared
+// helper in library-utils.test.ts does NOT set `progress`, so this local helper
+// defaults a started book; cases that need an unread book override
+// `progress: undefined`.
 const createMockBook = (
   overrides: Partial<Omit<Book, 'metadata'> & { metadata?: Partial<BookMetadata> }> = {},
 ): Book => ({
@@ -48,6 +49,33 @@ describe('selectRecentShelfBooks', () => {
     const result = selectRecentShelfBooks([read, justAdded], 10);
 
     expect(result.map((book) => book.hash)).toEqual(['read']);
+  });
+
+  it('excludes books with no pages read yet', () => {
+    const started = createMockBook({ hash: 'started', updatedAt: 1000 });
+    const openedOnly = createMockBook({ hash: 'opened', updatedAt: 9999, progress: [0, 100] });
+
+    const result = selectRecentShelfBooks([started, openedOnly], 10);
+
+    expect(result.map((book) => book.hash)).toEqual(['started']);
+  });
+
+  it('excludes finished and abandoned books', () => {
+    const reading = createMockBook({ hash: 'reading', updatedAt: 1000 });
+    const finished = createMockBook({
+      hash: 'finished',
+      updatedAt: 8000,
+      readingStatus: 'finished',
+    });
+    const abandoned = createMockBook({
+      hash: 'abandoned',
+      updatedAt: 9000,
+      readingStatus: 'abandoned',
+    });
+
+    const result = selectRecentShelfBooks([reading, finished, abandoned], 10);
+
+    expect(result.map((book) => book.hash)).toEqual(['reading']);
   });
 
   it('includes a book once it has been opened (progress present)', () => {

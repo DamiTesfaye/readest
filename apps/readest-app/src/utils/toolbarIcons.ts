@@ -14,6 +14,20 @@ export const getSelectionIconSrc = (icon: string, isDarkMode: boolean): string =
   return isDarkMode ? `/images/selection/${icon}-muted.svg` : `/images/selection/${icon}.svg`;
 };
 
+export const getHomepageIconSrc = (icon: string, isDarkMode: boolean, active = false): string => {
+  return !isDarkMode || active
+    ? `/images/homepage/${icon}.svg`
+    : `/images/homepage/${icon}-muted.svg`;
+};
+
+export const getSearchShortcutBadgeSrc = (
+  osPlatform: string | undefined,
+  isDarkMode: boolean,
+): string => {
+  const os = osPlatform === 'macos' || osPlatform === 'ios' ? 'mac' : 'windows';
+  return `/images/homepage/search_shortcut_key_${os}_${isDarkMode ? 'dark' : 'light'}.svg`;
+};
+
 export const getThemeFontsTriggerSrc = (
   size: 'small' | 'large',
   themeName: string,

@@ -260,23 +260,17 @@ export const createBookSorter =
   };
 
 /**
- * A book counts as "read" once it has reading progress. Importing a book sets
- * timestamps but never `progress`; only opening it does. Gating on this keeps
- * freshly-added-but-unopened books off the shelf.
- */
-const hasBeenRead = (book: Book): boolean => book.progress != null;
-
-/**
- * Pick the books for the recently-read shelf: most-recently-read first, capped
- * at `count`. Recency uses `updatedAt` (the library's "Updated" sort key) so the
- * row matches the app's existing sort convention. NB: `updatedAt` is last-modified
- * (also bumped by status/metadata edits and sync), not strictly last-read.
- * Independent of the main shelf's sort/grouping — always a flat, recency slice.
+ * Pick the books for the currently-reading shelf: books in progress, most
+ * recent first, capped at `count`. Recency uses `updatedAt` (the library's
+ * "Updated" sort key) so the row matches the app's existing sort convention.
+ * NB: `updatedAt` is last-modified (also bumped by status/metadata edits and
+ * sync), not strictly last-read. Independent of the main shelf's sort and
+ * grouping: always a flat, recency slice.
  */
 export const selectRecentShelfBooks = (books: Book[], count: number): Book[] => {
   const byRecency = createBookSorter(LibrarySortByType.Updated, '');
   return books
-    .filter((book) => !book.deletedAt && hasBeenRead(book))
+    .filter((book) => !book.deletedAt && isCurrentlyReadingBook(book))
     .sort((a, b) => -byRecency(a, b))
     .slice(0, count);
 };
@@ -658,6 +652,22 @@ export type BookContextMenuItemId =
 export const withReadingStatus = (book: Book, status: ReadingStatus | undefined): Book => {
   const now = Date.now();
   return { ...book, readingStatus: status, readingStatusUpdatedAt: now, updatedAt: now };
+};
+
+export type LibraryStatusFilter = 'all' | 'reading' | 'finished';
+
+export const ensureLibraryStatusFilter = (value: string | null | undefined): LibraryStatusFilter =>
+  value === 'reading' || value === 'finished' ? value : 'all';
+
+export const isCurrentlyReadingBook = (book: Book): boolean =>
+  (book.progress?.[0] ?? 0) > 0 &&
+  book.readingStatus !== 'finished' &&
+  book.readingStatus !== 'abandoned';
+
+export const matchesStatusFilter = (book: Book, status: LibraryStatusFilter): boolean => {
+  if (status === 'reading') return isCurrentlyReadingBook(book);
+  if (status === 'finished') return book.readingStatus === 'finished';
+  return true;
 };
 
 type ReadingStatusFields = Pick<Book, 'readingStatus' | 'readingStatusUpdatedAt'>;

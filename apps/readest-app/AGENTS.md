@@ -88,6 +88,17 @@ For every coding task, write the minimum code that solves the requested problem.
 - If a solution is much longer than necessary, simplify it before finishing.
 - Before shipping, ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
+### Comments
+
+Do not write comments. Write code whose names and structure make a comment unnecessary instead.
+
+- Do not add explanatory, narrating, or section-banner comments to code you write or modify.
+- Do not add file-header or docblock preambles to new files, including test files.
+- Leave existing comments alone unless the code they describe changes, in which case update or delete them.
+- The rare exception is information that cannot live in code at all, such as a link to an upstream bug or spec explaining a non-obvious workaround. Reach for a clearer name or a named constant first.
+- Do not use em dashes or hyphens as sentence punctuation. Use a period, comma, colon, semicolon, or parentheses, or reword the sentence.
+- Hyphens are fine where they belong, such as compound words, identifiers, and CSS class names.
+
 ### i18n
 
 See [docs/i18n.md](docs/i18n.md) for the key-as-content translation approach, `stubTranslation` usage in non-React modules, and extraction workflow.
