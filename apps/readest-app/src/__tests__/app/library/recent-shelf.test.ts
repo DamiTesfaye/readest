@@ -106,3 +106,10 @@ describe('selectRecentShelfBooks', () => {
     expect(selectRecentShelfBooks([], 10)).toEqual([]);
   });
 });
+
+describe('recent shelf default', () => {
+  it('is enabled by default', async () => {
+    const { DEFAULT_SYSTEM_SETTINGS } = await import('@/services/constants');
+    expect(DEFAULT_SYSTEM_SETTINGS.libraryRecentShelfEnabled).toBe(true);
+  });
+});

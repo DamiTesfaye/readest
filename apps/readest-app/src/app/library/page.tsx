@@ -1410,12 +1410,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       )}
     >
       <div className='hidden h-full sm:block'>
-        <LibrarySidebar
-          onPullLibrary={pullLibrary}
-          onOpenCatalogManager={handleShowOPDSDialog}
-          isSelectMode={isSelectMode}
-          onToggleSelectMode={() => handleSetSelectMode(!isSelectMode)}
-        />
+        <LibrarySidebar onPullLibrary={pullLibrary} onOpenCatalogManager={handleShowOPDSDialog} />
       </div>
       <div className='sm:bg-base-100 flex h-full min-w-0 flex-1 flex-col overflow-hidden'>
         <div

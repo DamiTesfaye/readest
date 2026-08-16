@@ -2,9 +2,8 @@ import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FaSearch, FaUser } from 'react-icons/fa';
-import { PiDotsThreeCircle, PiSelectionAll, PiSelectionAllFill } from 'react-icons/pi';
-import { MdOutlineMenu } from 'react-icons/md';
 import { LuChevronsUpDown } from 'react-icons/lu';
+import { PiCaretRightBold } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
@@ -12,7 +11,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
-import { navigateToLibrary, navigateToLogin, navigateToProfile } from '@/utils/nav';
+import { navigateToLibrary, navigateToProfile } from '@/utils/nav';
 import { getHomepageIconSrc, getSearchShortcutBadgeSrc } from '@/utils/toolbarIcons';
 import { getUserProfilePlan } from '@/utils/access';
 import { ensureLibraryStatusFilter, LibraryStatusFilter } from '../utils/libraryUtils';
@@ -21,9 +20,17 @@ import { debounce } from '@/utils/debounce';
 import UserAvatar from '@/components/UserAvatar';
 import Dropdown from '@/components/Dropdown';
 import SettingsMenu from './SettingsMenu';
-import ViewMenu from './ViewMenu';
 
 const AVATAR_CORAL = '#E8846B';
+
+const TAG_COLORS = [
+  { label: 'Red', color: '#C24545' },
+  { label: 'Orange', color: '#E8846B' },
+  { label: 'Green', color: '#96CE7E' },
+  { label: 'Blue', color: '#8FA9F0' },
+  { label: 'Purple', color: '#B9A8EF' },
+  { label: 'Yellow', color: '#F2D34E' },
+];
 
 const PLAN_LABELS = {
   free: 'Free',
@@ -35,8 +42,6 @@ const PLAN_LABELS = {
 interface LibrarySidebarProps {
   onPullLibrary: () => void;
   onOpenCatalogManager: () => void;
-  isSelectMode: boolean;
-  onToggleSelectMode: () => void;
 }
 
 interface SidebarNavItemProps {
@@ -74,12 +79,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   </button>
 );
 
-const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
-  onPullLibrary,
-  onOpenCatalogManager,
-  isSelectMode,
-  onToggleSelectMode,
-}) => {
+const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCatalogManager }) => {
   const _ = useTranslation();
   const router = useAppRouter();
   const searchParams = useSearchParams();
@@ -89,6 +89,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   const { isTrafficLightVisible } = useTrafficLight();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') ?? '');
+  const [isTagsOpen, setIsTagsOpen] = useState(false);
 
   const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
 
@@ -216,6 +217,12 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
             onClick={() => handleSelectStatus('finished')}
           />
           <SidebarNavItem
+            icon='collections'
+            label={_('Collections')}
+            isDarkMode={isDarkMode}
+            onClick={toastComingSoon}
+          />
+          <SidebarNavItem
             icon='shared'
             label={_('Shared')}
             isDarkMode={isDarkMode}
@@ -239,62 +246,77 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
             onClick={toastComingSoon}
           />
         </div>
+        <div className='flex flex-col gap-1'>
+          <button
+            type='button'
+            aria-expanded={isTagsOpen}
+            onClick={() => setIsTagsOpen(!isTagsOpen)}
+            className='group flex w-full items-center justify-between rounded-lg px-2 text-start'
+          >
+            <span className='text-base-content/50 [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+              {_('Tags')}
+            </span>
+            <PiCaretRightBold
+              aria-hidden
+              className={clsx(
+                'text-base-content/70 h-3 w-3 transition-all duration-200',
+                isTagsOpen ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100',
+              )}
+            />
+          </button>
+          {isTagsOpen &&
+            TAG_COLORS.map((tag) => (
+              <button
+                key={tag.label}
+                type='button'
+                onClick={toastComingSoon}
+                className={clsx(
+                  'flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start',
+                  'hover:bg-base-300/70 [font-family:"Avenir_Next_LT_Pro"] text-sm',
+                  'text-base-content/85',
+                )}
+              >
+                <span className='flex w-6 justify-center'>
+                  <span
+                    aria-hidden
+                    className='h-3.5 w-3.5 rounded-full'
+                    style={{ backgroundColor: tag.color }}
+                  />
+                </span>
+                <span className='truncate'>{_(tag.label)}</span>
+              </button>
+            ))}
+        </div>
       </nav>
-      <div className='text-base-content/60 flex items-center justify-around px-3 py-1.5'>
-        <Dropdown
-          label={_('View Menu')}
-          className='dropdown-top dropdown-center'
-          buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
-          toggleButton={<PiDotsThreeCircle role='none' className='h-[18px] w-[18px]' />}
-        >
-          <ViewMenu />
-        </Dropdown>
-        <button
-          type='button'
-          onClick={onToggleSelectMode}
-          aria-label={_('Select Books')}
-          title={_('Select Books')}
-          className='btn btn-ghost h-8 min-h-8 w-8 p-0'
-        >
-          {isSelectMode ? (
-            <PiSelectionAllFill role='none' className='h-[18px] w-[18px]' />
-          ) : (
-            <PiSelectionAll role='none' className='h-[18px] w-[18px]' />
-          )}
-        </button>
-        <Dropdown
-          label={_('Settings Menu')}
-          className='dropdown-top dropdown-center'
-          buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
-          toggleButton={<MdOutlineMenu role='none' className='h-[18px] w-[18px]' />}
-        >
-          <SettingsMenu onPullLibrary={onPullLibrary} />
-        </Dropdown>
-      </div>
       <div className='border-base-300 eink-bordered border-t p-3'>
         {user ? (
           <div className='flex items-center gap-2'>
-            <button
-              type='button'
-              onClick={() => navigateToProfile(router)}
-              className='flex min-w-0 flex-1 items-center gap-2 text-start'
-              aria-label={_('Account')}
+            <Dropdown
+              label={_('Account Menu')}
+              className='dropdown-top'
+              containerClassName='min-w-0 flex-1'
+              buttonClassName='hover:bg-base-300/70 flex w-full min-w-0 items-center gap-2 rounded-lg p-1 text-start'
+              toggleButton={
+                <>
+                  <div
+                    className='flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full'
+                    style={{ backgroundColor: AVATAR_CORAL }}
+                  >
+                    {avatarUrl && <UserAvatar url={avatarUrl} size={32} DefaultIcon={FaUser} />}
+                  </div>
+                  <span className='flex min-w-0 flex-col'>
+                    <span className='truncate [font-family:"Avenir_Next_LT_Pro"] text-sm'>
+                      {userFullName}
+                    </span>
+                    <span className='text-base-content/60 truncate [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+                      {_(PLAN_LABELS[plan])}
+                    </span>
+                  </span>
+                </>
+              }
             >
-              <div
-                className='flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full'
-                style={{ backgroundColor: AVATAR_CORAL }}
-              >
-                {avatarUrl && <UserAvatar url={avatarUrl} size={32} DefaultIcon={FaUser} />}
-              </div>
-              <span className='flex min-w-0 flex-col'>
-                <span className='truncate [font-family:"Avenir_Next_LT_Pro"] text-sm'>
-                  {userFullName}
-                </span>
-                <span className='text-base-content/60 truncate [font-family:"Avenir_Next_LT_Pro"] text-xs'>
-                  {_(PLAN_LABELS[plan])}
-                </span>
-              </span>
-            </button>
+              <SettingsMenu onPullLibrary={onPullLibrary} />
+            </Dropdown>
             {plan === 'free' && (
               <button
                 type='button'
@@ -310,19 +332,25 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
             <LuChevronsUpDown aria-hidden className='text-base-content/50 h-4 w-4 shrink-0' />
           </div>
         ) : (
-          <button
-            type='button'
-            onClick={() => navigateToLogin(router)}
-            className='hover:bg-base-300/70 -m-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg p-1 text-start'
+          <Dropdown
+            label={_('Sign into your account')}
+            className='dropdown-top'
+            containerClassName='w-full'
+            buttonClassName='hover:bg-base-300/70 -m-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg p-1 text-start'
+            toggleButton={
+              <>
+                <div
+                  className='h-8 w-8 shrink-0 rounded-full'
+                  style={{ backgroundColor: AVATAR_CORAL }}
+                />
+                <span className='truncate [font-family:"Avenir_Next_LT_Pro"] text-sm'>
+                  {_('Sign into your account')}
+                </span>
+              </>
+            }
           >
-            <div
-              className='h-8 w-8 shrink-0 rounded-full'
-              style={{ backgroundColor: AVATAR_CORAL }}
-            />
-            <span className='truncate [font-family:"Avenir_Next_LT_Pro"] text-sm'>
-              {_('Sign into your account')}
-            </span>
-          </button>
+            <SettingsMenu onPullLibrary={onPullLibrary} />
+          </Dropdown>
         )}
       </div>
     </aside>

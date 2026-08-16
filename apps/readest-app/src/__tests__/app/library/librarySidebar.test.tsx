@@ -56,9 +56,6 @@ vi.mock('@/components/Dropdown', () => ({
     </div>
   ),
 }));
-vi.mock('@/app/library/components/ViewMenu', () => ({
-  default: () => <div data-testid='view-menu' />,
-}));
 vi.mock('@/app/library/components/SettingsMenu', () => ({
   default: () => <div data-testid='settings-menu' />,
 }));
@@ -70,8 +67,6 @@ const renderSidebar = (overrides: Partial<React.ComponentProps<typeof LibrarySid
   const props = {
     onPullLibrary: vi.fn(),
     onOpenCatalogManager: vi.fn(),
-    isSelectMode: false,
-    onToggleSelectMode: vi.fn(),
     ...overrides,
   };
   render(<LibrarySidebar {...props} />);
@@ -90,7 +85,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('LibrarySidebar', () => {
-  it('renders search, both section labels and all six nav items', () => {
+  it('renders search, section labels and all nav items', () => {
     renderSidebar();
     expect(screen.getByRole('searchbox')).toBeTruthy();
     expect(screen.getByText('Library')).toBeTruthy();
@@ -99,12 +94,36 @@ describe('LibrarySidebar', () => {
       'All',
       'Currently Reading',
       'Finished',
+      'Collections',
       'Shared',
       'Catalogs',
       'RSS Feeds',
     ]) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
+  });
+
+  it('collapses the Tags section by default and expands it from the header', () => {
+    renderSidebar();
+    const header = screen.getByRole('button', { name: 'Tags' });
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Red' })).toBeNull();
+    fireEvent.click(header);
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    for (const label of ['Red', 'Orange', 'Green', 'Blue', 'Purple', 'Yellow']) {
+      expect(screen.getByRole('button', { name: label })).toBeTruthy();
+    }
+    fireEvent.click(header);
+    expect(screen.queryByRole('button', { name: 'Red' })).toBeNull();
+  });
+
+  it('toasts Coming soon for Collections and tag items', () => {
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Collections' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Red' }));
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch.mock.calls[0]?.[0]).toBe('toast');
   });
 
   it('marks All active by default and the matching status filter when set', () => {
@@ -155,11 +174,11 @@ describe('LibrarySidebar', () => {
     expect(document.activeElement).toBe(screen.getByRole('searchbox'));
   });
 
-  it('shows the sign-in card when logged out and routes to login', () => {
+  it('opens the settings menu from the sign-in card when logged out', () => {
     renderSidebar();
-    const signIn = screen.getByRole('button', { name: 'Sign into your account' });
-    fireEvent.click(signIn);
-    expect(navigateToLogin).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Sign into your account' })).toBeTruthy();
+    expect(screen.getByTestId('settings-menu')).toBeTruthy();
+    expect(navigateToLogin).not.toHaveBeenCalled();
   });
 
   it('shows name, plan and Upgrade when logged in, routing to the profile', () => {
@@ -170,16 +189,16 @@ describe('LibrarySidebar', () => {
     renderSidebar();
     expect(screen.getByText('Dami Tesfaye')).toBeTruthy();
     expect(screen.getByText('Free')).toBeTruthy();
+    expect(screen.getByTestId('settings-menu')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
     expect(navigateToProfile).toHaveBeenCalledTimes(1);
   });
 
-  it('hosts the view/settings menus and select toggle in the footer strip', () => {
-    const props = renderSidebar();
-    expect(screen.getByRole('button', { name: 'View Menu' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Settings Menu' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Select Books' }));
-    expect(props.onToggleSelectMode).toHaveBeenCalledTimes(1);
+  it('no longer renders the view/select/settings footer strip', () => {
+    renderSidebar();
+    expect(screen.queryByRole('button', { name: 'View Menu' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Select Books' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Settings Menu' })).toBeNull();
   });
 
   it('has no collapse control, so the sidebar stays expanded', () => {
