@@ -70,7 +70,7 @@ const RecentSlide: React.FC<RecentSlideProps> = ({
       <div
         className={clsx(
           'visible-focus-inset-2 group flex h-full cursor-pointer select-none flex-col',
-          'sm:hover:bg-base-300/50 px-0 pb-2 sm:rounded-md sm:px-4 sm:pb-4',
+          'sm:hover:bg-base-300/50 px-0 py-2 sm:rounded-md sm:px-4 sm:py-4',
           pressing ? 'not-eink:scale-95' : 'scale-100',
         )}
         role='button'
