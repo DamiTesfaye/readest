@@ -32,27 +32,30 @@ export const useOpenBook = ({ setLoading, handleBookDownload }: UseOpenBookOptio
 
   const makeBookAvailable = useCallback(
     async (book: Book) => {
-      if (book.uploadedAt && !book.downloadedAt) {
-        if (await appService?.isBookAvailable(book)) {
-          if (!book.downloadedAt || !book.coverDownloadedAt) {
-            book.downloadedAt = Date.now();
-            book.coverDownloadedAt = Date.now();
-            await updateBook(envConfig, book);
-          }
-          return true;
-        }
-        let available = false;
-        const loadingTimeout = setTimeout(() => setLoading(true), 200);
-        try {
-          available = await handleBookDownload(book, { queued: false });
+      if (!book.uploadedAt) return true;
+      if (await appService?.isBookAvailable(book)) {
+        if (!book.downloadedAt || !book.coverDownloadedAt) {
+          book.downloadedAt = Date.now();
+          book.coverDownloadedAt = Date.now();
           await updateBook(envConfig, book);
-        } finally {
-          if (loadingTimeout) clearTimeout(loadingTimeout);
-          setLoading(false);
         }
-        return available;
+        return true;
       }
-      return true;
+      // The file is not on this device: it either never arrived or the local
+      // copy went away while `downloadedAt` kept claiming otherwise. Clear the
+      // stale stamp so the card stops advertising a local copy, then pull it
+      // down again.
+      book.downloadedAt = null;
+      let available = false;
+      const loadingTimeout = setTimeout(() => setLoading(true), 200);
+      try {
+        available = await handleBookDownload(book, { queued: false });
+        await updateBook(envConfig, book);
+      } finally {
+        if (loadingTimeout) clearTimeout(loadingTimeout);
+        setLoading(false);
+      }
+      return available;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [appService, envConfig, handleBookDownload, setLoading],
@@ -60,13 +63,15 @@ export const useOpenBook = ({ setLoading, handleBookDownload }: UseOpenBookOptio
 
   const openBook = useCallback(
     async (book: Book) => {
-      // In-place books point at a file outside Books/<hash>/ that the user (or
-      // another app) may have moved, renamed, or deleted between sessions. Probe
-      // the source before navigating: if it's gone, drop the stale record
-      // instead of opening the reader only to fail and bounce back. Restricted
-      // to purely-local in-place books — cloud-synced books (`uploadedAt`) still
-      // go through `makeBookAvailable`'s on-demand download path.
-      if (book.filePath && !book.uploadedAt && !book.deletedAt) {
+      // A local-only book can lose its file between sessions: in-place books
+      // point outside Books/<hash>/ where the user (or another app) may move,
+      // rename or delete it, and a managed copy can be evicted by browser
+      // storage pressure while its sidecars (config, cover, nav) survive.
+      // `downloadedAt` keeps claiming the file is here either way, so probe the
+      // source before navigating: if it's gone, drop the stale record instead of
+      // opening the reader only to fail and bounce back. Cloud-synced books
+      // (`uploadedAt`) still go through `makeBookAvailable`'s download path.
+      if (!book.uploadedAt && !book.deletedAt) {
         const available = await appService?.isBookAvailable(book);
         if (!available) {
           eventDispatcher.dispatch('toast', {
