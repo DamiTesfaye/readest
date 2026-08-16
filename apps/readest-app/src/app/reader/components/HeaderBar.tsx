@@ -28,6 +28,7 @@ import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
+import SparkPopover from './SparkPopover';
 import { getToolbarSidePanelPlacement, getToolbarStackedPanelPlacement } from '@/utils/popover';
 import type { Rect } from '@/utils/sel';
 import { eventDispatcher } from '@/utils/event';
@@ -83,6 +84,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const tocAnchorRef = useRef<HTMLButtonElement>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const libraryAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isSparkOpen, setIsSparkOpen] = useState(false);
+  const sparkAnchorRef = useRef<HTMLButtonElement>(null);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
   const [sidePanelAnchorRect, setSidePanelAnchorRect] = useState<Rect | null>(null);
@@ -148,6 +151,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const handleToggleTTS = () => {
     const ttsEnabled = getViewState(bookKey)?.ttsEnabled;
     eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
+  };
+
+  const handleToggleSpark = () => {
+    const next = !isSparkOpen;
+    setIsSparkOpen(next);
+    handleToggleDropdown(next);
+  };
+
+  const handleCloseSpark = () => {
+    setIsSparkOpen(false);
+    handleToggleDropdown(false);
   };
 
   const handleThemeFontsOpen = (anchorRect: Rect) => {
@@ -347,9 +361,11 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 />
               </button>
               <button
-                title={_('AI')}
+                ref={sparkAnchorRef}
+                title={_('Spark')}
+                aria-expanded={isSparkOpen}
                 className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={handleToggleTTS}
+                onClick={handleToggleSpark}
               >
                 <img
                   src={getToolbarIconSrc('amply', themeColor, isDarkMode)}
@@ -443,6 +459,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             isOpen={isLibraryOpen}
             anchorEl={libraryAnchorRef.current}
             onClose={handleCloseLibrary}
+          />
+          <SparkPopover
+            isOpen={isSparkOpen}
+            anchorEl={sparkAnchorRef.current}
+            onClose={handleCloseSpark}
+            onToggleTTS={handleToggleTTS}
           />
           <BooknotesPopover
             bookKey={bookKey}
