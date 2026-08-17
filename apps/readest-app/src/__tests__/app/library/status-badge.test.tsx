@@ -8,6 +8,14 @@ describe('StatusBadge', () => {
     expect(queryByText('On hold')).not.toBeNull();
   });
 
+  it('renders the tick icon and keeps the label readable for the finished status', () => {
+    const { container } = render(<StatusBadge status='finished'>Finished</StatusBadge>);
+    const badge = container.firstElementChild as HTMLElement;
+    expect(badge.getAttribute('role')).toBe('status');
+    expect(badge.querySelector('img')?.getAttribute('src')).toContain('finished-tick.svg');
+    expect(badge.textContent).toBe('Finished');
+  });
+
   it('renders nothing for the reading status', () => {
     const { container } = render(<StatusBadge status='reading'>x</StatusBadge>);
     expect(container.firstChild).toBeNull();
