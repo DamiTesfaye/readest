@@ -1,19 +1,9 @@
 import clsx from 'clsx';
 import React from 'react';
-import {
-  MdOutlineCloudDownload,
-  MdOutlineCloudUpload,
-  MdOutlineDelete,
-  MdOutlineEdit,
-  MdMenu,
-  MdExpandMore,
-  MdExpandLess,
-} from 'react-icons/md';
+import { MdOutlineCloudDownload, MdExpandMore, MdExpandLess } from 'react-icons/md';
 
 import { Book } from '@/types/book';
 import { BookMetadata } from '@/libs/document';
-import { openExternalUrl } from '@/utils/open';
-import { getBookGoodreadsQuery, getGoodreadsSearchUrl } from '@/utils/goodreads';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useEnv } from '@/context/EnvContext';
@@ -27,6 +17,11 @@ import {
 } from '@/utils/book';
 import { saveSysSettings } from '@/helpers/settings';
 import BookCover from '@/components/BookCover';
+import { UploadIcon } from '@/components/UploadIcon';
+import { EditIcon } from '@/components/EditIcon';
+import { DeleteIcon } from '@/components/DeleteIcon';
+import { DownloadIcon } from '@/components/DownloadIcon';
+import { ShareIcon } from '@/components/ShareIcon';
 import Dropdown from '../Dropdown';
 import MenuItem from '../MenuItem';
 
@@ -105,7 +100,7 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                 className={!metadata ? 'btn-disabled opacity-50' : ''}
                 title={_('Edit Metadata')}
               >
-                <MdOutlineEdit className='hover:fill-blue-500' />
+                <EditIcon className='hover:text-blue-500' />
               </button>
             )}
             {book.uploadedAt && onDownload && (
@@ -115,7 +110,18 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
             )}
             {book.downloadedAt && onUpload && (
               <button onClick={onUpload} title={_('Upload to Cloud')}>
-                <MdOutlineCloudUpload className='fill-base-content' />
+                <UploadIcon className='text-base-content' />
+              </button>
+            )}
+            {onExport && (
+              <button
+                onClick={onExport}
+                disabled={!hasLocalFile}
+                className={!hasLocalFile ? 'btn-disabled opacity-50' : ''}
+                aria-label={_('Export Book')}
+                title={hasLocalFile ? _('Export Book') : _('Download the book to export it')}
+              >
+                <DownloadIcon className='text-base-content' />
               </button>
             )}
             {onDelete && (
@@ -123,7 +129,7 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                 label={_('Delete Book Options')}
                 className='dropdown-bottom dropdown-center flex justify-center'
                 buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
-                toggleButton={<MdOutlineDelete className='fill-red-500' />}
+                toggleButton={<DeleteIcon className='text-base-content' />}
               >
                 <div
                   className={clsx(
@@ -154,52 +160,11 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                 </div>
               </Dropdown>
             )}
-            <Dropdown
-              label={_('More Actions')}
-              className='dropdown-bottom dropdown-center flex justify-center'
-              buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
-              toggleButton={<MdMenu className='fill-base-content' />}
-            >
-              <div
-                className={clsx(
-                  'more-menu dropdown-content no-triangle !relative',
-                  'border-base-300 !bg-base-200 z-20 mt-1 max-w-[90vw] shadow-2xl',
-                )}
-              >
-                <MenuItem
-                  noIcon
-                  transient
-                  label={_('Search on Goodreads')}
-                  onClick={() =>
-                    openExternalUrl(getGoodreadsSearchUrl(getBookGoodreadsQuery(book)))
-                  }
-                />
-                {onShare && (
-                  <MenuItem
-                    noIcon
-                    transient
-                    label={_('Share Book')}
-                    disabled={!shareEnabled}
-                    tooltip={
-                      shareEnabled
-                        ? undefined
-                        : _('Sign in and make the book available to share it')
-                    }
-                    onClick={onShare}
-                  />
-                )}
-                {onExport && (
-                  <MenuItem
-                    noIcon
-                    transient
-                    label={_('Export Book')}
-                    disabled={!hasLocalFile}
-                    tooltip={hasLocalFile ? undefined : _('Download the book to export it')}
-                    onClick={onExport}
-                  />
-                )}
-              </div>
-            </Dropdown>
+            {onShare && shareEnabled && (
+              <button onClick={onShare} aria-label={_('Share Book')} title={_('Share Book')}>
+                <ShareIcon className='text-base-content' />
+              </button>
+            )}
           </div>
         </div>
       </div>
