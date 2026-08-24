@@ -49,6 +49,7 @@ interface SidebarNavItemProps {
   label: string;
   active?: boolean;
   isDarkMode: boolean;
+  iconClassName?: string;
   onClick: () => void;
 }
 
@@ -57,6 +58,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   label,
   active = false,
   isDarkMode,
+  iconClassName = 'h-4',
   onClick,
 }) => (
   <button
@@ -73,7 +75,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
       src={getHomepageIconSrc(icon, isDarkMode, active)}
       alt=''
       aria-hidden
-      className='h-4 w-6 object-contain'
+      className={clsx('w-6 object-contain', iconClassName)}
     />
     <span className='truncate'>{label}</span>
   </button>
@@ -92,6 +94,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
   const [isTagsOpen, setIsTagsOpen] = useState(false);
 
   const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
+  const catalogsActive = searchParams?.get('catalogs') === 'true';
 
   const navigateWithParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -121,6 +124,13 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
     debouncedUpdateQueryParam(e.target.value);
   };
 
+  // The search box is shared between sections; switching between the
+  // library and the catalogs view starts it from that section's q param.
+  useEffect(() => {
+    setSearchQuery(searchParams?.get('q') ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogsActive]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -140,6 +150,10 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
         params.set('status', status);
       }
       params.delete('group');
+      if (catalogsActive) {
+        params.delete('catalogs');
+        params.delete('q');
+      }
     });
   };
 
@@ -172,7 +186,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
             ref={searchInputRef}
             type='search'
             value={searchQuery}
-            placeholder={_('Search')}
+            placeholder={catalogsActive ? _('Search catalogs...') : _('Search')}
             onChange={handleSearchChange}
             spellCheck='false'
             className={clsx(
@@ -198,21 +212,21 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
           <SidebarNavItem
             icon='library'
             label={_('All')}
-            active={statusFilter === 'all'}
+            active={!catalogsActive && statusFilter === 'all'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('all')}
           />
           <SidebarNavItem
             icon='currently-reading'
             label={_('Currently Reading')}
-            active={statusFilter === 'reading'}
+            active={!catalogsActive && statusFilter === 'reading'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('reading')}
           />
           <SidebarNavItem
             icon='finished-reading'
             label={_('Finished')}
-            active={statusFilter === 'finished'}
+            active={!catalogsActive && statusFilter === 'finished'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('finished')}
           />
@@ -226,6 +240,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
             icon='shared'
             label={_('Shared')}
             isDarkMode={isDarkMode}
+            iconClassName='h-5'
             onClick={toastComingSoon}
           />
         </div>
@@ -236,6 +251,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
           <SidebarNavItem
             icon='catalogs'
             label={_('Catalogs')}
+            active={catalogsActive}
             isDarkMode={isDarkMode}
             onClick={onOpenCatalogManager}
           />

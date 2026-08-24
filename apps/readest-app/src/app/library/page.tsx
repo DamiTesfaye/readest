@@ -70,6 +70,7 @@ import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp';
 import { BookDetailModal } from '@/components/metadata';
 import { UpdaterWindow } from '@/components/UpdaterWindow';
 import { CatalogDialog } from './components/OPDSDialog';
+import { CatalogManager } from '@/app/opds/components/CatalogManager';
 import { MigrateDataWindow } from './components/MigrateDataWindow';
 import { BackupWindow } from './components/BackupWindow';
 import { CacheManagerWindow } from './components/CacheManagerWindow';
@@ -540,6 +541,15 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
 
   const handleShowOPDSDialog = () => {
     setShowCatalogManager(true);
+  };
+
+  const handleOpenCatalogsPage = () => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('catalogs', 'true');
+    params.delete('q');
+    params.delete('status');
+    params.delete('group');
+    navigateToLibrary(router, params.toString());
   };
 
   const handleDismissOPDSDialog = () => {
@@ -1398,6 +1408,8 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   }
 
   const showBookshelf = libraryLoaded || libraryBooks.length > 0;
+  const showCatalogsView = searchParams?.get('catalogs') === 'true';
+  const catalogSearchQuery = searchParams?.get('q') ?? '';
 
   return (
     <div
@@ -1410,11 +1422,11 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       )}
     >
       <div className='hidden h-full sm:block'>
-        <LibrarySidebar onPullLibrary={pullLibrary} onOpenCatalogManager={handleShowOPDSDialog} />
+        <LibrarySidebar onPullLibrary={pullLibrary} onOpenCatalogManager={handleOpenCatalogsPage} />
       </div>
       <div className='sm:bg-base-100 flex h-full min-w-0 flex-1 flex-col overflow-hidden'>
         <div
-          className='relative top-0 z-40 w-full sm:hidden'
+          className={clsx('relative top-0 z-40 w-full sm:hidden', showCatalogsView && '!hidden')}
           role='banner'
           tabIndex={-1}
           aria-label={_('Library Header')}
@@ -1446,7 +1458,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             max='100'
           />
         </div>
-        <div className='relative z-40 w-full'>
+        <div className={clsx('relative z-40 w-full', showCatalogsView && 'hidden')}>
           <LibraryContentHeader
             showImportButton={libraryBooks.some((book) => !book.deletedAt)}
             isSelectMode={isSelectMode}
@@ -1518,7 +1530,15 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             groupName={currentSeriesAuthorGroup.groupName}
           />
         )}
-        {showBookshelf &&
+        {showCatalogsView && (
+          <div className='min-h-0 flex-grow overflow-y-auto'>
+            <div className='flex justify-center px-6 py-8'>
+              <CatalogManager browseFrom='library-catalogs' searchQuery={catalogSearchQuery} />
+            </div>
+          </div>
+        )}
+        {!showCatalogsView &&
+          showBookshelf &&
           (libraryBooks.some((book) => !book.deletedAt) ? (
             <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
               <div

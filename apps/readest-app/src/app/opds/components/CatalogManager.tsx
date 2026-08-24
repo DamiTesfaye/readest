@@ -106,9 +106,25 @@ interface CatalogManagerProps {
    * so the title shows.
    */
   inSubPage?: boolean;
+  /**
+   * Where the manager is hosted, so browsed feeds are tagged with a `from`
+   * param and closing the browser returns here instead of reopening the
+   * library dialog: 'library-catalogs' for the catalogs view embedded in
+   * the library page.
+   */
+  browseFrom?: 'library-catalogs';
+  /**
+   * Text filter over catalog names/descriptions. The library catalogs view
+   * feeds the sidebar search box through here.
+   */
+  searchQuery?: string;
 }
 
-export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) {
+export function CatalogManager({
+  inSubPage = false,
+  browseFrom,
+  searchQuery = '',
+}: CatalogManagerProps = {}) {
   const _ = useTranslation();
   const router = useRouter();
   const { envConfig, appService } = useEnv();
@@ -134,6 +150,15 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
   const popularCatalogs = appService?.isOnlineCatalogsAccessible
     ? getUnaddedPopularCatalogs(POPULAR_CATALOGS, catalogs)
     : [];
+  const catalogFilter = searchQuery.trim().toLowerCase();
+  const matchesFilter = (name: string, extra?: string) =>
+    !catalogFilter ||
+    name.toLowerCase().includes(catalogFilter) ||
+    (extra ?? '').toLowerCase().includes(catalogFilter);
+  const visibleCatalogs = catalogs.filter((catalog) => matchesFilter(catalog.name, catalog.url));
+  const visiblePopularCatalogs = popularCatalogs.filter((catalog) =>
+    matchesFilter(catalog.name, catalog.description),
+  );
   const [subscriptionStates, setSubscriptionStates] = useState<
     Record<string, OPDSSubscriptionState>
   >({});
@@ -382,6 +407,8 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
     // instead of falling back to the standalone library OPDS dialog.
     if (inSubPage) {
       params.set('from', 'settings-integrations');
+    } else if (browseFrom) {
+      params.set('from', browseFrom);
     }
     router.push(`/opds?${params.toString()}`);
   };
@@ -420,7 +447,9 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
           </button>
         </div>
 
-        {catalogs.length === 0 ? (
+        {catalogs.length > 0 && visibleCatalogs.length === 0 ? (
+          <p className='text-base-content/60 text-sm'>{_('No catalogs match your search')}</p>
+        ) : catalogs.length === 0 ? (
           <div className='eink-bordered border-base-300 rounded-lg border-2 border-dashed p-12 text-center'>
             <IoBook className='text-base-content/40 mx-auto mb-4 h-12 w-12' />
             <h3 className='mb-2 font-semibold'>{_('No catalogs yet')}</h3>
@@ -433,7 +462,7 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
           </div>
         ) : (
           <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-            {catalogs.map((catalog) => {
+            {visibleCatalogs.map((catalog) => {
               const subState = subscriptionStates[catalog.id];
               const lastCheckedAt = subState?.lastCheckedAt ?? 0;
               const failedCount = subState?.failedEntries.length ?? 0;
@@ -594,10 +623,10 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
       </section>
 
       {/* Popular Catalogs */}
-      <section className={clsx('text-base', popularCatalogs.length === 0 && 'hidden')}>
+      <section className={clsx('text-base', visiblePopularCatalogs.length === 0 && 'hidden')}>
         <SectionTitle className='mb-3'>{_('Popular Catalogs')}</SectionTitle>
         <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-          {popularCatalogs.map((catalog) => (
+          {visiblePopularCatalogs.map((catalog) => (
             <div
               key={catalog.id}
               className='card eink-bordered bg-base-100 border-base-200 flex flex-col border'

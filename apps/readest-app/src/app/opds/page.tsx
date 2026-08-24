@@ -22,7 +22,7 @@ import { useTransferQueue } from '@/hooks/useTransferQueue';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibrary } from '@/hooks/useLibrary';
 import { eventDispatcher } from '@/utils/event';
-import { navigateToReader } from '@/utils/nav';
+import { navigateToLibrary, navigateToReader } from '@/utils/nav';
 import { getFileExtFromMimeType } from '@/libs/document';
 import { OPDSFeed, OPDSPublication, OPDSSearch, REL } from '@/types/opds';
 import {
@@ -393,10 +393,12 @@ export default function BrowserPage() {
     } else if (isNavigatingHistoryRef.current) {
       isNavigatingHistoryRef.current = false;
     } else {
-      setViewMode('error');
-      setError(new Error('No OPDS URL provided'));
+      // The catalogs manager lives inside the library page (sidebar →
+      // Catalogs), so a bare /opds visit lands there instead of rendering
+      // a toolbar-only page.
+      navigateToLibrary(router, 'catalogs=true');
     }
-  }, [catalogUrl, catalogId, settings, libraryLoaded, loadOPDS]);
+  }, [catalogUrl, catalogId, settings, libraryLoaded, loadOPDS, router]);
 
   const handleNavigate = useCallback(
     (url: string, isSearch = false) => {

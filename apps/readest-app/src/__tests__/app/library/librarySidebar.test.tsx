@@ -162,6 +162,33 @@ describe('LibrarySidebar', () => {
     expect(props.onOpenCatalogManager).toHaveBeenCalledTimes(1);
   });
 
+  it('marks Catalogs active and the status items inactive in the catalogs view', () => {
+    searchString = 'catalogs=true';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Catalogs' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('switches the search placeholder per section', () => {
+    renderSidebar();
+    expect(screen.getByRole('searchbox').getAttribute('placeholder')).toBe('Search');
+    cleanup();
+    searchString = 'catalogs=true';
+    renderSidebar();
+    expect(screen.getByRole('searchbox').getAttribute('placeholder')).toBe('Search catalogs...');
+  });
+
+  it('leaves the catalogs view when a library status is selected', () => {
+    searchString = 'catalogs=true&q=gutenberg';
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).not.toContain('catalogs=');
+    expect(navigatedTo).not.toContain('q=');
+  });
+
   it('updates the q param when typing in search', () => {
     renderSidebar();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'moby' } });
