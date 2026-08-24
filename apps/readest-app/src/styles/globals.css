@@ -29,7 +29,7 @@
 @font-face {
   font-family: 'Avenir Next LT Pro';
   src: url('/fonts/AvenirNextLTPro-Heavy.otf') format('opentype');
-  font-weight: 900;
+  font-weight: 800 900;
   font-style: normal;
   font-display: swap;
 }
@@ -37,7 +37,7 @@
 @font-face {
   font-family: 'Avenir Next LT Pro';
   src: url('/fonts/AvenirNextLTPro-Medium.otf') format('opentype');
-  font-weight: 500;
+  font-weight: 100 500;
   font-style: normal;
   font-display: swap;
 }
@@ -45,8 +45,32 @@
 @font-face {
   font-family: 'Avenir Next LT Pro';
   src: url('/fonts/AvenirNextLTPro-Demi.otf') format('opentype');
-  font-weight: 600;
+  font-weight: 600 700;
   font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-HeavyIt.otf') format('opentype');
+  font-weight: 800 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-MediumIt.otf') format('opentype');
+  font-weight: 100 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-DemiIt.otf') format('opentype');
+  font-weight: 600 700;
+  font-style: italic;
   font-display: swap;
 }
 
