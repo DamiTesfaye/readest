@@ -265,14 +265,18 @@ impl Store {
     }
 
     pub fn upsert_work_detail(
-        &self,
+        &mut self,
         id: &str,
         detail: &WorkDetail,
         etag: &str,
     ) -> rusqlite::Result<()> {
         let detail_json = serde_json::to_string(detail)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-        self.conn.execute(
+        let (fts_title, fts_authors) = self.fts_title_and_authors_for(id, detail)?;
+        let fts_subjects = detail.subjects.join(", ");
+
+        let tx = self.conn.transaction()?;
+        tx.execute(
             "INSERT INTO work_details (id, detail_json, etag, fetched_at, stale)
              VALUES (?1, ?2, ?3, ?4, 0)
              ON CONFLICT(id) DO UPDATE SET
@@ -282,7 +286,41 @@ impl Store {
                 stale = 0",
             params![id, detail_json, etag, now_secs()],
         )?;
-        Ok(())
+        tx.execute("DELETE FROM search_fts WHERE work_id = ?1", params![id])?;
+        tx.execute(
+            "INSERT INTO search_fts (title, authors, subjects, work_id) VALUES (?1, ?2, ?3, ?4)",
+            params![fts_title, fts_authors, fts_subjects, id],
+        )?;
+        tx.commit()
+    }
+
+    fn fts_title_and_authors_for(
+        &self,
+        id: &str,
+        detail: &WorkDetail,
+    ) -> rusqlite::Result<(String, String)> {
+        let card_json: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT card_json FROM works WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        let card = card_json.and_then(|json| serde_json::from_str::<WorkCard>(&json).ok());
+        match card {
+            Some(card) => {
+                let authors = card
+                    .authors
+                    .iter()
+                    .map(|a| a.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                Ok((card.title, authors))
+            }
+            None => Ok((detail.title.clone(), String::new())),
+        }
     }
 
     pub fn get_work_detail(&self, id: &str) -> rusqlite::Result<Option<StoredWorkDetail>> {
@@ -447,7 +485,7 @@ mod tests {
 
     #[test]
     fn upsert_work_detail_and_get_round_trip() {
-        let store = Store::open_in_memory().unwrap();
+        let mut store = Store::open_in_memory().unwrap();
         let detail = WorkDetail {
             id: "work-1".to_string(),
             title: "Book One".to_string(),
@@ -538,6 +576,102 @@ mod tests {
             )
             .unwrap();
         assert_eq!(works_count, 0);
+    }
+
+    #[test]
+    fn upsert_work_detail_indexes_subjects_for_fts_search() {
+        let mut store = Store::open_in_memory().unwrap();
+        let shelf = sample_shelf(
+            "shelf-a",
+            "Shelf A",
+            vec![sample_card("work-1", "Book One")],
+        );
+        store.upsert_shelves(&[shelf]).unwrap();
+
+        let subject_hits_before: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM search_fts WHERE search_fts MATCH 'astrophysics'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(subject_hits_before, 0);
+
+        let detail = WorkDetail {
+            id: "work-1".to_string(),
+            title: "Book One".to_string(),
+            description: None,
+            subjects: vec!["astrophysics".to_string(), "memoir".to_string()],
+            preferred_edition_id: None,
+            editions: vec![],
+        };
+        store
+            .upsert_work_detail("work-1", &detail, "etag-1")
+            .unwrap();
+
+        let matched_work_id: String = store
+            .conn
+            .query_row(
+                "SELECT work_id FROM search_fts WHERE search_fts MATCH 'astrophysics'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(matched_work_id, "work-1");
+
+        let indexed_title_authors: (String, String) = store
+            .conn
+            .query_row(
+                "SELECT title, authors FROM search_fts WHERE work_id = 'work-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(indexed_title_authors.0, "Book One");
+        assert_eq!(indexed_title_authors.1, "Jane Doe");
+    }
+
+    #[test]
+    fn apply_changes_removes_shelf_and_its_items_only() {
+        let mut store = Store::open_in_memory().unwrap();
+        let shelf_a = sample_shelf(
+            "shelf-a",
+            "Shelf A",
+            vec![sample_card("work-1", "Book One")],
+        );
+        let shelf_b = sample_shelf(
+            "shelf-b",
+            "Shelf B",
+            vec![sample_card("work-2", "Book Two")],
+        );
+        store
+            .upsert_shelves(&[shelf_a.clone(), shelf_b.clone()])
+            .unwrap();
+
+        store
+            .apply_changes(&[ChangeOp {
+                entity_type: "shelf".to_string(),
+                entity_id: "shelf-a".to_string(),
+                op: "remove".to_string(),
+            }])
+            .unwrap();
+
+        let explore = store.get_explore().unwrap();
+        assert_eq!(explore.len(), 1);
+        assert_eq!(explore[0].id, "shelf-b");
+        assert_eq!(explore[0].items.len(), 1);
+        assert_eq!(explore[0].items[0].id, "work-2");
+
+        let shelf_items_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM shelf_items WHERE shelf_id = 'shelf-a'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(shelf_items_count, 0);
     }
 
     #[test]
