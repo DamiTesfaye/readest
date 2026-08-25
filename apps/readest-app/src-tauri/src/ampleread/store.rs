@@ -20,6 +20,13 @@ pub struct StoredWorkDetail {
     pub stale: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct SyncState {
+    pub etag: Option<String>,
+    pub fetched_at: i64,
+    pub ttl_s: i64,
+}
+
 fn now_secs() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -350,6 +357,46 @@ impl Store {
             .transpose()
     }
 
+    pub fn get_sync_state(&self, scope: &str) -> rusqlite::Result<Option<SyncState>> {
+        self.conn
+            .query_row(
+                "SELECT etag, fetched_at, ttl_s FROM sync_state WHERE scope = ?1",
+                params![scope],
+                |row| {
+                    Ok(SyncState {
+                        etag: row.get(0)?,
+                        fetched_at: row.get(1)?,
+                        ttl_s: row.get(2)?,
+                    })
+                },
+            )
+            .optional()
+    }
+
+    pub fn set_sync_state(
+        &self,
+        scope: &str,
+        etag: Option<&str>,
+        fetched_at: i64,
+        ttl_s: i64,
+    ) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO sync_state (scope, etag, fetched_at, ttl_s) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(scope) DO UPDATE SET
+                etag = excluded.etag,
+                fetched_at = excluded.fetched_at,
+                ttl_s = excluded.ttl_s",
+            params![scope, etag, fetched_at, ttl_s],
+        )?;
+        Ok(())
+    }
+
+    pub fn work_detail_ids(&self) -> rusqlite::Result<Vec<String>> {
+        let mut stmt = self.conn.prepare("SELECT id FROM work_details")?;
+        let ids = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        ids.collect()
+    }
+
     pub fn apply_changes(&mut self, ops: &[ChangeOp]) -> rusqlite::Result<()> {
         let tx = self.conn.transaction()?;
         for op in ops {
@@ -672,6 +719,47 @@ mod tests {
             )
             .unwrap();
         assert_eq!(shelf_items_count, 0);
+    }
+
+    #[test]
+    fn sync_state_round_trip_and_upsert() {
+        let store = Store::open_in_memory().unwrap();
+        assert!(store.get_sync_state("explore").unwrap().is_none());
+
+        store
+            .set_sync_state("explore", Some("etag-1"), 100, 300)
+            .unwrap();
+        let state = store.get_sync_state("explore").unwrap().unwrap();
+        assert_eq!(state.etag.as_deref(), Some("etag-1"));
+        assert_eq!(state.fetched_at, 100);
+        assert_eq!(state.ttl_s, 300);
+
+        store
+            .set_sync_state("explore", Some("etag-2"), 200, 300)
+            .unwrap();
+        let state = store.get_sync_state("explore").unwrap().unwrap();
+        assert_eq!(state.etag.as_deref(), Some("etag-2"));
+        assert_eq!(state.fetched_at, 200);
+    }
+
+    #[test]
+    fn work_detail_ids_lists_all_stored_details() {
+        let mut store = Store::open_in_memory().unwrap();
+        assert!(store.work_detail_ids().unwrap().is_empty());
+
+        let detail = WorkDetail {
+            id: "work-1".to_string(),
+            title: "Book One".to_string(),
+            description: None,
+            subjects: vec![],
+            preferred_edition_id: None,
+            editions: vec![],
+        };
+        store
+            .upsert_work_detail("work-1", &detail, "etag-1")
+            .unwrap();
+
+        assert_eq!(store.work_detail_ids().unwrap(), vec!["work-1".to_string()]);
     }
 
     #[test]

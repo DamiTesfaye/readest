@@ -347,6 +347,9 @@ pub fn run() {
             nightly_update::verify_update_signature,
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
             nightly_update::install_nightly_update,
+            ampleread::sync::ampleread_explore,
+            ampleread::sync::ampleread_work_detail,
+            ampleread::sync::ampleread_refresh,
         ])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
@@ -433,6 +436,30 @@ pub fn run() {
                 use std::sync::{Arc, Mutex};
                 let discord_client = Arc::new(Mutex::new(discord_rpc::DiscordRpcClient::new()));
                 app.manage(discord_client);
+            }
+
+            {
+                use ampleread::store::Store;
+                use ampleread::sync::{api_base, ReqwestCatalogHttp, SyncEngine};
+                use std::sync::Arc;
+
+                let data_dir = app
+                    .path()
+                    .app_data_dir()
+                    .unwrap_or_else(|_| std::env::temp_dir());
+                if let Err(e) = std::fs::create_dir_all(&data_dir) {
+                    log::error!("Failed to create ampleread data dir: {e}");
+                }
+                let db_path = data_dir.join("ampleread.sqlite");
+                match Store::open(&db_path) {
+                    Ok(store) => {
+                        let http = ReqwestCatalogHttp::new(api_base());
+                        app.manage(Arc::new(SyncEngine::new(http, store)));
+                    }
+                    Err(e) => {
+                        log::error!("Failed to open ampleread store: {e}");
+                    }
+                }
             }
 
             #[cfg(desktop)]
