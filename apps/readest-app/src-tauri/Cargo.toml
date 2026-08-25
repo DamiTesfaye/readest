@@ -100,6 +100,8 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 mobi = "0.8"
 
 rusqlite = { version = "0.32", features = ["bundled"] }
+# PRE-MERGE: switch to a git dependency pinned to the phase0-backend tag once
+# ampleread-backend has a remote; path dep only builds with the sibling checkout.
 ampleread-types = { path = "../../../../ampleread-backend/crates/ampleread-types" }
 
 [target."cfg(target_os = \"macos\")".dependencies]

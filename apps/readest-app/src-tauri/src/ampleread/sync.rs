@@ -17,6 +17,7 @@ const META_BOOTSTRAP_TTL_S: &str = "bootstrap_ttl_s";
 const META_BOOTSTRAP_JITTER_S: &str = "bootstrap_jitter_s";
 const META_CATALOG_VERSION: &str = "catalog_version";
 const META_CHANGE_CURSOR: &str = "change_cursor";
+const META_TERRITORY: &str = "territory";
 
 /// Base URL for the AmpleRead catalog API. Overridable via the
 /// `AMPLEREAD_API_BASE` environment variable for staging/dev backends.
@@ -48,6 +49,7 @@ pub trait CatalogHttp {
         &self,
         id: &str,
         etag: Option<&str>,
+        territory: Option<&str>,
     ) -> Result<FetchResult<WorkDetail>, SyncError>;
     async fn get_changes(&self, since: i64) -> Result<ChangesResponse, SyncError>;
 }
@@ -130,8 +132,15 @@ impl CatalogHttp for ReqwestCatalogHttp {
         &self,
         id: &str,
         etag: Option<&str>,
+        territory: Option<&str>,
     ) -> Result<FetchResult<WorkDetail>, SyncError> {
-        self.get_conditional(&format!("/v1/works/{id}"), etag).await
+        // Only works/editions vary by territory (`?t=`); explore does not,
+        // so this is the only request that needs it threaded through.
+        let path = match territory {
+            Some(t) => format!("/v1/works/{id}?t={t}"),
+            None => format!("/v1/works/{id}"),
+        };
+        self.get_conditional(&path, etag).await
     }
 
     async fn get_changes(&self, since: i64) -> Result<ChangesResponse, SyncError> {
@@ -175,7 +184,13 @@ fn work_scope(id: &str) -> String {
 enum BootstrapOutcome {
     NotDue,
     Unchanged,
-    Changed,
+    /// Carries the new `catalogVersion` rather than persisting it
+    /// immediately — the caller (`sync`) only writes it to `META_CATALOG_VERSION`
+    /// after `apply_remote_changes` (and its revalidations) has actually
+    /// succeeded, so a mid-cascade failure leaves the old version in place
+    /// for the next sync to retry against, instead of stranding stale
+    /// scopes under a version that claims they're already current.
+    Changed { new_version: i64 },
 }
 
 struct InFlightGuard<'a> {
@@ -235,6 +250,14 @@ impl<H: CatalogHttp> SyncEngine<H> {
         Ok(store.set_meta(key, &value.to_string())?)
     }
 
+    /// The territory tag from the most recent bootstrap response, if any has
+    /// run yet. Threaded into work-detail requests as `?t=` so per-edition
+    /// capabilities reflect the caller's actual territory.
+    fn territory(&self) -> Result<Option<String>, SyncError> {
+        let store = self.store.lock().unwrap();
+        Ok(store.get_meta(META_TERRITORY)?)
+    }
+
     /// Render-from-mirror: commands read this without ever touching the
     /// network. Opening a screen never triggers a request by itself.
     pub fn get_explore(&self) -> Result<Vec<Shelf>, SyncError> {
@@ -273,13 +296,25 @@ impl<H: CatalogHttp> SyncEngine<H> {
         self.meta_set_i64(META_BOOTSTRAP_LAST_AT, now_secs())?;
         self.meta_set_i64(META_BOOTSTRAP_TTL_S, response.ttl.bootstrap_s as i64)?;
         self.meta_set_i64(META_BOOTSTRAP_JITTER_S, response.refresh.jitter_s as i64)?;
+        // Threaded into every subsequent work-detail request's `?t=` query
+        // parameter (see `territory`), so rights capabilities reflect the
+        // caller's actual territory instead of the server's "row" default.
+        {
+            let store = self.store.lock().unwrap();
+            store.set_meta(META_TERRITORY, &response.territory)?;
+        }
 
+        // NOTE: META_CATALOG_VERSION is deliberately NOT written here. It's
+        // only persisted by `sync()` once `apply_remote_changes` (and its
+        // revalidations) has actually succeeded for `response.catalog_version` —
+        // see `BootstrapOutcome::Changed`.
         let previous_version = self.meta_get_i64(META_CATALOG_VERSION)?;
-        self.meta_set_i64(META_CATALOG_VERSION, response.catalog_version)?;
 
         Ok(match previous_version {
             Some(version) if version == response.catalog_version => BootstrapOutcome::Unchanged,
-            _ => BootstrapOutcome::Changed,
+            _ => BootstrapOutcome::Changed {
+                new_version: response.catalog_version,
+            },
         })
     }
 
@@ -316,8 +351,13 @@ impl<H: CatalogHttp> SyncEngine<H> {
             let store = self.store.lock().unwrap();
             store.get_sync_state(&scope)?.and_then(|s| s.etag)
         };
+        let territory = self.territory()?;
 
-        match self.http.get_work_detail(id, etag.as_deref()).await? {
+        match self
+            .http
+            .get_work_detail(id, etag.as_deref(), territory.as_deref())
+            .await?
+        {
             FetchResult::Fresh { body, etag } => {
                 let mut store = self.store.lock().unwrap();
                 store.upsert_work_detail(id, &body, etag.as_deref().unwrap_or_default())?;
@@ -371,7 +411,17 @@ impl<H: CatalogHttp> SyncEngine<H> {
     pub async fn sync(&self) -> Result<(), SyncError> {
         match self.maybe_bootstrap().await? {
             BootstrapOutcome::NotDue | BootstrapOutcome::Unchanged => Ok(()),
-            BootstrapOutcome::Changed => self.apply_remote_changes().await,
+            BootstrapOutcome::Changed { new_version } => {
+                // Only commit the new catalog version once the cascade it
+                // gates has actually finished successfully — a failure here
+                // (the `?`) leaves META_CATALOG_VERSION at its old value, so
+                // the next sync sees the version as still "changed" and
+                // retries the whole cascade instead of stranding stale
+                // scopes under a version that falsely claims they're current.
+                self.apply_remote_changes().await?;
+                self.meta_set_i64(META_CATALOG_VERSION, new_version)?;
+                Ok(())
+            }
         }
     }
 
@@ -383,8 +433,13 @@ impl<H: CatalogHttp> SyncEngine<H> {
         let Some(_guard) = self.try_acquire(&scope) else {
             return Ok(());
         };
+        let territory = self.territory()?;
 
-        match self.http.get_work_detail(id, None).await? {
+        match self
+            .http
+            .get_work_detail(id, None, territory.as_deref())
+            .await?
+        {
             FetchResult::Fresh { body, etag } => {
                 let mut store = self.store.lock().unwrap();
                 store.upsert_work_detail(id, &body, etag.as_deref().unwrap_or_default())?;
@@ -494,6 +549,10 @@ mod tests {
         work_detail: HashMap<String, FetchResult<WorkDetail>>,
         changes: ChangesResponse,
         counts: StdMutex<Counts>,
+        // Territory passed on the most recent `get_work_detail` call, so
+        // tests can assert the stored bootstrap territory is actually
+        // threaded into work-detail requests.
+        last_work_detail_territory: StdMutex<Option<String>>,
     }
 
     impl CatalogHttp for MockHttp {
@@ -514,8 +573,10 @@ mod tests {
             &self,
             id: &str,
             _etag: Option<&str>,
+            territory: Option<&str>,
         ) -> Result<FetchResult<WorkDetail>, SyncError> {
             self.counts.lock().unwrap().work_detail += 1;
+            *self.last_work_detail_territory.lock().unwrap() = territory.map(str::to_string);
             Ok(self
                 .work_detail
                 .get(id)
@@ -550,12 +611,50 @@ mod tests {
             &self,
             _id: &str,
             _etag: Option<&str>,
+            _territory: Option<&str>,
         ) -> Result<FetchResult<WorkDetail>, SyncError> {
             unreachable!("bootstrap fails before any work detail is ever revalidated")
         }
 
         async fn get_changes(&self, _since: i64) -> Result<ChangesResponse, SyncError> {
             unreachable!("bootstrap fails before changes are ever fetched")
+        }
+    }
+
+    /// Bootstrap always succeeds; the `/v1/changes` fetch always fails.
+    /// Models a cascade that fails partway through, after `maybe_bootstrap`
+    /// has already observed a changed `catalogVersion`.
+    struct ChangesFailingHttp {
+        bootstrap: BootstrapResponse,
+        bootstrap_calls: StdMutex<u32>,
+        changes_calls: StdMutex<u32>,
+    }
+
+    impl CatalogHttp for ChangesFailingHttp {
+        async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
+            *self.bootstrap_calls.lock().unwrap() += 1;
+            Ok(self.bootstrap.clone())
+        }
+
+        async fn get_explore(
+            &self,
+            _etag: Option<&str>,
+        ) -> Result<FetchResult<ExploreResponse>, SyncError> {
+            unreachable!("get_changes fails before explore is ever revalidated")
+        }
+
+        async fn get_work_detail(
+            &self,
+            _id: &str,
+            _etag: Option<&str>,
+            _territory: Option<&str>,
+        ) -> Result<FetchResult<WorkDetail>, SyncError> {
+            unreachable!("get_changes fails before any work detail is ever revalidated")
+        }
+
+        async fn get_changes(&self, _since: i64) -> Result<ChangesResponse, SyncError> {
+            *self.changes_calls.lock().unwrap() += 1;
+            Err(SyncError::Http("changes fetch boom".to_string()))
         }
     }
 
@@ -633,6 +732,7 @@ mod tests {
             work_detail: HashMap::new(),
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -661,6 +761,7 @@ mod tests {
             work_detail: HashMap::new(),
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -698,6 +799,7 @@ mod tests {
             work_detail: HashMap::new(),
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -740,6 +842,7 @@ mod tests {
             work_detail: HashMap::new(),
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -778,6 +881,7 @@ mod tests {
                 }],
             },
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -820,6 +924,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn failed_cascade_leaves_stored_catalog_version_unchanged_and_retries() {
+        let store = Store::open_in_memory().unwrap();
+        store.set_meta(META_CATALOG_VERSION, "1").unwrap();
+
+        let http = ChangesFailingHttp {
+            bootstrap: sample_bootstrap(2), // reports a new version, 1 -> 2
+            bootstrap_calls: StdMutex::new(0),
+            changes_calls: StdMutex::new(0),
+        };
+        let engine = SyncEngine::new(http, store);
+
+        // Bootstrap observes the new version (2), but the changes fetch
+        // that the cascade depends on fails.
+        assert!(engine.sync().await.is_err());
+
+        // The stored version must NOT have advanced to 2 — consuming it
+        // before the cascade succeeded would strand every held scope under
+        // a version that falsely claims to already be current.
+        let stored_version: i64 = {
+            let store = engine.store.lock().unwrap();
+            store
+                .get_meta(META_CATALOG_VERSION)
+                .unwrap()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        assert_eq!(
+            stored_version, 1,
+            "version must stay at the old value when the cascade fails"
+        );
+        assert_eq!(*engine.http.bootstrap_calls.lock().unwrap(), 1);
+        assert_eq!(*engine.http.changes_calls.lock().unwrap(), 1);
+
+        // Simulate the bootstrap TTL having elapsed since (independent of
+        // this fix) so the next sync is due to bootstrap again.
+        {
+            let store = engine.store.lock().unwrap();
+            store.set_meta(META_BOOTSTRAP_LAST_AT, "0").unwrap();
+        }
+
+        // The retry still sees the version as "changed" (1 != 2, since the
+        // old value was never overwritten) and tries the whole cascade
+        // again, rather than treating it as already-applied.
+        assert!(engine.sync().await.is_err());
+        assert_eq!(*engine.http.bootstrap_calls.lock().unwrap(), 2);
+        assert_eq!(*engine.http.changes_calls.lock().unwrap(), 2);
+    }
+
+    #[tokio::test]
     async fn no_bootstrap_yet_is_always_due() {
         let store = Store::open_in_memory().unwrap();
         let http = MockHttp {
@@ -828,6 +982,7 @@ mod tests {
             work_detail: HashMap::new(),
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -857,6 +1012,7 @@ mod tests {
             work_detail,
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -887,6 +1043,7 @@ mod tests {
             work_detail: HashMap::new(),
             changes: no_op_changes(),
             counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
         };
         let engine = SyncEngine::new(http, store);
 
@@ -898,6 +1055,44 @@ mod tests {
         // requested scope, since it's already held (not a first fetch).
         assert_eq!(counts.work_detail, 0);
         assert_eq!(counts.changes, 0);
+    }
+
+    #[tokio::test]
+    async fn territory_from_bootstrap_is_sent_on_work_detail_requests() {
+        let store = Store::open_in_memory().unwrap();
+        let mut work_detail = HashMap::new();
+        work_detail.insert(
+            "work-1".to_string(),
+            FetchResult::Fresh {
+                body: sample_work_detail("work-1"),
+                etag: Some("etag-1".to_string()),
+            },
+        );
+        // sample_bootstrap's territory is "US".
+        let http = MockHttp {
+            bootstrap: sample_bootstrap(1),
+            explore: FetchResult::NotModified,
+            work_detail,
+            changes: no_op_changes(),
+            counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
+        };
+        let engine = SyncEngine::new(http, store);
+
+        // Bootstrap persists the territory into the store's meta table.
+        engine.sync().await.unwrap();
+
+        // A first-time work-detail fetch should thread that stored
+        // territory through as the `?t=` request parameter.
+        engine.refresh("work:work-1").await.unwrap();
+
+        let territory = engine
+            .http
+            .last_work_detail_territory
+            .lock()
+            .unwrap()
+            .clone();
+        assert_eq!(territory.as_deref(), Some("US"));
     }
 
     #[test]

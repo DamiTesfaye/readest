@@ -397,6 +397,23 @@ impl Store {
         ids.collect()
     }
 
+    /// Applies incremental change ops from `/v1/changes`. The backend's
+    /// vocabulary is `entity_type` in `work | edition | asset | collection`
+    /// (a `collection` id is prefixed `col_` — it is not the same thing as
+    /// this store's internal `"shelf"` rows) and `op` in
+    /// `upsert | hide | remove`. This store only has a local row to delete
+    /// for `work` and (its own internal grouping) `shelf`; there is nothing
+    /// to individually delete here for `edition`/`asset`/`collection`, and
+    /// `upsert` never reaches this function at all (an upsert is served by
+    /// re-fetching the entity, not by a local delete). `collection` ops in
+    /// particular don't need special handling here because the sync layer's
+    /// changed-version cascade (see `sync.rs::apply_remote_changes`) always
+    /// fully revalidates the explore mirror after applying changes, which is
+    /// where collection membership actually lives — so a hidden/removed
+    /// collection's effect surfaces there, not through a row deleted by this
+    /// function. Anything else is logged rather than silently dropped, so an
+    /// entity type or op this store doesn't yet special-case is still
+    /// visible in the logs instead of vanishing unnoticed.
     pub fn apply_changes(&mut self, ops: &[ChangeOp]) -> rusqlite::Result<()> {
         let tx = self.conn.transaction()?;
         for op in ops {
@@ -428,9 +445,23 @@ impl Store {
                             params![op.entity_id],
                         )?;
                     }
-                    _ => {}
+                    other => {
+                        log::debug!(
+                            "ampleread: apply_changes: no local row to {} for entity_type {:?} (id {:?}); relying on the sync cascade's explore revalidation",
+                            op.op,
+                            other,
+                            op.entity_id
+                        );
+                    }
                 },
-                _ => {}
+                other => {
+                    log::debug!(
+                        "ampleread: apply_changes: unrecognized op {:?} for entity_type {:?} (id {:?}); ignoring",
+                        other,
+                        op.entity_type,
+                        op.entity_id
+                    );
+                }
             }
         }
         tx.commit()
@@ -719,6 +750,52 @@ mod tests {
             )
             .unwrap();
         assert_eq!(shelf_items_count, 0);
+    }
+
+    #[test]
+    fn apply_changes_logs_and_ignores_entity_types_and_ops_with_no_local_row() {
+        let mut store = Store::open_in_memory().unwrap();
+        let shelf = sample_shelf(
+            "shelf-a",
+            "Shelf A",
+            vec![sample_card("work-1", "Book One")],
+        );
+        store.upsert_shelves(&[shelf]).unwrap();
+
+        // "collection" (col_-prefixed ids, not a shelf slug), "edition", and
+        // "asset" are real backend entity_types this store has no local row
+        // to delete for; "upsert" is a real op this function never deletes
+        // for. None of these should error or panic — they should just be
+        // logged and skipped, leaving existing data untouched.
+        store
+            .apply_changes(&[
+                ChangeOp {
+                    entity_type: "collection".to_string(),
+                    entity_id: "col_1".to_string(),
+                    op: "remove".to_string(),
+                },
+                ChangeOp {
+                    entity_type: "edition".to_string(),
+                    entity_id: "ed_1".to_string(),
+                    op: "hide".to_string(),
+                },
+                ChangeOp {
+                    entity_type: "asset".to_string(),
+                    entity_id: "as_1".to_string(),
+                    op: "remove".to_string(),
+                },
+                ChangeOp {
+                    entity_type: "work".to_string(),
+                    entity_id: "work-1".to_string(),
+                    op: "upsert".to_string(),
+                },
+            ])
+            .expect("unrecognized entity_type/op combinations must not error");
+
+        let explore = store.get_explore().unwrap();
+        assert_eq!(explore.len(), 1);
+        assert_eq!(explore[0].items.len(), 1);
+        assert_eq!(explore[0].items[0].id, "work-1");
     }
 
     #[test]
