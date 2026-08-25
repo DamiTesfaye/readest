@@ -99,6 +99,9 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 # WebView). Pure-Rust crate, ships to every Tauri target.
 mobi = "0.8"
 
+rusqlite = { version = "0.32", features = ["bundled"] }
+ampleread-types = { path = "../../../../ampleread-backend/crates/ampleread-types" }
+
 [target."cfg(target_os = \"macos\")".dependencies]
 rand = "0.8"
 cocoa = "0.25"

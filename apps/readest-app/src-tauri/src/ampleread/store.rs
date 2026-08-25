@@ -1,0 +1,584 @@
+#![allow(dead_code)]
+
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use ampleread_types::{ChangeOp, Shelf, WorkCard, WorkDetail};
+use rusqlite::{params, Connection, OptionalExtension};
+
+pub const SCHEMA_VERSION: i32 = 1;
+
+pub struct Store {
+    conn: Connection,
+}
+
+#[derive(Debug, Clone)]
+pub struct StoredWorkDetail {
+    pub detail: WorkDetail,
+    pub etag: String,
+    pub fetched_at: i64,
+    pub stale: bool,
+}
+
+fn now_secs() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+impl Store {
+    pub fn open(path: &Path) -> rusqlite::Result<Self> {
+        Self::open_with_version(path, SCHEMA_VERSION)
+    }
+
+    pub fn open_in_memory() -> rusqlite::Result<Self> {
+        let conn = Connection::open_in_memory()?;
+        let mut store = Self { conn };
+        store.ensure_schema(SCHEMA_VERSION)?;
+        Ok(store)
+    }
+
+    pub fn open_with_version(path: &Path, version: i32) -> rusqlite::Result<Self> {
+        let conn = Connection::open(path)?;
+        let mut store = Self { conn };
+        store.ensure_schema(version)?;
+        Ok(store)
+    }
+
+    fn ensure_schema(&mut self, version: i32) -> rusqlite::Result<()> {
+        if !self.schema_version_matches(version)? {
+            self.drop_all_tables()?;
+            self.create_tables()?;
+            self.set_meta("schema_version", &version.to_string())?;
+        }
+        Ok(())
+    }
+
+    fn schema_version_matches(&self, version: i32) -> rusqlite::Result<bool> {
+        let table_exists: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'meta'",
+            [],
+            |row| row.get(0),
+        )?;
+        if table_exists == 0 {
+            return Ok(false);
+        }
+        let current: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM meta WHERE key = 'schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(current.as_deref() == Some(version.to_string().as_str()))
+    }
+
+    fn drop_all_tables(&self) -> rusqlite::Result<()> {
+        self.conn.execute_batch(
+            "DROP TABLE IF EXISTS meta;
+             DROP TABLE IF EXISTS sync_state;
+             DROP TABLE IF EXISTS shelves;
+             DROP TABLE IF EXISTS shelf_items;
+             DROP TABLE IF EXISTS works;
+             DROP TABLE IF EXISTS work_details;
+             DROP TABLE IF EXISTS covers;
+             DROP TABLE IF EXISTS pending_events;
+             DROP TABLE IF EXISTS search_fts;",
+        )
+    }
+
+    fn create_tables(&self) -> rusqlite::Result<()> {
+        self.conn.execute_batch(
+            "CREATE TABLE meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+             );
+             CREATE TABLE sync_state (
+                scope TEXT PRIMARY KEY,
+                etag TEXT,
+                fetched_at INTEGER,
+                ttl_s INTEGER
+             );
+             CREATE TABLE shelves (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                layout TEXT,
+                position INTEGER
+             );
+             CREATE TABLE shelf_items (
+                shelf_id TEXT,
+                work_id TEXT,
+                position INTEGER,
+                PRIMARY KEY (shelf_id, work_id)
+             );
+             CREATE TABLE works (
+                id TEXT PRIMARY KEY,
+                card_json TEXT,
+                updated_at INTEGER
+             );
+             CREATE TABLE work_details (
+                id TEXT PRIMARY KEY,
+                detail_json TEXT,
+                etag TEXT,
+                fetched_at INTEGER,
+                stale INTEGER
+             );
+             CREATE TABLE covers (
+                work_id TEXT,
+                size TEXT,
+                file_path TEXT,
+                bytes INTEGER,
+                last_used_at INTEGER,
+                PRIMARY KEY (work_id, size)
+             );
+             CREATE TABLE pending_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payload_json TEXT,
+                created_at INTEGER
+             );
+             CREATE VIRTUAL TABLE search_fts USING fts5(
+                title,
+                authors,
+                subjects,
+                work_id UNINDEXED
+             );",
+        )
+    }
+
+    pub fn set_meta(&self, key: &str, value: &str) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_meta(&self, key: &str) -> rusqlite::Result<Option<String>> {
+        self.conn
+            .query_row(
+                "SELECT value FROM meta WHERE key = ?1",
+                params![key],
+                |row| row.get(0),
+            )
+            .optional()
+    }
+
+    pub fn upsert_shelves(&mut self, shelves: &[Shelf]) -> rusqlite::Result<()> {
+        let tx = self.conn.transaction()?;
+        for (shelf_position, shelf) in shelves.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO shelves (id, title, layout, position) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    layout = excluded.layout,
+                    position = excluded.position",
+                params![shelf.id, shelf.title, shelf.layout, shelf_position as i64],
+            )?;
+
+            tx.execute(
+                "DELETE FROM shelf_items WHERE shelf_id = ?1",
+                params![shelf.id],
+            )?;
+
+            for (item_position, item) in shelf.items.iter().enumerate() {
+                let card_json = serde_json::to_string(item)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+
+                tx.execute(
+                    "INSERT INTO works (id, card_json, updated_at) VALUES (?1, ?2, ?3)
+                     ON CONFLICT(id) DO UPDATE SET
+                        card_json = excluded.card_json,
+                        updated_at = excluded.updated_at",
+                    params![item.id, card_json, now_secs()],
+                )?;
+
+                tx.execute(
+                    "INSERT INTO shelf_items (shelf_id, work_id, position) VALUES (?1, ?2, ?3)",
+                    params![shelf.id, item.id, item_position as i64],
+                )?;
+
+                let authors = item
+                    .authors
+                    .iter()
+                    .map(|a| a.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                tx.execute(
+                    "DELETE FROM search_fts WHERE work_id = ?1",
+                    params![item.id],
+                )?;
+                tx.execute(
+                    "INSERT INTO search_fts (title, authors, subjects, work_id) VALUES (?1, ?2, ?3, ?4)",
+                    params![item.title, authors, "", item.id],
+                )?;
+            }
+        }
+        tx.commit()
+    }
+
+    pub fn get_explore(&self) -> rusqlite::Result<Vec<Shelf>> {
+        let mut shelf_stmt = self
+            .conn
+            .prepare("SELECT id, title, layout FROM shelves ORDER BY position ASC")?;
+        let shelf_rows = shelf_stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+
+        let mut item_stmt = self.conn.prepare(
+            "SELECT works.card_json FROM shelf_items
+             JOIN works ON works.id = shelf_items.work_id
+             WHERE shelf_items.shelf_id = ?1
+             ORDER BY shelf_items.position ASC",
+        )?;
+
+        let mut shelves = Vec::new();
+        for shelf_row in shelf_rows {
+            let (id, title, layout) = shelf_row?;
+            let card_jsons = item_stmt
+                .query_map(params![id], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            let items = card_jsons
+                .into_iter()
+                .map(|json| {
+                    serde_json::from_str::<WorkCard>(&json)
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            shelves.push(Shelf {
+                id,
+                title,
+                layout,
+                items,
+                more: None,
+            });
+        }
+        Ok(shelves)
+    }
+
+    pub fn upsert_work_detail(
+        &self,
+        id: &str,
+        detail: &WorkDetail,
+        etag: &str,
+    ) -> rusqlite::Result<()> {
+        let detail_json = serde_json::to_string(detail)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        self.conn.execute(
+            "INSERT INTO work_details (id, detail_json, etag, fetched_at, stale)
+             VALUES (?1, ?2, ?3, ?4, 0)
+             ON CONFLICT(id) DO UPDATE SET
+                detail_json = excluded.detail_json,
+                etag = excluded.etag,
+                fetched_at = excluded.fetched_at,
+                stale = 0",
+            params![id, detail_json, etag, now_secs()],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_work_detail(&self, id: &str) -> rusqlite::Result<Option<StoredWorkDetail>> {
+        self.conn
+            .query_row(
+                "SELECT detail_json, etag, fetched_at, stale FROM work_details WHERE id = ?1",
+                params![id],
+                |row| {
+                    let detail_json: String = row.get(0)?;
+                    let etag: String = row.get(1)?;
+                    let fetched_at: i64 = row.get(2)?;
+                    let stale: i64 = row.get(3)?;
+                    Ok((detail_json, etag, fetched_at, stale))
+                },
+            )
+            .optional()?
+            .map(|(detail_json, etag, fetched_at, stale)| {
+                let detail = serde_json::from_str::<WorkDetail>(&detail_json)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                Ok(StoredWorkDetail {
+                    detail,
+                    etag,
+                    fetched_at,
+                    stale: stale != 0,
+                })
+            })
+            .transpose()
+    }
+
+    pub fn apply_changes(&mut self, ops: &[ChangeOp]) -> rusqlite::Result<()> {
+        let tx = self.conn.transaction()?;
+        for op in ops {
+            match op.op.as_str() {
+                "remove" | "hide" => match op.entity_type.as_str() {
+                    "work" => {
+                        tx.execute("DELETE FROM works WHERE id = ?1", params![op.entity_id])?;
+                        tx.execute(
+                            "DELETE FROM shelf_items WHERE work_id = ?1",
+                            params![op.entity_id],
+                        )?;
+                        tx.execute(
+                            "DELETE FROM work_details WHERE id = ?1",
+                            params![op.entity_id],
+                        )?;
+                        tx.execute(
+                            "DELETE FROM covers WHERE work_id = ?1",
+                            params![op.entity_id],
+                        )?;
+                        tx.execute(
+                            "DELETE FROM search_fts WHERE work_id = ?1",
+                            params![op.entity_id],
+                        )?;
+                    }
+                    "shelf" => {
+                        tx.execute("DELETE FROM shelves WHERE id = ?1", params![op.entity_id])?;
+                        tx.execute(
+                            "DELETE FROM shelf_items WHERE shelf_id = ?1",
+                            params![op.entity_id],
+                        )?;
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+        tx.commit()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ampleread_types::AuthorRef;
+    use std::path::PathBuf;
+
+    #[test]
+    fn fts5_is_compiled_in() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE VIRTUAL TABLE t USING fts5(x)")
+            .unwrap();
+    }
+
+    fn temp_db_path(label: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        path.push(format!("ampleread_store_test_{label}_{nanos}.sqlite"));
+        path
+    }
+
+    fn sample_card(id: &str, title: &str) -> WorkCard {
+        WorkCard {
+            id: id.to_string(),
+            title: title.to_string(),
+            authors: vec![AuthorRef {
+                id: format!("{id}-author"),
+                name: "Jane Doe".to_string(),
+            }],
+            cover: Some("https://example.com/cover.jpg".to_string()),
+            language: Some("en".to_string()),
+            has_audio: false,
+            formats: vec!["epub".to_string()],
+        }
+    }
+
+    fn sample_shelf(id: &str, title: &str, cards: Vec<WorkCard>) -> Shelf {
+        Shelf {
+            id: id.to_string(),
+            title: title.to_string(),
+            layout: "grid".to_string(),
+            items: cards,
+            more: None,
+        }
+    }
+
+    #[test]
+    fn set_and_get_meta_round_trip() {
+        let store = Store::open_in_memory().unwrap();
+        assert_eq!(store.get_meta("foo").unwrap(), None);
+        store.set_meta("foo", "bar").unwrap();
+        assert_eq!(store.get_meta("foo").unwrap(), Some("bar".to_string()));
+        store.set_meta("foo", "baz").unwrap();
+        assert_eq!(store.get_meta("foo").unwrap(), Some("baz".to_string()));
+    }
+
+    #[test]
+    fn upsert_shelves_and_get_explore_preserves_order_and_fields() {
+        let mut store = Store::open_in_memory().unwrap();
+        let shelf_a = sample_shelf(
+            "shelf-a",
+            "Shelf A",
+            vec![
+                sample_card("work-1", "Book One"),
+                sample_card("work-2", "Book Two"),
+            ],
+        );
+        let shelf_b = sample_shelf(
+            "shelf-b",
+            "Shelf B",
+            vec![sample_card("work-3", "Book Three")],
+        );
+
+        store
+            .upsert_shelves(&[shelf_a.clone(), shelf_b.clone()])
+            .unwrap();
+
+        let explore = store.get_explore().unwrap();
+        assert_eq!(explore.len(), 2);
+        assert_eq!(explore[0].id, "shelf-a");
+        assert_eq!(explore[1].id, "shelf-b");
+
+        assert_eq!(explore[0].items.len(), 2);
+        assert_eq!(explore[0].items[0].id, "work-1");
+        assert_eq!(explore[0].items[1].id, "work-2");
+        assert_eq!(explore[0].items[0], shelf_a.items[0]);
+
+        assert_eq!(explore[1].items.len(), 1);
+        assert_eq!(explore[1].items[0].id, "work-3");
+    }
+
+    #[test]
+    fn upsert_work_detail_and_get_round_trip() {
+        let store = Store::open_in_memory().unwrap();
+        let detail = WorkDetail {
+            id: "work-1".to_string(),
+            title: "Book One".to_string(),
+            description: Some("A great book".to_string()),
+            subjects: vec!["fiction".to_string()],
+            preferred_edition_id: Some("edition-1".to_string()),
+            editions: vec![],
+        };
+
+        assert!(store.get_work_detail("work-1").unwrap().is_none());
+
+        store
+            .upsert_work_detail("work-1", &detail, "etag-1")
+            .unwrap();
+        let stored = store.get_work_detail("work-1").unwrap().unwrap();
+        assert_eq!(stored.detail.id, "work-1");
+        assert_eq!(stored.detail.title, "Book One");
+        assert_eq!(stored.etag, "etag-1");
+        assert!(!stored.stale);
+
+        store
+            .upsert_work_detail("work-1", &detail, "etag-2")
+            .unwrap();
+        let stored = store.get_work_detail("work-1").unwrap().unwrap();
+        assert_eq!(stored.etag, "etag-2");
+    }
+
+    #[test]
+    fn apply_changes_removes_work_everywhere() {
+        let mut store = Store::open_in_memory().unwrap();
+        let shelf = sample_shelf(
+            "shelf-a",
+            "Shelf A",
+            vec![sample_card("work-1", "Book One")],
+        );
+        store.upsert_shelves(&[shelf]).unwrap();
+
+        let detail = WorkDetail {
+            id: "work-1".to_string(),
+            title: "Book One".to_string(),
+            description: None,
+            subjects: vec![],
+            preferred_edition_id: None,
+            editions: vec![],
+        };
+        store
+            .upsert_work_detail("work-1", &detail, "etag-1")
+            .unwrap();
+
+        let fts_count_before: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM search_fts WHERE work_id = 'work-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(fts_count_before, 1);
+
+        store
+            .apply_changes(&[ChangeOp {
+                entity_type: "work".to_string(),
+                entity_id: "work-1".to_string(),
+                op: "remove".to_string(),
+            }])
+            .unwrap();
+
+        let explore = store.get_explore().unwrap();
+        assert_eq!(explore[0].items.len(), 0);
+        assert!(store.get_work_detail("work-1").unwrap().is_none());
+
+        let fts_count_after: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM search_fts WHERE work_id = 'work-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(fts_count_after, 0);
+
+        let works_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM works WHERE id = 'work-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(works_count, 0);
+    }
+
+    #[test]
+    fn schema_version_mismatch_drops_and_rebuilds() {
+        let path = temp_db_path("schema_mismatch");
+
+        {
+            let store = Store::open_with_version(&path, 1).unwrap();
+            store.set_meta("junk", "should-not-survive").unwrap();
+            assert_eq!(
+                store.get_meta("junk").unwrap(),
+                Some("should-not-survive".to_string())
+            );
+        }
+
+        {
+            let store = Store::open_with_version(&path, 2).unwrap();
+            assert_eq!(store.get_meta("junk").unwrap(), None);
+            assert_eq!(
+                store.get_meta("schema_version").unwrap(),
+                Some("2".to_string())
+            );
+        }
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn reopen_with_same_version_preserves_data() {
+        let path = temp_db_path("schema_same_version");
+
+        {
+            let store = Store::open_with_version(&path, 1).unwrap();
+            store.set_meta("kept", "value").unwrap();
+        }
+
+        {
+            let store = Store::open_with_version(&path, 1).unwrap();
+            assert_eq!(store.get_meta("kept").unwrap(), Some("value".to_string()));
+        }
+
+        let _ = std::fs::remove_file(&path);
+    }
+}
