@@ -375,30 +375,90 @@ impl<H: CatalogHttp> SyncEngine<H> {
         }
     }
 
+    /// Performs a first-time GET for a work detail that isn't held in the
+    /// mirror yet (no stored etag, since none exists) and upserts the
+    /// result. Single-flight per work scope, same as revalidation.
+    async fn fetch_work_detail_first_time(&self, id: &str) -> Result<(), SyncError> {
+        let scope = work_scope(id);
+        let Some(_guard) = self.try_acquire(&scope) else {
+            return Ok(());
+        };
+
+        match self.http.get_work_detail(id, None).await? {
+            FetchResult::Fresh { body, etag } => {
+                let mut store = self.store.lock().unwrap();
+                store.upsert_work_detail(id, &body, etag.as_deref().unwrap_or_default())?;
+                store.set_sync_state(&scope, etag.as_deref(), now_secs(), 0)?;
+            }
+            FetchResult::NotModified => {}
+        }
+        Ok(())
+    }
+
+    fn is_work_detail_held(&self, id: &str) -> Result<bool, SyncError> {
+        let store = self.store.lock().unwrap();
+        Ok(store.get_work_detail(id)?.is_some())
+    }
+
     /// Explicit, screen-triggered refresh. `scope` identifies the caller for
-    /// future per-resource triggering; the sync loop itself stays
-    /// version-gated regardless of which scope asked.
-    pub async fn refresh(&self, _scope: &str) -> Result<(), SyncError> {
+    /// future per-resource triggering; the version-gated sync loop itself
+    /// stays version-gated regardless of which scope asked.
+    ///
+    /// Exception: a `work:{id}` scope for a work detail that has never been
+    /// fetched is not a "revalidation" of something already held — it's the
+    /// only way that detail can ever enter the mirror (revalidation only
+    /// ever walks already-held scopes). "catalogVersion unchanged -> zero
+    /// further requests" governs the version-gated cascade, not an explicit
+    /// first fetch of a resource the mirror has never seen, so this path
+    /// fetches unconditionally rather than delegating to `sync()`.
+    pub async fn refresh(&self, scope: &str) -> Result<(), SyncError> {
+        if let Some(id) = scope.strip_prefix("work:") {
+            if !self.is_work_detail_held(id)? {
+                return self.fetch_work_detail_first_time(id).await;
+            }
+        }
         self.sync().await
     }
 }
 
 pub type AmpleReadEngine = SyncEngine<ReqwestCatalogHttp>;
 
+/// Tauri-managed handle around an `AmpleReadEngine` that may have failed to
+/// initialize (e.g. the local store couldn't be opened). Commands surface a
+/// clean ampleread-specific error instead of Tauri's unmanaged-state
+/// error/panic when the engine isn't available.
+pub struct EngineHandle(Mutex<Option<Arc<AmpleReadEngine>>>);
+
+impl EngineHandle {
+    pub fn new(engine: Option<AmpleReadEngine>) -> Self {
+        Self(Mutex::new(engine.map(Arc::new)))
+    }
+
+    fn engine(&self) -> Result<Arc<AmpleReadEngine>, String> {
+        self.0
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(|| "ampleread store is unavailable".to_string())
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn ampleread_explore(
-    state: tauri::State<'_, Arc<AmpleReadEngine>>,
+    state: tauri::State<'_, EngineHandle>,
 ) -> Result<ExploreResponse, String> {
-    let shelves = state.get_explore().map_err(|e| e.to_string())?;
+    let engine = state.engine()?;
+    let shelves = engine.get_explore().map_err(|e| e.to_string())?;
     Ok(ExploreResponse { shelves })
 }
 
 #[tauri::command]
 pub(crate) async fn ampleread_work_detail(
-    state: tauri::State<'_, Arc<AmpleReadEngine>>,
+    state: tauri::State<'_, EngineHandle>,
     id: String,
 ) -> Result<WorkDetail, String> {
-    state
+    let engine = state.engine()?;
+    engine
         .get_work_detail(&id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("work detail not found for id {id}"))
@@ -406,10 +466,11 @@ pub(crate) async fn ampleread_work_detail(
 
 #[tauri::command]
 pub(crate) async fn ampleread_refresh(
-    state: tauri::State<'_, Arc<AmpleReadEngine>>,
+    state: tauri::State<'_, EngineHandle>,
     scope: String,
 ) -> Result<(), String> {
-    state.refresh(&scope).await.map_err(|e| e.to_string())
+    let engine = state.engine()?;
+    engine.refresh(&scope).await.map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -541,6 +602,17 @@ mod tests {
         }
     }
 
+    fn sample_work_detail(id: &str) -> WorkDetail {
+        WorkDetail {
+            id: id.to_string(),
+            title: "A Book".to_string(),
+            description: None,
+            subjects: vec![],
+            preferred_edition_id: None,
+            editions: vec![],
+        }
+    }
+
     fn no_op_changes() -> ChangesResponse {
         ChangesResponse {
             since: 0,
@@ -631,6 +703,15 @@ mod tests {
 
         engine.sync().await.unwrap();
 
+        // Prove the 304 path actually executed (bootstrap + changes +
+        // explore all ran) rather than the revalidation being skipped
+        // entirely, which would make the assertions below pass vacuously.
+        let counts = engine.http.counts.lock().unwrap();
+        assert_eq!(counts.bootstrap, 1);
+        assert_eq!(counts.changes, 1);
+        assert_eq!(counts.explore, 1);
+        drop(counts);
+
         let explore = engine.get_explore().unwrap();
         assert_eq!(explore.len(), 1);
         assert_eq!(explore[0].id, "shelf-a");
@@ -641,6 +722,34 @@ mod tests {
         };
         assert_eq!(state.etag.as_deref(), Some("etag-original"));
         assert_eq!(state.fetched_at, 100);
+    }
+
+    #[tokio::test]
+    async fn bootstrap_within_ttl_makes_zero_requests() {
+        let store = Store::open_in_memory().unwrap();
+        store.set_meta(META_CATALOG_VERSION, "1").unwrap();
+        store
+            .set_meta(META_BOOTSTRAP_LAST_AT, &now_secs().to_string())
+            .unwrap();
+        store.set_meta(META_BOOTSTRAP_TTL_S, "3600").unwrap();
+        store.set_meta(META_BOOTSTRAP_JITTER_S, "0").unwrap();
+
+        let http = MockHttp {
+            bootstrap: sample_bootstrap(1),
+            explore: FetchResult::NotModified,
+            work_detail: HashMap::new(),
+            changes: no_op_changes(),
+            counts: StdMutex::new(Counts::default()),
+        };
+        let engine = SyncEngine::new(http, store);
+
+        engine.sync().await.unwrap();
+
+        let counts = engine.http.counts.lock().unwrap();
+        assert_eq!(counts.bootstrap, 0);
+        assert_eq!(counts.explore, 0);
+        assert_eq!(counts.changes, 0);
+        assert_eq!(counts.work_detail, 0);
     }
 
     #[tokio::test]
@@ -729,5 +838,79 @@ mod tests {
         // First-ever bootstrap has no prior catalog_version, so it counts
         // as changed and cascades into a changes fetch.
         assert_eq!(counts.changes, 1);
+    }
+
+    #[tokio::test]
+    async fn refresh_unheld_work_detail_performs_first_time_fetch() {
+        let store = Store::open_in_memory().unwrap();
+        let mut work_detail = HashMap::new();
+        work_detail.insert(
+            "work-1".to_string(),
+            FetchResult::Fresh {
+                body: sample_work_detail("work-1"),
+                etag: Some("etag-1".to_string()),
+            },
+        );
+        let http = MockHttp {
+            bootstrap: sample_bootstrap(1),
+            explore: FetchResult::NotModified,
+            work_detail,
+            changes: no_op_changes(),
+            counts: StdMutex::new(Counts::default()),
+        };
+        let engine = SyncEngine::new(http, store);
+
+        engine.refresh("work:work-1").await.unwrap();
+
+        let counts = engine.http.counts.lock().unwrap();
+        assert_eq!(counts.work_detail, 1);
+        assert_eq!(counts.bootstrap, 0);
+        assert_eq!(counts.changes, 0);
+        drop(counts);
+
+        let detail = engine.get_work_detail("work-1").unwrap().unwrap();
+        assert_eq!(detail.id, "work-1");
+    }
+
+    #[tokio::test]
+    async fn refresh_already_held_work_detail_follows_normal_cascade() {
+        let mut store = Store::open_in_memory().unwrap();
+        let existing = sample_work_detail("work-1");
+        store
+            .upsert_work_detail("work-1", &existing, "etag-existing")
+            .unwrap();
+        store.set_meta(META_CATALOG_VERSION, "5").unwrap();
+
+        let http = MockHttp {
+            bootstrap: sample_bootstrap(5), // unchanged
+            explore: FetchResult::NotModified,
+            work_detail: HashMap::new(),
+            changes: no_op_changes(),
+            counts: StdMutex::new(Counts::default()),
+        };
+        let engine = SyncEngine::new(http, store);
+
+        engine.refresh("work:work-1").await.unwrap();
+
+        let counts = engine.http.counts.lock().unwrap();
+        assert_eq!(counts.bootstrap, 1);
+        // Unchanged version -> zero further requests, even for the
+        // requested scope, since it's already held (not a first fetch).
+        assert_eq!(counts.work_detail, 0);
+        assert_eq!(counts.changes, 0);
+    }
+
+    #[test]
+    fn engine_handle_surfaces_error_when_store_unavailable() {
+        let handle = EngineHandle::new(None);
+        assert!(handle.engine().is_err());
+    }
+
+    #[test]
+    fn engine_handle_returns_engine_when_available() {
+        let store = Store::open_in_memory().unwrap();
+        let engine = SyncEngine::new(ReqwestCatalogHttp::new(api_base()), store);
+        let handle = EngineHandle::new(Some(engine));
+        assert!(handle.engine().is_ok());
     }
 }

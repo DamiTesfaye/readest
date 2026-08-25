@@ -440,8 +440,7 @@ pub fn run() {
 
             {
                 use ampleread::store::Store;
-                use ampleread::sync::{api_base, ReqwestCatalogHttp, SyncEngine};
-                use std::sync::Arc;
+                use ampleread::sync::{api_base, EngineHandle, ReqwestCatalogHttp, SyncEngine};
 
                 let data_dir = app
                     .path()
@@ -451,15 +450,17 @@ pub fn run() {
                     log::error!("Failed to create ampleread data dir: {e}");
                 }
                 let db_path = data_dir.join("ampleread.sqlite");
-                match Store::open(&db_path) {
+                let engine = match Store::open(&db_path) {
                     Ok(store) => {
                         let http = ReqwestCatalogHttp::new(api_base());
-                        app.manage(Arc::new(SyncEngine::new(http, store)));
+                        Some(SyncEngine::new(http, store))
                     }
                     Err(e) => {
                         log::error!("Failed to open ampleread store: {e}");
+                        None
                     }
-                }
+                };
+                app.manage(EngineHandle::new(engine));
             }
 
             #[cfg(desktop)]
