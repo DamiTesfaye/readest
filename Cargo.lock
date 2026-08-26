@@ -184,6 +184,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "ampleread-types"
 version = "0.1.0"
+source = "git+ssh://git@github.com/DamiTesfaye/ampleread-backend.git?tag=phase0-backend#cbd62242b39f05de361af1945359e28fd1d8ba98"
 dependencies = [
  "serde",
  "serde_json",
