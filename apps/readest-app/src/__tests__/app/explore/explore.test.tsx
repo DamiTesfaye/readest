@@ -143,6 +143,28 @@ describe('ExplorePage', () => {
     expect(screen.queryByRole('link', { name: /download/i })).toBeNull();
   });
 
+  it('renders only the shelves present in the response, with no placeholder for absent shelves', async () => {
+    const explore = buildExplore();
+    const onlyShelf = { ...explore.shelves[0]!, id: 'fiction-a-z', title: 'Fiction A to Z' };
+    mockGetExplore.mockResolvedValue({ shelves: [onlyShelf] });
+
+    const { container } = render(<ExplorePage />);
+    await screen.findByText('Fiction A to Z');
+
+    expect(container.querySelectorAll('section.explore-shelf')).toHaveLength(1);
+    expect(screen.queryByText(/essential classics/i)).toBeNull();
+  });
+
+  it('renders an explore response with no shelves as an empty list rather than an error', async () => {
+    mockGetExplore.mockResolvedValue({ shelves: [] });
+
+    const { container } = render(<ExplorePage />);
+    await waitFor(() => expect(container.querySelector('.explore-shelves')).not.toBeNull());
+
+    expect(container.querySelectorAll('section.explore-shelf')).toHaveLength(0);
+    expect(screen.queryByText('Retry')).toBeNull();
+  });
+
   it('does not call fetch or invoke directly from the page', async () => {
     mockGetExplore.mockResolvedValue(buildExplore());
     const fetchSpy = vi.spyOn(globalThis, 'fetch');

@@ -349,7 +349,7 @@ impl<H: CatalogHttp> SyncEngine<H> {
         match self.http.get_explore(etag.as_deref()).await? {
             FetchResult::Fresh { body, etag } => {
                 let mut store = self.store.lock().unwrap();
-                store.upsert_shelves(&body.shelves)?;
+                store.replace_shelves(&body.shelves)?;
                 store.set_sync_state(SCOPE_EXPLORE, etag.as_deref(), now_secs(), 0)?;
             }
             FetchResult::NotModified => {}
@@ -923,7 +923,7 @@ mod tests {
     #[tokio::test]
     async fn not_modified_leaves_store_untouched() {
         let mut store = Store::open_in_memory().unwrap();
-        store.upsert_shelves(&[sample_shelf("shelf-a")]).unwrap();
+        store.replace_shelves(&[sample_shelf("shelf-a")]).unwrap();
         store
             .set_sync_state(SCOPE_EXPLORE, Some("etag-original"), 100, 0)
             .unwrap();
@@ -994,7 +994,7 @@ mod tests {
     #[tokio::test]
     async fn compacted_changes_skip_apply_but_fully_revalidate() {
         let mut store = Store::open_in_memory().unwrap();
-        store.upsert_shelves(&[sample_shelf("shelf-a")]).unwrap();
+        store.replace_shelves(&[sample_shelf("shelf-a")]).unwrap();
         store.set_meta(META_CATALOG_VERSION, "1").unwrap();
 
         let http = MockHttp {
@@ -1274,7 +1274,7 @@ mod tests {
     async fn v3_shaped_delta_refreshes_a_held_work_to_its_zero_asset_edition() {
         let mut store = Store::open_in_memory().unwrap();
         store
-            .upsert_shelves(&[shelf_with_works("shelf-a", &["work-1"])])
+            .replace_shelves(&[shelf_with_works("shelf-a", &["work-1"])])
             .unwrap();
         store
             .upsert_work_detail("work-1", &detail_with_assets("work-1", 2), "etag-1")
@@ -1329,6 +1329,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn explore_revalidation_drops_shelves_the_server_no_longer_returns() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .replace_shelves(&[
+                shelf_with_works("essential-classics", &["work-1"]),
+                shelf_with_works("new-arrivals", &["work-2"]),
+            ])
+            .unwrap();
+        store.set_meta(META_CATALOG_VERSION, "1").unwrap();
+
+        let explore = FetchResult::Fresh {
+            body: ExploreResponse {
+                shelves: vec![shelf_with_works("new-arrivals", &["work-2", "work-3"])],
+            },
+            etag: Some("etag-2".to_string()),
+        };
+        let engine = SyncEngine::new(mock_http(2, explore, vec![no_op_changes()]), store);
+
+        engine.sync().await.unwrap();
+
+        let shelves = engine.get_explore().unwrap();
+        let ids: Vec<&str> = shelves.iter().map(|shelf| shelf.id.as_str()).collect();
+        assert_eq!(ids, vec!["new-arrivals"]);
+        assert_eq!(shelves[0].items.len(), 2);
+    }
+
+    #[tokio::test]
     async fn stored_since_is_not_advanced_while_next_cursor_is_some() {
         let store = Store::open_in_memory().unwrap();
         store.set_meta(META_CATALOG_VERSION, "2").unwrap();
@@ -1362,7 +1389,7 @@ mod tests {
     async fn paginated_changes_keep_since_fixed_and_apply_every_page() {
         let mut store = Store::open_in_memory().unwrap();
         store
-            .upsert_shelves(&[shelf_with_works("shelf-a", &["work-1", "work-2", "work-3"])])
+            .replace_shelves(&[shelf_with_works("shelf-a", &["work-1", "work-2", "work-3"])])
             .unwrap();
         store.set_meta(META_CATALOG_VERSION, "2").unwrap();
         store.set_meta(META_CHANGE_CURSOR, "2").unwrap();

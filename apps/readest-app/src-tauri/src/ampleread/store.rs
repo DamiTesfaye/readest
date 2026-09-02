@@ -173,21 +173,14 @@ impl Store {
             .optional()
     }
 
-    pub fn upsert_shelves(&mut self, shelves: &[Shelf]) -> rusqlite::Result<()> {
+    pub fn replace_shelves(&mut self, shelves: &[Shelf]) -> rusqlite::Result<()> {
         let tx = self.conn.transaction()?;
+        tx.execute("DELETE FROM shelf_items", [])?;
+        tx.execute("DELETE FROM shelves", [])?;
         for (shelf_position, shelf) in shelves.iter().enumerate() {
             tx.execute(
-                "INSERT INTO shelves (id, title, layout, position) VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT(id) DO UPDATE SET
-                    title = excluded.title,
-                    layout = excluded.layout,
-                    position = excluded.position",
+                "INSERT INTO shelves (id, title, layout, position) VALUES (?1, ?2, ?3, ?4)",
                 params![shelf.id, shelf.title, shelf.layout, shelf_position as i64],
-            )?;
-
-            tx.execute(
-                "DELETE FROM shelf_items WHERE shelf_id = ?1",
-                params![shelf.id],
             )?;
 
             for (item_position, item) in shelf.items.iter().enumerate() {
@@ -527,7 +520,7 @@ mod tests {
     }
 
     #[test]
-    fn upsert_shelves_and_get_explore_preserves_order_and_fields() {
+    fn replace_shelves_and_get_explore_preserves_order_and_fields() {
         let mut store = Store::open_in_memory().unwrap();
         let shelf_a = sample_shelf(
             "shelf-a",
@@ -544,7 +537,7 @@ mod tests {
         );
 
         store
-            .upsert_shelves(&[shelf_a.clone(), shelf_b.clone()])
+            .replace_shelves(&[shelf_a.clone(), shelf_b.clone()])
             .unwrap();
 
         let explore = store.get_explore().unwrap();
@@ -637,7 +630,7 @@ mod tests {
             "Shelf A",
             vec![sample_card("work-1", "Book One")],
         );
-        store.upsert_shelves(&[shelf]).unwrap();
+        store.replace_shelves(&[shelf]).unwrap();
 
         let detail = WorkDetail {
             id: "work-1".to_string(),
@@ -702,7 +695,7 @@ mod tests {
             "Shelf A",
             vec![sample_card("work-1", "Book One")],
         );
-        store.upsert_shelves(&[shelf]).unwrap();
+        store.replace_shelves(&[shelf]).unwrap();
 
         let subject_hits_before: i64 = store
             .conn
@@ -762,7 +755,7 @@ mod tests {
             vec![sample_card("work-2", "Book Two")],
         );
         store
-            .upsert_shelves(&[shelf_a.clone(), shelf_b.clone()])
+            .replace_shelves(&[shelf_a.clone(), shelf_b.clone()])
             .unwrap();
 
         store
@@ -798,7 +791,7 @@ mod tests {
             "Shelf A",
             vec![sample_card("work-1", "Book One")],
         );
-        store.upsert_shelves(&[shelf]).unwrap();
+        store.replace_shelves(&[shelf]).unwrap();
 
         // "collection" (col_-prefixed ids, not a shelf slug), "edition", and
         // "asset" are real backend entity_types this store has no local row
