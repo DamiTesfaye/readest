@@ -29,6 +29,8 @@ pub fn api_base() -> String {
 pub enum SyncError {
     #[error("http error: {0}")]
     Http(String),
+    #[error("protocol error: {0}")]
+    Protocol(String),
     #[error("store error: {0}")]
     Store(#[from] rusqlite::Error),
 }
@@ -51,7 +53,11 @@ pub trait CatalogHttp {
         etag: Option<&str>,
         territory: Option<&str>,
     ) -> Result<FetchResult<WorkDetail>, SyncError>;
-    async fn get_changes(&self, since: i64) -> Result<ChangesResponse, SyncError>;
+    async fn get_changes(
+        &self,
+        since: i64,
+        cursor: Option<&str>,
+    ) -> Result<ChangesResponse, SyncError>;
 }
 
 pub struct ReqwestCatalogHttp {
@@ -143,11 +149,20 @@ impl CatalogHttp for ReqwestCatalogHttp {
         self.get_conditional(&path, etag).await
     }
 
-    async fn get_changes(&self, since: i64) -> Result<ChangesResponse, SyncError> {
-        let url = format!("{}/v1/changes?since={since}", self.base_url);
+    async fn get_changes(
+        &self,
+        since: i64,
+        cursor: Option<&str>,
+    ) -> Result<ChangesResponse, SyncError> {
+        let url = format!("{}/v1/changes", self.base_url);
+        let mut query = vec![("since", since.to_string())];
+        if let Some(cursor) = cursor {
+            query.push(("cursor", cursor.to_string()));
+        }
         let response = self
             .client
             .get(url)
+            .query(&query)
             .send()
             .await
             .map_err(|e| SyncError::Http(e.to_string()))?
@@ -190,7 +205,9 @@ enum BootstrapOutcome {
     /// succeeded, so a mid-cascade failure leaves the old version in place
     /// for the next sync to retry against, instead of stranding stale
     /// scopes under a version that claims they're already current.
-    Changed { new_version: i64 },
+    Changed {
+        new_version: i64,
+    },
 }
 
 struct InFlightGuard<'a> {
@@ -383,26 +400,46 @@ impl<H: CatalogHttp> SyncEngine<H> {
     }
 
     /// Runs when the bootstrap check reports a changed `catalogVersion`:
-    /// fetch `/v1/changes?since=`, apply the ops (unless the server reports
-    /// `compacted`, in which case incremental ops can't be trusted and held
-    /// scopes get a full revalidation instead), then always revalidate held
-    /// scopes so stale mirror entries pick up the new state.
+    /// walk every page of the `/v1/changes` window, apply the ops (unless
+    /// the server reports `compacted`, in which case incremental ops can't
+    /// be trusted and held scopes get a full revalidation instead), then
+    /// always revalidate held scopes so stale mirror entries pick up the
+    /// new state. The stored cursor only moves to the window's `until`
+    /// after the last page and the revalidation have both succeeded.
     async fn apply_remote_changes(&self) -> Result<(), SyncError> {
         let Some(guard) = self.try_acquire(SCOPE_CHANGES) else {
             return Ok(());
         };
         let since = self.meta_get_i64(META_CHANGE_CURSOR)?.unwrap_or(0);
-        let changes = self.http.get_changes(since).await?;
+        let until = self.apply_change_window(since).await?;
         drop(guard);
 
-        if !changes.compacted {
-            let mut store = self.store.lock().unwrap();
-            store.apply_changes(&changes.ops)?;
-        }
-
         self.revalidate_held_scopes().await?;
-        self.meta_set_i64(META_CHANGE_CURSOR, changes.until)?;
+        self.meta_set_i64(META_CHANGE_CURSOR, until)?;
         Ok(())
+    }
+
+    async fn apply_change_window(&self, since: i64) -> Result<i64, SyncError> {
+        let mut cursor: Option<String> = None;
+        loop {
+            let page = self.http.get_changes(since, cursor.as_deref()).await?;
+            if page.compacted {
+                return Ok(page.until);
+            }
+            {
+                let mut store = self.store.lock().unwrap();
+                store.apply_changes(&page.ops)?;
+            }
+            match page.next_cursor {
+                None => return Ok(page.until),
+                Some(next) if cursor.as_deref() == Some(next.as_str()) => {
+                    return Err(SyncError::Protocol(format!(
+                        "changes cursor {next:?} did not advance"
+                    )));
+                }
+                Some(next) => cursor = Some(next),
+            }
+        }
     }
 
     /// The version-gated sync loop: bootstrap (only when due), and only when
@@ -541,13 +578,14 @@ mod tests {
         explore: u32,
         work_detail: u32,
         changes: u32,
+        changes_calls: Vec<(i64, Option<String>)>,
     }
 
     struct MockHttp {
         bootstrap: BootstrapResponse,
         explore: FetchResult<ExploreResponse>,
         work_detail: HashMap<String, FetchResult<WorkDetail>>,
-        changes: ChangesResponse,
+        changes: Vec<ChangesResponse>,
         counts: StdMutex<Counts>,
         // Territory passed on the most recent `get_work_detail` call, so
         // tests can assert the stored bootstrap territory is actually
@@ -584,9 +622,18 @@ mod tests {
                 .unwrap_or(FetchResult::NotModified))
         }
 
-        async fn get_changes(&self, _since: i64) -> Result<ChangesResponse, SyncError> {
-            self.counts.lock().unwrap().changes += 1;
-            Ok(self.changes.clone())
+        async fn get_changes(
+            &self,
+            since: i64,
+            cursor: Option<&str>,
+        ) -> Result<ChangesResponse, SyncError> {
+            let mut counts = self.counts.lock().unwrap();
+            let page = self.changes.get(counts.changes as usize).cloned();
+            counts.changes += 1;
+            counts
+                .changes_calls
+                .push((since, cursor.map(str::to_string)));
+            page.ok_or_else(|| SyncError::Http("no more change pages".to_string()))
         }
     }
 
@@ -616,7 +663,11 @@ mod tests {
             unreachable!("bootstrap fails before any work detail is ever revalidated")
         }
 
-        async fn get_changes(&self, _since: i64) -> Result<ChangesResponse, SyncError> {
+        async fn get_changes(
+            &self,
+            _since: i64,
+            _cursor: Option<&str>,
+        ) -> Result<ChangesResponse, SyncError> {
             unreachable!("bootstrap fails before changes are ever fetched")
         }
     }
@@ -652,7 +703,11 @@ mod tests {
             unreachable!("get_changes fails before any work detail is ever revalidated")
         }
 
-        async fn get_changes(&self, _since: i64) -> Result<ChangesResponse, SyncError> {
+        async fn get_changes(
+            &self,
+            _since: i64,
+            _cursor: Option<&str>,
+        ) -> Result<ChangesResponse, SyncError> {
             *self.changes_calls.lock().unwrap() += 1;
             Err(SyncError::Http("changes fetch boom".to_string()))
         }
@@ -722,6 +777,59 @@ mod tests {
         }
     }
 
+    fn changes_page(until: i64, ops: Vec<ChangeOp>, next_cursor: Option<&str>) -> ChangesResponse {
+        ChangesResponse {
+            since: 0,
+            until,
+            compacted: false,
+            ops,
+            next_cursor: next_cursor.map(str::to_string),
+        }
+    }
+
+    fn change_op(entity_type: &str, entity_id: &str, op: &str) -> ChangeOp {
+        ChangeOp {
+            entity_type: entity_type.to_string(),
+            entity_id: entity_id.to_string(),
+            op: op.to_string(),
+        }
+    }
+
+    fn shelf_with_works(id: &str, work_ids: &[&str]) -> Shelf {
+        let mut shelf = sample_shelf(id);
+        shelf.items = work_ids
+            .iter()
+            .map(|work_id| WorkCard {
+                id: work_id.to_string(),
+                ..shelf.items[0].clone()
+            })
+            .collect();
+        shelf
+    }
+
+    fn stored_meta<H: CatalogHttp>(engine: &SyncEngine<H>, key: &str) -> Option<String> {
+        engine.store.lock().unwrap().get_meta(key).unwrap()
+    }
+
+    fn mock_http(
+        catalog_version: i64,
+        explore: FetchResult<ExploreResponse>,
+        changes: Vec<ChangesResponse>,
+    ) -> MockHttp {
+        MockHttp {
+            bootstrap: sample_bootstrap(catalog_version),
+            explore,
+            work_detail: HashMap::new(),
+            changes,
+            counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
+        }
+    }
+
+    fn changes_calls(engine: &SyncEngine<MockHttp>) -> Vec<(i64, Option<String>)> {
+        engine.http.counts.lock().unwrap().changes_calls.clone()
+    }
+
     #[tokio::test]
     async fn unchanged_catalog_version_short_circuits() {
         let store = Store::open_in_memory().unwrap();
@@ -731,7 +839,7 @@ mod tests {
             bootstrap: sample_bootstrap(7),
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -760,7 +868,7 @@ mod tests {
                 etag: Some("etag-1".to_string()),
             },
             work_detail: HashMap::new(),
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -798,7 +906,7 @@ mod tests {
             bootstrap: sample_bootstrap(2),
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -841,7 +949,7 @@ mod tests {
             bootstrap: sample_bootstrap(1),
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -871,7 +979,7 @@ mod tests {
                 etag: Some("etag-2".to_string()),
             },
             work_detail: HashMap::new(),
-            changes: ChangesResponse {
+            changes: vec![ChangesResponse {
                 since: 0,
                 until: 2,
                 compacted: true,
@@ -881,7 +989,7 @@ mod tests {
                     op: "remove".to_string(),
                 }],
                 next_cursor: None,
-            },
+            }],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -982,7 +1090,7 @@ mod tests {
             bootstrap: sample_bootstrap(1),
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -1012,7 +1120,7 @@ mod tests {
             bootstrap: sample_bootstrap(1),
             explore: FetchResult::NotModified,
             work_detail,
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -1043,7 +1151,7 @@ mod tests {
             bootstrap: sample_bootstrap(5), // unchanged
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -1075,7 +1183,7 @@ mod tests {
             bootstrap: sample_bootstrap(1),
             explore: FetchResult::NotModified,
             work_detail,
-            changes: no_op_changes(),
+            changes: vec![no_op_changes()],
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
         };
@@ -1095,6 +1203,105 @@ mod tests {
             .unwrap()
             .clone();
         assert_eq!(territory.as_deref(), Some("US"));
+    }
+
+    #[tokio::test]
+    async fn stored_since_is_not_advanced_while_next_cursor_is_some() {
+        let store = Store::open_in_memory().unwrap();
+        store.set_meta(META_CATALOG_VERSION, "2").unwrap();
+        store.set_meta(META_CHANGE_CURSOR, "2").unwrap();
+
+        let first_page = changes_page(3, vec![], Some("c1"));
+        let engine = SyncEngine::new(
+            mock_http(3, FetchResult::NotModified, vec![first_page]),
+            store,
+        );
+
+        let result = engine.sync().await;
+
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
+            Some("2"),
+            "since must not move to until while a page is still pending"
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("2")
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            changes_calls(&engine),
+            vec![(2, None), (2, Some("c1".to_string()))]
+        );
+    }
+
+    #[tokio::test]
+    async fn paginated_changes_keep_since_fixed_and_apply_every_page() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .upsert_shelves(&[shelf_with_works("shelf-a", &["work-1", "work-2", "work-3"])])
+            .unwrap();
+        store.set_meta(META_CATALOG_VERSION, "2").unwrap();
+        store.set_meta(META_CHANGE_CURSOR, "2").unwrap();
+
+        let pages = vec![
+            changes_page(3, vec![change_op("work", "work-1", "remove")], Some("c1")),
+            changes_page(3, vec![change_op("work", "work-2", "remove")], Some("c2")),
+            changes_page(3, vec![change_op("work", "work-3", "remove")], None),
+        ];
+        let engine = SyncEngine::new(mock_http(3, FetchResult::NotModified, pages), store);
+
+        engine.sync().await.unwrap();
+
+        assert_eq!(
+            changes_calls(&engine),
+            vec![
+                (2, None),
+                (2, Some("c1".to_string())),
+                (2, Some("c2".to_string())),
+            ]
+        );
+        let explore = engine.get_explore().unwrap();
+        assert_eq!(
+            explore[0].items.len(),
+            0,
+            "ops from every page must be applied"
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
+            Some("3")
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("3")
+        );
+    }
+
+    #[tokio::test]
+    async fn changes_window_aborts_when_the_cursor_does_not_advance() {
+        let store = Store::open_in_memory().unwrap();
+        store.set_meta(META_CATALOG_VERSION, "2").unwrap();
+        store.set_meta(META_CHANGE_CURSOR, "2").unwrap();
+
+        let pages = vec![
+            changes_page(3, vec![], Some("c1")),
+            changes_page(3, vec![], Some("c1")),
+            changes_page(3, vec![], Some("c1")),
+        ];
+        let engine = SyncEngine::new(mock_http(3, FetchResult::NotModified, pages), store);
+
+        let result = engine.sync().await;
+
+        assert!(result.is_err());
+        assert_eq!(changes_calls(&engine).len(), 2);
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
+            Some("2")
+        );
+        assert!(
+            engine.try_acquire(SCOPE_CHANGES).is_some(),
+            "the in-flight guard must be released after the abort"
+        );
     }
 
     #[test]
