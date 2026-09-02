@@ -1206,6 +1206,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn fresh_install_compacted_empty_ops_populates_mirror_and_adopts_until() {
+        let store = Store::open_in_memory().unwrap();
+        let compacted = ChangesResponse {
+            since: 0,
+            until: 3,
+            compacted: true,
+            ops: vec![],
+            next_cursor: None,
+        };
+        let explore = FetchResult::Fresh {
+            body: ExploreResponse {
+                shelves: vec![sample_shelf("essential-classics")],
+            },
+            etag: Some("etag-explore".to_string()),
+        };
+        let engine = SyncEngine::new(mock_http(3, explore, vec![compacted]), store);
+
+        engine.sync().await.unwrap();
+
+        assert_eq!(changes_calls(&engine), vec![(0, None)]);
+        let shelves = engine.get_explore().unwrap();
+        assert_eq!(
+            shelves.len(),
+            1,
+            "compacted + empty ops must still full-fetch"
+        );
+        assert_eq!(shelves[0].items.len(), 1);
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
+            Some("3")
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("3")
+        );
+    }
+
+    #[tokio::test]
     async fn stored_since_is_not_advanced_while_next_cursor_is_some() {
         let store = Store::open_in_memory().unwrap();
         store.set_meta(META_CATALOG_VERSION, "2").unwrap();
