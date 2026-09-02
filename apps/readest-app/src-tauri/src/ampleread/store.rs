@@ -471,7 +471,7 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ampleread_types::AuthorRef;
+    use ampleread_types::{AuthorRef, Capabilities, EditionView};
     use std::path::PathBuf;
 
     #[test]
@@ -589,6 +589,44 @@ mod tests {
             .unwrap();
         let stored = store.get_work_detail("work-1").unwrap().unwrap();
         assert_eq!(stored.etag, "etag-2");
+    }
+
+    #[test]
+    fn upsert_work_detail_round_trips_an_edition_with_no_assets() {
+        let mut store = Store::open_in_memory().unwrap();
+        let detail = WorkDetail {
+            id: "work-1".to_string(),
+            title: "Book One".to_string(),
+            description: None,
+            subjects: vec![],
+            preferred_edition_id: Some("edition-audio".to_string()),
+            editions: vec![EditionView {
+                id: "edition-audio".to_string(),
+                source_name: "gutenberg".to_string(),
+                language: "en".to_string(),
+                media_type: "audio".to_string(),
+                assets: vec![],
+                capabilities: Capabilities {
+                    can_read: false,
+                    can_download: false,
+                    can_transform: false,
+                },
+                attribution: None,
+            }],
+        };
+
+        store
+            .upsert_work_detail("work-1", &detail, "etag-1")
+            .unwrap();
+
+        let stored = store.get_work_detail("work-1").unwrap().unwrap();
+        assert_eq!(stored.detail.editions.len(), 1);
+        assert!(stored.detail.editions[0].assets.is_empty());
+        assert_eq!(stored.detail.editions[0].media_type, "audio");
+        assert_eq!(
+            stored.detail.preferred_edition_id.as_deref(),
+            Some("edition-audio")
+        );
     }
 
     #[test]

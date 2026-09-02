@@ -568,7 +568,10 @@ pub(crate) async fn ampleread_refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ampleread_types::{AuthorRef, ChangeOp, RefreshConfig, TtlConfig, WorkCard};
+    use ampleread_types::{
+        AssetView, AuthorRef, Capabilities, ChangeOp, EditionView, RefreshConfig, TtlConfig,
+        WorkCard,
+    };
     use std::collections::HashMap;
     use std::sync::Mutex as StdMutex;
 
@@ -765,6 +768,30 @@ mod tests {
             preferred_edition_id: None,
             editions: vec![],
         }
+    }
+
+    fn detail_with_assets(id: &str, asset_count: usize) -> WorkDetail {
+        let mut detail = sample_work_detail(id);
+        detail.editions = vec![EditionView {
+            id: format!("{id}-audio"),
+            source_name: "gutenberg".to_string(),
+            language: "en".to_string(),
+            media_type: "audio".to_string(),
+            assets: (0..asset_count)
+                .map(|n| AssetView {
+                    id: format!("{id}-asset-{n}"),
+                    kind: "mp3".to_string(),
+                    bytes: None,
+                })
+                .collect(),
+            capabilities: Capabilities {
+                can_read: false,
+                can_download: asset_count > 0,
+                can_transform: false,
+            },
+            attribution: None,
+        }];
+        detail
     }
 
     fn no_op_changes() -> ChangesResponse {
@@ -1239,6 +1266,64 @@ mod tests {
         );
         assert_eq!(
             stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("3")
+        );
+    }
+
+    #[tokio::test]
+    async fn v3_shaped_delta_refreshes_a_held_work_to_its_zero_asset_edition() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .upsert_shelves(&[shelf_with_works("shelf-a", &["work-1"])])
+            .unwrap();
+        store
+            .upsert_work_detail("work-1", &detail_with_assets("work-1", 2), "etag-1")
+            .unwrap();
+        store.set_meta(META_CATALOG_VERSION, "2").unwrap();
+        store.set_meta(META_CHANGE_CURSOR, "2").unwrap();
+
+        let pages = vec![
+            changes_page(
+                3,
+                vec![
+                    change_op("edition", "ed_a", "upsert"),
+                    change_op("edition", "ed_b", "upsert"),
+                ],
+                Some("c1"),
+            ),
+            changes_page(
+                3,
+                vec![
+                    change_op("work", "work-1", "upsert"),
+                    change_op("work", "work-9", "upsert"),
+                ],
+                None,
+            ),
+        ];
+        let mut http = mock_http(3, FetchResult::NotModified, pages);
+        http.work_detail.insert(
+            "work-1".to_string(),
+            FetchResult::Fresh {
+                body: detail_with_assets("work-1", 0),
+                etag: Some("etag-2".to_string()),
+            },
+        );
+        let engine = SyncEngine::new(http, store);
+
+        engine.sync().await.unwrap();
+
+        assert_eq!(changes_calls(&engine).len(), 2);
+        let detail = engine.get_work_detail("work-1").unwrap().unwrap();
+        assert_eq!(detail.editions.len(), 1);
+        assert!(detail.editions[0].assets.is_empty());
+        let explore = engine.get_explore().unwrap();
+        assert_eq!(
+            explore[0].items.len(),
+            1,
+            "an upsert must not drop the work"
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
             Some("3")
         );
     }

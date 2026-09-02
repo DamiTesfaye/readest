@@ -123,6 +123,26 @@ describe('ExplorePage', () => {
     await waitFor(() => expect(mockGetExplore).toHaveBeenCalledTimes(2));
   });
 
+  it('renders a card whose work has no formats without a formats count or a download control', async () => {
+    const explore = buildExplore();
+    const shelf = explore.shelves[0]!;
+    const zeroFormatCard = {
+      ...shelf.items[0]!,
+      id: 'work-audio',
+      title: 'Silent Audio Book',
+      hasAudio: true,
+      formats: [],
+    };
+    mockGetExplore.mockResolvedValue({ shelves: [{ ...shelf, items: [zeroFormatCard] }] });
+
+    render(<ExplorePage />);
+    await screen.findByText('Silent Audio Book');
+
+    expect(screen.queryByText(/0 formats/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /download/i })).toBeNull();
+  });
+
   it('does not call fetch or invoke directly from the page', async () => {
     mockGetExplore.mockResolvedValue(buildExplore());
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
