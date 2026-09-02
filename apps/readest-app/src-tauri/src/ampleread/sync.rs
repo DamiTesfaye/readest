@@ -718,6 +718,7 @@ mod tests {
             until: 2,
             compacted: false,
             ops: vec![],
+            next_cursor: None,
         }
     }
 
@@ -879,6 +880,7 @@ mod tests {
                     entity_id: "shelf-a".to_string(),
                     op: "remove".to_string(),
                 }],
+                next_cursor: None,
             },
             counts: StdMutex::new(Counts::default()),
             last_work_detail_territory: StdMutex::new(None),
