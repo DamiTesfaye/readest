@@ -1454,6 +1454,191 @@ mod tests {
         );
     }
 
+    struct RecordedPage {
+        since: i64,
+        cursor: Option<String>,
+        ops: usize,
+        compacted: bool,
+        until: i64,
+        next_cursor: Option<String>,
+    }
+
+    struct RecordingHttp<H: CatalogHttp> {
+        inner: H,
+        catalog_version: StdMutex<Option<i64>>,
+        pages: StdMutex<Vec<RecordedPage>>,
+        work_upserts: StdMutex<Vec<String>>,
+    }
+
+    impl<H: CatalogHttp> CatalogHttp for RecordingHttp<H> {
+        async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
+            let response = self.inner.get_bootstrap().await?;
+            *self.catalog_version.lock().unwrap() = Some(response.catalog_version);
+            Ok(response)
+        }
+
+        async fn get_explore(
+            &self,
+            etag: Option<&str>,
+        ) -> Result<FetchResult<ExploreResponse>, SyncError> {
+            self.inner.get_explore(etag).await
+        }
+
+        async fn get_work_detail(
+            &self,
+            id: &str,
+            etag: Option<&str>,
+            territory: Option<&str>,
+        ) -> Result<FetchResult<WorkDetail>, SyncError> {
+            self.inner.get_work_detail(id, etag, territory).await
+        }
+
+        async fn get_changes(
+            &self,
+            since: i64,
+            cursor: Option<&str>,
+        ) -> Result<ChangesResponse, SyncError> {
+            let page = self.inner.get_changes(since, cursor).await?;
+            self.pages.lock().unwrap().push(RecordedPage {
+                since,
+                cursor: cursor.map(str::to_string),
+                ops: page.ops.len(),
+                compacted: page.compacted,
+                until: page.until,
+                next_cursor: page.next_cursor.clone(),
+            });
+            self.work_upserts.lock().unwrap().extend(
+                page.ops
+                    .iter()
+                    .filter(|op| op.entity_type == "work" && op.op == "upsert")
+                    .map(|op| op.entity_id.clone()),
+            );
+            Ok(page)
+        }
+    }
+
+    fn live_engine() -> Option<SyncEngine<RecordingHttp<ReqwestCatalogHttp>>> {
+        let base = std::env::var("AMPLEREAD_LIVE_API_BASE")
+            .ok()
+            .filter(|base| !base.is_empty())?;
+        let http = RecordingHttp {
+            inner: ReqwestCatalogHttp::new(base),
+            catalog_version: StdMutex::new(None),
+            pages: StdMutex::new(Vec::new()),
+            work_upserts: StdMutex::new(Vec::new()),
+        };
+        Some(SyncEngine::new(http, Store::open_in_memory().unwrap()))
+    }
+
+    fn live_engine_at_version_2() -> Option<SyncEngine<RecordingHttp<ReqwestCatalogHttp>>> {
+        let engine = live_engine()?;
+        {
+            let store = engine.store.lock().unwrap();
+            store.set_meta(META_CATALOG_VERSION, "2").unwrap();
+            store.set_meta(META_CHANGE_CURSOR, "2").unwrap();
+        }
+        Some(engine)
+    }
+
+    const LIVE_SKIP: &str = "skipped: set AMPLEREAD_LIVE_API_BASE to run against a backend";
+
+    #[tokio::test]
+    async fn live_v2_client_pages_through_the_staged_v3_delta() {
+        let Some(engine) = live_engine_at_version_2() else {
+            eprintln!("{LIVE_SKIP}");
+            return;
+        };
+
+        engine.sync().await.unwrap();
+
+        let catalog_version = engine.http.catalog_version.lock().unwrap().unwrap();
+        assert_eq!(
+            catalog_version, 3,
+            "the staged v3 delta is the fixture; backend reports {catalog_version}"
+        );
+        let pages = engine.http.pages.lock().unwrap();
+        let shape: Vec<(i64, usize, bool)> = pages
+            .iter()
+            .map(|page| (page.since, page.ops, page.next_cursor.is_some()))
+            .collect();
+        assert_eq!(
+            shape,
+            vec![(2, 1000, true), (2, 1000, true), (2, 228, false)]
+        );
+        assert_eq!(pages[0].cursor, None);
+        assert_eq!(pages[1].cursor, pages[0].next_cursor);
+        assert_eq!(pages[2].cursor, pages[1].next_cursor);
+        assert!(pages.iter().all(|page| page.until == 3 && !page.compacted));
+        drop(pages);
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
+            Some("3")
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("3")
+        );
+    }
+
+    #[tokio::test]
+    async fn live_purged_audio_parent_reads_back_with_a_zero_asset_edition() {
+        let Some(engine) = live_engine_at_version_2() else {
+            eprintln!("{LIVE_SKIP}");
+            return;
+        };
+        engine.sync().await.unwrap();
+        let work_id = engine
+            .http
+            .work_upserts
+            .lock()
+            .unwrap()
+            .first()
+            .cloned()
+            .expect("the v3 delta carries one work upsert per purged audio edition");
+
+        engine.refresh(&format!("work:{work_id}")).await.unwrap();
+
+        let detail = engine.get_work_detail(&work_id).unwrap().unwrap();
+        let audio = detail
+            .editions
+            .iter()
+            .find(|edition| edition.media_type == "audio")
+            .expect("the purged audio edition stays published");
+        assert!(audio.assets.is_empty());
+    }
+
+    #[tokio::test]
+    async fn live_fresh_install_full_fetches_after_a_compacted_reply() {
+        let Some(engine) = live_engine() else {
+            eprintln!("{LIVE_SKIP}");
+            return;
+        };
+
+        engine.sync().await.unwrap();
+
+        let catalog_version = engine.http.catalog_version.lock().unwrap().unwrap();
+        assert!(catalog_version >= 3);
+        let pages = engine.http.pages.lock().unwrap();
+        assert_eq!(pages.len(), 1);
+        assert_eq!(
+            (
+                pages[0].since,
+                pages[0].ops,
+                pages[0].compacted,
+                pages[0].next_cursor.is_none()
+            ),
+            (0, 0, true, true)
+        );
+        drop(pages);
+        let shelves = engine.get_explore().unwrap();
+        assert!(!shelves.is_empty(), "a fresh install must not end up empty");
+        assert!(shelves.iter().all(|shelf| !shelf.items.is_empty()));
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR),
+            Some(catalog_version.to_string())
+        );
+    }
+
     #[test]
     fn engine_handle_surfaces_error_when_store_unavailable() {
         let handle = EngineHandle::new(None);
