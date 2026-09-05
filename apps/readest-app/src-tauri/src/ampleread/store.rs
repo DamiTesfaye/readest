@@ -417,9 +417,9 @@ impl Store {
     }
 
     pub fn pending_events(&self, limit: usize) -> rusqlite::Result<Vec<(i64, String)>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, payload_json FROM pending_events ORDER BY id ASC LIMIT ?1",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, payload_json FROM pending_events ORDER BY id ASC LIMIT ?1")?;
         let rows = stmt.query_map(params![limit as i64], |row| {
             Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
         })?;

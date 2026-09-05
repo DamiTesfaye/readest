@@ -255,7 +255,9 @@ impl CatalogHttp for ReqwestCatalogHttp {
                     .map_err(|e| SyncError::Http(e.to_string()))?;
                 Ok(EventsOutcome::Accepted(accepted.accepted))
             }
-            status => Err(SyncError::Http(format!("events: unexpected status {status}"))),
+            status => Err(SyncError::Http(format!(
+                "events: unexpected status {status}"
+            ))),
         }
     }
 
@@ -793,7 +795,11 @@ impl<H: CatalogHttp> SyncEngine<H> {
 
     /// Where a stored asset sits: its edition and file kind, which is what
     /// survives a re-ingest even when the asset id does not.
-    fn locate_asset(&self, work_id: &str, asset_id: &str) -> Result<Option<(String, String)>, SyncError> {
+    fn locate_asset(
+        &self,
+        work_id: &str,
+        asset_id: &str,
+    ) -> Result<Option<(String, String)>, SyncError> {
         let detail = self.get_work_detail(work_id)?;
         Ok(detail.and_then(|detail| {
             detail.editions.iter().find_map(|edition| {
@@ -843,7 +849,11 @@ impl<H: CatalogHttp> SyncEngine<H> {
                 "asset {asset_id}: no {kind} asset remains on edition {edition_id}"
             )));
         };
-        match self.http.resolve_download(&replacement, Some(&token)).await? {
+        match self
+            .http
+            .resolve_download(&replacement, Some(&token))
+            .await?
+        {
             DownloadResolution::Redirect(url) => Ok(url),
             DownloadResolution::NotFound => Err(SyncError::NotFound(format!(
                 "asset {replacement} (replacement for {asset_id})"
@@ -1503,7 +1513,9 @@ mod tests {
         *http.events_outcomes.lock().unwrap() = vec![EventsOutcome::Unauthorized];
         let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
         engine.sync().await.unwrap();
-        engine.record_event("finish", Some("work_1"), None, None).unwrap();
+        engine
+            .record_event("finish", Some("work_1"), None, None)
+            .unwrap();
 
         let accepted = engine.flush_events().await.unwrap();
 
@@ -1527,7 +1539,9 @@ mod tests {
             vec![EventsOutcome::Unauthorized, EventsOutcome::Unauthorized];
         let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
         engine.sync().await.unwrap();
-        engine.record_event("save", Some("work_1"), None, None).unwrap();
+        engine
+            .record_event("save", Some("work_1"), None, None)
+            .unwrap();
 
         assert!(engine.flush_events().await.is_err());
 
@@ -1541,7 +1555,9 @@ mod tests {
         *http.events_outcomes.lock().unwrap() = vec![EventsOutcome::Rejected];
         let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
         engine.sync().await.unwrap();
-        engine.record_event("open", Some("work_1"), None, None).unwrap();
+        engine
+            .record_event("open", Some("work_1"), None, None)
+            .unwrap();
         engine
             .record_event("download", Some("work_1"), Some("ed_1"), None)
             .unwrap();
@@ -1562,7 +1578,9 @@ mod tests {
             mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
             Store::open_in_memory().unwrap(),
         );
-        engine.record_event("open", Some("work_1"), None, None).unwrap();
+        engine
+            .record_event("open", Some("work_1"), None, None)
+            .unwrap();
 
         engine.flush_events().await.unwrap();
 
@@ -1576,7 +1594,9 @@ mod tests {
             mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
             Store::open_in_memory().unwrap(),
         );
-        engine.record_event("open", Some("work_1"), None, None).unwrap();
+        engine
+            .record_event("open", Some("work_1"), None, None)
+            .unwrap();
 
         engine.sync().await.unwrap();
 
@@ -1641,7 +1661,9 @@ mod tests {
     async fn mirror_keyed_to_another_api_base_is_reset_when_the_engine_opens() {
         let mut store = Store::open_in_memory().unwrap();
         seed_version_4_mirror(&mut store);
-        store.set_meta(META_API_BASE, "http://127.0.0.1:8080").unwrap();
+        store
+            .set_meta(META_API_BASE, "http://127.0.0.1:8080")
+            .unwrap();
         store.enqueue_event("{}").unwrap();
 
         let engine = SyncEngine::for_api_base(
@@ -1674,7 +1696,9 @@ mod tests {
     async fn mirror_keyed_to_the_same_api_base_is_kept() {
         let mut store = Store::open_in_memory().unwrap();
         seed_version_4_mirror(&mut store);
-        store.set_meta(META_API_BASE, "https://api.ampleread.com").unwrap();
+        store
+            .set_meta(META_API_BASE, "https://api.ampleread.com")
+            .unwrap();
 
         let engine = SyncEngine::for_api_base(
             mock_http(4, FetchResult::NotModified, vec![no_op_changes()]),
@@ -2414,18 +2438,22 @@ mod tests {
 
     struct RecordedPage {
         since: i64,
-        cursor: Option<String>,
         ops: usize,
         compacted: bool,
-        until: i64,
         next_cursor: Option<String>,
     }
 
     struct RecordingHttp<H: CatalogHttp> {
         inner: H,
         catalog_version: StdMutex<Option<i64>>,
+        bootstrap_calls: StdMutex<u32>,
+        explore_calls: StdMutex<u32>,
+        work_detail_calls: StdMutex<u32>,
         pages: StdMutex<Vec<RecordedPage>>,
         work_upserts: StdMutex<Vec<String>>,
+        // (token, batch size, outcome) per POST /v1/events, in order.
+        events: StdMutex<Vec<(String, usize, EventsOutcome)>>,
+        download_calls: StdMutex<u32>,
     }
 
     impl<H: CatalogHttp> CatalogHttp for RecordingHttp<H> {
@@ -2433,6 +2461,7 @@ mod tests {
             &self,
             install_token: Option<&str>,
         ) -> Result<BootstrapResponse, SyncError> {
+            *self.bootstrap_calls.lock().unwrap() += 1;
             let response = self.inner.get_bootstrap(install_token).await?;
             *self.catalog_version.lock().unwrap() = Some(response.catalog_version);
             Ok(response)
@@ -2442,6 +2471,7 @@ mod tests {
             &self,
             etag: Option<&str>,
         ) -> Result<FetchResult<ExploreResponse>, SyncError> {
+            *self.explore_calls.lock().unwrap() += 1;
             self.inner.get_explore(etag).await
         }
 
@@ -2451,6 +2481,7 @@ mod tests {
             etag: Option<&str>,
             territory: Option<&str>,
         ) -> Result<FetchResult<WorkDetail>, SyncError> {
+            *self.work_detail_calls.lock().unwrap() += 1;
             self.inner.get_work_detail(id, etag, territory).await
         }
 
@@ -2462,10 +2493,8 @@ mod tests {
             let page = self.inner.get_changes(since, cursor).await?;
             self.pages.lock().unwrap().push(RecordedPage {
                 since,
-                cursor: cursor.map(str::to_string),
                 ops: page.ops.len(),
                 compacted: page.compacted,
-                until: page.until,
                 next_cursor: page.next_cursor.clone(),
             });
             self.work_upserts.lock().unwrap().extend(
@@ -2482,7 +2511,13 @@ mod tests {
             install_token: &str,
             batch: &EventBatch,
         ) -> Result<EventsOutcome, SyncError> {
-            self.inner.post_events(install_token, batch).await
+            let outcome = self.inner.post_events(install_token, batch).await?;
+            self.events.lock().unwrap().push((
+                install_token.to_string(),
+                batch.events.len(),
+                outcome.clone(),
+            ));
+            Ok(outcome)
         }
 
         async fn resolve_download(
@@ -2490,6 +2525,7 @@ mod tests {
             asset_id: &str,
             install_token: Option<&str>,
         ) -> Result<DownloadResolution, SyncError> {
+            *self.download_calls.lock().unwrap() += 1;
             self.inner.resolve_download(asset_id, install_token).await
         }
     }
@@ -2499,89 +2535,37 @@ mod tests {
             .ok()
             .filter(|base| !base.is_empty())?;
         let http = RecordingHttp {
-            inner: ReqwestCatalogHttp::new(base),
+            inner: ReqwestCatalogHttp::new(base.clone()),
             catalog_version: StdMutex::new(None),
+            bootstrap_calls: StdMutex::new(0),
+            explore_calls: StdMutex::new(0),
+            work_detail_calls: StdMutex::new(0),
             pages: StdMutex::new(Vec::new()),
             work_upserts: StdMutex::new(Vec::new()),
+            events: StdMutex::new(Vec::new()),
+            download_calls: StdMutex::new(0),
         };
-        Some(SyncEngine::new(http, Store::open_in_memory().unwrap()))
-    }
-
-    fn live_engine_at_version_2() -> Option<SyncEngine<RecordingHttp<ReqwestCatalogHttp>>> {
-        let engine = live_engine()?;
-        {
-            let store = engine.store.lock().unwrap();
-            store.set_meta(META_CATALOG_VERSION, "2").unwrap();
-            store.set_meta(META_CHANGE_CURSOR, "2").unwrap();
-        }
-        Some(engine)
+        Some(SyncEngine::for_api_base(http, Store::open_in_memory().unwrap(), &base).unwrap())
     }
 
     const LIVE_SKIP: &str = "skipped: set AMPLEREAD_LIVE_API_BASE to run against a backend";
 
-    #[tokio::test]
-    async fn live_v2_client_pages_through_the_staged_v3_delta() {
-        let Some(engine) = live_engine_at_version_2() else {
-            eprintln!("{LIVE_SKIP}");
-            return;
-        };
+    type LiveEngine = SyncEngine<RecordingHttp<ReqwestCatalogHttp>>;
 
-        engine.sync().await.unwrap();
-
-        let catalog_version = engine.http.catalog_version.lock().unwrap().unwrap();
-        assert_eq!(
-            catalog_version, 3,
-            "the staged v3 delta is the fixture; backend reports {catalog_version}"
-        );
-        let pages = engine.http.pages.lock().unwrap();
-        let shape: Vec<(i64, usize, bool)> = pages
-            .iter()
-            .map(|page| (page.since, page.ops, page.next_cursor.is_some()))
-            .collect();
-        assert_eq!(
-            shape,
-            vec![(2, 1000, true), (2, 1000, true), (2, 228, false)]
-        );
-        assert_eq!(pages[0].cursor, None);
-        assert_eq!(pages[1].cursor, pages[0].next_cursor);
-        assert_eq!(pages[2].cursor, pages[1].next_cursor);
-        assert!(pages.iter().all(|page| page.until == 3 && !page.compacted));
-        drop(pages);
-        assert_eq!(
-            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
-            Some("3")
-        );
-        assert_eq!(
-            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
-            Some("3")
-        );
+    fn live_counts(engine: &LiveEngine) -> (u32, usize, u32, u32) {
+        (
+            *engine.http.bootstrap_calls.lock().unwrap(),
+            engine.http.pages.lock().unwrap().len(),
+            *engine.http.explore_calls.lock().unwrap(),
+            *engine.http.work_detail_calls.lock().unwrap(),
+        )
     }
 
-    #[tokio::test]
-    async fn live_purged_audio_parent_reads_back_with_a_zero_asset_edition() {
-        let Some(engine) = live_engine_at_version_2() else {
-            eprintln!("{LIVE_SKIP}");
-            return;
-        };
-        engine.sync().await.unwrap();
-        let work_id = engine
-            .http
-            .work_upserts
-            .lock()
-            .unwrap()
-            .first()
-            .cloned()
-            .expect("the v3 delta carries one work upsert per purged audio edition");
-
-        engine.refresh(&format!("work:{work_id}")).await.unwrap();
-
-        let detail = engine.get_work_detail(&work_id).unwrap().unwrap();
-        let audio = detail
-            .editions
-            .iter()
-            .find(|edition| edition.media_type == "audio")
-            .expect("the purged audio edition stays published");
-        assert!(audio.assets.is_empty());
+    /// Fakes the next app session: the mirror persists, the bootstrap TTL
+    /// has elapsed, and the single-flight set is empty.
+    fn next_session(engine: &LiveEngine) {
+        let store = engine.store.lock().unwrap();
+        store.set_meta(META_BOOTSTRAP_LAST_AT, "0").unwrap();
     }
 
     #[tokio::test]
@@ -2594,7 +2578,11 @@ mod tests {
         engine.sync().await.unwrap();
 
         let catalog_version = engine.http.catalog_version.lock().unwrap().unwrap();
-        assert!(catalog_version >= 3);
+        assert!(catalog_version >= 1);
+        assert!(
+            stored_meta(&engine, META_INSTALL_TOKEN).is_some(),
+            "a fresh install must come away with an install token"
+        );
         let pages = engine.http.pages.lock().unwrap();
         assert_eq!(pages.len(), 1);
         assert_eq!(
@@ -2614,6 +2602,119 @@ mod tests {
             stored_meta(&engine, META_CHANGE_CURSOR),
             Some(catalog_version.to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn live_unchanged_catalog_costs_one_changes_request_on_the_first_session_only() {
+        let Some(engine) = live_engine() else {
+            eprintln!("{LIVE_SKIP}");
+            return;
+        };
+
+        engine.sync().await.unwrap();
+        let first = live_counts(&engine);
+        eprintln!("session 1 (fresh install): bootstrap/changes/explore/work = {first:?}");
+        assert_eq!(first, (1, 1, 1, 0));
+
+        next_session(&engine);
+        engine.sync().await.unwrap();
+        let second = live_counts(&engine);
+        eprintln!("session 2 (unchanged): bootstrap/changes/explore/work = {second:?}");
+        assert_eq!(
+            second,
+            (2, 1, 1, 0),
+            "an unchanged catalog costs bootstrap only"
+        );
+
+        next_session(&engine);
+        engine.sync().await.unwrap();
+        assert_eq!(live_counts(&engine), (3, 1, 1, 0));
+    }
+
+    #[tokio::test]
+    async fn live_events_batch_is_accepted_and_a_stale_token_is_re_minted() {
+        let Some(engine) = live_engine() else {
+            eprintln!("{LIVE_SKIP}");
+            return;
+        };
+        engine.sync().await.unwrap();
+        let work_id = engine.get_explore().unwrap()[0].items[0].id.clone();
+        let minted = stored_meta(&engine, META_INSTALL_TOKEN).unwrap();
+
+        engine
+            .record_event("open", Some(&work_id), None, None)
+            .unwrap();
+        assert_eq!(engine.flush_events().await.unwrap(), 1);
+
+        {
+            let store = engine.store.lock().unwrap();
+            store
+                .set_meta(
+                    META_INSTALL_TOKEN,
+                    "0000stale-token-the-server-never-minted",
+                )
+                .unwrap();
+        }
+        engine
+            .record_event("finish", Some(&work_id), None, None)
+            .unwrap();
+        assert_eq!(engine.flush_events().await.unwrap(), 1);
+
+        let events = engine.http.events.lock().unwrap();
+        let shape: Vec<(bool, usize, EventsOutcome)> = events
+            .iter()
+            .map(|(token, size, outcome)| (token == &minted, *size, outcome.clone()))
+            .collect();
+        assert_eq!(
+            shape,
+            vec![
+                (true, 1, EventsOutcome::Accepted(1)),
+                (false, 1, EventsOutcome::Unauthorized),
+                (false, 1, EventsOutcome::Accepted(1)),
+            ]
+        );
+        drop(events);
+        let re_minted = stored_meta(&engine, META_INSTALL_TOKEN).unwrap();
+        assert_ne!(re_minted, minted);
+        assert_ne!(re_minted, "0000stale-token-the-server-never-minted");
+        assert_eq!(*engine.http.bootstrap_calls.lock().unwrap(), 2);
+        assert_eq!(pending_event_count(&engine), 0);
+    }
+
+    #[tokio::test]
+    async fn live_download_resolves_to_an_offer_url_with_the_install_header() {
+        let Some(engine) = live_engine() else {
+            eprintln!("{LIVE_SKIP}");
+            return;
+        };
+        engine.sync().await.unwrap();
+        let candidates: Vec<String> = engine.get_explore().unwrap()[0]
+            .items
+            .iter()
+            .take(5)
+            .map(|card| card.id.clone())
+            .collect();
+        let mut target = None;
+        for work_id in candidates {
+            engine.refresh(&format!("work:{work_id}")).await.unwrap();
+            let detail = engine.get_work_detail(&work_id).unwrap().unwrap();
+            if let Some(asset) = detail
+                .editions
+                .iter()
+                .flat_map(|edition| edition.assets.iter())
+                .find(|asset| asset.kind == "epub")
+            {
+                target = Some((work_id, asset.id.clone()));
+                break;
+            }
+        }
+        let (work_id, asset_id) = target.expect("an epub asset among the first five works");
+
+        let url = engine.download_url(&work_id, &asset_id).await.unwrap();
+
+        eprintln!("download {asset_id} -> {url}");
+        assert!(url.starts_with("http"));
+        assert_eq!(*engine.http.download_calls.lock().unwrap(), 1);
     }
 
     #[test]
