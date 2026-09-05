@@ -278,7 +278,7 @@ describe('readerStore', () => {
     beforeEach(() => {
       mockTrackEvent.mockClear();
       useBookDataStore.setState({
-        booksData: { book1: { isFixedLayout: false, config: {} } },
+        booksData: { book1: { isFixedLayout: false, config: { updatedAt: 0 } } as never },
       });
       seedViewState('book1-1');
     });
