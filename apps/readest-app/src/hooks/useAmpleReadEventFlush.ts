@@ -10,11 +10,6 @@ const flushQuietly = () => {
   });
 };
 
-/// Pushes queued AmpleRead events when the app leaves the foreground or is
-/// about to quit. Backgrounding rides the existing window-active hook
-/// (visibilitychange on web/mobile, window focus on desktop); quitting rides
-/// the quit-app event that tauriQuitApp already dispatches. On the web
-/// passthrough flushEvents is a no-op, so this costs nothing there.
 export const useAmpleReadEventFlush = () => {
   useWindowActiveChanged(
     useCallback((isActive: boolean) => {

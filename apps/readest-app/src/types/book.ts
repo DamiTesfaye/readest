@@ -129,7 +129,6 @@ export interface Book {
   primaryLanguage?: string;
 
   metadata?: BookMetadata;
-  // Set when the file came from the AmpleRead catalog; local-only, not synced.
   ampleread?: AmpleReadProvenance;
 }
 

@@ -21,11 +21,6 @@ export interface DownloadEditionParams {
   edition: EditionView;
 }
 
-/// Resolves the edition's download URL and hands it to the shared
-/// download-and-import path, stamping the book with its AmpleRead origin
-/// and recording download + save. Returns null when nothing was imported
-/// (no asset, or the web passthrough, which only opens the route).
-/// A not-found rejection from getDownloadUrl propagates to the caller.
 export const downloadEdition = async ({
   appService,
   workId,

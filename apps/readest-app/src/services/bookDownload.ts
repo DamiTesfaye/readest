@@ -11,16 +11,12 @@ export type DownloadProgress = (progress: { progress: number; total: number }) =
 
 export interface DownloadAndImportParams {
   appService: AppService;
-  /** Canonical source URL; names the cached file. */
   url: string;
-  /** What to actually fetch (a proxied form of `url`); defaults to `url`. */
   downloadUrl?: string;
   headers?: Record<string, string>;
   mediaType?: string;
   onProgress?: DownloadProgress;
-  /** Pure replacement for the imported book, applied before the library is persisted. */
   decorate?: (book: Book) => Book;
-  /** Side effects that need the imported book before the library is persisted. */
   onImported?: (book: Book) => Promise<void> | void;
 }
 
