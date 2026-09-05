@@ -735,6 +735,7 @@ mod tests {
             },
             features: serde_json::json!({}),
             endpoints: serde_json::json!({}),
+            install_token: None,
         }
     }
 
