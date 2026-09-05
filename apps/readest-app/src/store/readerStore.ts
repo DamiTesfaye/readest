@@ -27,6 +27,7 @@ import { BookData, useBookDataStore } from './bookDataStore';
 import { useLibraryStore } from './libraryStore';
 import { clearBookProgress, getBookProgress, setBookProgress } from './readerProgressStore';
 import { uniqueId } from '@/utils/misc';
+import { trackEvent } from '@/services/ampleread';
 
 interface ViewState {
   /* Unique key for each book view */
@@ -397,6 +398,9 @@ export const useReaderStore = create<ReaderStore>((set, get) => ({
       }
       if (progressPercentage >= 100 && existingBook.readingStatus !== 'finished') {
         newReadingStatus = 'finished';
+        if (existingBook.ampleread) {
+          void trackEvent({ kind: 'finish', ...existingBook.ampleread });
+        }
       }
       updateBookProgress(id, progress, newReadingStatus);
     }

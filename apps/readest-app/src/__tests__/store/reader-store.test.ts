@@ -55,6 +55,10 @@ vi.mock('@/services/constants', () => ({
 vi.mock('@/libs/document', () => ({
   DocumentLoader: vi.fn(),
 }));
+vi.mock('@/services/ampleread', () => ({
+  trackEvent: vi.fn(async () => undefined),
+}));
+
 vi.mock('@/services/opds/pseStream', () => ({
   isPseStreamFileName: () => false,
   openPseStreamBook: vi.fn(),
@@ -63,6 +67,37 @@ vi.mock('@/services/opds/pseStream', () => ({
 
 import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
+import { useLibraryStore } from '@/store/libraryStore';
+import { trackEvent } from '@/services/ampleread';
+import type { Book } from '@/types/book';
+
+const mockTrackEvent = vi.mocked(trackEvent);
+
+const ampleBook = {
+  hash: 'book1',
+  title: 'A Book',
+  author: 'Someone',
+  format: 'EPUB',
+  createdAt: 1,
+  updatedAt: 1,
+  ampleread: { workId: 'work-1', editionId: 'ed-1' },
+} as Book;
+
+const setProgressTo = (key: string, current: number, total: number) => {
+  useReaderStore
+    .getState()
+    .setProgress(
+      key,
+      'loc',
+      {} as never,
+      null,
+      { current: 0, total: 1 },
+      { current, total },
+      { section: 0, total: 0 },
+      {} as Range,
+      current / total,
+    );
+};
 
 /**
  * Helper to seed a minimal ViewState in the store for a given key.
@@ -236,6 +271,52 @@ describe('readerStore', () => {
       useReaderStore.getState().setViewSettings('', { fontSize: 16 } as unknown as ViewSettings);
       // Should not throw or create new state
       expect(Object.keys(useReaderStore.getState().viewStates)).toHaveLength(0);
+    });
+  });
+
+  describe('setProgress finish event', () => {
+    beforeEach(() => {
+      mockTrackEvent.mockClear();
+      useBookDataStore.setState({
+        booksData: { book1: { isFixedLayout: false, config: {} } },
+      });
+      seedViewState('book1-1');
+    });
+
+    test('records finish once when an AmpleRead book first reaches 100%', () => {
+      const getBookByHash = vi.mocked(useLibraryStore.getState().getBookByHash);
+      getBookByHash
+        .mockReturnValueOnce({ ...ampleBook, readingStatus: undefined })
+        .mockReturnValue({ ...ampleBook, readingStatus: 'finished' });
+
+      setProgressTo('book1-1', 10, 10);
+      setProgressTo('book1-1', 10, 10);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+      expect(mockTrackEvent).toHaveBeenCalledWith({
+        kind: 'finish',
+        workId: 'work-1',
+        editionId: 'ed-1',
+      });
+    });
+
+    test('records nothing before the book is finished', () => {
+      vi.mocked(useLibraryStore.getState().getBookByHash).mockReturnValue({ ...ampleBook });
+
+      setProgressTo('book1-1', 5, 10);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    test('records nothing for a book that did not come from AmpleRead', () => {
+      vi.mocked(useLibraryStore.getState().getBookByHash).mockReturnValue({
+        ...ampleBook,
+        ampleread: undefined,
+      });
+
+      setProgressTo('book1-1', 10, 10);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
     });
   });
 
