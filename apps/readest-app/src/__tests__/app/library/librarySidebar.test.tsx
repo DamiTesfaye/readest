@@ -67,6 +67,7 @@ const renderSidebar = (overrides: Partial<React.ComponentProps<typeof LibrarySid
   const props = {
     onPullLibrary: vi.fn(),
     onOpenCatalogManager: vi.fn(),
+    onOpenExplore: vi.fn(),
     ...overrides,
   };
   render(<LibrarySidebar {...props} />);
@@ -96,6 +97,7 @@ describe('LibrarySidebar', () => {
       'Finished',
       'Collections',
       'Shared',
+      'Explore',
       'Catalogs',
       'RSS Feeds',
     ]) {
@@ -160,6 +162,42 @@ describe('LibrarySidebar', () => {
     const props = renderSidebar();
     fireEvent.click(screen.getByRole('button', { name: 'Catalogs' }));
     expect(props.onOpenCatalogManager).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists Explore in Discover above Catalogs', () => {
+    renderSidebar();
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    const discoverIndex = labels.indexOf('Explore');
+    expect(discoverIndex).toBeGreaterThan(labels.indexOf('Shared'));
+    expect(labels.indexOf('Catalogs')).toBe(discoverIndex + 1);
+  });
+
+  it('opens the Explore view from Explore', () => {
+    const props = renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
+    expect(props.onOpenExplore).toHaveBeenCalledTimes(1);
+    expect(props.onOpenCatalogManager).not.toHaveBeenCalled();
+  });
+
+  it('marks Explore active and the status items inactive in the explore view', () => {
+    searchString = 'explore=true';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Explore' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Catalogs' }).getAttribute('aria-current'),
+    ).toBeNull();
+  });
+
+  it('leaves the explore view when a library status is selected', () => {
+    searchString = 'explore=true';
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Finished' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).not.toContain('explore=');
+    expect(navigatedTo).toContain('status=finished');
   });
 
   it('marks Catalogs active and the status items inactive in the catalogs view', () => {

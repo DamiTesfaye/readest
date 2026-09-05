@@ -42,6 +42,7 @@ const PLAN_LABELS = {
 interface LibrarySidebarProps {
   onPullLibrary: () => void;
   onOpenCatalogManager: () => void;
+  onOpenExplore: () => void;
 }
 
 interface SidebarNavItemProps {
@@ -81,7 +82,11 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   </button>
 );
 
-const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCatalogManager }) => {
+const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
+  onPullLibrary,
+  onOpenCatalogManager,
+  onOpenExplore,
+}) => {
   const _ = useTranslation();
   const router = useAppRouter();
   const searchParams = useSearchParams();
@@ -95,6 +100,8 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
 
   const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
   const catalogsActive = searchParams?.get('catalogs') === 'true';
+  const exploreActive = searchParams?.get('explore') === 'true';
+  const discoverActive = catalogsActive || exploreActive;
 
   const navigateWithParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -129,7 +136,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
   useEffect(() => {
     setSearchQuery(searchParams?.get('q') ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogsActive]);
+  }, [discoverActive]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -150,8 +157,9 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
         params.set('status', status);
       }
       params.delete('group');
-      if (catalogsActive) {
+      if (discoverActive) {
         params.delete('catalogs');
+        params.delete('explore');
         params.delete('q');
       }
     });
@@ -212,21 +220,21 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
           <SidebarNavItem
             icon='library'
             label={_('All')}
-            active={!catalogsActive && statusFilter === 'all'}
+            active={!discoverActive && statusFilter === 'all'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('all')}
           />
           <SidebarNavItem
             icon='currently-reading'
             label={_('Currently Reading')}
-            active={!catalogsActive && statusFilter === 'reading'}
+            active={!discoverActive && statusFilter === 'reading'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('reading')}
           />
           <SidebarNavItem
             icon='finished-reading'
             label={_('Finished')}
-            active={!catalogsActive && statusFilter === 'finished'}
+            active={!discoverActive && statusFilter === 'finished'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('finished')}
           />
@@ -248,6 +256,13 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
           <span className='text-base-content/50 px-2 [font-family:"Avenir_Next_LT_Pro"] text-xs'>
             {_('Discover')}
           </span>
+          <SidebarNavItem
+            icon='explore'
+            label={_('Explore')}
+            active={exploreActive}
+            isDarkMode={isDarkMode}
+            onClick={onOpenExplore}
+          />
           <SidebarNavItem
             icon='catalogs'
             label={_('Catalogs')}
