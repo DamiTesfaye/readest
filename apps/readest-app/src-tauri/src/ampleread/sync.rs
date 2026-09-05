@@ -18,6 +18,8 @@ const META_BOOTSTRAP_JITTER_S: &str = "bootstrap_jitter_s";
 const META_CATALOG_VERSION: &str = "catalog_version";
 const META_CHANGE_CURSOR: &str = "change_cursor";
 const META_TERRITORY: &str = "territory";
+const META_INSTALL_TOKEN: &str = "install_token";
+const INSTALL_HEADER: &str = "X-Ampleread-Install";
 
 /// Base URL for the AmpleRead catalog API. Overridable via the
 /// `AMPLEREAD_API_BASE` environment variable for staging/dev backends.
@@ -42,7 +44,10 @@ pub enum FetchResult<T> {
 }
 
 pub trait CatalogHttp {
-    async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError>;
+    async fn get_bootstrap(
+        &self,
+        install_token: Option<&str>,
+    ) -> Result<BootstrapResponse, SyncError>;
     async fn get_explore(
         &self,
         etag: Option<&str>,
@@ -111,11 +116,16 @@ impl ReqwestCatalogHttp {
 }
 
 impl CatalogHttp for ReqwestCatalogHttp {
-    async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
+    async fn get_bootstrap(
+        &self,
+        install_token: Option<&str>,
+    ) -> Result<BootstrapResponse, SyncError> {
         let url = format!("{}/v1/bootstrap", self.base_url);
-        let response = self
-            .client
-            .get(url)
+        let mut request = self.client.get(url);
+        if let Some(token) = install_token {
+            request = request.header(INSTALL_HEADER, token);
+        }
+        let response = request
             .send()
             .await
             .map_err(|e| SyncError::Http(e.to_string()))?
@@ -267,6 +277,11 @@ impl<H: CatalogHttp> SyncEngine<H> {
         Ok(store.set_meta(key, &value.to_string())?)
     }
 
+    fn install_token(&self) -> Result<Option<String>, SyncError> {
+        let store = self.store.lock().unwrap();
+        Ok(store.get_meta(META_INSTALL_TOKEN)?)
+    }
+
     /// The territory tag from the most recent bootstrap response, if any has
     /// run yet. Threaded into work-detail requests as `?t=` so per-edition
     /// capabilities reflect the caller's actual territory.
@@ -308,8 +323,13 @@ impl<H: CatalogHttp> SyncEngine<H> {
             return Ok(BootstrapOutcome::NotDue);
         };
 
-        let response = self.http.get_bootstrap().await?;
+        let install_token = self.install_token()?;
+        let response = self.http.get_bootstrap(install_token.as_deref()).await?;
 
+        if let Some(token) = &response.install_token {
+            let store = self.store.lock().unwrap();
+            store.set_meta(META_INSTALL_TOKEN, token)?;
+        }
         self.meta_set_i64(META_BOOTSTRAP_LAST_AT, now_secs())?;
         self.meta_set_i64(META_BOOTSTRAP_TTL_S, response.ttl.bootstrap_s as i64)?;
         self.meta_set_i64(META_BOOTSTRAP_JITTER_S, response.refresh.jitter_s as i64)?;
@@ -594,12 +614,43 @@ mod tests {
         // tests can assert the stored bootstrap territory is actually
         // threaded into work-detail requests.
         last_work_detail_territory: StdMutex<Option<String>>,
+        // The X-Ampleread-Install value sent on each bootstrap, in order.
+        bootstrap_tokens: StdMutex<Vec<Option<String>>>,
+        // Tokens the mock server mints, in order, whenever a bootstrap
+        // arrives without a token it has minted before.
+        mint_queue: StdMutex<Vec<String>>,
+        known_tokens: StdMutex<HashSet<String>>,
+    }
+
+    impl MockHttp {
+        fn mint_for(&self, presented: Option<&str>) -> Option<String> {
+            let mut known = self.known_tokens.lock().unwrap();
+            if presented.is_some_and(|token| known.contains(token)) {
+                return None;
+            }
+            let mut queue = self.mint_queue.lock().unwrap();
+            if queue.is_empty() {
+                return None;
+            }
+            let token = queue.remove(0);
+            known.insert(token.clone());
+            Some(token)
+        }
     }
 
     impl CatalogHttp for MockHttp {
-        async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
+        async fn get_bootstrap(
+            &self,
+            install_token: Option<&str>,
+        ) -> Result<BootstrapResponse, SyncError> {
             self.counts.lock().unwrap().bootstrap += 1;
-            Ok(self.bootstrap.clone())
+            self.bootstrap_tokens
+                .lock()
+                .unwrap()
+                .push(install_token.map(str::to_string));
+            let mut response = self.bootstrap.clone();
+            response.install_token = self.mint_for(install_token);
+            Ok(response)
         }
 
         async fn get_explore(
@@ -645,7 +696,10 @@ mod tests {
     }
 
     impl CatalogHttp for FailingHttp {
-        async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
+        async fn get_bootstrap(
+            &self,
+            _install_token: Option<&str>,
+        ) -> Result<BootstrapResponse, SyncError> {
             *self.bootstrap_calls.lock().unwrap() += 1;
             Err(SyncError::Http("boom".to_string()))
         }
@@ -685,7 +739,10 @@ mod tests {
     }
 
     impl CatalogHttp for ChangesFailingHttp {
-        async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
+        async fn get_bootstrap(
+            &self,
+            _install_token: Option<&str>,
+        ) -> Result<BootstrapResponse, SyncError> {
             *self.bootstrap_calls.lock().unwrap() += 1;
             Ok(self.bootstrap.clone())
         }
@@ -839,6 +896,24 @@ mod tests {
         engine.store.lock().unwrap().get_meta(key).unwrap()
     }
 
+    fn mock_parts() -> MockHttp {
+        MockHttp {
+            bootstrap: sample_bootstrap(0),
+            explore: FetchResult::NotModified,
+            work_detail: HashMap::new(),
+            changes: vec![],
+            counts: StdMutex::new(Counts::default()),
+            last_work_detail_territory: StdMutex::new(None),
+            bootstrap_tokens: StdMutex::new(Vec::new()),
+            mint_queue: StdMutex::new(vec![
+                "tok-1".to_string(),
+                "tok-2".to_string(),
+                "tok-3".to_string(),
+            ]),
+            known_tokens: StdMutex::new(HashSet::new()),
+        }
+    }
+
     fn mock_http(
         catalog_version: i64,
         explore: FetchResult<ExploreResponse>,
@@ -847,15 +922,42 @@ mod tests {
         MockHttp {
             bootstrap: sample_bootstrap(catalog_version),
             explore,
-            work_detail: HashMap::new(),
             changes,
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         }
     }
 
     fn changes_calls(engine: &SyncEngine<MockHttp>) -> Vec<(i64, Option<String>)> {
         engine.http.counts.lock().unwrap().changes_calls.clone()
+    }
+
+    #[tokio::test]
+    async fn first_bootstrap_persists_the_minted_install_token_once() {
+        let store = Store::open_in_memory().unwrap();
+        let engine = SyncEngine::new(
+            mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
+            store,
+        );
+
+        engine.sync().await.unwrap();
+        assert_eq!(
+            stored_meta(&engine, META_INSTALL_TOKEN).as_deref(),
+            Some("tok-1")
+        );
+
+        {
+            let store = engine.store.lock().unwrap();
+            store.set_meta(META_BOOTSTRAP_LAST_AT, "0").unwrap();
+        }
+        engine.sync().await.unwrap();
+
+        let sent = engine.http.bootstrap_tokens.lock().unwrap().clone();
+        assert_eq!(sent, vec![None, Some("tok-1".to_string())]);
+        assert_eq!(
+            stored_meta(&engine, META_INSTALL_TOKEN).as_deref(),
+            Some("tok-1"),
+            "a bootstrap that mints nothing must not clear the stored token"
+        );
     }
 
     #[tokio::test]
@@ -868,8 +970,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -897,8 +998,7 @@ mod tests {
             },
             work_detail: HashMap::new(),
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -935,8 +1035,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -978,8 +1077,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -1018,8 +1116,7 @@ mod tests {
                 }],
                 next_cursor: None,
             }],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -1119,8 +1216,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -1149,8 +1245,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail,
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -1180,8 +1275,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail: HashMap::new(),
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -1212,8 +1306,7 @@ mod tests {
             explore: FetchResult::NotModified,
             work_detail,
             changes: vec![no_op_changes()],
-            counts: StdMutex::new(Counts::default()),
-            last_work_detail_territory: StdMutex::new(None),
+            ..mock_parts()
         };
         let engine = SyncEngine::new(http, store);
 
@@ -1472,8 +1565,11 @@ mod tests {
     }
 
     impl<H: CatalogHttp> CatalogHttp for RecordingHttp<H> {
-        async fn get_bootstrap(&self) -> Result<BootstrapResponse, SyncError> {
-            let response = self.inner.get_bootstrap().await?;
+        async fn get_bootstrap(
+            &self,
+            install_token: Option<&str>,
+        ) -> Result<BootstrapResponse, SyncError> {
+            let response = self.inner.get_bootstrap(install_token).await?;
             *self.catalog_version.lock().unwrap() = Some(response.catalog_version);
             Ok(response)
         }
