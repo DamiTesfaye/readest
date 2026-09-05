@@ -22,6 +22,7 @@ const META_CATALOG_VERSION: &str = "catalog_version";
 const META_CHANGE_CURSOR: &str = "change_cursor";
 const META_TERRITORY: &str = "territory";
 const META_INSTALL_TOKEN: &str = "install_token";
+const META_API_BASE: &str = "api_base";
 const INSTALL_HEADER: &str = "X-Ampleread-Install";
 const SCOPE_EVENTS: &str = "events";
 pub const MAX_EVENTS_PER_BATCH: usize = 100;
@@ -300,6 +301,40 @@ impl<H: CatalogHttp> SyncEngine<H> {
             store: Mutex::new(store),
             in_flight: Mutex::new(HashSet::new()),
         }
+    }
+
+    /// Opens the engine over a mirror keyed by API base. A mirror built
+    /// against another base (or an unkeyed one from an older build) is
+    /// wiped, together with the install token and queued events that only
+    /// mean something to the server that minted them.
+    pub fn for_api_base(http: H, store: Store, base: &str) -> Result<Self, SyncError> {
+        let engine = Self::new(http, store);
+        let stored = {
+            let store = engine.store.lock().unwrap();
+            store.get_meta(META_API_BASE)?
+        };
+        if stored.as_deref() != Some(base) {
+            log::info!(
+                "ampleread: mirror keyed to {stored:?}, now {base:?}; resetting to a fresh install"
+            );
+            engine.reset_catalog()?;
+            let mut store = engine.store.lock().unwrap();
+            store.clear_pending_events()?;
+            store.delete_meta(META_INSTALL_TOKEN)?;
+            store.delete_meta(META_BOOTSTRAP_LAST_AT)?;
+            store.set_meta(META_API_BASE, base)?;
+        }
+        Ok(engine)
+    }
+
+    /// Drops every catalog row and the version/cursor pair so the next
+    /// cascade takes the fresh-install path (`since=0`).
+    fn reset_catalog(&self) -> Result<(), SyncError> {
+        let mut store = self.store.lock().unwrap();
+        store.clear_catalog()?;
+        store.delete_meta(META_CATALOG_VERSION)?;
+        store.delete_meta(META_CHANGE_CURSOR)?;
+        Ok(())
     }
 
     /// Single-flight guard for a resource key. Returns `None` when a fetch
@@ -639,6 +674,16 @@ impl<H: CatalogHttp> SyncEngine<H> {
         match self.maybe_bootstrap().await? {
             BootstrapOutcome::NotDue | BootstrapOutcome::Unchanged => Ok(()),
             BootstrapOutcome::Changed { new_version } => {
+                // A version below the stored `until` is not an older
+                // snapshot of the same catalog but a different catalog
+                // (ids differ), so the mirror starts over from since=0.
+                let stored_until = self.meta_get_i64(META_CHANGE_CURSOR)?;
+                if stored_until.is_some_and(|until| new_version < until) {
+                    log::info!(
+                        "ampleread: catalogVersion {new_version} is below the stored until {stored_until:?}; resetting the mirror"
+                    );
+                    self.reset_catalog()?;
+                }
                 // Only commit the new catalog version once the cascade it
                 // gates has actually finished successfully — a failure here
                 // (the `?`) leaves META_CATALOG_VERSION at its old value, so
@@ -1309,6 +1354,112 @@ mod tests {
 
         assert_eq!(posted_batches(&engine), vec![("tok-1".to_string(), 1)]);
         assert_eq!(pending_event_count(&engine), 0);
+    }
+
+    fn seed_version_4_mirror(store: &mut Store) {
+        store
+            .replace_shelves(&[shelf_with_works("old-shelf", &["work_old"])])
+            .unwrap();
+        store
+            .upsert_work_detail("work_old", &sample_work_detail("work_old"), "etag-old")
+            .unwrap();
+        store.set_meta(META_CATALOG_VERSION, "4").unwrap();
+        store.set_meta(META_CHANGE_CURSOR, "4").unwrap();
+        store.set_meta(META_INSTALL_TOKEN, "tok-old").unwrap();
+    }
+
+    #[tokio::test]
+    async fn catalog_version_below_the_stored_until_resets_to_the_fresh_install_path() {
+        let mut store = Store::open_in_memory().unwrap();
+        seed_version_4_mirror(&mut store);
+        let explore = FetchResult::Fresh {
+            body: ExploreResponse {
+                shelves: vec![shelf_with_works("new-shelf", &["work_new"])],
+            },
+            etag: Some("etag-new".to_string()),
+        };
+        let compacted = ChangesResponse {
+            since: 0,
+            until: 1,
+            compacted: true,
+            ops: vec![],
+            next_cursor: None,
+        };
+        let engine = SyncEngine::new(mock_http(1, explore, vec![compacted]), store);
+
+        engine.sync().await.unwrap();
+
+        assert_eq!(changes_calls(&engine), vec![(0, None)]);
+        assert_eq!(
+            engine.http.counts.lock().unwrap().work_detail,
+            0,
+            "held works from the old catalog must not be revalidated"
+        );
+        assert!(engine.get_work_detail("work_old").unwrap().is_none());
+        let shelves = engine.get_explore().unwrap();
+        let ids: Vec<&str> = shelves.iter().map(|shelf| shelf.id.as_str()).collect();
+        assert_eq!(ids, vec!["new-shelf"]);
+        assert_eq!(
+            stored_meta(&engine, META_CHANGE_CURSOR).as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("1")
+        );
+    }
+
+    #[tokio::test]
+    async fn mirror_keyed_to_another_api_base_is_reset_when_the_engine_opens() {
+        let mut store = Store::open_in_memory().unwrap();
+        seed_version_4_mirror(&mut store);
+        store.set_meta(META_API_BASE, "http://127.0.0.1:8080").unwrap();
+        store.enqueue_event("{}").unwrap();
+
+        let engine = SyncEngine::for_api_base(
+            mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
+            store,
+            "https://api.ampleread.com",
+        )
+        .unwrap();
+
+        assert!(engine.get_explore().unwrap().is_empty());
+        assert!(engine.get_work_detail("work_old").unwrap().is_none());
+        assert_eq!(stored_meta(&engine, META_CATALOG_VERSION), None);
+        assert_eq!(stored_meta(&engine, META_CHANGE_CURSOR), None);
+        assert_eq!(
+            stored_meta(&engine, META_INSTALL_TOKEN),
+            None,
+            "an install token belongs to the server that minted it"
+        );
+        assert_eq!(pending_event_count(&engine), 0);
+        assert_eq!(
+            stored_meta(&engine, META_API_BASE).as_deref(),
+            Some("https://api.ampleread.com")
+        );
+
+        engine.sync().await.unwrap();
+        assert_eq!(changes_calls(&engine), vec![(0, None)]);
+    }
+
+    #[tokio::test]
+    async fn mirror_keyed_to_the_same_api_base_is_kept() {
+        let mut store = Store::open_in_memory().unwrap();
+        seed_version_4_mirror(&mut store);
+        store.set_meta(META_API_BASE, "https://api.ampleread.com").unwrap();
+
+        let engine = SyncEngine::for_api_base(
+            mock_http(4, FetchResult::NotModified, vec![no_op_changes()]),
+            store,
+            "https://api.ampleread.com",
+        )
+        .unwrap();
+
+        assert_eq!(engine.get_explore().unwrap().len(), 1);
+        assert_eq!(
+            stored_meta(&engine, META_INSTALL_TOKEN).as_deref(),
+            Some("tok-old")
+        );
     }
 
     #[tokio::test]

@@ -163,6 +163,30 @@ impl Store {
         Ok(())
     }
 
+    pub fn delete_meta(&self, key: &str) -> rusqlite::Result<()> {
+        self.conn
+            .execute("DELETE FROM meta WHERE key = ?1", params![key])?;
+        Ok(())
+    }
+
+    /// Empties every catalog table and the per-scope sync state. Meta,
+    /// covers on disk, and queued events are the caller's business.
+    pub fn clear_catalog(&mut self) -> rusqlite::Result<()> {
+        self.conn.execute_batch(
+            "DELETE FROM shelf_items;
+             DELETE FROM shelves;
+             DELETE FROM works;
+             DELETE FROM work_details;
+             DELETE FROM covers;
+             DELETE FROM search_fts;
+             DELETE FROM sync_state;",
+        )
+    }
+
+    pub fn clear_pending_events(&mut self) -> rusqlite::Result<()> {
+        self.conn.execute_batch("DELETE FROM pending_events;")
+    }
+
     pub fn get_meta(&self, key: &str) -> rusqlite::Result<Option<String>> {
         self.conn
             .query_row(

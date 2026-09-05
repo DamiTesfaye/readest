@@ -452,8 +452,15 @@ pub fn run() {
                 let db_path = data_dir.join("ampleread.sqlite");
                 let engine = match Store::open(&db_path) {
                     Ok(store) => {
-                        let http = ReqwestCatalogHttp::new(api_base());
-                        Some(SyncEngine::new(http, store))
+                        let base = api_base();
+                        let http = ReqwestCatalogHttp::new(base.clone());
+                        match SyncEngine::for_api_base(http, store, &base) {
+                            Ok(engine) => Some(engine),
+                            Err(e) => {
+                                log::error!("Failed to key ampleread mirror to {base}: {e}");
+                                None
+                            }
+                        }
                     }
                     Err(e) => {
                         log::error!("Failed to open ampleread store: {e}");
