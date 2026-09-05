@@ -15,6 +15,7 @@ dependencies = [
  "ampleread-types",
  "base64 0.22.1",
  "block",
+ "chrono",
  "cocoa",
  "discord-rich-presence",
  "futures",

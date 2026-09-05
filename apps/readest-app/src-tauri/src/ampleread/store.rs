@@ -384,6 +384,37 @@ impl Store {
         Ok(())
     }
 
+    pub fn enqueue_event(&self, payload_json: &str) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO pending_events (payload_json, created_at) VALUES (?1, ?2)",
+            params![payload_json, now_secs()],
+        )?;
+        Ok(())
+    }
+
+    pub fn pending_events(&self, limit: usize) -> rusqlite::Result<Vec<(i64, String)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, payload_json FROM pending_events ORDER BY id ASC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+        rows.collect()
+    }
+
+    pub fn pending_event_count(&self) -> rusqlite::Result<i64> {
+        self.conn
+            .query_row("SELECT COUNT(*) FROM pending_events", [], |row| row.get(0))
+    }
+
+    pub fn delete_events(&mut self, ids: &[i64]) -> rusqlite::Result<()> {
+        let tx = self.conn.transaction()?;
+        for id in ids {
+            tx.execute("DELETE FROM pending_events WHERE id = ?1", params![id])?;
+        }
+        tx.commit()
+    }
+
     pub fn work_detail_ids(&self) -> rusqlite::Result<Vec<String>> {
         let mut stmt = self.conn.prepare("SELECT id FROM work_details")?;
         let ids = stmt.query_map([], |row| row.get::<_, String>(0))?;

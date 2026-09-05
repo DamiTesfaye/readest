@@ -4,7 +4,10 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ampleread_types::{BootstrapResponse, ChangesResponse, ExploreResponse, Shelf, WorkDetail};
+use ampleread_types::{
+    BootstrapResponse, ChangesResponse, EventBatch, EventIn, EventsAccepted, ExploreResponse,
+    Shelf, WorkDetail,
+};
 
 use super::store::Store;
 
@@ -20,6 +23,8 @@ const META_CHANGE_CURSOR: &str = "change_cursor";
 const META_TERRITORY: &str = "territory";
 const META_INSTALL_TOKEN: &str = "install_token";
 const INSTALL_HEADER: &str = "X-Ampleread-Install";
+const SCOPE_EVENTS: &str = "events";
+pub const MAX_EVENTS_PER_BATCH: usize = 100;
 
 /// Base URL for the AmpleRead catalog API. Overridable via the
 /// `AMPLEREAD_API_BASE` environment variable for staging/dev backends.
@@ -35,6 +40,15 @@ pub enum SyncError {
     Protocol(String),
     #[error("store error: {0}")]
     Store(#[from] rusqlite::Error),
+}
+
+/// How `POST /v1/events` answered. Transport failures and unexpected
+/// statuses are `SyncError`s; these three are the contract's own answers.
+#[derive(Debug, Clone, PartialEq)]
+pub enum EventsOutcome {
+    Accepted(u32),
+    Unauthorized,
+    Rejected,
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +77,11 @@ pub trait CatalogHttp {
         since: i64,
         cursor: Option<&str>,
     ) -> Result<ChangesResponse, SyncError>;
+    async fn post_events(
+        &self,
+        install_token: &str,
+        batch: &EventBatch,
+    ) -> Result<EventsOutcome, SyncError>;
 }
 
 pub struct ReqwestCatalogHttp {
@@ -183,6 +202,34 @@ impl CatalogHttp for ReqwestCatalogHttp {
             .await
             .map_err(|e| SyncError::Http(e.to_string()))
     }
+
+    async fn post_events(
+        &self,
+        install_token: &str,
+        batch: &EventBatch,
+    ) -> Result<EventsOutcome, SyncError> {
+        let url = format!("{}/v1/events", self.base_url);
+        let response = self
+            .client
+            .post(url)
+            .header(INSTALL_HEADER, install_token)
+            .json(batch)
+            .send()
+            .await
+            .map_err(|e| SyncError::Http(e.to_string()))?;
+        match response.status() {
+            reqwest::StatusCode::UNAUTHORIZED => Ok(EventsOutcome::Unauthorized),
+            reqwest::StatusCode::BAD_REQUEST => Ok(EventsOutcome::Rejected),
+            status if status.is_success() => {
+                let accepted = response
+                    .json::<EventsAccepted>()
+                    .await
+                    .map_err(|e| SyncError::Http(e.to_string()))?;
+                Ok(EventsOutcome::Accepted(accepted.accepted))
+            }
+            status => Err(SyncError::Http(format!("events: unexpected status {status}"))),
+        }
+    }
 }
 
 fn now_secs() -> i64 {
@@ -200,6 +247,10 @@ fn jitter_for(seed: i64, jitter_s: i64) -> i64 {
         return 0;
     }
     (seed.unsigned_abs() % jitter_s as u64) as i64
+}
+
+fn now_rfc3339() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
 fn work_scope(id: &str) -> String {
@@ -462,10 +513,129 @@ impl<H: CatalogHttp> SyncEngine<H> {
         }
     }
 
+    /// Queues one client event (`open`, `save`, `download`, `finish`) for
+    /// the next flush. Never touches the network.
+    pub fn record_event(
+        &self,
+        kind: &str,
+        work_id: Option<&str>,
+        edition_id: Option<&str>,
+        props: Option<serde_json::Value>,
+    ) -> Result<(), SyncError> {
+        let event = EventIn {
+            kind: kind.to_string(),
+            work_id: work_id.map(str::to_string),
+            edition_id: edition_id.map(str::to_string),
+            ts: now_rfc3339(),
+            props,
+        };
+        let payload = serde_json::to_string(&event)
+            .map_err(|e| SyncError::Protocol(format!("event serialization: {e}")))?;
+        let store = self.store.lock().unwrap();
+        Ok(store.enqueue_event(&payload)?)
+    }
+
+    /// Forces a bootstrap with no token so the server mints a fresh one.
+    /// Leaves the bootstrap cadence alone: only the token is persisted.
+    async fn remint_install_token(&self) -> Result<String, SyncError> {
+        let response = self.http.get_bootstrap(None).await?;
+        let Some(token) = response.install_token else {
+            return Err(SyncError::Protocol(
+                "bootstrap did not mint an install token".to_string(),
+            ));
+        };
+        let store = self.store.lock().unwrap();
+        store.set_meta(META_INSTALL_TOKEN, &token)?;
+        Ok(token)
+    }
+
+    async fn ensure_install_token(&self) -> Result<String, SyncError> {
+        match self.install_token()? {
+            Some(token) => Ok(token),
+            None => self.remint_install_token().await,
+        }
+    }
+
+    fn take_pending_batch(&self) -> Result<(Vec<i64>, Vec<EventIn>), SyncError> {
+        let store = self.store.lock().unwrap();
+        let rows = store.pending_events(MAX_EVENTS_PER_BATCH)?;
+        let mut ids = Vec::with_capacity(rows.len());
+        let mut events = Vec::with_capacity(rows.len());
+        for (id, payload) in rows {
+            let event: EventIn = serde_json::from_str(&payload)
+                .map_err(|e| SyncError::Protocol(format!("pending event {id}: {e}")))?;
+            ids.push(id);
+            events.push(event);
+        }
+        Ok((ids, events))
+    }
+
+    fn delete_pending(&self, ids: &[i64]) -> Result<(), SyncError> {
+        let mut store = self.store.lock().unwrap();
+        Ok(store.delete_events(ids)?)
+    }
+
+    async fn post_batch(&self, batch: &EventBatch) -> Result<EventsOutcome, SyncError> {
+        let token = self.ensure_install_token().await?;
+        match self.http.post_events(&token, batch).await? {
+            EventsOutcome::Unauthorized => {
+                let token = self.remint_install_token().await?;
+                self.http.post_events(&token, batch).await
+            }
+            outcome => Ok(outcome),
+        }
+    }
+
+    /// Posts queued events in batches of at most `MAX_EVENTS_PER_BATCH`
+    /// until the queue is empty. A 401 re-bootstraps for a new token and
+    /// retries that batch once; a 400 means the batch can never succeed,
+    /// so it is dropped whole and reported. Returns the accepted count.
+    pub async fn flush_events(&self) -> Result<u32, SyncError> {
+        let Some(_guard) = self.try_acquire(SCOPE_EVENTS) else {
+            return Ok(0);
+        };
+        let mut accepted = 0;
+        loop {
+            let (ids, events) = self.take_pending_batch()?;
+            if ids.is_empty() {
+                return Ok(accepted);
+            }
+            let batch = EventBatch { events };
+            match self.post_batch(&batch).await? {
+                EventsOutcome::Accepted(count) => {
+                    self.delete_pending(&ids)?;
+                    accepted += count;
+                }
+                EventsOutcome::Unauthorized => {
+                    return Err(SyncError::Http(
+                        "events: re-minted install token was still rejected".to_string(),
+                    ));
+                }
+                EventsOutcome::Rejected => {
+                    self.delete_pending(&ids)?;
+                    return Err(SyncError::Protocol(format!(
+                        "events: batch of {} rejected as malformed and dropped",
+                        ids.len()
+                    )));
+                }
+            }
+        }
+    }
+
     /// The version-gated sync loop: bootstrap (only when due), and only when
     /// the catalog version actually changed does it fetch changes and
     /// revalidate. An unchanged version issues zero further requests.
+    /// Queued events are flushed afterwards; a flush failure is logged and
+    /// never fails the catalog sync.
     pub async fn sync(&self) -> Result<(), SyncError> {
+        self.sync_catalog().await?;
+        if let Err(e) = self.flush_events().await {
+            log::warn!("ampleread: event flush failed: {e}");
+        }
+        Ok(())
+    }
+
+    async fn sync_catalog(&self) -> Result<(), SyncError> {
         match self.maybe_bootstrap().await? {
             BootstrapOutcome::NotDue | BootstrapOutcome::Unchanged => Ok(()),
             BootstrapOutcome::Changed { new_version } => {
@@ -620,6 +790,12 @@ mod tests {
         // arrives without a token it has minted before.
         mint_queue: StdMutex<Vec<String>>,
         known_tokens: StdMutex<HashSet<String>>,
+        // (token, batch) for every POST /v1/events, in order.
+        events_posted: StdMutex<Vec<(String, EventBatch)>>,
+        // Scripted outcomes, consumed front to back; an exhausted script
+        // accepts the batch. `Unauthorized` also forgets the presented
+        // token, the way a pruned install would.
+        events_outcomes: StdMutex<Vec<EventsOutcome>>,
     }
 
     impl MockHttp {
@@ -689,6 +865,26 @@ mod tests {
                 .push((since, cursor.map(str::to_string)));
             page.ok_or_else(|| SyncError::Http("no more change pages".to_string()))
         }
+
+        async fn post_events(
+            &self,
+            install_token: &str,
+            batch: &EventBatch,
+        ) -> Result<EventsOutcome, SyncError> {
+            self.events_posted
+                .lock()
+                .unwrap()
+                .push((install_token.to_string(), batch.clone()));
+            let mut outcomes = self.events_outcomes.lock().unwrap();
+            if outcomes.is_empty() {
+                return Ok(EventsOutcome::Accepted(batch.events.len() as u32));
+            }
+            let outcome = outcomes.remove(0);
+            if matches!(outcome, EventsOutcome::Unauthorized) {
+                self.known_tokens.lock().unwrap().remove(install_token);
+            }
+            Ok(outcome)
+        }
     }
 
     struct FailingHttp {
@@ -726,6 +922,14 @@ mod tests {
             _cursor: Option<&str>,
         ) -> Result<ChangesResponse, SyncError> {
             unreachable!("bootstrap fails before changes are ever fetched")
+        }
+
+        async fn post_events(
+            &self,
+            _install_token: &str,
+            _batch: &EventBatch,
+        ) -> Result<EventsOutcome, SyncError> {
+            unreachable!("bootstrap fails before any event is ever posted")
         }
     }
 
@@ -770,6 +974,14 @@ mod tests {
         ) -> Result<ChangesResponse, SyncError> {
             *self.changes_calls.lock().unwrap() += 1;
             Err(SyncError::Http("changes fetch boom".to_string()))
+        }
+
+        async fn post_events(
+            &self,
+            _install_token: &str,
+            _batch: &EventBatch,
+        ) -> Result<EventsOutcome, SyncError> {
+            unreachable!("get_changes fails before any event is ever posted")
         }
     }
 
@@ -911,7 +1123,24 @@ mod tests {
                 "tok-3".to_string(),
             ]),
             known_tokens: StdMutex::new(HashSet::new()),
+            events_posted: StdMutex::new(Vec::new()),
+            events_outcomes: StdMutex::new(Vec::new()),
         }
+    }
+
+    fn posted_batches(engine: &SyncEngine<MockHttp>) -> Vec<(String, usize)> {
+        engine
+            .http
+            .events_posted
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(token, batch)| (token.clone(), batch.events.len()))
+            .collect()
+    }
+
+    fn pending_event_count<H: CatalogHttp>(engine: &SyncEngine<H>) -> i64 {
+        engine.store.lock().unwrap().pending_event_count().unwrap()
     }
 
     fn mock_http(
@@ -958,6 +1187,128 @@ mod tests {
             Some("tok-1"),
             "a bootstrap that mints nothing must not clear the stored token"
         );
+    }
+
+    #[tokio::test]
+    async fn recorded_events_flush_in_batches_of_100_with_the_install_header() {
+        let engine = SyncEngine::new(
+            mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
+            Store::open_in_memory().unwrap(),
+        );
+        engine.sync().await.unwrap();
+        for n in 0..150 {
+            engine
+                .record_event("open", Some(&format!("work_{n}")), None, None)
+                .unwrap();
+        }
+
+        let accepted = engine.flush_events().await.unwrap();
+
+        assert_eq!(accepted, 150);
+        assert_eq!(
+            posted_batches(&engine),
+            vec![("tok-1".to_string(), 100), ("tok-1".to_string(), 50)]
+        );
+        let posted = engine.http.events_posted.lock().unwrap();
+        let first = &posted[0].1.events[0];
+        assert_eq!(first.kind, "open");
+        assert_eq!(first.work_id.as_deref(), Some("work_0"));
+        assert_eq!(first.edition_id, None);
+        assert!(
+            first.ts.len() == 20 && first.ts.ends_with('Z') && first.ts.contains('T'),
+            "ts must be RFC 3339 UTC seconds, got {:?}",
+            first.ts
+        );
+        assert_eq!(posted[1].1.events[0].work_id.as_deref(), Some("work_100"));
+        drop(posted);
+        assert_eq!(pending_event_count(&engine), 0);
+    }
+
+    #[tokio::test]
+    async fn events_401_re_bootstraps_for_a_new_token_and_retries_once() {
+        let http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        *http.events_outcomes.lock().unwrap() = vec![EventsOutcome::Unauthorized];
+        let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
+        engine.sync().await.unwrap();
+        engine.record_event("finish", Some("work_1"), None, None).unwrap();
+
+        let accepted = engine.flush_events().await.unwrap();
+
+        assert_eq!(accepted, 1);
+        assert_eq!(
+            posted_batches(&engine),
+            vec![("tok-1".to_string(), 1), ("tok-2".to_string(), 1)]
+        );
+        assert_eq!(
+            stored_meta(&engine, META_INSTALL_TOKEN).as_deref(),
+            Some("tok-2")
+        );
+        assert_eq!(engine.http.counts.lock().unwrap().bootstrap, 2);
+        assert_eq!(pending_event_count(&engine), 0);
+    }
+
+    #[tokio::test]
+    async fn events_401_after_the_re_mint_keeps_the_batch_and_stops() {
+        let http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        *http.events_outcomes.lock().unwrap() =
+            vec![EventsOutcome::Unauthorized, EventsOutcome::Unauthorized];
+        let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
+        engine.sync().await.unwrap();
+        engine.record_event("save", Some("work_1"), None, None).unwrap();
+
+        assert!(engine.flush_events().await.is_err());
+
+        assert_eq!(posted_batches(&engine).len(), 2);
+        assert_eq!(pending_event_count(&engine), 1);
+    }
+
+    #[tokio::test]
+    async fn rejected_batch_is_dropped_whole_and_reported() {
+        let http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        *http.events_outcomes.lock().unwrap() = vec![EventsOutcome::Rejected];
+        let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
+        engine.sync().await.unwrap();
+        engine.record_event("open", Some("work_1"), None, None).unwrap();
+        engine
+            .record_event("download", Some("work_1"), Some("ed_1"), None)
+            .unwrap();
+
+        assert!(matches!(
+            engine.flush_events().await,
+            Err(SyncError::Protocol(_))
+        ));
+
+        assert_eq!(pending_event_count(&engine), 0);
+        engine.flush_events().await.unwrap();
+        assert_eq!(posted_batches(&engine), vec![("tok-1".to_string(), 2)]);
+    }
+
+    #[tokio::test]
+    async fn flush_without_a_stored_token_bootstraps_for_one_first() {
+        let engine = SyncEngine::new(
+            mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
+            Store::open_in_memory().unwrap(),
+        );
+        engine.record_event("open", Some("work_1"), None, None).unwrap();
+
+        engine.flush_events().await.unwrap();
+
+        assert_eq!(posted_batches(&engine), vec![("tok-1".to_string(), 1)]);
+        assert_eq!(engine.http.counts.lock().unwrap().changes, 0);
+    }
+
+    #[tokio::test]
+    async fn sync_flushes_pending_events_after_the_catalog_work() {
+        let engine = SyncEngine::new(
+            mock_http(1, FetchResult::NotModified, vec![no_op_changes()]),
+            Store::open_in_memory().unwrap(),
+        );
+        engine.record_event("open", Some("work_1"), None, None).unwrap();
+
+        engine.sync().await.unwrap();
+
+        assert_eq!(posted_batches(&engine), vec![("tok-1".to_string(), 1)]);
+        assert_eq!(pending_event_count(&engine), 0);
     }
 
     #[tokio::test]
@@ -1611,6 +1962,14 @@ mod tests {
                     .map(|op| op.entity_id.clone()),
             );
             Ok(page)
+        }
+
+        async fn post_events(
+            &self,
+            install_token: &str,
+            batch: &EventBatch,
+        ) -> Result<EventsOutcome, SyncError> {
+            self.inner.post_events(install_token, batch).await
         }
     }
 
