@@ -20,6 +20,14 @@ vi.mock('@/services/ampleread', async (importOriginal) => {
   };
 });
 
+vi.mock('@/services/ampleread/download', () => ({
+  downloadEdition: vi.fn(),
+}));
+
+vi.mock('@/context/EnvContext', () => ({
+  useEnv: () => ({ envConfig: {}, appService: null }),
+}));
+
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (key: string) => key,
 }));

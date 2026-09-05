@@ -82,6 +82,11 @@ export interface ImportBookOptions {
   lookupIndex?: BookLookupIndex;
 }
 
+export interface AmpleReadProvenance {
+  workId: string;
+  editionId: string;
+}
+
 export interface Book {
   // if Book is a remote book we just lazy load the book content via url
   url?: string;
@@ -124,6 +129,8 @@ export interface Book {
   primaryLanguage?: string;
 
   metadata?: BookMetadata;
+  // Set when the file came from the AmpleRead catalog; local-only, not synced.
+  ampleread?: AmpleReadProvenance;
 }
 
 export interface BookGroupType {

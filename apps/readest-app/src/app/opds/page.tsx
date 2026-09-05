@@ -10,6 +10,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
 import { isWebAppPlatform } from '@/services/environment';
 import { downloadFile } from '@/libs/storage';
+import { downloadAndImportBook } from '@/services/bookDownload';
 import { Toast } from '@/components/Toast';
 import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -23,11 +24,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { useLibrary } from '@/hooks/useLibrary';
 import { eventDispatcher } from '@/utils/event';
 import { navigateToLibrary, navigateToReader } from '@/utils/nav';
-import { getFileExtFromMimeType } from '@/libs/document';
 import { OPDSFeed, OPDSPublication, OPDSSearch, REL } from '@/types/opds';
 import {
   expandOPDSSearchTemplate,
-  getFileExtFromPath,
   isSearchLink,
   looksLikeXMLContent,
   MIME,
@@ -35,15 +34,8 @@ import {
   parseOPDSXML,
   resolveURL,
 } from './utils/opdsUtils';
-import {
-  getProxiedURL,
-  fetchWithAuth,
-  probeAuth,
-  needsProxy,
-  probeFilename,
-} from './utils/opdsReq';
+import { getProxiedURL, fetchWithAuth, probeAuth, needsProxy } from './utils/opdsReq';
 import { getPublicationDetailHref, parsePublicationDocument } from './utils/opdsPublication';
-import { ImportError } from '@/services/errors';
 import { READEST_OPDS_USER_AGENT } from '@/services/constants';
 import { findBookByOPDSSources, upsertOPDSSourceMapping } from '@/services/opds/sourceMap';
 import { buildPseStreamFileName } from '@/services/opds/pseStream';
@@ -587,58 +579,32 @@ export default function BrowserPage() {
             }
           }
 
-          const pathname = decodeURIComponent(new URL(url).pathname);
-          const ext = getFileExtFromMimeType(parsed?.mediaType) || getFileExtFromPath(pathname);
-          const basename = pathname.replaceAll('/', '_');
-          const filename = ext ? `${basename}.${ext}` : basename;
-          let dstFilePath = await appService?.resolveFilePath(filename, 'Cache');
-          console.log('Downloading to:', url, dstFilePath);
-
-          const responseHeaders = await downloadFile({
+          return await downloadAndImportBook({
             appService,
-            dst: dstFilePath,
-            cfp: '',
-            url: downloadUrl,
+            url,
+            downloadUrl,
             headers,
-            singleThreaded: true,
-            skipSslVerification: true,
+            mediaType: parsed?.mediaType,
             onProgress,
-          });
-          const probedFilename = await probeFilename(responseHeaders);
-          if (probedFilename) {
-            const newFilePath = await appService?.resolveFilePath(probedFilename, 'Cache');
-            await appService?.copyFile(dstFilePath, 'None', newFilePath, 'None');
-            await appService?.deleteFile(dstFilePath, 'None');
-            console.log('Renamed downloaded file to:', newFilePath);
-            dstFilePath = newFilePath;
-          }
-
-          const { library, setLibrary } = useLibraryStore.getState();
-          try {
-            const book = await appService.importBook(dstFilePath, library);
-            if (book && catalogSourceId) {
-              try {
-                await upsertOPDSSourceMapping(appService, {
-                  catalogId: catalogSourceId,
-                  sourceUrl: url,
-                  bookHash: book.hash,
-                });
-              } catch (sourceMapError) {
-                console.error('OPDS: failed to update source map:', sourceMapError);
+            onImported: async (book) => {
+              if (catalogSourceId) {
+                try {
+                  await upsertOPDSSourceMapping(appService, {
+                    catalogId: catalogSourceId,
+                    sourceUrl: url,
+                    bookHash: book.hash,
+                  });
+                } catch (sourceMapError) {
+                  console.error('OPDS: failed to update source map:', sourceMapError);
+                }
               }
-            }
-            if (user && book && !book.uploadedAt && settings.autoUpload) {
-              setTimeout(() => {
-                transferManager.queueUpload(book);
-              }, 3000);
-            }
-            setLibrary(library);
-            appService.saveLibraryBooks(library);
-            return book;
-          } catch (importError) {
-            console.error('Import error:', importError);
-            throw new ImportError(importError);
-          }
+              if (user && !book.uploadedAt && settings.autoUpload) {
+                setTimeout(() => {
+                  transferManager.queueUpload(book);
+                }, 3000);
+              }
+            },
+          });
         }
       } catch (e) {
         console.error('Download error:', e);
