@@ -350,6 +350,9 @@ pub fn run() {
             ampleread::sync::ampleread_explore,
             ampleread::sync::ampleread_work_detail,
             ampleread::sync::ampleread_refresh,
+            ampleread::sync::ampleread_track_event,
+            ampleread::sync::ampleread_flush_events,
+            ampleread::sync::ampleread_download_url,
         ])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())

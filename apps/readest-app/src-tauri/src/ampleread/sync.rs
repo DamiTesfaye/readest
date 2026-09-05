@@ -929,6 +929,41 @@ pub(crate) async fn ampleread_refresh(
     engine.refresh(&scope).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub(crate) async fn ampleread_track_event(
+    state: tauri::State<'_, EngineHandle>,
+    kind: String,
+    work_id: Option<String>,
+    edition_id: Option<String>,
+    props: Option<serde_json::Value>,
+) -> Result<(), String> {
+    let engine = state.engine()?;
+    engine
+        .record_event(&kind, work_id.as_deref(), edition_id.as_deref(), props)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn ampleread_flush_events(
+    state: tauri::State<'_, EngineHandle>,
+) -> Result<u32, String> {
+    let engine = state.engine()?;
+    engine.flush_events().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn ampleread_download_url(
+    state: tauri::State<'_, EngineHandle>,
+    work_id: String,
+    asset_id: String,
+) -> Result<String, String> {
+    let engine = state.engine()?;
+    engine
+        .download_url(&work_id, &asset_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

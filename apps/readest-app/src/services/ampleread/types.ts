@@ -55,3 +55,12 @@ export interface WorkDetail {
   preferredEditionId: string | null;
   editions: EditionView[];
 }
+
+export type ClientEventKind = 'open' | 'save' | 'download' | 'finish';
+
+export interface ClientEvent {
+  kind: ClientEventKind;
+  workId?: string;
+  editionId?: string;
+  props?: Record<string, unknown>;
+}

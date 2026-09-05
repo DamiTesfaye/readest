@@ -8,10 +8,18 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
-import { getExplore, getWorkDetail, refresh } from '@/services/ampleread';
+import {
+  canDownloadEdition,
+  flushEvents,
+  getDownloadUrl,
+  getExplore,
+  getWorkDetail,
+  refresh,
+  trackEvent,
+} from '@/services/ampleread';
 import { isTauriAppPlatform } from '@/services/environment';
 import { invoke } from '@tauri-apps/api/core';
-import type { ExploreResponse, WorkDetail } from '@/services/ampleread/types';
+import type { EditionView, ExploreResponse, WorkDetail } from '@/services/ampleread/types';
 
 const mockIsTauriAppPlatform = vi.mocked(isTauriAppPlatform);
 const mockInvoke = vi.mocked(invoke);
@@ -43,6 +51,34 @@ const sampleWorkDetail: WorkDetail = {
   editions: [],
 };
 
+const edition = (assets: EditionView['assets'], canDownload: boolean): EditionView => ({
+  id: 'ed_1',
+  sourceName: 'gutenberg',
+  language: 'en',
+  mediaType: 'audio',
+  assets,
+  capabilities: { canRead: false, canDownload, canTransform: false },
+  attribution: null,
+});
+
+describe('canDownloadEdition', () => {
+  test('is false for a zero-asset edition even when the server says canDownload', () => {
+    expect(canDownloadEdition(edition([], true))).toBe(false);
+  });
+
+  test('is true when the edition has at least one asset', () => {
+    expect(canDownloadEdition(edition([{ id: 'as_1', kind: 'mp3', bytes: null }], true))).toBe(
+      true,
+    );
+  });
+
+  test('is false when the server forbids download despite assets', () => {
+    expect(canDownloadEdition(edition([{ id: 'as_1', kind: 'mp3', bytes: null }], false))).toBe(
+      false,
+    );
+  });
+});
+
 describe('ampleread service on tauri platform', () => {
   beforeEach(() => {
     mockIsTauriAppPlatform.mockReturnValue(true);
@@ -72,6 +108,39 @@ describe('ampleread service on tauri platform', () => {
     await refresh('explore');
 
     expect(mockInvoke).toHaveBeenCalledWith('ampleread_refresh', { scope: 'explore' });
+  });
+
+  test('trackEvent invokes ampleread_track_event with the event fields', async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+
+    await trackEvent({ kind: 'open', workId: 'work_1', editionId: 'ed_1' });
+
+    expect(mockInvoke).toHaveBeenCalledWith('ampleread_track_event', {
+      kind: 'open',
+      workId: 'work_1',
+      editionId: 'ed_1',
+      props: undefined,
+    });
+  });
+
+  test('flushEvents invokes ampleread_flush_events and returns the accepted count', async () => {
+    mockInvoke.mockResolvedValueOnce(3);
+
+    await expect(flushEvents()).resolves.toBe(3);
+
+    expect(mockInvoke).toHaveBeenCalledWith('ampleread_flush_events', undefined);
+  });
+
+  test('getDownloadUrl invokes ampleread_download_url with work and asset ids', async () => {
+    mockInvoke.mockResolvedValueOnce('https://files.example/1.epub');
+
+    const url = await getDownloadUrl('work_1', 'as_1');
+
+    expect(mockInvoke).toHaveBeenCalledWith('ampleread_download_url', {
+      workId: 'work_1',
+      assetId: 'as_1',
+    });
+    expect(url).toBe('https://files.example/1.epub');
   });
 });
 
@@ -134,6 +203,24 @@ describe('ampleread service on web platform', () => {
     await refresh('explore');
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  test('trackEvent and flushEvents are no-ops without an install token', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await trackEvent({ kind: 'open', workId: 'work_1' });
+    await expect(flushEvents()).resolves.toBe(0);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  test('getDownloadUrl returns the download route for the browser to follow', async () => {
+    const url = await getDownloadUrl('work_1', 'as_1');
+
+    expect(url).toBe('https://api.ampleread.com/v1/assets/as_1/download');
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 });
