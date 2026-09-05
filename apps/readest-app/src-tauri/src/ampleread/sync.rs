@@ -41,6 +41,17 @@ pub enum SyncError {
     Protocol(String),
     #[error("store error: {0}")]
     Store(#[from] rusqlite::Error),
+    #[error("not found: {0}")]
+    NotFound(String),
+}
+
+/// What `GET /v1/assets/{id}/download` answered: the offer URL behind
+/// its redirect, or a 404 meaning the asset id is gone (re-fetch the
+/// edition list and retry with the current id).
+#[derive(Debug, Clone, PartialEq)]
+pub enum DownloadResolution {
+    Redirect(String),
+    NotFound,
 }
 
 /// How `POST /v1/events` answered. Transport failures and unexpected
@@ -56,6 +67,7 @@ pub enum EventsOutcome {
 pub enum FetchResult<T> {
     Fresh { body: T, etag: Option<String> },
     NotModified,
+    NotFound,
 }
 
 pub trait CatalogHttp {
@@ -83,10 +95,18 @@ pub trait CatalogHttp {
         install_token: &str,
         batch: &EventBatch,
     ) -> Result<EventsOutcome, SyncError>;
+    async fn resolve_download(
+        &self,
+        asset_id: &str,
+        install_token: Option<&str>,
+    ) -> Result<DownloadResolution, SyncError>;
 }
 
 pub struct ReqwestCatalogHttp {
     client: reqwest::Client,
+    /// Never follows redirects: the download route answers 302 and the
+    /// caller wants that Location, not the file body.
+    download_client: reqwest::Client,
     base_url: String,
 }
 
@@ -94,6 +114,10 @@ impl ReqwestCatalogHttp {
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
             client: reqwest::Client::new(),
+            download_client: reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .unwrap_or_default(),
             base_url: base_url.into(),
         }
     }
@@ -116,6 +140,9 @@ impl ReqwestCatalogHttp {
 
         if response.status() == reqwest::StatusCode::NOT_MODIFIED {
             return Ok(FetchResult::NotModified);
+        }
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(FetchResult::NotFound);
         }
 
         let response = response
@@ -230,6 +257,39 @@ impl CatalogHttp for ReqwestCatalogHttp {
             }
             status => Err(SyncError::Http(format!("events: unexpected status {status}"))),
         }
+    }
+
+    async fn resolve_download(
+        &self,
+        asset_id: &str,
+        install_token: Option<&str>,
+    ) -> Result<DownloadResolution, SyncError> {
+        let url = format!("{}/v1/assets/{asset_id}/download", self.base_url);
+        let mut request = self.download_client.get(url);
+        if let Some(token) = install_token {
+            request = request.header(INSTALL_HEADER, token);
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|e| SyncError::Http(e.to_string()))?;
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(DownloadResolution::NotFound);
+        }
+        if status.is_redirection() {
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or_else(|| {
+                    SyncError::Protocol(format!("download {asset_id}: {status} without Location"))
+                })?;
+            return Ok(DownloadResolution::Redirect(location.to_string()));
+        }
+        Err(SyncError::Http(format!(
+            "download {asset_id}: unexpected status {status}"
+        )))
     }
 }
 
@@ -459,6 +519,9 @@ impl<H: CatalogHttp> SyncEngine<H> {
                 store.set_sync_state(SCOPE_EXPLORE, etag.as_deref(), now_secs(), 0)?;
             }
             FetchResult::NotModified => {}
+            FetchResult::NotFound => {
+                return Err(SyncError::Protocol("explore answered 404".to_string()));
+            }
         }
         Ok(())
     }
@@ -487,6 +550,11 @@ impl<H: CatalogHttp> SyncEngine<H> {
                 store.set_sync_state(&scope, etag.as_deref(), now_secs(), 0)?;
             }
             FetchResult::NotModified => {}
+            FetchResult::NotFound => {
+                log::info!("ampleread: work {id} is gone (404 on revalidation); dropping it");
+                let mut store = self.store.lock().unwrap();
+                store.remove_work(id)?;
+            }
         }
         Ok(())
     }
@@ -718,8 +786,69 @@ impl<H: CatalogHttp> SyncEngine<H> {
                 store.set_sync_state(&scope, etag.as_deref(), now_secs(), 0)?;
             }
             FetchResult::NotModified => {}
+            FetchResult::NotFound => return Err(SyncError::NotFound(format!("work {id}"))),
         }
         Ok(())
+    }
+
+    /// Where a stored asset sits: its edition and file kind, which is what
+    /// survives a re-ingest even when the asset id does not.
+    fn locate_asset(&self, work_id: &str, asset_id: &str) -> Result<Option<(String, String)>, SyncError> {
+        let detail = self.get_work_detail(work_id)?;
+        Ok(detail.and_then(|detail| {
+            detail.editions.iter().find_map(|edition| {
+                edition
+                    .assets
+                    .iter()
+                    .find(|asset| asset.id == asset_id)
+                    .map(|asset| (edition.id.clone(), asset.kind.clone()))
+            })
+        }))
+    }
+
+    fn replacement_asset(
+        &self,
+        work_id: &str,
+        edition_id: &str,
+        kind: &str,
+    ) -> Result<Option<String>, SyncError> {
+        let detail = self.get_work_detail(work_id)?;
+        Ok(detail.and_then(|detail| {
+            detail
+                .editions
+                .iter()
+                .find(|edition| edition.id == edition_id)
+                .and_then(|edition| edition.assets.iter().find(|asset| asset.kind == kind))
+                .map(|asset| asset.id.clone())
+        }))
+    }
+
+    /// Resolves the offer URL behind `/v1/assets/{id}/download`, sending
+    /// the install token. A 404 means the asset id changed under a
+    /// re-ingest: the work's edition list is re-fetched and the download
+    /// retried once with the asset now holding the same edition and kind.
+    pub async fn download_url(&self, work_id: &str, asset_id: &str) -> Result<String, SyncError> {
+        let token = self.ensure_install_token().await?;
+        match self.http.resolve_download(asset_id, Some(&token)).await? {
+            DownloadResolution::Redirect(url) => return Ok(url),
+            DownloadResolution::NotFound => {}
+        }
+        let located = self.locate_asset(work_id, asset_id)?;
+        self.fetch_work_detail_first_time(work_id).await?;
+        let Some((edition_id, kind)) = located else {
+            return Err(SyncError::NotFound(format!("asset {asset_id}")));
+        };
+        let Some(replacement) = self.replacement_asset(work_id, &edition_id, &kind)? else {
+            return Err(SyncError::NotFound(format!(
+                "asset {asset_id}: no {kind} asset remains on edition {edition_id}"
+            )));
+        };
+        match self.http.resolve_download(&replacement, Some(&token)).await? {
+            DownloadResolution::Redirect(url) => Ok(url),
+            DownloadResolution::NotFound => Err(SyncError::NotFound(format!(
+                "asset {replacement} (replacement for {asset_id})"
+            ))),
+        }
     }
 
     fn is_work_detail_held(&self, id: &str) -> Result<bool, SyncError> {
@@ -841,6 +970,10 @@ mod tests {
         // accepts the batch. `Unauthorized` also forgets the presented
         // token, the way a pruned install would.
         events_outcomes: StdMutex<Vec<EventsOutcome>>,
+        // asset id -> resolution; unknown ids are NotFound.
+        downloads: HashMap<String, DownloadResolution>,
+        // (asset id, token) per resolve_download call, in order.
+        download_calls: StdMutex<Vec<(String, Option<String>)>>,
     }
 
     impl MockHttp {
@@ -930,6 +1063,22 @@ mod tests {
             }
             Ok(outcome)
         }
+
+        async fn resolve_download(
+            &self,
+            asset_id: &str,
+            install_token: Option<&str>,
+        ) -> Result<DownloadResolution, SyncError> {
+            self.download_calls
+                .lock()
+                .unwrap()
+                .push((asset_id.to_string(), install_token.map(str::to_string)));
+            Ok(self
+                .downloads
+                .get(asset_id)
+                .cloned()
+                .unwrap_or(DownloadResolution::NotFound))
+        }
     }
 
     struct FailingHttp {
@@ -975,6 +1124,14 @@ mod tests {
             _batch: &EventBatch,
         ) -> Result<EventsOutcome, SyncError> {
             unreachable!("bootstrap fails before any event is ever posted")
+        }
+
+        async fn resolve_download(
+            &self,
+            _asset_id: &str,
+            _install_token: Option<&str>,
+        ) -> Result<DownloadResolution, SyncError> {
+            unreachable!("no download is ever resolved here")
         }
     }
 
@@ -1027,6 +1184,14 @@ mod tests {
             _batch: &EventBatch,
         ) -> Result<EventsOutcome, SyncError> {
             unreachable!("get_changes fails before any event is ever posted")
+        }
+
+        async fn resolve_download(
+            &self,
+            _asset_id: &str,
+            _install_token: Option<&str>,
+        ) -> Result<DownloadResolution, SyncError> {
+            unreachable!("no download is ever resolved here")
         }
     }
 
@@ -1170,7 +1335,35 @@ mod tests {
             known_tokens: StdMutex::new(HashSet::new()),
             events_posted: StdMutex::new(Vec::new()),
             events_outcomes: StdMutex::new(Vec::new()),
+            downloads: HashMap::new(),
+            download_calls: StdMutex::new(Vec::new()),
         }
+    }
+
+    fn detail_with_epub(work_id: &str, asset_id: &str) -> WorkDetail {
+        let mut detail = sample_work_detail(work_id);
+        detail.editions = vec![EditionView {
+            id: format!("{work_id}-ed"),
+            source_name: "gutenberg".to_string(),
+            language: "en".to_string(),
+            media_type: "text".to_string(),
+            assets: vec![AssetView {
+                id: asset_id.to_string(),
+                kind: "epub".to_string(),
+                bytes: None,
+            }],
+            capabilities: Capabilities {
+                can_read: true,
+                can_download: true,
+                can_transform: false,
+            },
+            attribution: None,
+        }];
+        detail
+    }
+
+    fn download_calls(engine: &SyncEngine<MockHttp>) -> Vec<(String, Option<String>)> {
+        engine.http.download_calls.lock().unwrap().clone()
     }
 
     fn posted_batches(engine: &SyncEngine<MockHttp>) -> Vec<(String, usize)> {
@@ -1460,6 +1653,140 @@ mod tests {
             stored_meta(&engine, META_INSTALL_TOKEN).as_deref(),
             Some("tok-old")
         );
+    }
+
+    #[tokio::test]
+    async fn revalidation_404_drops_that_work_and_the_cascade_continues() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .upsert_work_detail("work-1", &sample_work_detail("work-1"), "etag-1")
+            .unwrap();
+        store
+            .upsert_work_detail("work-2", &sample_work_detail("work-2"), "etag-1")
+            .unwrap();
+        store.set_meta(META_CATALOG_VERSION, "1").unwrap();
+        let mut http = mock_http(2, FetchResult::NotModified, vec![no_op_changes()]);
+        http.work_detail
+            .insert("work-1".to_string(), FetchResult::NotFound);
+        http.work_detail.insert(
+            "work-2".to_string(),
+            FetchResult::Fresh {
+                body: sample_work_detail("work-2"),
+                etag: Some("etag-2".to_string()),
+            },
+        );
+        let engine = SyncEngine::new(http, store);
+
+        engine.sync().await.unwrap();
+
+        assert!(engine.get_work_detail("work-1").unwrap().is_none());
+        let kept = {
+            let store = engine.store.lock().unwrap();
+            store.get_work_detail("work-2").unwrap().unwrap()
+        };
+        assert_eq!(kept.etag, "etag-2");
+        assert_eq!(
+            stored_meta(&engine, META_CATALOG_VERSION).as_deref(),
+            Some("2"),
+            "the version must advance once the cascade finishes"
+        );
+    }
+
+    #[tokio::test]
+    async fn first_time_fetch_of_a_missing_work_reports_not_found() {
+        let mut http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        http.work_detail
+            .insert("work-1".to_string(), FetchResult::NotFound);
+        let engine = SyncEngine::new(http, Store::open_in_memory().unwrap());
+
+        let result = engine.refresh("work:work-1").await;
+
+        assert!(matches!(result, Err(SyncError::NotFound(_))));
+        assert!(engine.get_work_detail("work-1").unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn download_sends_the_install_header() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .upsert_work_detail("work-1", &detail_with_epub("work-1", "as_1"), "etag-1")
+            .unwrap();
+        let mut http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        http.downloads.insert(
+            "as_1".to_string(),
+            DownloadResolution::Redirect("https://files.example/1.epub".to_string()),
+        );
+        let engine = SyncEngine::new(http, store);
+        engine.sync().await.unwrap();
+
+        let url = engine.download_url("work-1", "as_1").await.unwrap();
+
+        assert_eq!(url, "https://files.example/1.epub");
+        assert_eq!(
+            download_calls(&engine),
+            vec![("as_1".to_string(), Some("tok-1".to_string()))]
+        );
+        assert_eq!(
+            engine.http.counts.lock().unwrap().bootstrap,
+            1,
+            "the token from the sync's bootstrap is reused, not re-minted"
+        );
+    }
+
+    #[tokio::test]
+    async fn download_404_refetches_the_edition_list_and_retries_with_the_replacement() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .upsert_work_detail("work-1", &detail_with_epub("work-1", "as_1"), "etag-1")
+            .unwrap();
+        let mut http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        http.downloads.insert(
+            "as_2".to_string(),
+            DownloadResolution::Redirect("https://files.example/2.epub".to_string()),
+        );
+        http.work_detail.insert(
+            "work-1".to_string(),
+            FetchResult::Fresh {
+                body: detail_with_epub("work-1", "as_2"),
+                etag: Some("etag-2".to_string()),
+            },
+        );
+        let engine = SyncEngine::new(http, store);
+
+        let url = engine.download_url("work-1", "as_1").await.unwrap();
+
+        assert_eq!(url, "https://files.example/2.epub");
+        let ids: Vec<String> = download_calls(&engine).into_iter().map(|c| c.0).collect();
+        assert_eq!(ids, vec!["as_1", "as_2"]);
+        assert_eq!(engine.http.counts.lock().unwrap().work_detail, 1);
+        let detail = engine.get_work_detail("work-1").unwrap().unwrap();
+        assert_eq!(detail.editions[0].assets[0].id, "as_2");
+    }
+
+    #[tokio::test]
+    async fn download_404_without_a_replacement_reports_not_found() {
+        let mut store = Store::open_in_memory().unwrap();
+        store
+            .upsert_work_detail("work-1", &detail_with_epub("work-1", "as_1"), "etag-1")
+            .unwrap();
+        let mut http = mock_http(1, FetchResult::NotModified, vec![no_op_changes()]);
+        let mut withdrawn = detail_with_epub("work-1", "as_1");
+        withdrawn.editions[0].assets.clear();
+        http.work_detail.insert(
+            "work-1".to_string(),
+            FetchResult::Fresh {
+                body: withdrawn,
+                etag: Some("etag-2".to_string()),
+            },
+        );
+        let engine = SyncEngine::new(http, store);
+
+        let result = engine.download_url("work-1", "as_1").await;
+
+        assert!(matches!(result, Err(SyncError::NotFound(_))));
+        assert_eq!(download_calls(&engine).len(), 1);
+        let detail = engine.get_work_detail("work-1").unwrap().unwrap();
+        assert!(detail.editions[0].assets.is_empty());
     }
 
     #[tokio::test]
@@ -2121,6 +2448,14 @@ mod tests {
             batch: &EventBatch,
         ) -> Result<EventsOutcome, SyncError> {
             self.inner.post_events(install_token, batch).await
+        }
+
+        async fn resolve_download(
+            &self,
+            asset_id: &str,
+            install_token: Option<&str>,
+        ) -> Result<DownloadResolution, SyncError> {
+            self.inner.resolve_download(asset_id, install_token).await
         }
     }
 

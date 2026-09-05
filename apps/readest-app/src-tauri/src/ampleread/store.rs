@@ -439,6 +439,14 @@ impl Store {
         tx.commit()
     }
 
+    /// Drops every row for a work the server no longer serves (a 404 on
+    /// revalidation), the same rows a `remove`/`hide` op would delete.
+    pub fn remove_work(&mut self, id: &str) -> rusqlite::Result<()> {
+        let tx = self.conn.transaction()?;
+        delete_work_rows(&tx, id)?;
+        tx.commit()
+    }
+
     pub fn work_detail_ids(&self) -> rusqlite::Result<Vec<String>> {
         let mut stmt = self.conn.prepare("SELECT id FROM work_details")?;
         let ids = stmt.query_map([], |row| row.get::<_, String>(0))?;
@@ -467,25 +475,7 @@ impl Store {
         for op in ops {
             match op.op.as_str() {
                 "remove" | "hide" => match op.entity_type.as_str() {
-                    "work" => {
-                        tx.execute("DELETE FROM works WHERE id = ?1", params![op.entity_id])?;
-                        tx.execute(
-                            "DELETE FROM shelf_items WHERE work_id = ?1",
-                            params![op.entity_id],
-                        )?;
-                        tx.execute(
-                            "DELETE FROM work_details WHERE id = ?1",
-                            params![op.entity_id],
-                        )?;
-                        tx.execute(
-                            "DELETE FROM covers WHERE work_id = ?1",
-                            params![op.entity_id],
-                        )?;
-                        tx.execute(
-                            "DELETE FROM search_fts WHERE work_id = ?1",
-                            params![op.entity_id],
-                        )?;
-                    }
+                    "work" => delete_work_rows(&tx, &op.entity_id)?,
                     "shelf" => {
                         tx.execute("DELETE FROM shelves WHERE id = ?1", params![op.entity_id])?;
                         tx.execute(
@@ -514,6 +504,15 @@ impl Store {
         }
         tx.commit()
     }
+}
+
+fn delete_work_rows(conn: &Connection, id: &str) -> rusqlite::Result<()> {
+    conn.execute("DELETE FROM works WHERE id = ?1", params![id])?;
+    conn.execute("DELETE FROM shelf_items WHERE work_id = ?1", params![id])?;
+    conn.execute("DELETE FROM work_details WHERE id = ?1", params![id])?;
+    conn.execute("DELETE FROM covers WHERE work_id = ?1", params![id])?;
+    conn.execute("DELETE FROM search_fts WHERE work_id = ?1", params![id])?;
+    Ok(())
 }
 
 #[cfg(test)]
