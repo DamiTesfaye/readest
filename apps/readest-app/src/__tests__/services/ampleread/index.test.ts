@@ -14,6 +14,7 @@ import {
   getDownloadUrl,
   getExplore,
   getWorkDetail,
+  isNotFoundError,
   refresh,
   trackEvent,
 } from '@/services/ampleread';
@@ -59,6 +60,24 @@ const edition = (assets: EditionView['assets'], canDownload: boolean): EditionVi
   assets,
   capabilities: { canRead: false, canDownload, canTransform: false },
   attribution: null,
+});
+
+describe('isNotFoundError', () => {
+  test('recognises the engine NotFound error surfaced through Tauri', () => {
+    expect(isNotFoundError(new Error('not found: work wk_1'))).toBe(true);
+    expect(isNotFoundError(new Error('work detail not found for id wk_1'))).toBe(true);
+  });
+
+  test('recognises a 404 from the web passthrough', () => {
+    expect(isNotFoundError(new Error('AmpleRead request failed: 404 /v1/works/wk_1'))).toBe(true);
+  });
+
+  test('is false for other failures and non-errors', () => {
+    expect(isNotFoundError(new Error('http error: 500'))).toBe(false);
+    expect(isNotFoundError(new Error('protocol error: bad json'))).toBe(false);
+    expect(isNotFoundError(null)).toBe(false);
+    expect(isNotFoundError('not found')).toBe(true);
+  });
 });
 
 describe('canDownloadEdition', () => {

@@ -55,6 +55,13 @@ export const refresh = async (scope: string): Promise<void> => {
   // mirror to reconcile here.
 };
 
+const NOT_FOUND_PATTERN = /not found|\b404\b/i;
+
+export const isNotFoundError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  return NOT_FOUND_PATTERN.test(message);
+};
+
 /// Zero-asset editions can report `canDownload: true` (a purged audio
 /// edition stays published with no files), so the affordance is gated on
 /// the asset list, not the capability alone.

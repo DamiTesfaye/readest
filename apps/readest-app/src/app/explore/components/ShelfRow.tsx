@@ -7,6 +7,7 @@ import type { Shelf, WorkCard } from '@/services/ampleread';
 
 interface ShelfRowProps {
   shelf: Shelf;
+  onSelectWork: (work: WorkCard) => void;
 }
 
 type ShelfLayoutKind = 'row';
@@ -29,8 +30,14 @@ const shelfRowClassNames: Record<ShelfLayoutKind, string> = {
 const formatAuthors = (authors: WorkCard['authors']): string =>
   authors.map((author) => author.name).join(', ');
 
-const WorkCardTile = ({ item }: { item: WorkCard }) => (
-  <div className='w-32 shrink-0'>
+const WorkCardTile = ({
+  item,
+  onSelect,
+}: {
+  item: WorkCard;
+  onSelect: (work: WorkCard) => void;
+}) => (
+  <button type='button' className='w-32 shrink-0 text-start' onClick={() => onSelect(item)}>
     <div className='card'>
       <figure className='bg-base-200 relative aspect-[28/41] overflow-hidden rounded shadow-md'>
         {item.cover ? (
@@ -61,10 +68,10 @@ const WorkCardTile = ({ item }: { item: WorkCard }) => (
         )}
       </div>
     </div>
-  </div>
+  </button>
 );
 
-export default function ShelfRow({ shelf }: ShelfRowProps) {
+export default function ShelfRow({ shelf, onSelectWork }: ShelfRowProps) {
   const layout = resolveShelfLayout(shelf.layout);
 
   return (
@@ -77,7 +84,7 @@ export default function ShelfRow({ shelf }: ShelfRowProps) {
         className={clsx('explore-shelf-row', shelfRowClassNames[layout])}
       >
         {shelf.items.map((item) => (
-          <WorkCardTile key={item.id} item={item} />
+          <WorkCardTile key={item.id} item={item} onSelect={onSelectWork} />
         ))}
       </div>
     </section>

@@ -6,11 +6,19 @@ import type { ExploreResponse } from '@/services/ampleread';
 
 const mockGetExplore = vi.fn();
 const mockRefresh = vi.fn();
+const mockGetWorkDetail = vi.fn();
+const mockTrackEvent = vi.fn();
 
-vi.mock('@/services/ampleread', () => ({
-  getExplore: (...args: unknown[]) => mockGetExplore(...args),
-  refresh: (...args: unknown[]) => mockRefresh(...args),
-}));
+vi.mock('@/services/ampleread', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/ampleread')>();
+  return {
+    ...actual,
+    getExplore: (...args: unknown[]) => mockGetExplore(...args),
+    refresh: (...args: unknown[]) => mockRefresh(...args),
+    getWorkDetail: (...args: unknown[]) => mockGetWorkDetail(...args),
+    trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
+  };
+});
 
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (key: string) => key,
@@ -163,6 +171,34 @@ describe('ExplorePage', () => {
 
     expect(container.querySelectorAll('section.explore-shelf')).toHaveLength(0);
     expect(screen.queryByText('Retry')).toBeNull();
+  });
+
+  it('opens the work detail from a card tap and returns to the shelves from Back', async () => {
+    mockGetExplore.mockResolvedValue(buildExplore());
+    mockRefresh.mockResolvedValue(undefined);
+    mockTrackEvent.mockResolvedValue(undefined);
+    mockGetWorkDetail.mockResolvedValue({
+      id: 'work-1',
+      title: 'The Great Book',
+      description: 'Detail copy',
+      subjects: [],
+      preferredEditionId: null,
+      editions: [],
+    });
+
+    render(<ExplorePage />);
+    await screen.findByText('New Releases');
+
+    fireEvent.click(screen.getByRole('button', { name: /The Great Book/ }));
+
+    expect(await screen.findByText('Detail copy')).toBeTruthy();
+    expect(mockRefresh).toHaveBeenCalledWith('work:work-1');
+    expect(mockGetWorkDetail).toHaveBeenCalledWith('work-1');
+    expect(screen.queryByText('New Releases')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('New Releases')).toBeTruthy();
+    expect(mockGetExplore).toHaveBeenCalledTimes(1);
   });
 
   it('does not call fetch or invoke directly from the page', async () => {

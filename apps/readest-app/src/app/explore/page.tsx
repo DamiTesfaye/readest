@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import { getExplore, refresh } from '@/services/ampleread';
-import type { ExploreResponse } from '@/services/ampleread';
+import type { ExploreResponse, WorkCard } from '@/services/ampleread';
 import ShelfRow from './components/ShelfRow';
+import WorkDetailView from './components/WorkDetailView';
 
 export default function ExplorePage() {
   const _ = useTranslation();
@@ -13,6 +14,7 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
 
   const loadExplore = useCallback(async () => {
     setError(null);
@@ -40,8 +42,24 @@ export default function ExplorePage() {
     }
   }, [loadExplore]);
 
+  const handleSelectWork = useCallback((work: WorkCard) => {
+    setSelectedWorkId(work.id);
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setSelectedWorkId(null);
+  }, []);
+
+  if (selectedWorkId) {
+    return (
+      <div className='explore-page bg-base-100 min-h-full'>
+        <WorkDetailView workId={selectedWorkId} onBack={handleBack} />
+      </div>
+    );
+  }
+
   return (
-    <div className='explore-page bg-base-100 min-h-screen'>
+    <div className='explore-page bg-base-100 min-h-full'>
       <div className='flex items-center justify-between px-4 py-6'>
         <h1 className='text-xl font-bold'>{_('Explore')}</h1>
         <button
@@ -72,7 +90,7 @@ export default function ExplorePage() {
       {!loading && !error && explore && (
         <div className='explore-shelves'>
           {explore.shelves.map((shelf) => (
-            <ShelfRow key={shelf.id} shelf={shelf} />
+            <ShelfRow key={shelf.id} shelf={shelf} onSelectWork={handleSelectWork} />
           ))}
         </div>
       )}
