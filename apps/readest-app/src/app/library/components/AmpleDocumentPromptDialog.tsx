@@ -8,18 +8,11 @@ export type AmpleDocumentChoice = 'continue' | 'amp';
 
 interface AmpleDocumentPromptDialogProps {
   open: boolean;
-  /** Extension of the single eligible file, lower case and without the dot. */
   extension: string | null;
-  /** True when the batch has more than one eligible file. */
   isBatch: boolean;
   onChoose: (choice: AmpleDocumentChoice) => void;
 }
 
-/**
- * Offered at import time when the `ample-document` CLI is available: keep the
- * file as it is, or run it through the pipeline and read the generated EPUB.
- * One prompt per import batch, never one per file.
- */
 export default function AmpleDocumentPromptDialog({
   open,
   extension,
@@ -36,7 +29,6 @@ export default function AmpleDocumentPromptDialog({
 
   return (
     <ModalPortal>
-      {/* `open` keeps the buttons in the accessibility tree; daisyUI handles the visuals. */}
       <dialog className='modal modal-open' open aria-labelledby='ample-document-prompt-title'>
         <div
           className='bg-base-200 w-[min(320px,calc(100vw-2rem))] rounded-2xl px-6 py-7 shadow-xl'

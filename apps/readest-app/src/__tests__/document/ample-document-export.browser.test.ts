@@ -4,9 +4,6 @@ import type { BookDoc, TOCItem } from '@/libs/document';
 import type { Renderer } from '@/types/view';
 import meta from '../fixtures/data/ample-alice-export.meta.json';
 
-// The fixture is produced by the ample-document CLI:
-//   ample-document run tests/fixtures/sample-alice.pdf --out <dir>
-// and copied here with a sidecar describing what the pipeline claims about it.
 const EPUB_URL = new URL('../fixtures/data/ample-alice-export.epub', import.meta.url).href;
 
 let book: BookDoc;
@@ -19,7 +16,6 @@ const loadEPUB = async () => {
   return book;
 };
 
-/** Must be attached BEFORE the action that triggers it — #display dispatches synchronously. */
 const waitForStabilized = (el: HTMLElement, timeout = 10000) =>
   new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('stabilized timeout')), timeout);
@@ -35,9 +31,6 @@ const waitForStabilized = (el: HTMLElement, timeout = 10000) =>
 
 describe('AmpleDocument EPUB export in foliate-js (browser)', () => {
   let paginator: Renderer;
-  // Section currently displayed: foliate only re-renders (and only emits
-  // 'stabilized') when the section changes, so anchor jumps within one section
-  // must not wait for that event.
   let currentIndex = -1;
 
   beforeAll(async () => {
@@ -71,23 +64,16 @@ describe('AmpleDocument EPUB export in foliate-js (browser)', () => {
     return el;
   };
 
-  /** The reader's TOC nests deeper entries under their parent; the pipeline's list is flat. */
   const flatToc = (items = book.toc ?? []): TOCItem[] =>
     items.flatMap((item) => [item, ...flatToc(item.subitems ?? [])]);
 
   const tocItemFor = (title: string) => flatToc().find((item) => item.label?.trim() === title);
 
-  /** foliate splits a TOC href into [spine item path, fragment]; sections are keyed by that path. */
   const resolveToc = (href: string) => {
     const [path, anchor] = book.splitTOCHref(href) as [string, string];
     return { index: book.sections.findIndex((section) => section.id === path), anchor };
   };
 
-  /**
-   * Navigate and return the document of the section we asked for, not whichever
-   * view happens to be first. foliate accepts a fragment id as the anchor; the
-   * app's Renderer type only models the numeric and range forms, hence the cast.
-   */
   type GoToTarget = Parameters<Renderer['goTo']>[0];
   const goTo = async (target: { index: number; anchor?: string }) => {
     const sameSection = target.index === currentIndex;

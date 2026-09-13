@@ -225,9 +225,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     [key: string]: number | null;
   }>({});
   const [pendingNavigationBookIds, setPendingNavigationBookIds] = useState<string[] | null>(null);
-  // One AmpleDocument prompt per import batch. The promise resolver is held so
-  // `importBooks` can await the user's choice without threading callbacks
-  // through every import entry point.
   const [ampleDocumentPrompt, setAmpleDocumentPrompt] = useState<{
     extension: string | null;
     isBatch: boolean;
@@ -732,11 +729,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoBooks, libraryLoaded]);
 
-  /**
-   * Ask once per batch whether to route eligible files through the
-   * `ample-document` pipeline. Resolves to 'continue' without showing anything
-   * when the CLI is unavailable, the setting is off, or nothing is eligible.
-   */
   const askAmpleDocumentChoice = async (paths: string[]): Promise<AmpleDocumentChoice> => {
     if (!appService) return 'continue';
     const eligible = paths.filter(isEligibleForAmpleDocument);
@@ -758,12 +750,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     });
   };
 
-  /**
-   * Run one file through the pipeline and return the EPUB to import, the
-   * AmpleDocument JSON to keep beside it, and the scratch directory to delete
-   * once both have been consumed. Returns null when anything fails, so the
-   * caller falls back to importing the original file.
-   */
   const convertWithAmpleDocument = async (
     filePath: string,
   ): Promise<{ epubPath: string; jsonPath: string; tempDir: string } | null> => {
@@ -787,11 +773,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     }
   };
 
-  /**
-   * Keep the AmpleDocument JSON beside the imported EPUB so later features can
-   * read the model without re-running the pipeline. Best effort: a failure here
-   * must not fail an import that already succeeded.
-   */
   const saveAmpleDocumentSidecar = async (book: Book, jsonPath: string) => {
     if (!appService) return;
     try {
@@ -827,9 +808,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     const appBooksPrefix: string | null =
       useSettingsStore.getState().settings.localBooksDir || null;
 
-    // Desktop only, and only when the `ample-document` CLI answers: offer to run
-    // the batch through the AmpleDocument pipeline and import the EPUB it emits.
-    // Asked once for the whole batch, never per file.
     const ampleChoice = await askAmpleDocumentChoice(
       files.map((f) => f.path || (typeof f.file === 'string' ? f.file : '')).filter(Boolean),
     );
@@ -838,8 +816,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       let file = selectedFile.file || selectedFile.path;
       if (!file) return null;
       if (!appService) return null;
-      // Kept for error messages: `file` may be swapped for a generated EPUB in a
-      // scratch directory below, and the user should still read their own name.
       const sourceName = getFilename(typeof file === 'string' ? file : file.name);
       let ampleDocumentJsonPath: string | null = null;
       let ampleDocumentTempDir: string | null = null;
@@ -850,8 +826,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           file = converted.epubPath;
           ampleDocumentJsonPath = converted.jsonPath;
           ampleDocumentTempDir = converted.tempDir;
-          // The EPUB lives in a temp directory that we do not want the library
-          // pointing at, so never import it in place.
           forceCopy = true;
         }
       }
@@ -906,8 +880,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         console.error('Failed to import book:', sourceName, error);
         return null;
       } finally {
-        // The pipeline's scratch directory holds a full copy of the EPUB, so
-        // drop it once the import has taken what it needs.
         if (ampleDocumentTempDir && appService) {
           await appService
             .deleteDir(ampleDocumentTempDir, 'Temp', true)
