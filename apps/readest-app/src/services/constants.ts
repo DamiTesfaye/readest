@@ -140,6 +140,7 @@ export const DEFAULT_SYSTEM_SETTINGS: Partial<SystemSettings> = {
   lastOpenBooks: [],
   autoImportBooksOnOpen: false,
   telemetryEnabled: true,
+  ampleDocumentPromptEnabled: true,
   discordRichPresenceEnabled: false,
   libraryViewMode: 'grid',
   librarySortBy: LibrarySortByType.Updated,

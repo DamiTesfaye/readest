@@ -10,7 +10,14 @@ import { Book } from '@/types/book';
 import { AppService, DeleteAction } from '@/types/system';
 import { buildBookLookupIndex } from '@/services/bookService';
 import { navigateToLibrary, navigateToLogin, navigateToReader } from '@/utils/nav';
-import { getBookWithUpdatedMetadata, listFormater } from '@/utils/book';
+import AmpleDocumentPromptDialog, {
+  type AmpleDocumentChoice,
+} from '@/app/library/components/AmpleDocumentPromptDialog';
+import {
+  ampleDocumentService,
+  isEligibleForAmpleDocument,
+} from '@/services/ampleDocument/ampleDocumentService';
+import { getBookWithUpdatedMetadata, getDir, listFormater } from '@/utils/book';
 import { getImportErrorMessage } from '@/services/errors';
 import { ingestFile } from '@/services/ingestService';
 import { eventDispatcher } from '@/utils/event';
@@ -218,6 +225,14 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     [key: string]: number | null;
   }>({});
   const [pendingNavigationBookIds, setPendingNavigationBookIds] = useState<string[] | null>(null);
+  // One AmpleDocument prompt per import batch. The promise resolver is held so
+  // `importBooks` can await the user's choice without threading callbacks
+  // through every import entry point.
+  const [ampleDocumentPrompt, setAmpleDocumentPrompt] = useState<{
+    extension: string | null;
+    isBatch: boolean;
+    resolve: (choice: AmpleDocumentChoice) => void;
+  } | null>(null);
   const isInitiating = useRef(false);
 
   const iconSize = useResponsiveSize(18);
@@ -717,6 +732,74 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoBooks, libraryLoaded]);
 
+  /**
+   * Ask once per batch whether to route eligible files through the
+   * `ample-document` pipeline. Resolves to 'continue' without showing anything
+   * when the CLI is unavailable, the setting is off, or nothing is eligible.
+   */
+  const askAmpleDocumentChoice = async (paths: string[]): Promise<AmpleDocumentChoice> => {
+    if (!appService) return 'continue';
+    const eligible = paths.filter(isEligibleForAmpleDocument);
+    if (eligible.length === 0) return 'continue';
+    const liveSettings = useSettingsStore.getState().settings;
+    if (!(await ampleDocumentService.isAvailable({ appService, settings: liveSettings }))) {
+      return 'continue';
+    }
+    const extension = eligible.length === 1 ? getFilename(eligible[0]!).split('.').pop()! : null;
+    return new Promise<AmpleDocumentChoice>((resolve) => {
+      setAmpleDocumentPrompt({
+        extension: extension?.toLowerCase() ?? null,
+        isBatch: eligible.length > 1,
+        resolve: (choice) => {
+          setAmpleDocumentPrompt(null);
+          resolve(choice);
+        },
+      });
+    });
+  };
+
+  /**
+   * Run one file through the pipeline and return the EPUB to import plus the
+   * AmpleDocument JSON to keep beside it. Returns null when anything fails, so
+   * the caller falls back to importing the original file.
+   */
+  const convertWithAmpleDocument = async (
+    filePath: string,
+  ): Promise<{ epubPath: string; jsonPath: string } | null> => {
+    if (!appService) return null;
+    try {
+      const outDir = `ample-document/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await appService.createDir(outDir, 'Temp', true);
+      const absoluteOutDir = await appService.resolveFilePath(outDir, 'Temp');
+      return await ampleDocumentService.convert(filePath, absoluteOutDir);
+    } catch (error) {
+      console.error('AmpleDocument conversion failed:', filePath, error);
+      eventDispatcher.dispatch('toast', {
+        message: _('Could not enhance {{filename}}, importing the original file', {
+          filename: getFilename(filePath),
+        }),
+        timeout: 4000,
+        type: 'warning',
+      });
+      return null;
+    }
+  };
+
+  /**
+   * Keep the AmpleDocument JSON beside the imported EPUB so later features can
+   * read the model without re-running the pipeline. Best effort: a failure here
+   * must not fail an import that already succeeded.
+   */
+  const saveAmpleDocumentSidecar = async (book: Book, jsonPath: string) => {
+    if (!appService) return;
+    try {
+      const json = await appService.readFile(jsonPath, 'None', 'text');
+      await appService.writeFile(`${getDir(book)}/ample-document.json`, 'Books', json as string);
+    } catch (error) {
+      console.error('Failed to store the AmpleDocument sidecar:', book.hash, error);
+    }
+  };
+
   const importBooks = async (files: SelectedFile[], groupId?: string) => {
     setLoading(true);
     const { library } = useLibraryStore.getState();
@@ -742,10 +825,29 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     const appBooksPrefix: string | null =
       useSettingsStore.getState().settings.localBooksDir || null;
 
+    // Desktop only, and only when the `ample-document` CLI answers: offer to run
+    // the batch through the AmpleDocument pipeline and import the EPUB it emits.
+    // Asked once for the whole batch, never per file.
+    const ampleChoice = await askAmpleDocumentChoice(
+      files.map((f) => f.path || (typeof f.file === 'string' ? f.file : '')).filter(Boolean),
+    );
+
     const processFile = async (selectedFile: SelectedFile): Promise<Book | null> => {
-      const file = selectedFile.file || selectedFile.path;
+      let file = selectedFile.file || selectedFile.path;
       if (!file) return null;
       if (!appService) return null;
+      let ampleDocumentJsonPath: string | null = null;
+      let forceCopy = false;
+      if (ampleChoice === 'amp' && typeof file === 'string' && isEligibleForAmpleDocument(file)) {
+        const converted = await convertWithAmpleDocument(file);
+        if (converted) {
+          file = converted.epubPath;
+          ampleDocumentJsonPath = converted.jsonPath;
+          // The EPUB lives in a temp directory that we do not want the library
+          // pointing at, so never import it in place.
+          forceCopy = true;
+        }
+      }
       try {
         const { path, basePath } = selectedFile;
         // `groupId` is treated as a tri-state:
@@ -781,10 +883,14 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             lookupIndex,
             groupId: resolvedGroupId,
             groupName: resolvedGroupName,
+            forceCopy,
           },
           { appService, settings: liveSettings, isLoggedIn: !!user, appBooksPrefix },
         );
         if (!book) return null;
+        if (ampleDocumentJsonPath) {
+          await saveAmpleDocumentSidecar(book, ampleDocumentJsonPath);
+        }
         successfulImports.push(book.title);
         return book;
       } catch (error) {
@@ -1605,6 +1711,14 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       <CacheManagerWindow />
       {isSettingsDialogOpen && <SettingsDialog bookKey={''} />}
       {showCatalogManager && <CatalogDialog onClose={handleDismissOPDSDialog} />}
+      {ampleDocumentPrompt && (
+        <AmpleDocumentPromptDialog
+          open
+          extension={ampleDocumentPrompt.extension}
+          isBatch={ampleDocumentPrompt.isBatch}
+          onChoose={ampleDocumentPrompt.resolve}
+        />
+      )}
       {failedImportsModal && (
         <FailedImportsDialog
           failedImports={failedImportsModal}

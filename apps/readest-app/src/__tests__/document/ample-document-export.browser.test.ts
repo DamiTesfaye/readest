@@ -83,13 +83,18 @@ describe('AmpleDocument EPUB export in foliate-js (browser)', () => {
     return { index: book.sections.findIndex((section) => section.id === path), anchor };
   };
 
-  /** Navigate and return the document of the section we asked for, not whichever view is first. */
+  /**
+   * Navigate and return the document of the section we asked for, not whichever
+   * view happens to be first. foliate accepts a fragment id as the anchor; the
+   * app's Renderer type only models the numeric and range forms, hence the cast.
+   */
+  type GoToTarget = Parameters<Renderer['goTo']>[0];
   const goTo = async (target: { index: number; anchor?: string }) => {
     const sameSection = target.index === currentIndex;
     const settled = sameSection
       ? new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       : waitForStabilized(paginator);
-    await paginator.goTo(target);
+    await paginator.goTo(target as unknown as GoToTarget);
     await settled;
     currentIndex = target.index;
     const contents = paginator.getContents();

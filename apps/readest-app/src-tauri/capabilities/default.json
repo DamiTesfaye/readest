@@ -176,6 +176,22 @@
         }
       ]
     },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "ample-document",
+          "cmd": "ample-document",
+          "args": [
+            { "validator": "^(run|--version)$" },
+            { "validator": "^[^\\u0000]*$" },
+            { "validator": "^--out$" },
+            { "validator": "^[^\\u0000]*$" },
+            { "validator": "^--skip-epubcheck$" }
+          ]
+        }
+      ]
+    },
     "biometric:default",
     "haptics:allow-vibrate",
     "haptics:allow-impact-feedback",

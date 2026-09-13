@@ -73,6 +73,9 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
   const [isUIAnimationsEnabled, setIsUIAnimationsEnabled] = useState(() =>
     resolveUIAnimationsEnabled(settings),
   );
+  const [isAmpleDocumentPromptEnabled, setIsAmpleDocumentPromptEnabled] = useState(
+    settings.ampleDocumentPromptEnabled !== false,
+  );
 
   const resetToDefaults = useResetViewSettings();
   const pageTurnerResetRef = useRef<() => void>(() => {});
@@ -267,6 +270,12 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
     applyUIAnimationsMode(newValue);
   };
 
+  const toggleAmpleDocumentPrompt = () => {
+    const newValue = !isAmpleDocumentPromptEnabled;
+    saveSysSettings(envConfig, 'ampleDocumentPromptEnabled', newValue);
+    setIsAmpleDocumentPromptEnabled(newValue);
+  };
+
   const toggleAutoCheckUpdates = () => {
     const newValue = !isAutoCheckUpdates;
     saveSysSettings(envConfig, 'autoCheckUpdates', newValue);
@@ -447,6 +456,14 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
           checked={isUIAnimationsEnabled}
           onChange={toggleUIAnimations}
         />
+        {appService?.isDesktopApp && (
+          <SettingsSwitchRow
+            label={_('Enhanced Import Prompt')}
+            checked={isAmpleDocumentPromptEnabled}
+            onChange={toggleAmpleDocumentPrompt}
+            data-setting-id='settings.control.ampleDocumentPrompt'
+          />
+        )}
       </BoxedList>
 
       <BoxedList title={_('Device')} data-setting-id='settings.control.device'>
