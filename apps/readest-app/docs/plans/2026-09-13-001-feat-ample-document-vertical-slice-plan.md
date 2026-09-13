@@ -1,7 +1,7 @@
 ---
 title: "feat: AmpleDocument vertical slice — ingest, furniture, EPUB export, foliate proof"
 type: feat
-status: active
+status: completed
 date: 2026-09-13
 ---
 
