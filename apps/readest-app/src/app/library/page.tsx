@@ -759,19 +759,21 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   };
 
   /**
-   * Run one file through the pipeline and return the EPUB to import plus the
-   * AmpleDocument JSON to keep beside it. Returns null when anything fails, so
-   * the caller falls back to importing the original file.
+   * Run one file through the pipeline and return the EPUB to import, the
+   * AmpleDocument JSON to keep beside it, and the scratch directory to delete
+   * once both have been consumed. Returns null when anything fails, so the
+   * caller falls back to importing the original file.
    */
   const convertWithAmpleDocument = async (
     filePath: string,
-  ): Promise<{ epubPath: string; jsonPath: string } | null> => {
+  ): Promise<{ epubPath: string; jsonPath: string; tempDir: string } | null> => {
     if (!appService) return null;
     try {
       const outDir = `ample-document/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       await appService.createDir(outDir, 'Temp', true);
       const absoluteOutDir = await appService.resolveFilePath(outDir, 'Temp');
-      return await ampleDocumentService.convert(filePath, absoluteOutDir);
+      const outputs = await ampleDocumentService.convert(filePath, absoluteOutDir);
+      return { ...outputs, tempDir: outDir };
     } catch (error) {
       console.error('AmpleDocument conversion failed:', filePath, error);
       eventDispatcher.dispatch('toast', {
@@ -836,13 +838,18 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       let file = selectedFile.file || selectedFile.path;
       if (!file) return null;
       if (!appService) return null;
+      // Kept for error messages: `file` may be swapped for a generated EPUB in a
+      // scratch directory below, and the user should still read their own name.
+      const sourceName = getFilename(typeof file === 'string' ? file : file.name);
       let ampleDocumentJsonPath: string | null = null;
+      let ampleDocumentTempDir: string | null = null;
       let forceCopy = false;
       if (ampleChoice === 'amp' && typeof file === 'string' && isEligibleForAmpleDocument(file)) {
         const converted = await convertWithAmpleDocument(file);
         if (converted) {
           file = converted.epubPath;
           ampleDocumentJsonPath = converted.jsonPath;
+          ampleDocumentTempDir = converted.tempDir;
           // The EPUB lives in a temp directory that we do not want the library
           // pointing at, so never import it in place.
           forceCopy = true;
@@ -894,12 +901,18 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         successfulImports.push(book.title);
         return book;
       } catch (error) {
-        const filename = typeof file === 'string' ? file : file.name;
-        const baseFilename = getFilename(filename);
         const errorMessage = error instanceof Error ? _(getImportErrorMessage(error.message)) : '';
-        failedImports.push({ filename: baseFilename, errorMessage });
-        console.error('Failed to import book:', filename, error);
+        failedImports.push({ filename: sourceName, errorMessage });
+        console.error('Failed to import book:', sourceName, error);
         return null;
+      } finally {
+        // The pipeline's scratch directory holds a full copy of the EPUB, so
+        // drop it once the import has taken what it needs.
+        if (ampleDocumentTempDir && appService) {
+          await appService
+            .deleteDir(ampleDocumentTempDir, 'Temp', true)
+            .catch((error) => console.error('Failed to clean up AmpleDocument output:', error));
+        }
       }
     };
 

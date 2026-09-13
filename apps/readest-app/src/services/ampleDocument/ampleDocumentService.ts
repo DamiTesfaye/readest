@@ -11,10 +11,13 @@ import { getFilename } from '@/utils/path';
  * itself lives outside the app, so swapping or upgrading the pipeline needs no
  * client release.
  *
- * The command name is fixed because Tauri's shell scope validates on it (see
- * `src-tauri/capabilities/default.json`), so the binary has to be on PATH.
+ * Tauri builds the process arguments from the matching scope entry in
+ * `src-tauri/capabilities/default.json`, so each argument shape needs its own
+ * named entry and the argument list passed here must line up index for index.
+ * The binary itself has to be on PATH under the name `ample-document`.
  */
-export const AMPLE_DOCUMENT_COMMAND = 'ample-document';
+export const AMPLE_DOCUMENT_VERSION_COMMAND = 'ample-document-version';
+export const AMPLE_DOCUMENT_RUN_COMMAND = 'ample-document-run';
 
 /** Formats the prompt is offered for. Everything else imports as usual. */
 export const AMPLE_DOCUMENT_ELIGIBLE_EXTENSIONS = ['pdf', 'epub', 'docx'] as const;
@@ -68,7 +71,7 @@ class AmpleDocumentService {
 
   private async probeCommand(): Promise<boolean> {
     try {
-      const output = await Command.create(AMPLE_DOCUMENT_COMMAND, ['--version']).execute();
+      const output = await Command.create(AMPLE_DOCUMENT_VERSION_COMMAND, ['--version']).execute();
       return output.code === 0;
     } catch {
       return false;
@@ -83,7 +86,7 @@ class AmpleDocumentService {
    * the pipeline's own schema and integrity checks already gate the report.
    */
   async convert(filePath: string, outDir: string): Promise<AmpleDocumentOutputs> {
-    const output = await Command.create(AMPLE_DOCUMENT_COMMAND, [
+    const output = await Command.create(AMPLE_DOCUMENT_RUN_COMMAND, [
       'run',
       filePath,
       '--out',
@@ -92,7 +95,7 @@ class AmpleDocumentService {
     ]).execute();
     if (output.code !== 0) {
       const detail = (output.stderr || output.stdout || '').trim().split('\n').slice(-3).join(' ');
-      throw new Error(detail || `${AMPLE_DOCUMENT_COMMAND} exited with ${output.code}`);
+      throw new Error(detail || `ample-document exited with ${output.code}`);
     }
     const stem = stemOf(filePath);
     return {

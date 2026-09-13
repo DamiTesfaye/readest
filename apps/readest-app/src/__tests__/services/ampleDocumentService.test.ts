@@ -50,7 +50,10 @@ describe('ampleDocumentService.isAvailable', () => {
     expect(await ampleDocumentService.isAvailable(deps())).toBe(true);
     expect(await ampleDocumentService.isAvailable(deps())).toBe(true);
     expect(Command.create).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(Command.create).mock.calls[0]).toEqual(['ample-document', ['--version']]);
+    expect(vi.mocked(Command.create).mock.calls[0]).toEqual([
+      'ample-document-version',
+      ['--version'],
+    ]);
   });
 
   it('is false when the command is missing or exits non-zero', async () => {
@@ -67,8 +70,10 @@ describe('ampleDocumentService.convert', () => {
   it('runs the pipeline and returns the EPUB and JSON paths', async () => {
     execute.mockResolvedValue({ code: 0, stdout: 'ok   book.pdf: pymupdf', stderr: '' });
     const outputs = await ampleDocumentService.convert('/books/My Book.pdf', '/tmp/out');
+    // The argument list must line up with the scope entry index for index,
+    // because Tauri builds the real argv from that entry.
     expect(vi.mocked(Command.create).mock.calls[0]).toEqual([
-      'ample-document',
+      'ample-document-run',
       ['run', '/books/My Book.pdf', '--out', '/tmp/out', '--skip-epubcheck'],
     ]);
     expect(outputs).toEqual({
