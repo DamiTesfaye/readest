@@ -675,6 +675,58 @@ describe('sanitizerTransformer', () => {
     expect(result).toMatch(/^<\?xml version="1\.0" encoding="utf-8"\?>/);
     expect(result).toContain('<!DOCTYPE html');
   });
+
+  test('preserves <use> that references a glyph outline in the same document', async () => {
+    const html =
+      '<html><head></head><body>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" class="defs" width="0" height="0">' +
+      '<defs><path id="g1" d="M0 0H10V10H0Z"/></defs></svg>' +
+      '<p class="equation"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">' +
+      '<g fill="currentColor"><use href="#g1" x="5" y="3"/></g></svg></p>' +
+      '</body></html>';
+    const settings = { allowScript: false } as ViewSettings;
+    const result = await sanitizerTransformer.transform(
+      makeCtx({ content: html, viewSettings: settings }),
+    );
+    expect(result).toContain('<use');
+    expect(result).toContain('href="#g1"');
+    expect(result).toContain('x="5"');
+    expect(result).toContain('y="3"');
+    expect(result).toContain('id="g1"');
+  });
+
+  test('preserves <use> that references a glyph outline via xlink:href', async () => {
+    const html =
+      '<html xmlns:xlink="http://www.w3.org/1999/xlink"><head></head><body>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' +
+      '<defs><path id="g2" d="M0 0H10V10H0Z"/></defs>' +
+      '<use xlink:href="#g2"/></svg>' +
+      '</body></html>';
+    const settings = { allowScript: false } as ViewSettings;
+    const result = await sanitizerTransformer.transform(
+      makeCtx({ content: html, viewSettings: settings }),
+    );
+    expect(result).toContain('<use');
+    expect(result).toContain('#g2');
+  });
+
+  test('strips <use> that references anything outside the document', async () => {
+    const html =
+      '<html><head></head><body>' +
+      '<svg xmlns="http://www.w3.org/2000/svg">' +
+      '<use href="https://evil.example/sprite.svg#a"/>' +
+      '<use href="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="/>' +
+      '<use href="other.xhtml#b"/>' +
+      '</svg></body></html>';
+    const settings = { allowScript: false } as ViewSettings;
+    const result = await sanitizerTransformer.transform(
+      makeCtx({ content: html, viewSettings: settings }),
+    );
+    expect(result).not.toContain('evil.example');
+    expect(result).not.toContain('data:image/svg+xml');
+    expect(result).not.toContain('other.xhtml');
+    expect(result).not.toContain('<use');
+  });
 });
 
 // =============================================================================

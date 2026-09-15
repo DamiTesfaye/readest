@@ -6,6 +6,16 @@ const DOCTYPE_XHTML11 = `<!DOCTYPE html PUBLIC
 "-//W3C//DTD XHTML 1.1//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">`;
 
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+const SAME_DOCUMENT_REF = /^#[^\s]+$/;
+
+const dropForeignUseRefs = (root: ParentNode) => {
+  for (const el of Array.from(root.querySelectorAll('use'))) {
+    const href = el.getAttribute('href') ?? el.getAttributeNS(XLINK_NS, 'href');
+    if (!href || !SAME_DOCUMENT_REF.test(href.trim())) el.remove();
+  }
+};
+
 export const sanitizerTransformer: Transformer = {
   name: 'sanitizer',
 
@@ -21,7 +31,7 @@ export const sanitizerTransformer: Transformer = {
       FORBID_ATTR: ['srcdoc'],
       ALLOWED_URI_REGEXP:
         /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-      ADD_TAGS: ['link', 'meta'],
+      ADD_TAGS: ['link', 'meta', 'use'],
       ADD_ATTR: (attributeName: string) => {
         const attrWhitelist = [
           'xmlns',
@@ -45,6 +55,8 @@ export const sanitizerTransformer: Transformer = {
       },
       RETURN_DOM: true,
     });
+
+    dropForeignUseRefs(sanitized as unknown as ParentNode);
 
     const serializer = new XMLSerializer();
     let serialized = serializer.serializeToString(sanitized);
