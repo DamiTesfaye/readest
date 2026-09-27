@@ -265,6 +265,39 @@ describe('openMapSession', () => {
     await session.close();
   });
 
+  it('keeps the save queue usable when a throwing onError hook fails a save', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const onError = vi.fn(() => {
+      throw new Error('hook broke');
+    });
+    const session = await open(fs, { hooks: { onError } });
+    vi.spyOn(fs, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
+    session.store.put([createNodeRecord({ id: 'n1', index: 'a0' })]);
+    await expect(session.flush()).resolves.toBeUndefined();
+    expect(onError).toHaveBeenCalledWith(new Error('disk full'));
+    expect((await onDisk(fs)).records['n1']).toBeUndefined();
+    await session.flush();
+    expect((await onDisk(fs)).records['n1']).toBeDefined();
+    await session.close();
+  });
+
+  it('does not leave an unhandled rejection on the debounced path when onError throws', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const onError = vi.fn(() => {
+      throw new Error('hook broke');
+    });
+    const session = await open(fs, { hooks: { onError } });
+    vi.spyOn(fs, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
+    session.store.put([createNodeRecord({ id: 'n1', index: 'a0' })]);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(onError).toHaveBeenCalledTimes(1);
+    await session.flush();
+    expect((await onDisk(fs)).records['n1']).toBeDefined();
+    await session.close();
+  });
+
   it('opens read-only with no autosave when a migration fails', async () => {
     const fs = new MemoryFileSystem();
     await seed(fs, withNode(blankFile(), 'n1', 'Elizabeth', deviceClock()));

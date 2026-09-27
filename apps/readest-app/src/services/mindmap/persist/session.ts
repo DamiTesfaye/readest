@@ -65,7 +65,7 @@ const createAutosave = (saveNow: () => Promise<void>): Autosave => {
     timer = null;
   };
   const enqueue = (): Promise<void> => {
-    queue = queue.then(saveNow);
+    queue = queue.catch(() => undefined).then(saveNow);
     return queue;
   };
   return {
@@ -99,6 +99,13 @@ export const openMapSession = async (
   if (loaded.status === 'unreadable') return { status: 'unreadable' };
   const readOnlyReason = loaded.status === 'read-only' ? loaded.reason : null;
   const onError = options.hooks?.onError ?? reportSaveError;
+  const report = (error: unknown): void => {
+    try {
+      onError(error);
+    } catch {
+      reportSaveError(error);
+    }
+  };
   let file = loaded.file;
   const decoded = fileToRecords(file);
   let invalid = decoded.invalid;
@@ -115,13 +122,13 @@ export const openMapSession = async (
       text = await saveMap(fs, bookHash, snapshot);
     } catch (error) {
       dirty = true;
-      onError(error);
+      report(error);
       return;
     }
     try {
       options.hooks?.onSaved?.(snapshot, text);
     } catch (error) {
-      onError(error);
+      report(error);
     }
   };
   const autosave = createAutosave(saveNow);
