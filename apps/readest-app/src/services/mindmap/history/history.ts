@@ -168,9 +168,8 @@ export const createHistory = (store: MapStore): History => {
     squashToMark: (token) => {
       const collected = closeMark(token);
       if (!collected) return;
-      const step = combineSteps(collected);
-      if (openMarks.length === 0) record(step);
-      else if (!isEmptyDiff(step.diff)) pending.push(step);
+      if (openMarks.length === 0) record(combineSteps(collected));
+      else pending.push(...collected);
     },
     bailToMark: (token) => {
       const collected = closeMark(token);

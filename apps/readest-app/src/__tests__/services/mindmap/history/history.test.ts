@@ -84,6 +84,19 @@ describe('createHistory', () => {
     expect(history.canUndo()).toBe(false);
   });
 
+  it('bailing an outer gesture discards a record an inner squashed gesture created and deleted', () => {
+    const store = createMapStore([]);
+    const history = createHistory(store);
+    const outer = history.mark();
+    const inner = history.mark();
+    store.put([createNodeRecord({ id: 'n2', index: 'a0' })]);
+    store.remove(['n2'], 'user');
+    history.squashToMark(inner);
+    history.bailToMark(outer);
+    expect(store.get('n2')).toBeUndefined();
+    expect(history.canUndo()).toBe(false);
+  });
+
   it('nests marks and squashes the outer gesture into one step', () => {
     const store = createMapStore([createNodeRecord({ id: 'n1', index: 'a0', x: 0 })]);
     const history = createHistory(store);
