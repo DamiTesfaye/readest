@@ -10,6 +10,11 @@ import {
 } from '@/services/mindmap/persist/mapFile';
 import { loadMindmapIndex } from '@/services/mindmap/persist/mindmapIndex';
 import {
+  __resetMapSessionsForTests,
+  getOpenMapSession,
+  openMapSession,
+} from '@/services/mindmap/persist/session';
+import {
   MINDMAP_STORE_FILENAME,
   type MindmapEntry,
   __resetMindmapStoreForTests,
@@ -47,6 +52,7 @@ const stored = async (fs: MemoryFileSystem): Promise<unknown> =>
   JSON.parse(await fs.readFile(MINDMAP_STORE_FILENAME, 'Data'));
 
 afterEach(() => {
+  __resetMapSessionsForTests();
   __resetMindmapStoreForTests();
 });
 
@@ -196,6 +202,24 @@ describe('useMindmapStore', () => {
     expect(await fs.readFile(`${mapTrashDir('b1', mapId)}/incoming/x.json`, 'Books')).toBe('in');
     expect(await fs.readFile(`${mapTrashDir('b1', mapId)}/outgoing/y.json`, 'Books')).toBe('out');
     expect(await loadMindmapIndex(fs, 'b1')).toEqual([]);
+  });
+
+  it('moveToTrash discards an open session so its autosave cannot bring the map back', async () => {
+    const fs = new MemoryFileSystem();
+    await store().hydrate(fs);
+    const c = clock();
+    const { mapId } = await store().createMap('b1', DEFAULT_MAP_META, c);
+    const opened = await openMapSession(fs, 'b1', mapId, c);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    opened.session.updateMeta({ title: 'Pending' });
+
+    await store().moveToTrash(mapId);
+    await opened.session.close();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(await fs.exists(mapFileDir('b1', mapId), 'Books')).toBe(false);
+    expect(await loadMindmapIndex(fs, 'b1')).toEqual([]);
+    expect(getOpenMapSession(mapId)).toBeUndefined();
   });
 
   it('softDeleteByContentId trashes the map without blocking the caller', async () => {

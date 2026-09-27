@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HlcGenerator } from '@/libs/crdt';
+import type { Hlc } from '@/types/replica';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { canonicalStringify } from '@/services/mindmap/file/canonicalStringify';
 import { type HlcClock, createMindmapClock } from '@/services/mindmap/file/clock';
@@ -12,6 +13,8 @@ import { loadMindmapIndex } from '@/services/mindmap/persist/mindmapIndex';
 import {
   type MapSession,
   type OpenMapSessionOptions,
+  __resetMapSessionsForTests,
+  getOpenMapSession,
   openMapSession,
 } from '@/services/mindmap/persist/session';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
@@ -78,6 +81,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  __resetMapSessionsForTests();
   vi.useRealTimers();
 });
 
@@ -274,7 +278,7 @@ describe('openMapSession', () => {
     const session = await open(fs, { hooks: { onError } });
     vi.spyOn(fs, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
     session.store.put([createNodeRecord({ id: 'n1', index: 'a0' })]);
-    await expect(session.flush()).resolves.toBeUndefined();
+    await expect(session.flush()).resolves.toBe(false);
     expect(onError).toHaveBeenCalledWith(new Error('disk full'));
     expect((await onDisk(fs)).records['n1']).toBeUndefined();
     await session.flush();
@@ -358,7 +362,7 @@ describe('openMapSession', () => {
     const listener = vi.fn();
     session.store.listen(listener);
 
-    session.mergeRemote(remote);
+    expect(session.mergeRemote(remote)).toBe('merged');
 
     expect(nodeIn(session.store, 'n2').label).toBe('theirs');
     expect(listener).toHaveBeenCalledWith(
@@ -404,7 +408,7 @@ describe('openMapSession', () => {
         n2: Object.fromEntries(
           Object.entries(theirs.records['n2']!).map(([key, envelope]) => [
             key,
-            { ...envelope, t: 'fffffffffffff-ffffffff-evil' },
+            { ...envelope, t: 'fffffffffffff-ffffffff-evil' as Hlc },
           ]),
         ),
       },
@@ -431,7 +435,7 @@ describe('openMapSession', () => {
       schemaVersion: CURRENT_SCHEMA_VERSION + 1,
     };
 
-    session.mergeRemote(remote);
+    expect(session.mergeRemote(remote)).toBe('newer-schema');
 
     expect(session.file()).toBe(before);
     expect(session.store.all()).toEqual(beforeStore);
@@ -443,17 +447,90 @@ describe('openMapSession', () => {
     await session.close();
   });
 
-  it('calls onSaved with the saved file and its bytes and keeps index.json current', async () => {
+  it('tells save listeners the saved file and its bytes and keeps index.json current', async () => {
     const fs = new MemoryFileSystem();
     await seed(fs);
     const onSaved = vi.fn();
-    const session = await open(fs, { hooks: { onSaved } });
+    const session = await open(fs);
+    const unlisten = session.listenSaved(onSaved);
     session.updateMeta({ title: 'Indexed' });
     await session.flush();
     const [file, text] = onSaved.mock.calls[0]!;
     expect(text).toBe(canonicalStringify(file));
     expect(text).toBe(await fs.readFile(MAIN, 'Books'));
     expect((await loadMindmapIndex(fs, BOOK))[0]).toMatchObject({ mapId: MAP, title: 'Indexed' });
+    unlisten();
+    session.updateMeta({ title: 'Quiet' });
+    await session.flush();
+    expect(onSaved).toHaveBeenCalledTimes(1);
     await session.close();
+  });
+
+  it('reports whether a flush left the file on disk current', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs, { hooks: { onError: vi.fn() } });
+    session.store.put([createNodeRecord({ id: 'n1', index: 'a0' })]);
+    const write = vi.spyOn(fs, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
+    expect(await session.flush()).toBe(false);
+    write.mockRestore();
+    expect(await session.flush()).toBe(true);
+    await session.close();
+  });
+
+  it('refuses to merge into a read-only session and leaves it untouched', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs, withNode(blankFile(), 'n1', 'Elizabeth', deviceClock()));
+    const session = await open(fs, {
+      migration: nodeToV2(() => {
+        throw new Error('bad');
+      }),
+    });
+    const before = session.file();
+    const remote = withNode(blankFile(), 'n2', 'theirs', deviceClock('device-2'));
+    expect(session.mergeRemote(remote)).toBe('read-only');
+    expect(session.file()).toBe(before);
+    expect(session.store.get('n2')).toBeUndefined();
+    await session.close();
+  });
+
+  it('allows one open session per map and finds it', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs);
+    expect(getOpenMapSession(MAP)).toBe(session);
+    expect((await openMapSession(fs, BOOK, MAP, deviceClock())).status).toBe('already-open');
+    await session.close();
+    expect(getOpenMapSession(MAP)).toBeUndefined();
+    await (await open(fs)).close();
+  });
+
+  it('discard stops the session without saving and waits for a save in flight', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs);
+    session.store.put([createNodeRecord({ id: 'n1', index: 'a0' })]);
+    let unblock = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      unblock = resolve;
+    });
+    vi.spyOn(fs, 'createDir').mockImplementationOnce(() => gate);
+    const inFlight = session.flush();
+    await vi.advanceTimersByTimeAsync(0);
+    session.store.put([createNodeRecord({ id: 'n2', index: 'a1' })]);
+    let discardDone = false;
+    const discarding = session.discard().then(() => {
+      discardDone = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(discardDone).toBe(false);
+    unblock();
+    await discarding;
+    await inFlight;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fs.writesTo(MAIN)).toBe(1);
+    expect((await onDisk(fs)).records['n2']).toBeUndefined();
+    expect(getOpenMapSession(MAP)).toBeUndefined();
+    expect(await session.flush()).toBe(false);
   });
 });

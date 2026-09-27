@@ -22,9 +22,12 @@ import {
 const SAVE_DEBOUNCE_MS = 300;
 
 export interface MapSessionHooks {
-  onSaved?(file: MapFile, text: string): void;
   onError?(error: unknown): void;
 }
+
+export type SavedListener = (file: MapFile, text: string) => void;
+
+export type MergeRemoteResult = 'merged' | 'newer-schema' | 'read-only';
 
 export interface OpenMapSessionOptions {
   hooks?: MapSessionHooks;
@@ -40,36 +43,47 @@ export interface MapSession {
   meta(): MapMeta;
   invalid(): string[];
   listenMeta(listener: (meta: MapMeta) => void): () => void;
+  listenSaved(listener: SavedListener): () => void;
   updateMeta(patch: Partial<MapMeta>): void;
-  mergeRemote(remote: MapFile): void;
-  flush(): Promise<void>;
+  mergeRemote(remote: MapFile): MergeRemoteResult;
+  flush(): Promise<boolean>;
   close(): Promise<void>;
+  discard(): Promise<void>;
 }
 
 export type OpenMapSessionResult =
   | { status: 'open'; session: MapSession }
-  | { status: 'unreadable' };
+  | { status: 'unreadable' }
+  | { status: 'already-open' };
 
 interface Autosave {
   schedule(): void;
-  flush(): Promise<void>;
+  flush(): Promise<boolean>;
   stop(): void;
 }
+
+const openSessions = new Map<string, MapSession>();
+
+export const getOpenMapSession = (mapId: string): MapSession | undefined => openSessions.get(mapId);
+
+export const __resetMapSessionsForTests = (): void => {
+  openSessions.clear();
+};
 
 const reportSaveError = (error: unknown): void => {
   console.error('mindmap: failed to save map', error);
 };
 
-const createAutosave = (saveNow: () => Promise<void>): Autosave => {
+const createAutosave = (saveNow: () => Promise<boolean>): Autosave => {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  let queue: Promise<void> = Promise.resolve();
+  let queue: Promise<boolean> = Promise.resolve(true);
   let stopped = false;
   const cancel = (): void => {
     if (timer) clearTimeout(timer);
     timer = null;
   };
-  const enqueue = (): Promise<void> => {
-    queue = queue.catch(() => undefined).then(saveNow);
+  const enqueue = (): Promise<boolean> => {
+    queue = queue.catch(() => false).then(saveNow);
     return queue;
   };
   return {
@@ -99,8 +113,10 @@ export const openMapSession = async (
   clock: HlcClock,
   options: OpenMapSessionOptions = {},
 ): Promise<OpenMapSessionResult> => {
+  if (openSessions.has(mapId)) return { status: 'already-open' };
   const loaded = await loadMapFile(fs, bookHash, mapId, clock, options.migration);
   if (loaded.status === 'unreadable') return { status: 'unreadable' };
+  if (openSessions.has(mapId)) return { status: 'already-open' };
   const readOnlyReason = loaded.status === 'read-only' ? loaded.reason : null;
   const onError = options.hooks?.onError ?? reportSaveError;
   const report = (error: unknown): void => {
@@ -115,10 +131,13 @@ export const openMapSession = async (
   let invalid = decoded.invalid;
   const store = createMapStore(decoded.records);
   const metaListeners = new Set<(meta: MapMeta) => void>();
+  const savedListeners = new Set<SavedListener>();
   let dirty = false;
+  let discarded = false;
 
-  const saveNow = async (): Promise<void> => {
-    if (!dirty) return;
+  const saveNow = async (): Promise<boolean> => {
+    if (discarded) return false;
+    if (!dirty) return true;
     dirty = false;
     const snapshot = file;
     let text: string;
@@ -127,13 +146,16 @@ export const openMapSession = async (
     } catch (error) {
       dirty = true;
       report(error);
-      return;
+      return false;
     }
-    try {
-      options.hooks?.onSaved?.(snapshot, text);
-    } catch (error) {
-      report(error);
+    for (const listener of [...savedListeners]) {
+      try {
+        listener(snapshot, text);
+      } catch (error) {
+        report(error);
+      }
     }
+    return true;
   };
   const autosave = createAutosave(saveNow);
 
@@ -155,10 +177,13 @@ export const openMapSession = async (
     commit(stampDiff(file, diff, clock, store.get));
   });
 
-  if (loaded.status === 'ok' && loaded.migrated) {
-    dirty = true;
-    void autosave.flush();
-  }
+  const release = (): void => {
+    unlisten();
+    metaListeners.clear();
+    savedListeners.clear();
+    autosave.stop();
+    if (openSessions.get(mapId) === session) openSessions.delete(mapId);
+  };
 
   const session: MapSession = {
     store,
@@ -174,6 +199,12 @@ export const openMapSession = async (
         metaListeners.delete(listener);
       };
     },
+    listenSaved: (listener) => {
+      savedListeners.add(listener);
+      return () => {
+        savedListeners.delete(listener);
+      };
+    },
     updateMeta: (patch) => {
       if (readOnlyReason !== null) return;
       const before = decodeMeta(file.meta);
@@ -183,8 +214,9 @@ export const openMapSession = async (
     mergeRemote: (remote) => {
       if (remote.schemaVersion > CURRENT_SCHEMA_VERSION) {
         report(new Error('mindmap: remote map needs a newer app version'));
-        return;
+        return 'newer-schema';
       }
+      if (readOnlyReason !== null) return 'read-only';
       observeFileClock(clock, remote);
       const before = decodeMeta(file.meta);
       const merged = mergeMapFiles(file, remote);
@@ -193,14 +225,24 @@ export const openMapSession = async (
       commit(merged);
       store.applyRemote(diffRecords(store.all(), next.records));
       notifyMeta(before);
+      return 'merged';
     },
     flush: () => autosave.flush(),
     close: async () => {
-      unlisten();
-      metaListeners.clear();
       autosave.stop();
+      await autosave.flush();
+      release();
+    },
+    discard: async () => {
+      discarded = true;
+      release();
       await autosave.flush();
     },
   };
+  openSessions.set(mapId, session);
+  if (loaded.status === 'ok' && loaded.migrated) {
+    dirty = true;
+    void autosave.flush();
+  }
   return { status: 'open', session };
 };
