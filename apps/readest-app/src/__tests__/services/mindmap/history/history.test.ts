@@ -122,6 +122,20 @@ describe('createHistory', () => {
     expect(nodeIn(store, 'n1').label).toBe('keep me');
   });
 
+  it('undoing a delete restores the content captured at delete time after a merge cleared it', () => {
+    const store = createMapStore([createNodeRecord({ id: 'n1', index: 'a0', label: 'keep me' })]);
+    const history = createHistory(store);
+    store.remove(['n1'], 'user');
+    store.applyRemote({
+      added: [],
+      changed: [{ id: 'n1', field: 'label', from: 'keep me', to: '' }],
+      discarded: [],
+    });
+    expect(history.undo()).toBe(true);
+    expect(store.get('n1')!.deleted).toBeNull();
+    expect(nodeIn(store, 'n1').label).toBe('keep me');
+  });
+
   it('records nothing for a create and delete squashed together', () => {
     const store = createMapStore([createNodeRecord({ id: 'n1', index: 'a0', x: 0 })]);
     const history = createHistory(store);

@@ -1,4 +1,4 @@
-import type { MapRecord } from '@/services/mindmap/schema/types';
+import { CONTENT_FIELDS, type MapRecord } from '@/services/mindmap/schema/types';
 import {
   type Diff,
   type FieldChange,
@@ -17,6 +17,11 @@ export interface History {
   canUndo(): boolean;
   canRedo(): boolean;
   dispose(): void;
+}
+
+interface Step {
+  diff: Diff;
+  content: FieldChange[];
 }
 
 interface OpenMark {
@@ -61,11 +66,19 @@ export const combineDiffs = (diffs: Diff[]): Diff => {
   };
 };
 
+const isDelete = (change: FieldChange): boolean =>
+  change.field === 'deleted' && change.from === null && change.to !== null;
+
+const combineSteps = (steps: Step[]): Step => ({
+  diff: combineDiffs(steps.map((step) => step.diff)),
+  content: steps.flatMap((step) => step.content),
+});
+
 export const createHistory = (store: MapStore): History => {
-  const pending: Diff[] = [];
+  const pending: Step[] = [];
   let openMarks: OpenMark[] = [];
-  const undoStack: Diff[] = [];
-  const redoStack: Diff[] = [];
+  const undoStack: Step[] = [];
+  const redoStack: Step[] = [];
   let applying = false;
   let nextToken = 0;
 
@@ -78,8 +91,20 @@ export const createHistory = (store: MapStore): History => {
     }
   };
 
-  const record = (step: Diff): void => {
-    if (isEmptyDiff(step)) return;
+  const deletedContent = (diff: Diff): FieldChange[] =>
+    diff.changed.filter(isDelete).flatMap(({ id }) => {
+      const current = store.get(id);
+      if (!current) return [];
+      return CONTENT_FIELDS[current.type].map((field) => ({
+        id,
+        field,
+        from: undefined,
+        to: readField(current, field),
+      }));
+    });
+
+  const record = (step: Step): void => {
+    if (isEmptyDiff(step.diff)) return;
     undoStack.push(step);
     redoStack.length = 0;
   };
@@ -89,15 +114,17 @@ export const createHistory = (store: MapStore): History => {
     return current !== undefined && fieldsEqual(readField(current, change.field), value);
   };
 
-  const revert = (step: Diff): boolean => {
-    const live = step.added.map((r) => r.id).filter((id) => store.get(id)?.deleted === null);
-    const reverts = step.changed.filter((c) => currentEquals(c, c.to)).map(invertChange);
+  const revert = ({ diff, content }: Step): boolean => {
+    const live = diff.added.map((r) => r.id).filter((id) => store.get(id)?.deleted === null);
+    const reverts = diff.changed.filter((c) => currentEquals(c, c.to)).map(invertChange);
+    const revived = new Set(reverts.filter((c) => c.field === 'deleted').map((c) => c.id));
+    const restores = content.filter((c) => revived.has(c.id));
     if (live.length > 0) store.remove(live, 'user');
-    if (reverts.length > 0) store.setFields(reverts);
+    if (reverts.length > 0) store.setFields([...reverts, ...restores]);
     return live.length > 0 || reverts.length > 0;
   };
 
-  const reapply = (step: Diff): boolean => {
+  const reapply = ({ diff: step }: Step): boolean => {
     const revive = step.added.filter((r) => store.get(r.id)?.deleted !== null);
     const forwards = step.changed.filter((c) => currentEquals(c, c.from));
     if (revive.length > 0) store.put(revive);
@@ -105,7 +132,7 @@ export const createHistory = (store: MapStore): History => {
     return revive.length > 0 || forwards.length > 0;
   };
 
-  const replay = (from: Diff[], to: Diff[], run: (step: Diff) => boolean): boolean =>
+  const replay = (from: Step[], to: Step[], run: (step: Step) => boolean): boolean =>
     withApplying(() => {
       for (let step = from.pop(); step; step = from.pop()) {
         if (run(step)) {
@@ -116,7 +143,7 @@ export const createHistory = (store: MapStore): History => {
       return false;
     });
 
-  const closeMark = (token: string): Diff[] | null => {
+  const closeMark = (token: string): Step[] | null => {
     const position = openMarks.findIndex((open) => open.token === token);
     if (position === -1) return null;
     const { at } = openMarks[position]!;
@@ -126,8 +153,9 @@ export const createHistory = (store: MapStore): History => {
 
   const unlisten = store.listen((diff, source) => {
     if (applying || source !== 'local') return;
-    if (openMarks.length === 0) record(combineDiffs([diff]));
-    else pending.push(diff);
+    const step = { diff, content: deletedContent(diff) };
+    if (openMarks.length === 0) record(combineSteps([step]));
+    else pending.push(step);
   });
 
   return {
@@ -140,15 +168,15 @@ export const createHistory = (store: MapStore): History => {
     squashToMark: (token) => {
       const collected = closeMark(token);
       if (!collected) return;
-      const step = combineDiffs(collected);
+      const step = combineSteps(collected);
       if (openMarks.length === 0) record(step);
-      else if (!isEmptyDiff(step)) pending.push(step);
+      else if (!isEmptyDiff(step.diff)) pending.push(step);
     },
     bailToMark: (token) => {
       const collected = closeMark(token);
       if (!collected || collected.length === 0) return;
-      const created = collected.flatMap((diff) => diff.added.map((r) => r.id));
-      const reverts = combineDiffs(collected)
+      const created = collected.flatMap(({ diff }) => diff.added.map((r) => r.id));
+      const reverts = combineDiffs(collected.map((step) => step.diff))
         .changed.filter((c) => currentEquals(c, c.to))
         .map(invertChange);
       withApplying(() => {
