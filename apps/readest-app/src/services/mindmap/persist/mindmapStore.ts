@@ -94,11 +94,14 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
           !removedBeforeHydration.has(entry.mapId) &&
           !purgedBeforeHydration.has(entry.bookHash),
       );
+    const changedBeforeHydration =
+      current.length > 0 || removedBeforeHydration.size > 0 || purgedBeforeHydration.size > 0;
     storeFs = fs;
     removedBeforeHydration = new Set();
     purgedBeforeHydration = new Set();
     set({ hydrated: true });
-    setEntries([...fromDisk, ...current]);
+    if (changedBeforeHydration) setEntries([...fromDisk, ...current]);
+    else set({ entries: fromDisk });
   };
 
   return {

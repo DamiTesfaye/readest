@@ -82,6 +82,19 @@ describe('useMindmapStore', () => {
     expect(store().getEntry('m1')!.syncedMd5).toBe('new');
   });
 
+  it('leaves the stored entries on disk when reading them fails at hydrate', async () => {
+    const fs = new MemoryFileSystem();
+    await fs.writeFile(MINDMAP_STORE_FILENAME, 'Data', JSON.stringify([entry('m1', 'b1', 'abc')]));
+    const readFile = vi
+      .spyOn(fs, 'readFile')
+      .mockRejectedValueOnce(new Error('EIO'))
+      .mockRejectedValueOnce(new Error('EIO'));
+    await store().hydrate(fs);
+    await store().whenPersisted();
+    readFile.mockRestore();
+    expect(await stored(fs)).toEqual([entry('m1', 'b1', 'abc')]);
+  });
+
   it('keeps purges, removals and entries made before hydration', async () => {
     const fs = new MemoryFileSystem();
     await fs.writeFile(
