@@ -70,15 +70,17 @@ export const readMapFile = async (
   fs: MindmapFs,
   bookHash: string,
   mapId: string,
+  restore = false,
 ): Promise<ReadMapFileResult | null> => {
   const path = mapFilePath(bookHash, mapId);
   const main = await readText(fs, path);
   const mainFile = main === null ? null : parseMapFile(main, mapId);
   if (mainFile) return { file: mainFile, restoredFromBackup: false };
   const backup = await readText(fs, `${path}.bak`);
-  const backupFile = backup === null ? null : parseMapFile(backup, mapId);
-  if (backup === null || !backupFile) return null;
-  await fs.writeFile(path, MINDMAP_BASE_DIR, backup);
+  if (backup === null) return null;
+  const backupFile = parseMapFile(backup, mapId);
+  if (!backupFile) return null;
+  if (restore) await fs.writeFile(path, MINDMAP_BASE_DIR, backup);
   return { file: backupFile, restoredFromBackup: true };
 };
 
@@ -89,7 +91,7 @@ export const loadMapFile = async (
   clock: HlcClock,
   migration: MigrationConfig = DEFAULT_MIGRATION_CONFIG,
 ): Promise<LoadMapFileResult> => {
-  const read = await readMapFile(fs, bookHash, mapId);
+  const read = await readMapFile(fs, bookHash, mapId, true);
   if (!read) return { status: 'unreadable' };
   const { file, restoredFromBackup } = read;
   observeFileClock(clock, file);
