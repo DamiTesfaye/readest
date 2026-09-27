@@ -24,7 +24,7 @@ const stamp = (value: unknown, clock: HlcClock): FieldEnvelope => ({
 const stampRecord = (record: MapRecord, clock: HlcClock): FieldsObject => {
   const fields: FieldsObject = {};
   for (const [key, value] of Object.entries(recordFields(record))) {
-    if (key !== 'id') fields[key] = stamp(value, clock);
+    if (key !== 'id' && value !== undefined) fields[key] = stamp(value, clock);
   }
   return fields;
 };

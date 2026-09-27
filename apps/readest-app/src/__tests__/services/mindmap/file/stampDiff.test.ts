@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { HlcGenerator } from '@/libs/crdt';
 import { type HlcClock, createMindmapClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
+import { canonicalStringify } from '@/services/mindmap/file/canonicalStringify';
+import { parseMapFile } from '@/services/mindmap/file/parseMapFile';
 import { stampDiff, stampMeta } from '@/services/mindmap/file/stampDiff';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
 import { DEFAULT_MAP_META, type MapFile, type MapMeta } from '@/services/mindmap/schema/types';
@@ -25,6 +27,18 @@ describe('stampDiff', () => {
         .sort(),
     );
     expect(fields['label']).toMatchObject({ v: 'keep me', s: 'device-1' });
+  });
+
+  it('skips undefined fields of an added record so the file stays parseable', () => {
+    const loose = { ...node, id: 'n2', icon: undefined } as unknown as typeof node;
+    const file = stampDiff(
+      emptyFile(),
+      { added: [loose], changed: [], discarded: [] },
+      clock(),
+      () => loose,
+    );
+    expect(Object.hasOwn(file.records['n2']!, 'icon')).toBe(false);
+    expect(parseMapFile(canonicalStringify(file), 'm1')).not.toBeNull();
   });
 
   it('replaces only the changed envelope with a newer clock', () => {
