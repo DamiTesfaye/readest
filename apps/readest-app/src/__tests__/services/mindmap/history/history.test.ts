@@ -175,6 +175,16 @@ describe('createHistory', () => {
     expect(nodeIn(store, 'n1').x).toBe(0);
   });
 
+  it('undoing an edit of a generated record restores the value and keeps it touched', () => {
+    const node = createNodeRecord({ id: 'g1', index: 'a0', label: 'Ch 1' });
+    const store = createMapStore([{ ...node, origin: 'generated', genKey: 'ch1' }]);
+    const history = createHistory(store);
+    store.update('g1', { label: 'Renamed' });
+    expect(history.undo()).toBe(true);
+    expect(nodeIn(store, 'g1').label).toBe('Ch 1');
+    expect(nodeIn(store, 'g1').touched).toEqual(['label']);
+  });
+
   it('never records generated diffs', () => {
     const store = createMapStore([createNodeRecord({ id: 'n1', index: 'a0', label: '' })]);
     const history = createHistory(store);

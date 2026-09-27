@@ -12,6 +12,12 @@ import {
 
 const nodeIn = (store: MapStore, id: string): NodeRecord => store.get(id) as NodeRecord;
 
+const generated = (node: NodeRecord): NodeRecord => ({
+  ...node,
+  origin: 'generated',
+  genKey: 'ch1',
+});
+
 describe('createMapStore', () => {
   it('put on a new id produces an added diff and is retrievable', () => {
     const store = createMapStore([]);
@@ -111,6 +117,41 @@ describe('createMapStore', () => {
       { added: [], changed: [{ id: 'n1', field: 'label', from: 'old', to: 'new' }], discarded: [] },
       'generated',
     );
+  });
+
+  it('adds the fields a local edit changes on a generated record to touched', () => {
+    const store = createMapStore([
+      generated(createNodeRecord({ id: 'g1', index: 'a0', label: 'Ch 1' })),
+      createNodeRecord({ id: 'u1', index: 'a1', label: 'mine' }),
+    ]);
+    const diff = store.update('g1', { label: 'Renamed', x: 40 });
+    store.update('g1', { label: 'Again' });
+    store.update('u1', { label: 'still mine' });
+    expect(nodeIn(store, 'g1').touched).toEqual(['label', 'x']);
+    expect(diff.changed).toContainEqual({
+      id: 'g1',
+      field: 'touched',
+      from: [],
+      to: ['label', 'x'],
+    });
+    expect(nodeIn(store, 'u1').touched).toEqual([]);
+  });
+
+  it('leaves touched alone for deletes, remote and generated diffs and local writes to touched', () => {
+    const store = createMapStore([generated(createNodeRecord({ id: 'g1', index: 'a0' }))]);
+    store.applyGenerated({
+      added: [],
+      changed: [{ id: 'g1', field: 'label', from: '', to: 'Ch 1' }],
+      discarded: [],
+    });
+    store.applyRemote({
+      added: [],
+      changed: [{ id: 'g1', field: 'x', from: 0, to: 9 }],
+      discarded: [],
+    });
+    store.setFields([{ id: 'g1', field: 'touched', from: [], to: ['label'] }]);
+    store.remove(['g1'], 'user');
+    expect(nodeIn(store, 'g1').touched).toEqual([]);
   });
 
   it('listen returns an unsubscribe function', () => {

@@ -80,6 +80,23 @@ export const diffRecords = (before: readonly MapRecord[], after: readonly MapRec
   return diff;
 };
 
+const UNTRACKED_FIELDS: ReadonlySet<string> = new Set(['touched', 'deleted']);
+
+const touchGenerated = (next: Map<string, MapRecord>, diff: Diff): void => {
+  const fields = new Map<string, string[]>();
+  for (const { id, field } of diff.changed) {
+    if (!UNTRACKED_FIELDS.has(field)) fields.set(id, [...(fields.get(id) ?? []), field]);
+  }
+  for (const [id, names] of fields) {
+    const record = next.get(id)!;
+    if (record.origin !== 'generated') continue;
+    const touched = [...new Set([...record.touched, ...names])];
+    if (touched.length === record.touched.length) continue;
+    next.set(id, { ...record, touched });
+    diff.changed.push({ id, field: 'touched', from: record.touched, to: touched });
+  }
+};
+
 export const createMapStore = (initial: MapRecord[]): MapStore => {
   let records = new Map<string, MapRecord>(initial.map((record) => [record.id, record]));
   let snapshot: MapRecord[] | null = null;
@@ -88,8 +105,10 @@ export const createMapStore = (initial: MapRecord[]): MapStore => {
   const apply = (input: Diff, source: DiffSource): Diff => {
     const next = new Map(records);
     const diff = emptyDiff();
-    for (const record of input.added) {
-      const existing = next.get(record.id);
+    const local = source === 'local';
+    for (const incoming of input.added) {
+      const existing = next.get(incoming.id);
+      const record = local && existing ? { ...incoming, touched: existing.touched } : incoming;
       if (existing) diff.changed.push(...recordChanges(existing, record));
       else diff.added.push(record);
       next.set(record.id, record);
@@ -97,11 +116,13 @@ export const createMapStore = (initial: MapRecord[]): MapStore => {
     for (const change of input.changed) {
       const existing = next.get(change.id);
       if (!existing || change.field === 'id' || change.to === undefined) continue;
+      if (local && change.field === 'touched') continue;
       const from = readField(existing, change.field);
       if (fieldsEqual(from, change.to)) continue;
       diff.changed.push({ id: change.id, field: change.field, from, to: change.to });
       next.set(change.id, { ...existing, [change.field]: change.to } as MapRecord);
     }
+    if (local) touchGenerated(next, diff);
     for (const id of input.discarded) {
       if (next.delete(id)) diff.discarded.push(id);
     }
