@@ -68,12 +68,37 @@ describe('ink codec', () => {
     expect(joined).toEqual(points);
   });
 
-  it('starts a new segment when one step overflows Int16', () => {
+  it('bridges a step that overflows Int16 with sub-steps instead of leaving a gap', () => {
     const segments = encodeInkStroke([
       [0, 0, PRESSURE],
-      [5000, 0, PRESSURE],
+      [10, 0, PRESSURE],
+      [5010, 0, PRESSURE],
+      [5020, 0, PRESSURE],
     ]);
-    expect(segments.map(absolute)).toEqual([[[0, 0, PRESSURE]], [[5000, 0, PRESSURE]]]);
+    expect(segments.map(absolute)).toEqual([
+      [
+        [0, 0, PRESSURE],
+        [10, 0, PRESSURE],
+        [2510, 0, PRESSURE],
+        [5010, 0, PRESSURE],
+        [5020, 0, PRESSURE],
+      ],
+    ]);
+  });
+
+  it('drops points with non-finite coordinates', () => {
+    const segments = encodeInkStroke([
+      [0, 0, PRESSURE],
+      [Number.NaN, 1, PRESSURE],
+      [Number.POSITIVE_INFINITY, 1, PRESSURE],
+      [10, 0, PRESSURE],
+    ]);
+    expect(segments.map(absolute)).toEqual([
+      [
+        [0, 0, PRESSURE],
+        [10, 0, PRESSURE],
+      ],
+    ]);
   });
 
   it('decodes empty and malformed payloads to no points', () => {

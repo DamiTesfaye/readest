@@ -10,8 +10,8 @@ export interface InkSegment {
 
 const QUANT = 8;
 const MAX_POINTS_PER_RECORD = 600;
-const INT16_MIN = -32768;
 const INT16_MAX = 32767;
+const MAX_STEP = (INT16_MAX - 1) / QUANT;
 const HEADER_BYTES = 17;
 const STEP_BYTES = 5;
 
@@ -20,11 +20,16 @@ const snapCoordinate = (value: number): number => Math.round(value * QUANT) / QU
 const pressureByte = (pressure: number): number =>
   Math.round(Math.max(0, Math.min(1, pressure)) * 255);
 
-const fitsInt16 = (value: number): boolean => value >= INT16_MIN && value <= INT16_MAX;
-
-const stepFits = (from: InkPoint, to: InkPoint): boolean =>
-  fitsInt16(Math.round((to[0] - from[0]) * QUANT)) &&
-  fitsInt16(Math.round((to[1] - from[1]) * QUANT));
+const bridge = (from: InkPoint, to: InkPoint): InkPoint[] => {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / MAX_STEP));
+  return Array.from({ length: steps }, (_, i): InkPoint => {
+    if (i === steps - 1) return to;
+    const t = (i + 1) / steps;
+    return [snapCoordinate(from[0] + dx * t), snapCoordinate(from[1] + dy * t), to[2]];
+  });
+};
 
 const toBase64 = (bytes: Uint8Array): string => {
   let binary = '';
@@ -75,16 +80,16 @@ export const encodeInkStroke = (points: InkPoint[]): InkSegment[] => {
   const groups: InkPoint[][] = [];
   let current: InkPoint[] = [];
   for (const [x, y, pressure] of points) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     const point: InkPoint = [snapCoordinate(x), snapCoordinate(y), pressureByte(pressure) / 255];
     const previous = current[current.length - 1];
-    if (previous && !stepFits(previous, point)) {
-      groups.push(current);
-      current = [point];
-    } else if (previous && current.length === MAX_POINTS_PER_RECORD) {
-      groups.push(current);
-      current = [previous, point];
-    } else {
-      current.push(point);
+    for (const next of previous ? bridge(previous, point) : [point]) {
+      if (current.length === MAX_POINTS_PER_RECORD) {
+        groups.push(current);
+        current = [current[current.length - 1]!, next];
+      } else {
+        current.push(next);
+      }
     }
   }
   if (current.length > 0) groups.push(current);
