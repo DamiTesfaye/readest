@@ -6,7 +6,11 @@ import { stampDiff, stampMeta } from '@/services/mindmap/file/stampDiff';
 import { type ReadOnlyReason, loadMapFile } from '@/services/mindmap/persist/mapFile';
 import { saveMap } from '@/services/mindmap/persist/maps';
 import type { MigrationConfig } from '@/services/mindmap/schema/migrations';
-import type { MapFile, MapMeta } from '@/services/mindmap/schema/types';
+import {
+  CURRENT_SCHEMA_VERSION,
+  type MapFile,
+  type MapMeta,
+} from '@/services/mindmap/schema/types';
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 import {
   type MapStore,
@@ -177,6 +181,10 @@ export const openMapSession = async (
       notifyMeta(before);
     },
     mergeRemote: (remote) => {
+      if (remote.schemaVersion > CURRENT_SCHEMA_VERSION) {
+        report(new Error('mindmap: remote map needs a newer app version'));
+        return;
+      }
       const newest = highestHlc(remote);
       if (newest) clock.observe(newest);
       const before = decodeMeta(file.meta);

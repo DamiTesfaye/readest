@@ -374,6 +374,31 @@ describe('openMapSession', () => {
     await session.close();
   });
 
+  it('refuses to merge a remote map from a newer schema and reports it as an error', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const onError = vi.fn();
+    const session = await open(fs, { hooks: { onError } });
+    const before = session.file();
+    const beforeStore = session.store.all();
+    const remote: MapFile = {
+      ...blankFile(),
+      mapId: MAP,
+      schemaVersion: CURRENT_SCHEMA_VERSION + 1,
+    };
+
+    session.mergeRemote(remote);
+
+    expect(session.file()).toBe(before);
+    expect(session.store.all()).toEqual(beforeStore);
+    expect(onError).toHaveBeenCalledWith(
+      new Error('mindmap: remote map needs a newer app version'),
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fs.writesTo(MAIN)).toBe(0);
+    await session.close();
+  });
+
   it('calls onSaved with the saved file and its bytes and keeps index.json current', async () => {
     const fs = new MemoryFileSystem();
     await seed(fs);
