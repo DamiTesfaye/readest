@@ -53,6 +53,18 @@ describe('mindmap index', () => {
     expect(JSON.parse(await fs.readFile(INDEX, 'Books'))).toEqual(entries);
   });
 
+  it('skips a directory name that is not a safe id instead of throwing', async () => {
+    const fs = new MemoryFileSystem();
+    await saveMapFile(fs, BOOK, mapFile('m1', 'One', 5));
+    await fs.writeFile(
+      `${BOOK}/mindmaps/a.b/a.b.json`,
+      'Books',
+      JSON.stringify(mapFile('a.b', 'Unsafe', 5)),
+    );
+    const entries = await loadMindmapIndex(fs, BOOK);
+    expect(entries.map((entry) => entry.mapId)).toEqual(['m1']);
+  });
+
   it('rebuilds an index that does not validate', async () => {
     const fs = new MemoryFileSystem();
     await saveMapFile(fs, BOOK, mapFile('m1', 'One', 5));

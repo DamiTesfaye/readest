@@ -14,16 +14,31 @@ export const MINDMAP_BASE_DIR: BaseDir = 'Books';
 
 export type ReadOnlyReason = 'newer-schema' | 'migration-failed';
 
-export const mindmapsDir = (bookHash: string): string => `${bookHash}/mindmaps`;
+const SAFE_ID = /^[0-9A-Za-z_-]{1,64}$/;
 
-export const mapFileDir = (bookHash: string, mapId: string): string =>
-  `${mindmapsDir(bookHash)}/${mapId}`;
+export const isSafeMindmapId = (id: string): boolean => SAFE_ID.test(id);
+
+const assertSafeId = (id: string): void => {
+  if (!isSafeMindmapId(id)) throw new Error('mindmap: unsafe id');
+};
+
+export const mindmapsDir = (bookHash: string): string => {
+  assertSafeId(bookHash);
+  return `${bookHash}/mindmaps`;
+};
+
+export const mapFileDir = (bookHash: string, mapId: string): string => {
+  assertSafeId(mapId);
+  return `${mindmapsDir(bookHash)}/${mapId}`;
+};
 
 export const mapFilePath = (bookHash: string, mapId: string): string =>
   `${mapFileDir(bookHash, mapId)}/${mapId}.json`;
 
-export const mapTrashDir = (bookHash: string, mapId: string): string =>
-  `${mindmapsDir(bookHash)}/.trash/${mapId}`;
+export const mapTrashDir = (bookHash: string, mapId: string): string => {
+  assertSafeId(mapId);
+  return `${mindmapsDir(bookHash)}/.trash/${mapId}`;
+};
 
 export interface ReadMapFileResult {
   file: MapFile;

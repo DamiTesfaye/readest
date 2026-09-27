@@ -57,4 +57,12 @@ describe('trashMap', () => {
     expect(await fs.exists(mapFilePath(BOOK, 'm1'), 'Books')).toBe(false);
     expect((await loadMindmapIndex(fs, BOOK)).map((entry) => entry.mapId)).toEqual(['m2']);
   });
+
+  it('throws and deletes nothing for an unsafe mapId', async () => {
+    const fs = new MemoryFileSystem();
+    await saveMap(fs, BOOK, mapFile('m1', 'One', 5));
+    await expect(trashMap(fs, BOOK, '../..')).rejects.toThrow('mindmap: unsafe id');
+    expect(await fs.exists(mapFilePath(BOOK, 'm1'), 'Books')).toBe(true);
+    expect((await loadMindmapIndex(fs, BOOK)).map((entry) => entry.mapId)).toEqual(['m1']);
+  });
 });

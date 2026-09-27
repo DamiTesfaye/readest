@@ -1,7 +1,12 @@
 import { hlcParse } from '@/libs/crdt';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
 import { highestHlc } from '@/services/mindmap/file/mergeMapFiles';
-import { MINDMAP_BASE_DIR, mindmapsDir, readMapFile } from '@/services/mindmap/persist/mapFile';
+import {
+  MINDMAP_BASE_DIR,
+  isSafeMindmapId,
+  mindmapsDir,
+  readMapFile,
+} from '@/services/mindmap/persist/mapFile';
 import type { MapFile, MapSource, MapStyle } from '@/services/mindmap/schema/types';
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 
@@ -90,7 +95,7 @@ const listMapIds = async (fs: MindmapFs, bookHash: string): Promise<string[]> =>
     const items = await fs.readDir(mindmapsDir(bookHash), MINDMAP_BASE_DIR);
     return items.flatMap((item) => {
       const match = MAP_FILE_PATTERN.exec(item.path.replace(/\\/g, '/'));
-      return match ? [match[1]!] : [];
+      return match && isSafeMindmapId(match[1]!) ? [match[1]!] : [];
     });
   } catch {
     return [];

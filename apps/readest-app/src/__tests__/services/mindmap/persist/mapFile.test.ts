@@ -6,10 +6,12 @@ import { createMindmapClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { stampDiff } from '@/services/mindmap/file/stampDiff';
 import {
+  isSafeMindmapId,
   loadMapFile,
   mapFileDir,
   mapFilePath,
   mapTrashDir,
+  mindmapsDir,
   moveMapDirToTrash,
   saveMapFile,
 } from '@/services/mindmap/persist/mapFile';
@@ -175,5 +177,37 @@ describe('moveMapDirToTrash', () => {
     await expect(
       moveMapDirToTrash(new MemoryFileSystem(), BOOK, 'missing'),
     ).resolves.toBeUndefined();
+  });
+
+  it('throws and deletes nothing for an unsafe mapId', async () => {
+    const fs = new MemoryFileSystem();
+    await fs.writeFile(mapFilePath(BOOK, MAP), 'Books', 'kept');
+    await expect(moveMapDirToTrash(fs, BOOK, '../..')).rejects.toThrow('mindmap: unsafe id');
+    expect(await fs.readFile(mapFilePath(BOOK, MAP), 'Books')).toBe('kept');
+  });
+});
+
+describe('isSafeMindmapId', () => {
+  const unsafeIds = ['', '..', '../..', 'a/b'];
+
+  it('rejects unsafe ids', () => {
+    for (const id of unsafeIds) expect(isSafeMindmapId(id)).toBe(false);
+  });
+
+  it('accepts uniqueId and md5 hash shapes', () => {
+    expect(isSafeMindmapId('ab12cd3')).toBe(true);
+    expect(isSafeMindmapId('d41d8cd98f00b204e9800998ecf8427e')).toBe(true);
+  });
+
+  it('path helpers throw for an unsafe bookHash or mapId', () => {
+    for (const id of unsafeIds) {
+      expect(() => mindmapsDir(id)).toThrow('mindmap: unsafe id');
+      expect(() => mapFileDir(BOOK, id)).toThrow('mindmap: unsafe id');
+      expect(() => mapFileDir(id, MAP)).toThrow('mindmap: unsafe id');
+      expect(() => mapFilePath(BOOK, id)).toThrow('mindmap: unsafe id');
+      expect(() => mapFilePath(id, MAP)).toThrow('mindmap: unsafe id');
+      expect(() => mapTrashDir(BOOK, id)).toThrow('mindmap: unsafe id');
+      expect(() => mapTrashDir(id, MAP)).toThrow('mindmap: unsafe id');
+    }
   });
 });

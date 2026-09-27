@@ -27,6 +27,18 @@ const entry = (mapId: string, bookHash = 'b1', syncedMd5: string | null = null):
   syncedMd5,
 });
 
+const unsafeEntry = (
+  mapId: string,
+  bookHash = 'b1',
+  syncedMd5: string | null = null,
+): MindmapEntry => ({
+  mapId,
+  bookHash,
+  name: `Map ${mapId}`,
+  bundleDir: `${bookHash}/mindmaps/${mapId}`,
+  syncedMd5,
+});
+
 const store = () => useMindmapStore.getState();
 
 const clock = () => createMindmapClock(new HlcGenerator('device-1'), 'device-1');
@@ -92,6 +104,25 @@ describe('useMindmapStore', () => {
     store().upsertEntry(entry('m2', 'b1', 'local'));
     store().applyRemoteMap({ ...entry('m2', 'b1', 'remote'), name: 'other' });
     expect(store().getEntry('m2')).toEqual(entry('m2', 'b1', 'local'));
+  });
+
+  it('applyRemoteMap ignores an entry with an unsafe mapId or bookHash', () => {
+    store().applyRemoteMap(unsafeEntry('../..', 'b1', 'remote'));
+    expect(store().getEntry('../..')).toBeUndefined();
+    store().applyRemoteMap(unsafeEntry('m1', '../..', 'remote'));
+    expect(store().getEntry('m1')).toBeUndefined();
+    expect(store().entries).toEqual([]);
+  });
+
+  it('drops stored entries with an unsafe mapId or bookHash at hydrate', async () => {
+    const fs = new MemoryFileSystem();
+    await fs.writeFile(
+      MINDMAP_STORE_FILENAME,
+      'Data',
+      JSON.stringify([entry('m1', 'b1'), unsafeEntry('../..', 'b1'), unsafeEntry('m2', '../..')]),
+    );
+    await store().hydrate(fs);
+    expect(store().entries).toEqual([entry('m1', 'b1')]);
   });
 
   it('setSyncedMd5 ignores unknown maps', () => {

@@ -4,7 +4,7 @@ import type { ReplicaLocalRecord } from '@/services/sync/replicaPullAndApply';
 import { uniqueId } from '@/utils/misc';
 import type { HlcClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
-import { mapFileDir } from '@/services/mindmap/persist/mapFile';
+import { isSafeMindmapId, mapFileDir } from '@/services/mindmap/persist/mapFile';
 import { saveMap, trashMap } from '@/services/mindmap/persist/maps';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
 import type { MapFile, MapMeta } from '@/services/mindmap/schema/types';
@@ -50,9 +50,13 @@ const isMindmapEntry = (value: unknown): value is MindmapEntry => {
   if (typeof value !== 'object' || value === null) return false;
   const entry = value as Record<string, unknown>;
   const md5 = entry['syncedMd5'];
+  const mapId = entry['mapId'];
+  const bookHash = entry['bookHash'];
   return (
-    typeof entry['mapId'] === 'string' &&
-    typeof entry['bookHash'] === 'string' &&
+    typeof mapId === 'string' &&
+    isSafeMindmapId(mapId) &&
+    typeof bookHash === 'string' &&
+    isSafeMindmapId(bookHash) &&
     typeof entry['name'] === 'string' &&
     typeof entry['bundleDir'] === 'string' &&
     (md5 === null || typeof md5 === 'string')
@@ -119,6 +123,7 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
       setEntries(get().entries.filter((entry) => entry.mapId !== mapId));
     },
     applyRemoteMap: (entry) => {
+      if (!isSafeMindmapId(entry.mapId) || !isSafeMindmapId(entry.bookHash)) return;
       if (get().getEntry(entry.mapId)) return;
       setEntries([...get().entries, entry]);
     },
