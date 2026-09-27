@@ -74,6 +74,10 @@ const reportSaveError = (error: unknown): void => {
   console.error('mindmap: failed to save map', error);
 };
 
+const warnInvalid = (ids: string[]): void => {
+  if (ids.length > 0) console.warn('mindmap: skipped invalid records', ids);
+};
+
 const createAutosave = (saveNow: () => Promise<boolean>): Autosave => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let queue: Promise<boolean> = Promise.resolve(true);
@@ -129,6 +133,7 @@ export const openMapSession = async (
   let file = loaded.file;
   const decoded = fileToRecords(file);
   let invalid = decoded.invalid;
+  warnInvalid(invalid);
   const store = createMapStore(decoded.records);
   const metaListeners = new Set<(meta: MapMeta) => void>();
   const savedListeners = new Set<SavedListener>();
@@ -222,6 +227,7 @@ export const openMapSession = async (
       const merged = mergeMapFiles(file, remote);
       const next = fileToRecords(merged);
       invalid = next.invalid;
+      warnInvalid(invalid);
       commit(merged);
       store.applyRemote(diffRecords(store.all(), next.records));
       notifyMeta(before);

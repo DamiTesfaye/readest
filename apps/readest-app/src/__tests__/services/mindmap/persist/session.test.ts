@@ -104,6 +104,23 @@ describe('openMapSession', () => {
     await session.close();
   });
 
+  it('logs records that fail validation and keeps them out of the store', async () => {
+    const fs = new MemoryFileSystem();
+    const file = withNode(blankFile(), 'n1', 'Elizabeth', deviceClock());
+    const kind = file.records['n1']!['kind']!;
+    await seed(fs, {
+      ...file,
+      records: { n1: { ...file.records['n1']!, kind: { ...kind, v: 'wizard' } } },
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const session = await open(fs);
+    expect(session.invalid()).toEqual(['n1']);
+    expect(session.store.get('n1')).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith('mindmap: skipped invalid records', ['n1']);
+    warn.mockRestore();
+    await session.close();
+  });
+
   it('reports a map with no usable file as unreadable', async () => {
     expect(await openMapSession(new MemoryFileSystem(), BOOK, MAP, deviceClock())).toEqual({
       status: 'unreadable',
