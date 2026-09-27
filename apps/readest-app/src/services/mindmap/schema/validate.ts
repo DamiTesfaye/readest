@@ -3,6 +3,9 @@ import type { FieldsObject } from '@/types/replica';
 import { isValidOrderKey } from '@/services/mindmap/order/keyBetween';
 import { DEFAULT_MAP_META, type MapMeta, type RecordType } from '@/services/mindmap/schema/types';
 
+export const mapStyleSchema = z.enum(['sticker', 'paper', 'ink']);
+export const mapSourceSchema = z.enum(['generated', 'blank']);
+
 const presetColorSchema = z.enum(['terracotta', 'plum', 'sky', 'mustard', 'olive', 'ink', 'paper']);
 
 const linkAnchorSchema = z.object({
@@ -99,10 +102,10 @@ const META_FIELD_SCHEMAS: { [K in keyof MapMeta]: z.ZodType<MapMeta[K]> } = {
   title: z.string(),
   intent: z.enum(['adaptive', 'study', 'story', 'personal']),
   spoiler: z.enum(['adaptive', 'grow', 'fogged', 'whole']),
-  style: z.enum(['sticker', 'paper', 'ink']),
+  style: mapStyleSchema,
   camera: z.object({ x: z.number(), y: z.number(), z: z.number().positive() }),
   lastSeenProgress: z.number().min(0).max(1),
-  source: z.enum(['generated', 'blank']),
+  source: mapSourceSchema,
 };
 
 const decodeMetaField = <K extends keyof MapMeta>(meta: FieldsObject, key: K): MapMeta[K] => {

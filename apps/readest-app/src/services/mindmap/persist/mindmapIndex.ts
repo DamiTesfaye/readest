@@ -8,7 +8,7 @@ import {
   readMapFile,
 } from '@/services/mindmap/persist/mapFile';
 import type { MapFile, MapSource, MapStyle } from '@/services/mindmap/schema/types';
-import { decodeMeta } from '@/services/mindmap/schema/validate';
+import { decodeMeta, mapSourceSchema, mapStyleSchema } from '@/services/mindmap/schema/validate';
 
 export interface MindmapIndexEntry {
   mapId: string;
@@ -19,8 +19,6 @@ export interface MindmapIndexEntry {
 }
 
 const MAP_FILE_PATTERN = /^([^/.][^/]*)\/\1\.json$/;
-const STYLES: readonly string[] = ['sticker', 'paper', 'ink'];
-const SOURCES: readonly string[] = ['generated', 'blank'];
 const queues = new Map<string, Promise<unknown>>();
 
 const indexPath = (bookHash: string): string => `${mindmapsDir(bookHash)}/index.json`;
@@ -40,15 +38,11 @@ export const buildIndexEntry = (file: MapFile): MindmapIndexEntry => {
 const isIndexEntry = (value: unknown): value is MindmapIndexEntry => {
   if (typeof value !== 'object' || value === null) return false;
   const entry = value as Record<string, unknown>;
-  const style = entry['style'];
-  const source = entry['source'];
   return (
     typeof entry['mapId'] === 'string' &&
     typeof entry['title'] === 'string' &&
-    typeof style === 'string' &&
-    STYLES.includes(style) &&
-    typeof source === 'string' &&
-    SOURCES.includes(source) &&
+    mapStyleSchema.safeParse(entry['style']).success &&
+    mapSourceSchema.safeParse(entry['source']).success &&
     typeof entry['updatedAt'] === 'number'
   );
 };
