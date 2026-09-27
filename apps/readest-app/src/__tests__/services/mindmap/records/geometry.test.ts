@@ -34,6 +34,17 @@ describe('geometry primitives', () => {
     expect(ellipse.hitTestPoint({ x: 0, y: 0 })).toBe(false);
   });
 
+  it('EllipseGeometry measures distance along the ray for a flat ellipse', () => {
+    const flat = new EllipseGeometry({ x: 0, y: 0, w: 1000, h: 2 });
+    expect(flat.distanceToPoint({ x: 500, y: 100 })).toBeCloseTo(98);
+  });
+
+  it('EllipseGeometry with no area behaves like its degenerate box', () => {
+    const point = new EllipseGeometry({ x: 0, y: 0, w: 0, h: 0 });
+    expect(point.distanceToPoint({ x: 3, y: 4 })).toBe(5);
+    expect(point.hitTestPoint({ x: 0.9, y: 0 })).toBe(false);
+  });
+
   it('PolylineGeometry hit-tests near a segment and misses far from it', () => {
     const line = new PolylineGeometry(
       [
@@ -55,6 +66,16 @@ describe('geometry primitives', () => {
     expect(group.bounds()).toEqual({ x: 0, y: 0, w: 100, h: 100 });
     expect(group.hitTestPoint({ x: 95, y: 95 })).toBe(true);
     expect(group.hitTestPoint({ x: 50, y: 50 })).toBe(false);
+  });
+});
+
+describe('GroupGeometry bounds', () => {
+  it('ignores members with no points', () => {
+    const group = new GroupGeometry([
+      new RectGeometry({ x: 1000, y: 1000, w: 100, h: 100 }),
+      new PolylineGeometry([]),
+    ]);
+    expect(group.bounds()).toEqual({ x: 1000, y: 1000, w: 100, h: 100 });
   });
 });
 

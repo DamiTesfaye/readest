@@ -42,29 +42,37 @@ export class RectGeometry implements Geometry {
 }
 
 export class EllipseGeometry implements Geometry {
-  constructor(private readonly rect: BoundsRect) {}
+  private readonly box: RectGeometry;
+
+  constructor(private readonly rect: BoundsRect) {
+    this.box = new RectGeometry(rect);
+  }
 
   bounds(): BoundsRect {
     return this.rect;
   }
 
+  private degenerate(): boolean {
+    return this.rect.w === 0 || this.rect.h === 0;
+  }
+
   private normalized(point: Point): Point {
     const { x, y, w, h } = this.rect;
-    const rx = w / 2 || 1;
-    const ry = h / 2 || 1;
-    return { x: (point.x - (x + w / 2)) / rx, y: (point.y - (y + h / 2)) / ry };
+    return { x: (point.x - (x + w / 2)) / (w / 2), y: (point.y - (y + h / 2)) / (h / 2) };
   }
 
   hitTestPoint(point: Point): boolean {
+    if (this.degenerate()) return this.box.hitTestPoint(point);
     const n = this.normalized(point);
     return n.x * n.x + n.y * n.y <= 1;
   }
 
   distanceToPoint(point: Point): number {
+    if (this.degenerate()) return this.box.distanceToPoint(point);
     const n = this.normalized(point);
     const norm = Math.hypot(n.x, n.y);
     if (norm <= 1) return 0;
-    return (norm - 1) * Math.max(this.rect.w / 2, this.rect.h / 2);
+    return ((norm - 1) * Math.hypot((n.x * this.rect.w) / 2, (n.y * this.rect.h) / 2)) / norm;
   }
 }
 
@@ -111,8 +119,8 @@ export class GroupGeometry implements Geometry {
   constructor(private readonly members: Geometry[]) {}
 
   bounds(): BoundsRect {
-    if (this.members.length === 0) return EMPTY_BOUNDS;
-    const boxes = this.members.map((m) => m.bounds());
+    const boxes = this.members.map((m) => m.bounds()).filter((box) => box !== EMPTY_BOUNDS);
+    if (boxes.length === 0) return EMPTY_BOUNDS;
     const minX = Math.min(...boxes.map((b) => b.x));
     const minY = Math.min(...boxes.map((b) => b.y));
     const maxX = Math.max(...boxes.map((b) => b.x + b.w));
