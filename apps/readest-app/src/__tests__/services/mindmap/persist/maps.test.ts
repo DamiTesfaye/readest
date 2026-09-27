@@ -35,13 +35,15 @@ describe('saveMap', () => {
     ]);
   });
 
-  it('keeps both entries when two maps are saved at once', async () => {
+  it('keeps every entry when two maps are saved at once over an existing index', async () => {
     const fs = new MemoryFileSystem();
+    await saveMap(fs, BOOK, mapFile('m0', 'Zero', 4));
     await Promise.all([
       saveMap(fs, BOOK, mapFile('m1', 'One', 5)),
       saveMap(fs, BOOK, mapFile('m2', 'Two', 6)),
     ]);
     expect((await loadMindmapIndex(fs, BOOK)).map((entry) => entry.mapId).sort()).toEqual([
+      'm0',
       'm1',
       'm2',
     ]);

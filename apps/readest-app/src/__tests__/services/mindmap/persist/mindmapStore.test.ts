@@ -77,15 +77,15 @@ describe('useMindmapStore', () => {
     expect(store().entries).toEqual([entry('m1', 'b1', 'abc')]);
   });
 
-  it('never reverts syncedMd5 when hydrate runs again', async () => {
+  it('keeps a syncedMd5 set while hydrate is still reading the stored one', async () => {
     const fs = new MemoryFileSystem();
-    await store().hydrate(fs);
-    store().upsertEntry(entry('m1', 'b1', 'old'));
-    await store().whenPersisted();
-    store().setSyncedMd5('m1', 'new');
     await fs.writeFile(MINDMAP_STORE_FILENAME, 'Data', JSON.stringify([entry('m1', 'b1', 'old')]));
-    await store().hydrate(fs);
+    const hydrating = store().hydrate(fs);
+    store().upsertEntry(entry('m1', 'b1', 'new'));
+    await hydrating;
+    await store().whenPersisted();
     expect(store().getEntry('m1')!.syncedMd5).toBe('new');
+    expect(await stored(fs)).toEqual([entry('m1', 'b1', 'new')]);
   });
 
   it('leaves the stored entries on disk when reading them fails at hydrate', async () => {

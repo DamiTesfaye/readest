@@ -188,6 +188,7 @@ describe('openMapSession', () => {
     session.store.put([createNodeRecord({ id: 'n2', index: 'a1' })]);
     await vi.advanceTimersByTimeAsync(1000);
     expect(fs.writesTo(MAIN)).toBe(1);
+    expect(session.file().records['n2']).toBeUndefined();
   });
 
   it('restamps restored content when a saved delete is undone', async () => {

@@ -57,11 +57,13 @@ describe('fileToRecords', () => {
 
   it('excludes an invalid record but leaves the file untouched', () => {
     const bad = nodeFields({ kind: 'wizard' });
+    const before = structuredClone(bad);
     const file = fileWith({ n1: bad });
     const { records, invalid } = fileToRecords(file);
     expect(records).toEqual([]);
     expect(invalid).toEqual(['n1']);
     expect(file.records['n1']).toBe(bad);
+    expect(bad).toEqual(before);
   });
 
   it('reads null content fields of deleted records back as empty strings', () => {

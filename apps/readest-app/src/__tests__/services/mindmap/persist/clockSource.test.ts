@@ -36,10 +36,13 @@ describe('getMindmapClock', () => {
   });
 
   it('falls back to a persisted local generator that stays monotonic across restarts', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
     const store = new InMemoryHlcStore();
     const first = getMindmapClock('device-2', store).next();
     __resetMindmapClockForTests();
     const second = getMindmapClock('device-2', store).next();
+    vi.useRealTimers();
     expect(first < second).toBe(true);
     expect(store.load()).not.toBeNull();
   });

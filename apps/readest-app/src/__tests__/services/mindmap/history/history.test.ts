@@ -185,6 +185,27 @@ describe('createHistory', () => {
     expect(nodeIn(store, 'g1').touched).toEqual(['label']);
   });
 
+  it('redo skips a field a remote merge changed after the undo and tries the next step', () => {
+    const store = createMapStore([
+      createNodeRecord({ id: 'n1', index: 'a0', x: 0, label: 'start' }),
+    ]);
+    const history = createHistory(store);
+    store.update('n1', { x: 10 });
+    store.update('n1', { label: 'edited' });
+    history.undo();
+    history.undo();
+    store.applyRemote({
+      added: [],
+      changed: [{ id: 'n1', field: 'x', from: 0, to: 99 }],
+      discarded: [],
+    });
+
+    expect(history.redo()).toBe(true);
+    expect(nodeIn(store, 'n1').x).toBe(99);
+    expect(nodeIn(store, 'n1').label).toBe('edited');
+    expect(history.canRedo()).toBe(false);
+  });
+
   it('never records generated diffs', () => {
     const store = createMapStore([createNodeRecord({ id: 'n1', index: 'a0', label: '' })]);
     const history = createHistory(store);
