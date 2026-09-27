@@ -374,6 +374,50 @@ describe('openMapSession', () => {
     await session.close();
   });
 
+  it('catches the clock up to the file on open so a local edit beats the value it replaces', async () => {
+    const fs = new MemoryFileSystem();
+    const ahead = createMindmapClock(
+      new HlcGenerator('device-2', () => Date.now() + 3_600_000),
+      'device-2',
+    );
+    const seeded = withNode(blankFile(), 'n1', 'old', ahead);
+    await seed(fs, seeded);
+    const session = await open(fs);
+    session.store.update('n1', { label: 'new' });
+    expect(session.file().records['n1']!['label']!.t > seeded.records['n1']!['label']!.t).toBe(
+      true,
+    );
+    session.mergeRemote(seeded);
+    expect(nodeIn(session.store, 'n1').label).toBe('new');
+    await session.close();
+  });
+
+  it('ignores a far-future clock in a remote file and keeps stamping and saving', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs);
+    session.store.put([createNodeRecord({ id: 'n1', index: 'a0', label: 'mine' })]);
+    const theirs = withNode(blankFile(), 'n2', 'theirs', deviceClock('device-2'));
+    const poisoned: MapFile = {
+      ...theirs,
+      records: {
+        n2: Object.fromEntries(
+          Object.entries(theirs.records['n2']!).map(([key, envelope]) => [
+            key,
+            { ...envelope, t: 'fffffffffffff-ffffffff-evil' },
+          ]),
+        ),
+      },
+    };
+
+    session.mergeRemote(poisoned);
+    expect(() => session.store.update('n1', { label: 'after' })).not.toThrow();
+    expect(session.file().records['n1']!['label']!.t < 'fffffffffffff').toBe(true);
+    await session.flush();
+    expect((await onDisk(fs)).records['n1']!['label']!.v).toBe('after');
+    await session.close();
+  });
+
   it('refuses to merge a remote map from a newer schema and reports it as an error', async () => {
     const fs = new MemoryFileSystem();
     await seed(fs);

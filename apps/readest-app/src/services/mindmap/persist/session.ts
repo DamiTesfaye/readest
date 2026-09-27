@@ -1,7 +1,7 @@
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
-import type { HlcClock } from '@/services/mindmap/file/clock';
+import { type HlcClock, observeFileClock } from '@/services/mindmap/file/clock';
 import { fileToRecords } from '@/services/mindmap/file/fileToRecords';
-import { highestHlc, mergeMapFiles } from '@/services/mindmap/file/mergeMapFiles';
+import { mergeMapFiles } from '@/services/mindmap/file/mergeMapFiles';
 import { stampDiff, stampMeta } from '@/services/mindmap/file/stampDiff';
 import { type ReadOnlyReason, loadMapFile } from '@/services/mindmap/persist/mapFile';
 import { saveMap } from '@/services/mindmap/persist/maps';
@@ -185,8 +185,7 @@ export const openMapSession = async (
         report(new Error('mindmap: remote map needs a newer app version'));
         return;
       }
-      const newest = highestHlc(remote);
-      if (newest) clock.observe(newest);
+      observeFileClock(clock, remote);
       const before = decodeMeta(file.meta);
       const merged = mergeMapFiles(file, remote);
       const next = fileToRecords(merged);

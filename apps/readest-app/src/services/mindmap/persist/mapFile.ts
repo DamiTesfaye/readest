@@ -1,7 +1,7 @@
 import type { BaseDir } from '@/types/system';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
 import { canonicalStringify } from '@/services/mindmap/file/canonicalStringify';
-import type { HlcClock } from '@/services/mindmap/file/clock';
+import { type HlcClock, observeFileClock } from '@/services/mindmap/file/clock';
 import { parseMapFile } from '@/services/mindmap/file/parseMapFile';
 import {
   DEFAULT_MIGRATION_CONFIG,
@@ -92,6 +92,7 @@ export const loadMapFile = async (
   const read = await readMapFile(fs, bookHash, mapId);
   if (!read) return { status: 'unreadable' };
   const { file, restoredFromBackup } = read;
+  observeFileClock(clock, file);
   if (file.schemaVersion > CURRENT_SCHEMA_VERSION) {
     return { status: 'read-only', reason: 'newer-schema', file, restoredFromBackup, error: null };
   }
