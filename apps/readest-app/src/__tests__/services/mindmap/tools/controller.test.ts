@@ -1,0 +1,239 @@
+import { describe, expect, it } from 'vitest';
+import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
+import type { MapRecord, NodeRecord, PositionedRecord } from '@/services/mindmap/schema/types';
+import { createMapStore } from '@/services/mindmap/store/mapStore';
+import { type CanvasController, createCanvasController } from '@/services/mindmap/tools/controller';
+import type { CanvasPointer } from '@/services/mindmap/tools/types';
+import { pointer } from './toolHarness';
+
+const setupController = (records: MapRecord[] = [], readOnly = false) => {
+  const store = createMapStore(records);
+  let next = 0;
+  const controller = createCanvasController({
+    store,
+    camera: { x: 0, y: 0, z: 1 },
+    readOnly,
+    createId: () => {
+      next += 1;
+      return `new${next}`;
+    },
+  });
+  controller.viewport.set({ width: 1000, height: 800 });
+  return { store, controller };
+};
+
+const drag = (
+  controller: CanvasController,
+  from: [number, number],
+  to: [number, number],
+  overrides: Partial<CanvasPointer> = {},
+): void => {
+  controller.pointerDown(pointer(from[0], from[1], overrides));
+  controller.pointerMove(pointer((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, overrides), []);
+  controller.pointerMove(pointer(to[0], to[1], overrides), []);
+  controller.pointerUp(pointer(to[0], to[1], overrides));
+};
+
+const node = (id: string, x: number, y: number, index = 'a1') =>
+  createNodeRecord({ id, index, x, y, w: 160, h: 64, label: id });
+const live = (records: MapRecord[]) => records.filter((r) => r.deleted === null);
+
+describe('pointer routing', () => {
+  it('lets touch pan but never draw once a pen has been seen, across gestures', () => {
+    const { store, controller } = setupController();
+    controller.setTool('pen');
+    drag(controller, [0, 0], [30, 30], { kind: 'pen', pressure: 0.6 });
+    const inkCount = store.all().length;
+    drag(controller, [100, 100], [160, 100], { kind: 'touch', id: 2 });
+    drag(controller, [100, 100], [100, 140], { kind: 'touch', id: 3 });
+    expect(store.all()).toHaveLength(inkCount);
+    expect(controller.camera.get()).toMatchObject({ x: 60, y: 40 });
+  });
+
+  it('lets touch draw before any pen is seen', () => {
+    const { store, controller } = setupController();
+    controller.setTool('pen');
+    drag(controller, [0, 0], [30, 30], { kind: 'touch' });
+    expect(store.all()).toHaveLength(1);
+  });
+
+  it('ignores a second pointer while a gesture is active', () => {
+    const { store, controller } = setupController([node('a', 0, 0)]);
+    controller.pointerDown(pointer(10, 10));
+    controller.pointerDown(pointer(500, 500, { id: 2 }));
+    controller.pointerMove(pointer(900, 900, { id: 2 }), []);
+    controller.pointerUp(pointer(900, 900, { id: 2 }));
+    controller.pointerMove(pointer(42, 10), []);
+    controller.pointerUp(pointer(42, 10));
+    expect(store.get('a')).toMatchObject({ x: 32, y: 0 });
+  });
+
+  it('pans with Space held or the middle button', () => {
+    const { controller } = setupController([node('a', 0, 0)]);
+    controller.setSpaceHeld(true);
+    drag(controller, [10, 10], [30, 10]);
+    controller.setSpaceHeld(false);
+    drag(controller, [500, 500], [500, 520], { button: 1 });
+    expect(controller.camera.get()).toMatchObject({ x: 20, y: 20 });
+  });
+
+  it('cancels the running gesture when the tool changes', () => {
+    const { store, controller } = setupController([node('a', 0, 0)]);
+    controller.pointerDown(pointer(10, 10));
+    controller.pointerMove(pointer(300, 300), []);
+    controller.setTool('pen');
+    expect(store.get('a')).toMatchObject({ x: 0, y: 0 });
+    expect(controller.gestureActive()).toBe(false);
+  });
+
+  it('tracks the hovered record for mouse pointers only', () => {
+    const { controller } = setupController([node('a', 0, 0)]);
+    controller.pointerMove(pointer(10, 10), []);
+    expect(controller.hover.get()).toBe('a');
+    controller.pointerMove(pointer(900, 900), []);
+    expect(controller.hover.get()).toBeNull();
+    controller.pointerMove(pointer(10, 10, { kind: 'touch' }), []);
+    expect(controller.hover.get()).toBeNull();
+  });
+});
+
+describe('commands', () => {
+  it('deletes the selection with its links in one undo step', () => {
+    const link = createLinkRecord({ id: 'l', index: 'a3', fromId: 'a', toId: 'b' });
+    const { store, controller } = setupController([node('a', 0, 0), node('b', 400, 0, 'a2'), link]);
+    controller.selection.set(['a']);
+    controller.deleteSelection();
+    expect(live(store.all()).map((r) => r.id)).toEqual(['b']);
+    expect(controller.selection.get()).toEqual([]);
+    controller.undo();
+    expect(
+      live(store.all())
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(['a', 'b', 'l']);
+    expect((store.get('a') as NodeRecord).label).toBe('a');
+  });
+
+  it('adds linked children to the right, stacked below each other', () => {
+    const { store, controller } = setupController([node('p', 0, 0)]);
+    controller.selection.set(['p']);
+    const first = controller.addChild()!;
+    expect(store.get(first)).toMatchObject({ x: 256, y: 0 });
+    expect(controller.editing.get()).toBe(first);
+    controller.selection.set(['p']);
+    const second = controller.addChild()!;
+    expect((store.get(second) as PositionedRecord).y).toBe(96);
+    const links = live(store.all()).filter((r) => r.type === 'link');
+    expect(links).toHaveLength(2);
+    controller.selection.set([second]);
+    expect(controller.selectParent()).toBe('p');
+  });
+
+  it('adds a sibling under the same parent', () => {
+    const { store, controller } = setupController([node('p', 0, 0)]);
+    controller.selection.set(['p']);
+    const child = controller.addChild()!;
+    controller.selection.set([child]);
+    const sibling = controller.addSibling()!;
+    expect(
+      store.all().some((r) => r.type === 'link' && r.fromId === 'p' && r.toId === sibling),
+    ).toBe(true);
+    expect((store.get(sibling) as PositionedRecord).y).toBeGreaterThan(
+      (store.get(child) as PositionedRecord).y,
+    );
+  });
+
+  it('never stacks a new node on top of another record', () => {
+    const { store, controller } = setupController([node('p', 0, 0), node('blocker', 256, 0, 'a2')]);
+    controller.selection.set(['p']);
+    const child = controller.addChild()!;
+    expect((store.get(child) as PositionedRecord).y).toBeGreaterThanOrEqual(64);
+  });
+
+  it('moves focus to the nearest node in the arrow direction', () => {
+    const { controller } = setupController([
+      node('a', 0, 0),
+      node('right', 400, 20, 'a2'),
+      node('far', 900, 0, 'a3'),
+      node('down', 0, 400, 'a4'),
+    ]);
+    controller.selection.set(['a']);
+    expect(controller.focusDirection('right')).toBe('right');
+    expect(controller.selection.get()).toEqual(['right']);
+    controller.selection.set(['a']);
+    expect(controller.focusDirection('down')).toBe('down');
+    expect(controller.focusDirection('down')).toBeNull();
+  });
+
+  it('nudges by one grid step, recolours, rekinds and restacks', () => {
+    const { store, controller } = setupController([node('a', 0, 0, 'a1'), node('b', 400, 0, 'a2')]);
+    controller.selection.set(['a']);
+    controller.nudge(1, -1);
+    expect(store.get('a')).toMatchObject({ x: 16, y: -16 });
+    controller.setColor('sky');
+    controller.setKind('character');
+    expect(store.get('a')).toMatchObject({ color: 'sky', kind: 'character' });
+    controller.bringToFront();
+    expect(store.get('a')!.index > store.get('b')!.index).toBe(true);
+    controller.sendToBack();
+    expect(store.get('a')!.index < store.get('b')!.index).toBe(true);
+  });
+
+  it('duplicates the selection with fresh ids and an offset', () => {
+    const { store, controller } = setupController([node('a', 0, 0)]);
+    controller.selection.set(['a']);
+    controller.duplicateSelection();
+    expect(store.get('new1')).toMatchObject({
+      x: 32,
+      y: 32,
+      label: 'a',
+      origin: 'user',
+      genKey: null,
+    });
+    expect(controller.selection.get()).toEqual(['new1']);
+  });
+
+  it('commits edits to the right field and ends editing', () => {
+    const { store, controller } = setupController([node('a', 0, 0)]);
+    controller.editing.set('a');
+    controller.commitEdit('a', 'Elizabeth');
+    expect(store.get('a')).toMatchObject({ label: 'Elizabeth' });
+    expect(controller.editing.get()).toBeNull();
+  });
+
+  it('drops deleted records from the selection after undo', () => {
+    const { controller } = setupController();
+    controller.setTool('node');
+    controller.pointerDown(pointer(0, 0));
+    controller.pointerUp(pointer(0, 0));
+    controller.undo();
+    expect(controller.selection.get()).toEqual([]);
+  });
+
+  it('blocks every edit in a read-only map', () => {
+    const { store, controller } = setupController([node('a', 0, 0)], true);
+    controller.selection.set(['a']);
+    controller.setTool('node');
+    expect(controller.tool.get()).toBe('select');
+    controller.deleteSelection();
+    controller.nudge(1, 0);
+    controller.commitEdit('a', 'x');
+    expect(controller.addChild()).toBeNull();
+    expect(store.get('a')).toMatchObject({ x: 0, label: 'a', deleted: null });
+  });
+
+  it('zooms around the viewport centre and fits the records', () => {
+    const { controller } = setupController([node('a', 0, 0), node('b', 1840, 0, 'a2')]);
+    controller.zoomBy(2);
+    expect(controller.camera.screenToPage({ x: 500, y: 400 })).toEqual({ x: 500, y: 400 });
+    controller.fitView(false);
+    expect(controller.camera.get().z).toBeCloseTo((1000 - 96) / 2000, 9);
+  });
+
+  it('stops following the store after dispose', () => {
+    const { store, controller } = setupController();
+    controller.dispose();
+    store.put([node('a', 0, 0)]);
+    expect(controller.spatial.search({ x: 0, y: 0, w: 10, h: 10 })).toEqual([]);
+  });
+});
