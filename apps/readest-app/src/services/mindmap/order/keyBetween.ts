@@ -95,7 +95,7 @@ const keyBefore = (b: string): string => {
   const decremented = decrementInteger(integer);
   if (decremented === null)
     throw new RangeError('keyBetween: no key sorts before the smallest key');
-  return decremented;
+  return decremented === SMALLEST_INTEGER ? decremented + midpoint('', null) : decremented;
 };
 
 const keyAfter = (a: string): string => {

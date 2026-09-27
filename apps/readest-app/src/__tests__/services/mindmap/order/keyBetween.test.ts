@@ -71,6 +71,13 @@ describe('keyBetween', () => {
 });
 
 describe('isValidOrderKey', () => {
+  it('never returns the smallest integer when prepending just above it', () => {
+    const b = `A${'0'.repeat(25)}1`;
+    const key = keyBetween(null, b);
+    expect(isValidOrderKey(key)).toBe(true);
+    expect(key < b).toBe(true);
+  });
+
   it('accepts well-formed keys and rejects malformed ones', () => {
     expect(['a0', 'Zz', 'a0V', 'b00'].every(isValidOrderKey)).toBe(true);
     expect(['', 'i', 'a00', 'a0-', '0', `A${'0'.repeat(26)}`].some(isValidOrderKey)).toBe(false);
