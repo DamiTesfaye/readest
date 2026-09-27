@@ -17,6 +17,16 @@ describe('parseMapFile', () => {
     expect(parseMapFile(text(valid), 'm1')).toEqual(valid);
   });
 
+  it('rejects a field value nested deeper than any record needs', () => {
+    const nested = (depth: number): unknown => (depth === 0 ? 1 : { a: nested(depth - 1) });
+    const withValue = (v: unknown) => ({
+      ...valid,
+      records: { n1: { anchor: { v, t: T, s: 'd1' } } },
+    });
+    expect(parseMapFile(text(withValue(nested(3))), 'm1')).not.toBeNull();
+    expect(parseMapFile(text(withValue(nested(2000))), 'm1')).toBeNull();
+  });
+
   it('rejects text that is not a map file object', () => {
     expect(parseMapFile('not json', 'm1')).toBeNull();
     expect(parseMapFile('null', 'm1')).toBeNull();

@@ -3,13 +3,20 @@ import type { MapFile } from '@/services/mindmap/schema/types';
 
 const HLC_PATTERN = /^[0-9a-f]{13}-[0-9a-f]{8}-/;
 const FORBIDDEN_KEY = '__proto__';
+const MAX_VALUE_DEPTH = 8;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const withinDepth = (value: unknown, depth: number): boolean =>
+  typeof value !== 'object' ||
+  value === null ||
+  (depth > 0 && Object.values(value).every((child) => withinDepth(child, depth - 1)));
+
 const isEnvelope = (value: unknown): value is FieldEnvelope =>
   isPlainObject(value) &&
   Object.hasOwn(value, 'v') &&
+  withinDepth(value['v'], MAX_VALUE_DEPTH) &&
   typeof value['t'] === 'string' &&
   HLC_PATTERN.test(value['t']) &&
   typeof value['s'] === 'string';
