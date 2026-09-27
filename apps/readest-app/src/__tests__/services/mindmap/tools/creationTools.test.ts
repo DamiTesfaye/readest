@@ -62,6 +62,19 @@ describe('place tools', () => {
     expect(ctx.store.get('new1')).toMatchObject({ type: 'shape', geo: 'ellipse' });
   });
 
+  it('skips grid snapping when placing a record with Alt held', () => {
+    const { ctx } = toolHarness();
+    drive(createPlaceTool(ctx, 'rect'), [11, 13], [169, 111], { alt: true });
+    expect(ctx.store.get('new1')).toMatchObject({
+      type: 'shape',
+      geo: 'rect',
+      x: 11,
+      y: 13,
+      w: 158,
+      h: 98,
+    });
+  });
+
   it('parents a sticky placed inside a section', () => {
     const section = createSectionRecord({ id: 's', index: 'a0', x: 0, y: 0, w: 640, h: 640 });
     const { ctx } = toolHarness([section]);

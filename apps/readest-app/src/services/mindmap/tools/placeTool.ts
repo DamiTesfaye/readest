@@ -37,10 +37,10 @@ export const createPlaceTool = (ctx: ToolContext, tool: PlaceToolId): Tool => {
       sizing && box.w >= GRID_SIZE && box.h >= GRID_SIZE
         ? {
             ...draft,
-            x: snapToGrid(box.x),
-            y: snapToGrid(box.y),
-            w: Math.max(GRID_SIZE, snapToGrid(box.w)),
-            h: Math.max(GRID_SIZE, snapToGrid(box.h)),
+            x: pointer.alt ? box.x : snapToGrid(box.x),
+            y: pointer.alt ? box.y : snapToGrid(box.y),
+            w: pointer.alt ? box.w : Math.max(GRID_SIZE, snapToGrid(box.w)),
+            h: pointer.alt ? box.h : Math.max(GRID_SIZE, snapToGrid(box.h)),
           }
         : centeredOn(draft, origin!.page);
     const parentId = tool === 'section' ? null : sectionAt(ctx.store, boxCenter(sized));
