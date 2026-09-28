@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { useMapReveal } from '@/app/reader/components/mindmap/useMapReveal';
 import { HlcGenerator } from '@/libs/crdt';
+import type { BookDoc, TOCItem } from '@/libs/document';
+import type { BookLocator } from '@/services/mindmap/generate/anchors';
 import { createMindmapClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { saveMapFile } from '@/services/mindmap/persist/mapFile';
@@ -31,7 +33,7 @@ const generated = (id: string, revealAt: number) => ({
 let session: MapSession;
 let controller: CanvasController;
 
-const setBook = (subject: string): void =>
+const setBook = (subject: string, toc: TOCItem[] | null = null): void =>
   useBookDataStore.setState({
     booksData: {
       bookhash: {
@@ -39,20 +41,20 @@ const setBook = (subject: string): void =>
         book: { hash: 'bookhash', title: 'Emma', format: 'EPUB', metadata: { subject } } as Book,
         file: null,
         config: null,
-        bookDoc: null,
+        bookDoc: toc ? ({ toc } as BookDoc) : null,
         isFixedLayout: false,
       },
     },
   });
 
-const render = (animate: boolean) =>
+const render = (animate: boolean, locator: BookLocator | null = null) =>
   renderHook(() =>
     useMapReveal({
       bookKey: BOOK_KEY,
       session,
       controller,
       meta: session.meta(),
-      locator: null,
+      locator,
       animate,
     }),
   );
@@ -127,5 +129,46 @@ describe('useMapReveal', () => {
     expect(controller.isShown('ahead')).toBe(true);
     expect(result.current.clusters).toEqual([]);
     await waitFor(() => expect(useMindmapViewStore.getState().reveal).toBeNull());
+  });
+
+  it('numbers chapters by leaf TOC entries, skipping part containers', async () => {
+    const progressByHref: Record<string, number> = {
+      part1: 0.0,
+      p1c1: 0.1,
+      p1c2: 0.2,
+      part2: 0.5,
+      p2c1: 0.6,
+    };
+    const leaf = (href: string, label: string): TOCItem => ({ id: 0, href, label, index: 0 });
+    const toc: TOCItem[] = [
+      {
+        id: 0,
+        href: 'part1',
+        label: 'Part One',
+        index: 0,
+        subitems: [leaf('p1c1', 'Chapter 1'), leaf('p1c2', 'Chapter 2')],
+      },
+      {
+        id: 0,
+        href: 'part2',
+        label: 'Part Two',
+        index: 0,
+        subitems: [leaf('p2c1', 'Chapter 3')],
+      },
+    ];
+    setBook('Fiction', toc);
+    const locator: BookLocator = {
+      locateToc: (item) => {
+        const progress = progressByHref[item.href];
+        return progress === undefined ? null : { cfi: '', section: 0, progress };
+      },
+      locateCfi: () => null,
+    };
+    setBookProgress(BOOK_KEY, { fraction: 0.6 } as BookProgress);
+    const { result } = render(false, locator);
+    expect(result.current.chapterStarts).toEqual([0.1, 0.2, 0.6]);
+    await waitFor(() =>
+      expect(useMindmapViewStore.getState().reveal).toMatchObject({ chapter: 3 }),
+    );
   });
 });
