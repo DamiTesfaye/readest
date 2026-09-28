@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { TOCItem } from '@/libs/document';
 import { type BookLocator, createBookLocator } from '@/services/mindmap/generate/anchors';
 import { reconcileMap } from '@/services/mindmap/generate/reconcileMap';
 import { seedGenerator } from '@/services/mindmap/generate/seedGenerator';
@@ -13,6 +14,7 @@ import { getBookProgress } from '@/store/readerProgressStore';
 import { eventDispatcher } from '@/utils/event';
 
 export const RECONCILE_DELAY_MS = 250;
+const EMPTY_TOC: readonly TOCItem[] = [];
 
 export interface MapReconcileInput {
   bookKey: string;
@@ -48,8 +50,9 @@ export const useMapReconcile = ({
   const queue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
-    if (!controller || !locator || !toc || source !== 'generated') return;
+    if (!controller || !locator || source !== 'generated') return;
     const abort = new AbortController();
+    let fitViewFrame: number | null = null;
     const run = async (): Promise<void> => {
       const current = bookRef.current;
       if (!current || abort.signal.aborted) return;
@@ -66,11 +69,17 @@ export const useMapReconcile = ({
         controller,
         meta,
         generator: seedGenerator,
-        input: { book: current, toc, annotations: booknotes ?? [], intent, locator },
+        input: {
+          book: current,
+          toc: toc ?? EMPTY_TOC,
+          annotations: booknotes ?? [],
+          intent,
+          locator,
+        },
         signal: abort.signal,
       });
       if (outcome === 'applied' && wasEmpty) {
-        requestAnimationFrame(() => controller.fitView(false));
+        fitViewFrame = requestAnimationFrame(() => controller.fitView(false));
       }
       if (outcome !== 'failed') return;
       eventDispatcher.dispatch('toast', { type: 'error', message: failed.current });
@@ -83,6 +92,7 @@ export const useMapReconcile = ({
     return () => {
       clearTimeout(timer);
       abort.abort();
+      if (fitViewFrame !== null) cancelAnimationFrame(fitViewFrame);
     };
   }, [bookKey, session, controller, locator, toc, booknotes, source]);
 };

@@ -126,6 +126,31 @@ describe('useMapReconcile', () => {
     await waitFor(() => expect(genKeys()).toEqual(['toc:a', 'toc:b']));
   });
 
+  it('generates from a book without a table of contents', async () => {
+    setBook(
+      {
+        metadata: { title: 'Emma', author: '', language: 'en' },
+        rendition: {},
+        dir: 'ltr',
+        sections: [section('a', 0)],
+        splitTOCHref: (href: string) => href.split('#'),
+        getCover: async () => null,
+      } as BookDoc,
+      [note],
+    );
+    render('generated');
+    await waitFor(() => expect(genKeys()).toEqual(['note:n1']));
+  });
+
+  it('cancels the pending fitView animation frame when the effect cleans up', async () => {
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(777);
+    const caf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+    const { unmount } = render('generated');
+    await waitFor(() => expect(raf).toHaveBeenCalled());
+    unmount();
+    expect(caf).toHaveBeenCalledWith(777);
+  });
+
   it('fits the view once when it fills an empty map', async () => {
     const fitView = vi.spyOn(controller, 'fitView');
     render('generated');
