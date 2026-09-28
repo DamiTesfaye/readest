@@ -131,7 +131,10 @@ export const useMindmapShortcuts = (
     const onKeyUp = (event: KeyboardEvent): void => {
       if (event.key === ' ') controller.setSpaceHeld(false);
     };
-    const onBlur = (): void => controller.setSpaceHeld(false);
+    const onBlur = (event: FocusEvent): void => {
+      if (event.relatedTarget instanceof Node && root.contains(event.relatedTarget)) return;
+      controller.setSpaceHeld(false);
+    };
     root.addEventListener('keydown', onKeyDown);
     root.addEventListener('keyup', onKeyUp);
     root.addEventListener('focusout', onBlur);

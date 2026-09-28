@@ -1,7 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { BoundsRect } from '@/services/mindmap/records/geometry';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
+
+const IME_PROCESS_KEY_CODE = 229;
 
 interface LabelEditorProps {
   controller: CanvasController;
@@ -14,6 +16,11 @@ const LabelEditor: React.FC<LabelEditorProps> = ({ controller, id, initial, rect
   const _ = useTranslation();
   const [value, setValue] = useState(initial);
   const done = useRef(false);
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    ref.current?.select();
+  }, []);
 
   const commit = (): void => {
     if (done.current) return;
@@ -28,6 +35,7 @@ const LabelEditor: React.FC<LabelEditorProps> = ({ controller, id, initial, rect
 
   return (
     <textarea
+      ref={ref}
       data-testid='mm-label-editor'
       aria-label={_('Edit label')}
       className='nodrag nowheel bg-base-100 text-base-content pointer-events-auto absolute resize-none rounded-md p-1 text-sm outline-none ring-2 ring-[var(--mm-select)]'
@@ -42,6 +50,7 @@ const LabelEditor: React.FC<LabelEditorProps> = ({ controller, id, initial, rect
       onChange={(event) => setValue(event.target.value)}
       onBlur={commit}
       onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || event.keyCode === IME_PROCESS_KEY_CODE) return;
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault();
           commit();
