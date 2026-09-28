@@ -131,6 +131,18 @@ describe('MindmapCanvas', () => {
     expect(document.activeElement).toBe(screen.getByTestId('mm-record-d'));
   });
 
+  it('lands DOM focus on an off-screen record instead of losing it to body, with animation on', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(700);
+    const far = createNodeRecord({ id: 'far', index: 'a3', x: 5000, y: 0, label: 'Far' });
+    const { controller } = renderCanvas([elizabeth, far], {}, { x: 10, y: 10, z: 1 });
+    act(() => controller.selection.set(['e']));
+    key({ key: 'ArrowRight' });
+    expect(screen.getByTestId('mm-record-far').style.display).toBe('');
+    expect(document.activeElement).toBe(screen.getByTestId('mm-record-far'));
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
   it('opens the record menu on right click and closes it on the next press elsewhere', () => {
     const { controller } = renderCanvas([elizabeth]);
     fireEvent.contextMenu(canvas(), { clientX: 10, clientY: 10 });

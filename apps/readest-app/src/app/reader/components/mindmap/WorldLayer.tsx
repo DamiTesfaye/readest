@@ -50,6 +50,7 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate }
         h: bounds.h + margin * 2,
       }),
     );
+    for (const id of controller.selection.get()) visible.add(id);
     for (const link of linksRef.current) {
       if (visible.has(link.fromId) || visible.has(link.toId)) visible.add(link.id);
     }
@@ -76,9 +77,11 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate }
     apply();
     const unsubscribeCamera = controller.camera.subscribe(apply);
     const unsubscribeViewport = controller.viewport.subscribe(cull);
+    const unsubscribeSelection = controller.selection.subscribe(cull);
     return () => {
       unsubscribeCamera();
       unsubscribeViewport();
+      unsubscribeSelection();
     };
   }, [controller, cull]);
 

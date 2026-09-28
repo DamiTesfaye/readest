@@ -90,6 +90,16 @@ describe('WorldLayer', () => {
     expect(screen.getByTestId('mm-record-e').style.display).toBe('none');
   });
 
+  it('keeps a selected off-screen record visible so focus can land on it before the camera catches up', () => {
+    const far = createNodeRecord({ id: 'far', index: 'a4', x: 5000, y: 5000, label: 'Far' });
+    const controller = controllerFor([elizabeth, far]);
+    render(<WorldLayer controller={controller} mapStyle='sticker' animate />);
+    act(() => controller.viewport.set({ width: 800, height: 600 }));
+    expect(screen.getByTestId('mm-record-far').style.display).toBe('none');
+    act(() => controller.selection.set(['far']));
+    expect(screen.getByTestId('mm-record-far').style.display).toBe('');
+  });
+
   it('pops in records created after the map opened, and never when animation is off', () => {
     const controller = controllerFor([elizabeth]);
     const { rerender } = render(<WorldLayer controller={controller} mapStyle='sticker' animate />);
