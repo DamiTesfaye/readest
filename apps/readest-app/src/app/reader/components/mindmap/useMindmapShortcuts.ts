@@ -62,21 +62,22 @@ const handleMapKey = (
   event: KeyboardEvent,
   controller: CanvasController,
   focusRecord: (id: string) => void,
+  animate: boolean,
 ): boolean => {
   const { key, shiftKey } = event;
   const selection = controller.selection.get();
   const direction = ARROWS[key];
   if (direction) {
-    const id = controller.focusDirection(direction);
+    const id = controller.focusDirection(direction, animate);
     if (id) focusRecord(id);
     return true;
   }
   if (key === 'Tab') {
-    const id = shiftKey ? controller.selectParent() : controller.addChild();
+    const id = shiftKey ? controller.selectParent(animate) : controller.addChild(animate);
     if (id && shiftKey) focusRecord(id);
     return id !== null;
   }
-  if (key === 'Enter') return controller.addSibling() !== null;
+  if (key === 'Enter') return controller.addSibling(animate) !== null;
   if (key === 'F2') {
     const record = selection.length === 1 ? controller.store.get(selection[0]!) : undefined;
     if (!record || !editableField(record) || controller.readOnly) return false;
@@ -123,7 +124,7 @@ export const useMindmapShortcuts = (
         controller.setSpaceHeld(true);
         handled = true;
       } else {
-        handled = handleMapKey(event, controller, focusRecord);
+        handled = handleMapKey(event, controller, focusRecord, animate);
       }
       if (handled) event.preventDefault();
     };

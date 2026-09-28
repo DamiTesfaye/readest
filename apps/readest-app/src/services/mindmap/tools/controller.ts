@@ -1,6 +1,7 @@
 import { type Atom, createAtom } from '@/services/mindmap/atom';
 import {
   type Camera,
+  FIT_PADDING,
   type Viewport,
   animateCamera,
   createCamera,
@@ -86,10 +87,11 @@ export interface CanvasController {
   duplicateSelection(): void;
   bringToFront(): void;
   sendToBack(): void;
-  addChild(): string | null;
-  addSibling(): string | null;
-  selectParent(): string | null;
-  focusDirection(direction: Direction): string | null;
+  addChild(animate?: boolean): string | null;
+  addSibling(animate?: boolean): string | null;
+  selectParent(animate?: boolean): string | null;
+  focusDirection(direction: Direction, animate?: boolean): string | null;
+  ensureVisible(id: string, animate?: boolean): void;
   nudge(dx: number, dy: number): void;
   setColor(color: PresetColor): void;
   setKind(kind: NodeKind): void;
@@ -179,7 +181,31 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     return first && rest.length === 0 ? first : null;
   };
 
-  const addNodeAt = (box: { x: number; y: number }, parentId: string | null): string => {
+  const ensureVisible = (id: string, animate: boolean): void => {
+    const record = store.get(id);
+    if (!isLive(record) || !isPositioned(record)) return;
+    const view = viewport.get();
+    if (view.width <= 0 || view.height <= 0) return;
+    const bounds = recordBounds(record);
+    const visible = camera.viewportBounds(view);
+    const z = camera.get().z;
+    const pad = FIT_PADDING / z;
+    const left = Math.min(0, bounds.x - pad - visible.x);
+    const right = Math.max(0, bounds.x + bounds.w + pad - (visible.x + visible.w));
+    const top = Math.min(0, bounds.y - pad - visible.y);
+    const bottom = Math.max(0, bounds.y + bounds.h + pad - (visible.y + visible.h));
+    const dx = left + right;
+    const dy = top + bottom;
+    if (dx === 0 && dy === 0) return;
+    const current = camera.get();
+    animateCamera(camera, { x: current.x - dx * z, y: current.y - dy * z, z: current.z }, animate);
+  };
+
+  const addNodeAt = (
+    box: { x: number; y: number },
+    parentId: string | null,
+    animate: boolean,
+  ): string => {
     const node = createNodeRecord({
       id: ctx.createId(),
       index: ctx.topIndex(),
@@ -201,6 +227,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
       }
     });
     selection.set([node.id]);
+    ensureVisible(node.id, animate);
     editing.set(node.id);
     return node.id;
   };
@@ -310,28 +337,32 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
           store.update(record.id, { index: bottomIndex(store) });
       });
     },
-    addChild: () => {
+    addChild: (animate = false) => {
       const parent = singleSelected();
       if (readOnly || !parent || parent.type !== 'node') return null;
       const size = createNodeRecord({ id: '', index: 'a0' });
       const box = childBox(store, parent, { x: 0, y: 0, w: size.w, h: size.h });
-      return addNodeAt(box, parent.id);
+      return addNodeAt(box, parent.id, animate);
     },
-    addSibling: () => {
+    addSibling: (animate = false) => {
       const current = singleSelected();
       if (readOnly || !current || current.type !== 'node') return null;
       return addNodeAt(
         { x: current.x, y: current.y + current.h + GRID_SIZE * 2 },
         parentOf(store, current.id),
+        animate,
       );
     },
-    selectParent: () => {
+    selectParent: (animate = false) => {
       const current = singleSelected();
       const parent = current ? parentOf(store, current.id) : null;
-      if (parent) selection.set([parent]);
+      if (parent) {
+        selection.set([parent]);
+        ensureVisible(parent, animate);
+      }
       return parent;
     },
-    focusDirection: (direction) => {
+    focusDirection: (direction, animate = false) => {
       const candidates = store
         .all()
         .filter(
@@ -349,9 +380,13 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
           .map((r) => ({ id: r.id, center: boxCenter(recordBounds(r)) })),
         direction,
       );
-      if (next) selection.set([next]);
+      if (next) {
+        selection.set([next]);
+        ensureVisible(next, animate);
+      }
       return next;
     },
+    ensureVisible: (id, animate = false) => ensureVisible(id, animate),
     nudge: (dx, dy) => {
       const records = selectedPositioned();
       if (readOnly || records.length === 0) return;

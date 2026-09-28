@@ -165,6 +165,16 @@ describe('commands', () => {
     expect(controller.focusDirection('down')).toBeNull();
   });
 
+  it('pans the camera so an off-screen record focused by arrow keys ends up inside the viewport', () => {
+    const { controller } = setupController([node('a', 0, 0, 'a1'), node('far', 5000, 0, 'a2')]);
+    controller.selection.set(['a']);
+    expect(controller.focusDirection('right')).toBe('far');
+    const bounds = { x: 5000, y: 0, w: 160, h: 64 };
+    const visible = controller.camera.viewportBounds(controller.viewport.get());
+    expect(visible.x).toBeLessThanOrEqual(bounds.x);
+    expect(visible.x + visible.w).toBeGreaterThanOrEqual(bounds.x + bounds.w);
+  });
+
   it('nudges by one grid step, recolours, rekinds and restacks', () => {
     const { store, controller } = setupController([node('a', 0, 0, 'a1'), node('b', 400, 0, 'a2')]);
     controller.selection.set(['a']);
