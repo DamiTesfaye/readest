@@ -214,10 +214,15 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     if (kept.length !== selection.get().length) selection.set(kept);
   };
 
-  const unsubscribeVisible = visible.subscribe(() => {
+  const pruneHidden = (): void => {
     pruneSelection();
     if (!shown(hover.get())) hover.set(null);
     if (!shown(editing.get())) editing.set(null);
+  };
+
+  const unsubscribeVisible = visible.subscribe(pruneHidden);
+  const unsubscribeStore = store.listen((_diff, source) => {
+    if (source !== 'local') pruneHidden();
   });
 
   const selectedPositioned = (): PositionedRecord[] => livePositioned(store, selection.get());
@@ -478,6 +483,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     dispose: () => {
       pointerCancel();
       unsubscribeVisible();
+      unsubscribeStore();
       history.dispose();
       spatial.dispose();
     },

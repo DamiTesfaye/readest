@@ -330,3 +330,42 @@ describe('visibility filter', () => {
     expect(store.get('a')).toMatchObject({ y: 15 });
   });
 });
+
+describe('remote and generated changes', () => {
+  const deleteRemotely = (store: ReturnType<typeof setupController>['store'], id: string) =>
+    store.applyRemote({
+      added: [],
+      changed: [{ id, field: 'deleted', from: null, to: { by: 'user' } }],
+      discarded: [],
+    });
+
+  it('drops a remotely deleted record from the selection, hover and label editor', () => {
+    const { store, controller } = setupController([node('a', 0, 0), node('b', 400, 0)]);
+    controller.selection.set(['a', 'b']);
+    controller.hover.set('a');
+    controller.editing.set('a');
+    deleteRemotely(store, 'a');
+    expect(controller.selection.get()).toEqual(['b']);
+    expect(controller.hover.get()).toBeNull();
+    expect(controller.editing.get()).toBeNull();
+  });
+
+  it('drops records a generated diff discards', () => {
+    const { store, controller } = setupController([node('a', 0, 0)]);
+    controller.selection.set(['a']);
+    store.applyGenerated({ added: [], changed: [], discarded: ['a'] });
+    expect(controller.selection.get()).toEqual([]);
+  });
+
+  it('keeps the selection for remote edits that leave the record live', () => {
+    const { store, controller } = setupController([node('a', 0, 0)]);
+    const selection = ['a'];
+    controller.selection.set(selection);
+    store.applyRemote({
+      added: [],
+      changed: [{ id: 'a', field: 'x', from: 0, to: 40 }],
+      discarded: [],
+    });
+    expect(controller.selection.get()).toBe(selection);
+  });
+});
