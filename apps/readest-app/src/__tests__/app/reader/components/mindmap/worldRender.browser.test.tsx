@@ -4,6 +4,7 @@ import { page } from 'vitest/browser';
 import MindmapCanvas, {
   type MindmapCanvasProps,
 } from '@/app/reader/components/mindmap/MindmapCanvas';
+import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import type { MapCamera, MapRecord } from '@/services/mindmap/schema/types';
 import { createMapStore } from '@/services/mindmap/store/mapStore';
 import { createCanvasController } from '@/services/mindmap/tools/controller';
@@ -119,5 +120,49 @@ describe('ink records in a real browser', () => {
     drawStroke([[300, 300]]);
     await nextFrame();
     expect(await darkPixels()).toBeGreaterThan(4);
+  });
+});
+
+describe('link culling in a real browser', () => {
+  it('keeps a link drawn while it crosses the view with both ends off screen', async () => {
+    await page.viewport(1000, 800);
+    const { controller } = mount([
+      createNodeRecord({ id: 'left', index: 'a1', x: -3000, y: 300, w: 160, h: 64, label: 'L' }),
+      createNodeRecord({ id: 'right', index: 'a2', x: 3000, y: 300, w: 160, h: 64, label: 'R' }),
+      createLinkRecord({
+        id: 'across',
+        index: 'a3',
+        fromId: 'left',
+        toId: 'right',
+        label: 'spans',
+      }),
+    ]);
+    await nextFrame();
+    const path = screen.getByTestId('mm-link-across');
+    expect(path.style.display).toBe('');
+    expect(path.getBoundingClientRect().left).toBeLessThan(0);
+    expect(path.getBoundingClientRect().right).toBeGreaterThan(WIDTH);
+    expect(screen.getByTestId('mm-record-left').style.display).toBe('none');
+    act(() => controller.camera.set({ x: 0, y: -5000, z: 1 }));
+    expect(path.style.display).toBe('none');
+  });
+
+  it('shows a link again after its far end moves into view remotely', async () => {
+    await page.viewport(1000, 800);
+    const { controller } = mount([
+      createNodeRecord({ id: 'a', index: 'a1', x: 9000, y: 100, label: 'A' }),
+      createNodeRecord({ id: 'b', index: 'a2', x: 9000, y: 900, label: 'B' }),
+      createLinkRecord({ id: 'ab', index: 'a3', fromId: 'a', toId: 'b' }),
+    ]);
+    await nextFrame();
+    expect(screen.getByTestId('mm-link-ab').style.display).toBe('none');
+    act(() => {
+      controller.store.applyRemote({
+        added: [],
+        changed: [{ id: 'b', field: 'x', from: 9000, to: 100 }],
+        discarded: [],
+      });
+    });
+    expect(screen.getByTestId('mm-link-ab').style.display).toBe('');
   });
 });

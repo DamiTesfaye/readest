@@ -20,6 +20,7 @@ interface Entry {
 
 export interface SpatialIndex {
   search(bounds: BoundsRect): string[];
+  searchLinks(bounds: BoundsRect): string[];
   hitTest(point: Point, tolerance: number): string | null;
   dispose(): void;
 }
@@ -70,9 +71,36 @@ export const hitsLink = (
   return new PolylineGeometry(shape.points).distanceToPoint(point) <= tolerance;
 };
 
-const toEntry = (record: PositionedRecord): Entry => {
-  const box = recordBounds(record);
-  return { minX: box.x, minY: box.y, maxX: box.x + box.w, maxY: box.y + box.h, id: record.id };
+const toEntry = (id: string, box: BoundsRect): Entry => ({
+  minX: box.x,
+  minY: box.y,
+  maxX: box.x + box.w,
+  maxY: box.y + box.h,
+  id,
+});
+
+const pointsBounds = (points: readonly Point[]): BoundsRect => {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+};
+
+const unionBox = (a: BoundsRect, b: BoundsRect): BoundsRect => {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+};
+
+export const linkBounds = (
+  link: LinkRecord,
+  from: PositionedRecord,
+  to: PositionedRecord,
+): BoundsRect => {
+  const a = recordBounds(from);
+  const b = recordBounds(to);
+  return unionBox(unionBox(a, b), pointsBounds(linkShape(a, b, link).points));
 };
 
 const hitRank = (a: MapRecord, b: MapRecord): number => {
@@ -81,26 +109,70 @@ const hitRank = (a: MapRecord, b: MapRecord): number => {
   return aSection !== bSection ? aSection - bSection : compareByIndex(a, b);
 };
 
-export const createSpatialIndex = (store: MapStore): SpatialIndex => {
+const toRect = (bounds: BoundsRect) => ({
+  minX: bounds.x,
+  minY: bounds.y,
+  maxX: bounds.x + bounds.w,
+  maxY: bounds.y + bounds.h,
+});
+
+interface Tree {
+  set(id: string, box: BoundsRect | null): void;
+  search(bounds: BoundsRect): string[];
+}
+
+const createTree = (): Tree => {
   const tree = new RBush<Entry>();
   const entries = new Map<string, Entry>();
+  return {
+    set: (id, box) => {
+      const previous = entries.get(id);
+      if (previous) {
+        tree.remove(previous);
+        entries.delete(id);
+      }
+      if (!box) return;
+      const entry = toEntry(id, box);
+      tree.insert(entry);
+      entries.set(id, entry);
+    },
+    search: (bounds) => tree.search(toRect(bounds)).map((entry) => entry.id),
+  };
+};
 
-  const reindex = (id: string): void => {
-    const previous = entries.get(id);
-    if (previous) {
-      tree.remove(previous);
-      entries.delete(id);
+export const createSpatialIndex = (store: MapStore): SpatialIndex => {
+  const records = createTree();
+  const links = createTree();
+  const linksByEnd = new Map<string, Set<string>>();
+  const endsOf = new Map<string, readonly [string, string]>();
+
+  const attach = (link: LinkRecord | null, id: string): void => {
+    for (const end of endsOf.get(id) ?? []) linksByEnd.get(end)?.delete(id);
+    endsOf.delete(id);
+    if (!link) return;
+    endsOf.set(id, [link.fromId, link.toId]);
+    for (const end of [link.fromId, link.toId]) {
+      linksByEnd.set(end, (linksByEnd.get(end) ?? new Set()).add(id));
     }
-    const record = store.get(id);
-    if (!isLive(record) || !isPositioned(record)) return;
-    const entry = toEntry(record);
-    tree.insert(entry);
-    entries.set(id, entry);
   };
 
-  const initial = store.all().filter(isLive).filter(isPositioned).map(toEntry);
-  tree.load(initial);
-  for (const entry of initial) entries.set(entry.id, entry);
+  const reindexLink = (id: string): void => {
+    const record = store.get(id);
+    const link = isLive(record) && record.type === 'link' ? record : null;
+    attach(link, id);
+    const ends = link ? liveLinkEnds(link, store.get) : null;
+    links.set(id, link && ends ? linkBounds(link, ends[0], ends[1]) : null);
+  };
+
+  const reindex = (id: string): void => {
+    const record = store.get(id);
+    if (record?.type === 'link' || endsOf.has(id)) reindexLink(id);
+    if (record?.type === 'link') return;
+    records.set(id, isLive(record) && isPositioned(record) ? recordBounds(record) : null);
+    for (const linkId of [...(linksByEnd.get(id) ?? [])]) reindexLink(linkId);
+  };
+
+  for (const record of store.all()) reindex(record.id);
 
   const unlisten = store.listen((diff) => {
     const ids = new Set([
@@ -111,18 +183,25 @@ export const createSpatialIndex = (store: MapStore): SpatialIndex => {
     for (const id of ids) reindex(id);
   });
 
-  const search = (bounds: BoundsRect): string[] =>
-    tree
-      .search({
-        minX: bounds.x,
-        minY: bounds.y,
-        maxX: bounds.x + bounds.w,
-        maxY: bounds.y + bounds.h,
-      })
-      .map((entry) => entry.id);
+  const hitLink = (point: Point, tolerance: number): string | null => {
+    const box = {
+      x: point.x - tolerance,
+      y: point.y - tolerance,
+      w: tolerance * 2,
+      h: tolerance * 2,
+    };
+    const hits = links
+      .search(box)
+      .map((id) => store.get(id))
+      .filter((record): record is LinkRecord => isLive(record) && record.type === 'link')
+      .filter((link) => hitsLink(link, store.get, point, tolerance))
+      .sort(compareByIndex);
+    return hits[hits.length - 1]?.id ?? null;
+  };
 
   return {
-    search,
+    search: records.search,
+    searchLinks: links.search,
     hitTest: (point, tolerance) => {
       const box = {
         x: point.x - tolerance,
@@ -130,18 +209,15 @@ export const createSpatialIndex = (store: MapStore): SpatialIndex => {
         w: tolerance * 2,
         h: tolerance * 2,
       };
-      const hits = search(box)
+      const hits = records
+        .search(box)
         .map((id) => store.get(id))
         .filter((record): record is PositionedRecord => isLive(record) && isPositioned(record))
         .filter((record) => hitsRecord(record, point, tolerance))
         .sort(hitRank);
       if (hits.length > 0 && hits[hits.length - 1]!.type !== 'section')
         return hits[hits.length - 1]!.id;
-      const link = store
-        .all()
-        .filter((record): record is LinkRecord => isLive(record) && record.type === 'link')
-        .find((record) => hitsLink(record, store.get, point, tolerance));
-      return link?.id ?? hits[hits.length - 1]?.id ?? null;
+      return hitLink(point, tolerance) ?? hits[hits.length - 1]?.id ?? null;
     },
     dispose: unlisten,
   };

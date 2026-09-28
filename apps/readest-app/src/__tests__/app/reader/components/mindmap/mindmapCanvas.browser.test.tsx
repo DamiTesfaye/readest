@@ -70,6 +70,19 @@ const grid = (count: number): MapRecord[] =>
     }),
   );
 
+const linkedTree = (count: number): MapRecord[] => [
+  ...grid(count),
+  ...Array.from({ length: count - 1 }, (_, k) =>
+    createLinkRecord({
+      id: `l${k + 1}`,
+      index: 'a2',
+      fromId: `n${Math.floor(k / 4)}`,
+      toId: `n${k + 1}`,
+      label: (k + 1) % 10 === 0 ? `rel ${k + 1}` : '',
+    }),
+  ),
+];
+
 const click = (controller: CanvasController, clientX: number, clientY: number) => {
   const canvas = screen.getByTestId('mindmap-canvas');
   const init = {
@@ -205,6 +218,14 @@ describe('mindmap canvas in a real browser', () => {
     observer.disconnect();
     expect(getComputedStyle(body).backgroundColor).toBe(rgb('#1f6a96'));
     expect(mutations.filter((m) => m.target !== screen.getByTestId('mm-world'))).toEqual([]);
+  });
+
+  it('hit-tests a hover over empty canvas in under 1 ms with 1,999 links', () => {
+    const { controller } = mount(linkedTree(2000), { x: 1, y: 1, z: 1 });
+    for (let i = 0; i < 20; i += 1) controller.spatial.hitTest({ x: 190, y: 100 }, 4);
+    const start = performance.now();
+    for (let i = 0; i < 200; i += 1) controller.spatial.hitTest({ x: 190, y: 100 + i * 0.01 }, 4);
+    expect((performance.now() - start) / 200).toBeLessThan(1);
   });
 
   it('keeps p95 frame time under 20 ms while panning 2,000 records', async () => {

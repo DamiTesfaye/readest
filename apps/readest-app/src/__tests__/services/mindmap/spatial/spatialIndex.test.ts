@@ -92,4 +92,74 @@ describe('spatial index', () => {
     expect(hitsRecord(diamond, { x: 50, y: 50 }, 0)).toBe(true);
     expect(hitsRecord(diamond, { x: 5, y: 5 }, 0)).toBe(false);
   });
+
+  it('finds a link whose line crosses a box that holds neither end', () => {
+    const link = createLinkRecord({ id: 'l', index: 'a3', fromId: 'a', toId: 'b' });
+    const store = createMapStore([node('a', -3000, 0), node('b', 3000, 0), link]);
+    const index = createSpatialIndex(store);
+    const view = { x: -100, y: -100, w: 200, h: 200 };
+    expect(index.search(view)).toEqual([]);
+    expect(index.searchLinks(view)).toEqual(['l']);
+    expect(index.searchLinks({ x: -100, y: 500, w: 200, h: 200 })).toEqual([]);
+  });
+
+  it('finds a curved link by its bulge, not only by its end boxes', () => {
+    const link = createLinkRecord({
+      id: 'l',
+      index: 'a3',
+      fromId: 'a',
+      toId: 'b',
+      fromAnchor: { side: 'bottom', t: 0.5 },
+      toAnchor: { side: 'bottom', t: 0.5 },
+    });
+    const store = createMapStore([node('a', 0, 0), node('b', 400, 0), link]);
+    const index = createSpatialIndex(store);
+    expect(index.searchLinks({ x: 200, y: 150, w: 10, h: 10 })).toEqual(['l']);
+  });
+
+  it('reindexes a link when an end moves, is deleted, comes back or merges in remotely', () => {
+    const link = createLinkRecord({ id: 'l', index: 'a3', fromId: 'a', toId: 'b' });
+    const store = createMapStore([node('a', 0, 0), node('b', 400, 0), link]);
+    const index = createSpatialIndex(store);
+    const far = { x: 5000, y: 5000, w: 100, h: 100 };
+    store.update('b', { x: 5000, y: 5000 });
+    expect(index.searchLinks(far)).toEqual(['l']);
+    store.remove(['b'], 'user');
+    expect(index.searchLinks(far)).toEqual([]);
+    store.update('b', { deleted: null });
+    expect(index.searchLinks(far)).toEqual(['l']);
+    store.applyRemote({
+      added: [],
+      changed: [{ id: 'b', field: 'x', from: 5000, to: 0 }],
+      discarded: [],
+    });
+    expect(index.searchLinks(far)).toEqual([]);
+    store.update('l', { toId: 'c' });
+    store.put([node('c', 5000, 5000)]);
+    expect(index.searchLinks(far)).toEqual(['l']);
+    store.discard(['c']);
+    expect(index.searchLinks(far)).toEqual([]);
+  });
+
+  it('hit-tests links through the index, topmost first', () => {
+    const low = createLinkRecord({
+      id: 'low',
+      index: 'a3',
+      fromId: 'a',
+      toId: 'b',
+      path: 'straight',
+    });
+    const high = createLinkRecord({
+      id: 'high',
+      index: 'a4',
+      fromId: 'a',
+      toId: 'b',
+      path: 'straight',
+    });
+    const store = createMapStore([node('a', 0, 0), node('b', 400, 0), high, low]);
+    const index = createSpatialIndex(store);
+    expect(index.hitTest({ x: 250, y: 20 }, 4)).toBe('high');
+    store.remove(['high'], 'user');
+    expect(index.hitTest({ x: 250, y: 20 }, 4)).toBe('low');
+  });
 });

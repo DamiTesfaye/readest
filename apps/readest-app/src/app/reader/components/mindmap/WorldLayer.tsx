@@ -22,7 +22,6 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate }
   const records = useMapRecords(controller.store);
   const worldRef = useRef<HTMLDivElement>(null);
   const elements = useRef(new Map<HTMLElement | SVGElement, string>());
-  const linksRef = useRef<LinkRecord[]>([]);
   const [initialIds] = useState(() => new Set(records.map((record) => record.id)));
 
   const { sections, others, links } = useMemo(() => {
@@ -35,25 +34,23 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate }
     };
   }, [records]);
   const labels = useMemo(() => recordAriaLabels(records, _), [records, _]);
-  linksRef.current = links;
 
   const cull = useCallback(() => {
     const view = controller.viewport.get();
     const cullAll = view.width === 0 || view.height === 0;
     const bounds = controller.camera.viewportBounds(view);
     const margin = CULL_MARGIN_PX / controller.camera.get().z;
-    const visible = new Set(
-      controller.spatial.search({
-        x: bounds.x - margin,
-        y: bounds.y - margin,
-        w: bounds.w + margin * 2,
-        h: bounds.h + margin * 2,
-      }),
-    );
+    const area = {
+      x: bounds.x - margin,
+      y: bounds.y - margin,
+      w: bounds.w + margin * 2,
+      h: bounds.h + margin * 2,
+    };
+    const visible = new Set([
+      ...controller.spatial.search(area),
+      ...controller.spatial.searchLinks(area),
+    ]);
     for (const id of controller.selection.get()) visible.add(id);
-    for (const link of linksRef.current) {
-      if (visible.has(link.fromId) || visible.has(link.toId)) visible.add(link.id);
-    }
     for (const [element, id] of elements.current) {
       const display = cullAll || visible.has(id) ? '' : 'none';
       if (element.style.display !== display) element.style.display = display;
