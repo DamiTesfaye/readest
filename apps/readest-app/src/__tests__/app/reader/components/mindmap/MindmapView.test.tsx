@@ -25,6 +25,9 @@ const h = vi.hoisted(() => ({
   dark: false,
   reducedMotion: false,
   bookKeys: ['bookhash-1'] as string[],
+  safeAreaInsets: null as { top: number; right: number; bottom: number; left: number } | null,
+  systemUIVisible: false,
+  statusBarHeight: 24,
 }));
 
 vi.mock('@/components/Dialog', () => ({
@@ -71,10 +74,18 @@ vi.mock('@/store/readerStore', () => {
   };
   return { useReaderStore: Object.assign(() => state, { getState: () => state }) };
 });
-vi.mock('@/store/themeStore', () => ({
-  useThemeStore: <T,>(select?: (s: { isDarkMode: boolean }) => T) =>
-    select ? select({ isDarkMode: h.dark }) : { isDarkMode: h.dark },
-}));
+vi.mock('@/store/themeStore', () => {
+  const state = () => ({
+    isDarkMode: h.dark,
+    safeAreaInsets: h.safeAreaInsets,
+    systemUIVisible: h.systemUIVisible,
+    statusBarHeight: h.statusBarHeight,
+  });
+  return {
+    useThemeStore: <T,>(select?: (s: ReturnType<typeof state>) => T) =>
+      select ? select(state()) : state(),
+  };
+});
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: <T,>(select: (s: { settings: { replicaDeviceId: string } }) => T) =>
     select({ settings: { replicaDeviceId: 'device-1' } }),
@@ -114,6 +125,9 @@ beforeEach(() => {
   h.dark = false;
   h.reducedMotion = false;
   h.bookKeys = [BOOK_KEY];
+  h.safeAreaInsets = null;
+  h.systemUIVisible = false;
+  h.statusBarHeight = 24;
   h.goTo.mockReset();
   window.matchMedia = ((query: string) => ({
     matches: query.includes('min-width: 1024px')
@@ -397,5 +411,32 @@ describe('an open map', () => {
     render(<MindmapView />);
     expect(await screen.findByText('This map could not be opened')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Delete map' })).toBeTruthy();
+  });
+
+  it('pads the top bar and lifts the bottom chrome for the system UI in full screen', async () => {
+    h.safeAreaInsets = { top: 40, right: 0, bottom: 20, left: 0 };
+    h.systemUIVisible = true;
+    h.statusBarHeight = 24;
+    const mapId = await createMap('Insets');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    await openCanvas();
+    expect(screen.getByTestId('mm-top-bar').style.marginTop).toBe('40px');
+    expect(screen.getByRole('toolbar', { name: 'Tools' }).style.bottom).toBe('calc(20px + 1rem)');
+    expect(screen.getByRole('button', { name: 'Fit to screen' }).parentElement!.style.bottom).toBe(
+      'calc(20px + 1rem)',
+    );
+  });
+
+  it('ignores safe area insets while docked', async () => {
+    h.wide = true;
+    h.safeAreaInsets = { top: 40, right: 0, bottom: 20, left: 0 };
+    h.systemUIVisible = true;
+    const mapId = await createMap('Docked insets');
+    useMindmapViewStore.setState({ layout: 'docked' });
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    await openCanvas();
+    expect(screen.getByTestId('mm-top-bar').style.marginTop).toBe('');
   });
 });

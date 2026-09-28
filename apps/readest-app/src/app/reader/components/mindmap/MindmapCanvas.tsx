@@ -31,6 +31,7 @@ export interface MindmapCanvasProps {
   announcement: string;
   onJumpToBook: (anchor: RecordAnchor) => void;
   onResetPosition?: (id: string) => void;
+  bottomInset?: number;
 }
 
 const isDefaultCamera = ({ x, y, z }: { x: number; y: number; z: number }): boolean =>
@@ -48,6 +49,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   announcement,
   onJumpToBook,
   onResetPosition,
+  bottomInset,
 }) => {
   const _ = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -158,8 +160,8 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
           onResetPosition={onResetPosition}
         />
       )}
-      <ToolDock controller={controller} />
-      <ZoomControl controller={controller} animate={animate} />
+      <ToolDock controller={controller} bottomInset={bottomInset} />
+      <ZoomControl controller={controller} animate={animate} bottomInset={bottomInset} />
       {reveal && <RevealChip {...reveal} />}
       <LiveRegion message={message} />
     </div>

@@ -13,6 +13,7 @@ const ICON_BUTTON = 'btn btn-ghost btn-circle h-8 min-h-8 w-8 p-0';
 
 export interface TopBarProps {
   mapId: string;
+  topInset?: number;
   meta: MapMeta;
   maps: MindmapIndexEntry[];
   plan: UserPlan;
@@ -49,6 +50,7 @@ const TopBar: React.FC<TopBarProps> = (props) => {
     <header
       data-testid='mm-top-bar'
       className='eink-bordered bg-base-100 text-base-content relative flex h-12 shrink-0 items-center gap-2 border-b border-base-300 px-2'
+      style={props.topInset ? { marginTop: `${props.topInset}px` } : undefined}
     >
       <button
         type='button'

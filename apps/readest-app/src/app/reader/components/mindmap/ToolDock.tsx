@@ -34,7 +34,10 @@ export const DOCK_TOOLS: ReadonlyArray<{ id: ToolId; shortcut: string; icon: Ico
 
 const VIEW_ONLY: ReadonlySet<ToolId> = new Set(['select', 'hand']);
 
-const ToolDock: React.FC<{ controller: CanvasController }> = ({ controller }) => {
+const ToolDock: React.FC<{ controller: CanvasController; bottomInset?: number }> = ({
+  controller,
+  bottomInset,
+}) => {
   const _ = useTranslation();
   const active = useAtomValue(controller.tool);
   const labels = toolLabels(_);
@@ -45,7 +48,8 @@ const ToolDock: React.FC<{ controller: CanvasController }> = ({ controller }) =>
     <div
       role='toolbar'
       aria-label={_('Tools')}
-      className='nodrag nowheel eink-bordered bg-base-100 absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-0.5 rounded-full p-1 shadow-md'
+      className='nodrag nowheel eink-bordered bg-base-100 absolute left-1/2 flex -translate-x-1/2 gap-0.5 rounded-full p-1 shadow-md'
+      style={{ bottom: `calc(1rem + ${bottomInset || 0}px)` }}
     >
       {tools.map(({ id, shortcut, icon: Icon }) => (
         <button

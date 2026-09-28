@@ -19,6 +19,7 @@ import { useReaderStore } from '@/store/readerStore';
 import { useThemeStore } from '@/store/themeStore';
 import type { UserPlan } from '@/types/quota';
 import { eventDispatcher } from '@/utils/event';
+import { getPanelTopInset } from '@/utils/insets';
 import MindmapCanvas from './MindmapCanvas';
 import NewMapSheet from './NewMapSheet';
 import TopBar from './TopBar';
@@ -96,7 +97,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
 }) => {
   const _ = useTranslation();
   const view = useMindmapViewStore();
-  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const { isDarkMode, safeAreaInsets, systemUIVisible, statusBarHeight } = useThemeStore();
   const { getView, getViewSettings, getProgress } = useReaderStore();
   const bookTitle = useBookDataStore((state) => state.getBookData(bookKey)?.book?.title ?? '');
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -106,6 +107,16 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   const controller = useCanvasController(session);
   const eink = getViewSettings(bookKey)?.isEink ?? false;
   const mode: MindmapMode = eink ? 'eink' : isDarkMode ? 'dark' : 'light';
+  const topInset = docked
+    ? 0
+    : getPanelTopInset({
+        isMobile: false,
+        isFullHeightInMobile: true,
+        systemUIVisible,
+        statusBarHeight,
+        safeAreaInsets,
+      });
+  const bottomInset = docked ? 0 : safeAreaInsets?.bottom || 0;
 
   useEffect(() => session.listenMeta(setMeta), [session]);
   useEffect(() => {
@@ -153,6 +164,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
     <>
       <TopBar
         mapId={mapId}
+        topInset={topInset}
         meta={meta}
         maps={maps}
         plan={plan}
@@ -185,6 +197,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
             reveal={view.reveal}
             announcement={view.announcement}
             onJumpToBook={jumpToBook}
+            bottomInset={bottomInset}
           />
         )}
       </div>
