@@ -6,6 +6,9 @@ export type KeyActionHandlers = {
   [K in keyof ShortcutConfig]?: (event?: KeyboardEvent | MessageEvent) => void;
 };
 
+export const isInsideMindmap = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.closest('[data-mindmap-root]') !== null;
+
 const useShortcuts = (actions: KeyActionHandlers, dependencies: React.DependencyList = []) => {
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>(loadShortcuts);
 
@@ -38,6 +41,7 @@ const useShortcuts = (actions: KeyActionHandlers, dependencies: React.Dependency
   };
 
   const unifiedHandleKeyDown = (event: KeyboardEvent | MessageEvent) => {
+    if (event instanceof KeyboardEvent && isInsideMindmap(event.target)) return;
     // Check if the focus is on an input, textarea, or contenteditable element
     const activeElement = document.activeElement as HTMLElement;
     const isInteractiveElement =
