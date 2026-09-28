@@ -42,7 +42,7 @@ export const resolveMapEntry = async (fs: MindmapFs, bookHash: string): Promise<
 
 export const bookMapCount = async (fs: MindmapFs, bookHash: string): Promise<number> => {
   await useMindmapStore.getState().hydrate(fs);
-  return useMindmapStore.getState().entriesForBook(bookHash).length;
+  return (await loadMindmapIndex(fs, bookHash)).length;
 };
 
 export const createBookMap = async (input: CreateBookMapInput): Promise<CreateBookMapResult> => {

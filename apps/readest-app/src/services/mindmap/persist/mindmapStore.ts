@@ -30,7 +30,7 @@ export interface MindmapStoreState {
   applyRemoteMap(entry: MindmapEntry): void;
   setSyncedMd5(mapId: string, md5: string): void;
   softDeleteByContentId(mapId: string): void;
-  moveToTrash(mapId: string): Promise<void>;
+  moveToTrash(mapId: string, bookHash?: string): Promise<void>;
   removeByBookHash(bookHash: string): void;
   createMap(bookHash: string, meta: MapMeta, clock: HlcClock): Promise<MapFile>;
 }
@@ -141,12 +141,12 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
     softDeleteByContentId: (mapId) => {
       get().moveToTrash(mapId).catch(reportError);
     },
-    moveToTrash: async (mapId) => {
-      const entry = get().getEntry(mapId);
-      if (!entry) return;
+    moveToTrash: async (mapId, bookHash) => {
+      const owner = get().getEntry(mapId)?.bookHash ?? bookHash;
+      if (!owner) return;
       await getOpenMapSession(mapId)?.discard();
-      await trashMap(requireFs(), entry.bookHash, mapId);
-      get().removeEntry(mapId);
+      await trashMap(requireFs(), owner, mapId);
+      if (get().getEntry(mapId)) get().removeEntry(mapId);
     },
     removeByBookHash: (bookHash) => {
       if (!get().hydrated) purgedBeforeHydration.add(bookHash);

@@ -3,11 +3,15 @@ import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { HlcGenerator } from '@/libs/crdt';
 import {
   type NewMapChoices,
+  bookMapCount,
   createBookMap,
   currentUserPlan,
   resolveMapEntry,
 } from '@/services/mindmap/entry';
 import { createMindmapClock } from '@/services/mindmap/file/clock';
+import { createMapFile } from '@/services/mindmap/file/createMapFile';
+import { saveMap } from '@/services/mindmap/persist/maps';
+import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
 import { MINDMAP_BASE_DIR, mapFilePath } from '@/services/mindmap/persist/mapFile';
 import {
   __resetMindmapStoreForTests,
@@ -129,6 +133,24 @@ describe('createBookMap', () => {
         })
       ).status,
     ).toBe('created');
+  });
+
+  it('counts maps on disk that the store does not know, such as after a backup restore', async () => {
+    const hlc = clock();
+    for (const mapId of ['m1', 'm2', 'm3']) {
+      await saveMap(fs, 'bookhash', createMapFile(DEFAULT_MAP_META, mapId, hlc));
+    }
+    expect(await bookMapCount(fs, 'bookhash')).toBe(3);
+    expect(
+      await createBookMap({
+        fs,
+        bookHash: 'bookhash',
+        plan: 'free',
+        choices,
+        progress: 0,
+        clock: hlc,
+      }),
+    ).toEqual({ status: 'limit' });
   });
 
   it('never caps paid plans', async () => {

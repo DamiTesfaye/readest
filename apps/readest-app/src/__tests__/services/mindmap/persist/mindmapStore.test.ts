@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HlcGenerator } from '@/libs/crdt';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { createMindmapClock } from '@/services/mindmap/file/clock';
+import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import {
   mapFileDir,
   mapFilePath,
   mapTrashDir,
   readMapFile,
 } from '@/services/mindmap/persist/mapFile';
+import { saveMap } from '@/services/mindmap/persist/maps';
 import { loadMindmapIndex } from '@/services/mindmap/persist/mindmapIndex';
 import {
   __resetMapSessionsForTests,
@@ -220,6 +222,20 @@ describe('useMindmapStore', () => {
     expect(await fs.exists(mapFileDir('b1', mapId), 'Books')).toBe(false);
     expect(await loadMindmapIndex(fs, 'b1')).toEqual([]);
     expect(getOpenMapSession(mapId)).toBeUndefined();
+  });
+
+  it('moveToTrash trashes a map that is on disk but missing from the store', async () => {
+    const fs = new MemoryFileSystem();
+    await store().hydrate(fs);
+    const c = clock();
+    const file = createMapFile(DEFAULT_MAP_META, 'restored', c);
+    await saveMap(fs, 'b1', file);
+    expect(store().getEntry('restored')).toBeUndefined();
+
+    await store().moveToTrash('restored', 'b1');
+
+    expect(await fs.exists(mapFilePath('b1', 'restored'), 'Books')).toBe(false);
+    expect(await loadMindmapIndex(fs, 'b1')).toEqual([]);
   });
 
   it('softDeleteByContentId trashes the map without blocking the caller', async () => {

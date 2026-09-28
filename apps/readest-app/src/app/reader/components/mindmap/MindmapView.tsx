@@ -147,7 +147,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
 
   const deleteMap = async (): Promise<void> => {
     try {
-      await useMindmapStore.getState().moveToTrash(mapId);
+      await useMindmapStore.getState().moveToTrash(mapId, bookHash);
       const next = maps.find((entry) => entry.mapId !== mapId);
       if (next) view.showMap(bookKey, next.mapId);
       else view.close();
