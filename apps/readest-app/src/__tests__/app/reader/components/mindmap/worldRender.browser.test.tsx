@@ -4,6 +4,7 @@ import { page } from 'vitest/browser';
 import MindmapCanvas, {
   type MindmapCanvasProps,
 } from '@/app/reader/components/mindmap/MindmapCanvas';
+import { CAMERA_SETTLE_MS } from '@/app/reader/components/mindmap/WorldLayer';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import type { MapCamera, MapRecord } from '@/services/mindmap/schema/types';
 import { type RecordFilter, SHOW_ALL } from '@/services/mindmap/spatial/spatialIndex';
@@ -21,6 +22,7 @@ const WIDTH = 800;
 const HEIGHT = 600;
 
 const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
+const settle = () => new Promise((resolve) => setTimeout(resolve, CAMERA_SETTLE_MS + 50));
 
 const mount = (
   records: MapRecord[],
@@ -147,6 +149,7 @@ describe('link culling in a real browser', () => {
     expect(path.getBoundingClientRect().right).toBeGreaterThan(WIDTH);
     expect(screen.getByTestId('mm-record-left').style.display).toBe('none');
     act(() => controller.camera.set({ x: 0, y: -5000, z: 1 }));
+    await act(settle);
     expect(path.style.display).toBe('none');
   });
 
@@ -262,7 +265,7 @@ describe('pop-in in a real browser', () => {
     await wait(400);
     expect(popping('fresh')).toBe(0);
     act(() => controller.camera.set({ x: -5000, y: 0, z: 1 }));
-    await nextFrame();
+    await act(settle);
     expect(screen.getByTestId('mm-record-fresh').style.display).toBe('none');
     await nextFrame();
     act(() => controller.camera.set({ x: 0, y: 0, z: 1 }));
@@ -310,6 +313,7 @@ describe('selection culling in a real browser', () => {
     const a = screen.getByTestId('mm-record-a');
     a.focus();
     act(() => controller.camera.set({ x: -9000, y: 0, z: 1 }));
+    await act(settle);
     expect(a.style.display).toBe('');
     expect(document.activeElement).toBe(a);
     expect(screen.getByTestId('mm-record-b').style.display).toBe('none');

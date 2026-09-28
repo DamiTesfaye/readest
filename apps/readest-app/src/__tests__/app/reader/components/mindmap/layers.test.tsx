@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import GridLayer, {
   gridDotRadius,
   gridLevelOpacity,
@@ -7,7 +7,7 @@ import GridLayer, {
 import LiveLayer from '@/app/reader/components/mindmap/LiveLayer';
 import OverlayLayer from '@/app/reader/components/mindmap/OverlayLayer';
 import { POP_CLASS } from '@/app/reader/components/mindmap/RecordView';
-import WorldLayer from '@/app/reader/components/mindmap/WorldLayer';
+import WorldLayer, { CAMERA_SETTLE_MS } from '@/app/reader/components/mindmap/WorldLayer';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import type { MapRecord } from '@/services/mindmap/schema/types';
 import { createMapStore } from '@/services/mindmap/store/mapStore';
@@ -77,6 +77,7 @@ describe('WorldLayer', () => {
   });
 
   it('culls off-screen records on the rendered element and never unmounts them', () => {
+    vi.useFakeTimers();
     const far = createNodeRecord({ id: 'far', index: 'a4', x: 5000, y: 5000, label: 'Far' });
     const controller = controllerFor([elizabeth, far]);
     render(<WorldLayer controller={controller} mapStyle='sticker' animate />);
@@ -87,7 +88,10 @@ describe('WorldLayer', () => {
     act(() => controller.camera.set({ x: -4800, y: -4800, z: 1 }));
     expect(screen.getByTestId('mm-record-far')).toBe(element);
     expect(element.style.display).toBe('');
+    expect(screen.getByTestId('mm-record-e').style.display).toBe('');
+    act(() => vi.advanceTimersByTime(CAMERA_SETTLE_MS));
     expect(screen.getByTestId('mm-record-e').style.display).toBe('none');
+    vi.useRealTimers();
   });
 
   it('keeps a selected off-screen record visible so focus can land on it before the camera catches up', () => {

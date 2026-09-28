@@ -5,6 +5,7 @@ import { page } from 'vitest/browser';
 import MindmapCanvas, {
   type MindmapCanvasProps,
 } from '@/app/reader/components/mindmap/MindmapCanvas';
+import { CAMERA_SETTLE_MS } from '@/app/reader/components/mindmap/WorldLayer';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import type { MapCamera, MapRecord } from '@/services/mindmap/schema/types';
 import { createMapStore } from '@/services/mindmap/store/mapStore';
@@ -112,6 +113,7 @@ const click = (controller: CanvasController, clientX: number, clientY: number) =
 };
 
 const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
+const settle = () => new Promise((resolve) => setTimeout(resolve, CAMERA_SETTLE_MS + 50));
 
 const measureFrames = async (step: () => void): Promise<number[]> => {
   for (let i = 0; i < WARM_UP_FRAMES; i += 1) {
@@ -220,6 +222,8 @@ describe('mindmap canvas in a real browser', () => {
     expect(screen.getByTestId('mm-record-n1999').style.display).toBe('none');
     act(() => controller.camera.set({ x: -9000, y: -4500, z: 1 }));
     expect(screen.getByTestId('mm-record-n1999').style.display).toBe('');
+    expect(screen.getByTestId('mm-record-n0').style.display).toBe('');
+    await act(settle);
     expect(screen.getByTestId('mm-record-n0').style.display).toBe('none');
   });
 
@@ -318,24 +322,42 @@ describe('mindmap canvas in a real browser', () => {
     expect(p95(durations)).toBeLessThan(FRAME_BUDGET_MS);
   });
 
-  it('keeps p95 frame time under 20 ms while panning 2,000 records', async () => {
+  it('keeps p95 frame time under 20 ms while panning a fitted map of 2,000 linked records', async () => {
     await page.viewport(1280, 900);
-    const { controller } = mount(grid(2000), { x: 1, y: 1, z: 1 });
-    for (let i = 0; i < WARM_UP_FRAMES; i += 1) {
-      controller.camera.panBy(-4, -2);
-      await nextFrame();
-    }
-    const durations: number[] = [];
-    let last = performance.now();
-    for (let i = 0; i < MEASURED_FRAMES; i += 1) {
-      controller.camera.panBy(-4, -2);
-      await nextFrame();
-      const now = performance.now();
-      durations.push(now - last);
-      last = now;
-    }
-    const sorted = [...durations].sort((a, b) => a - b);
-    const p95 = sorted[Math.floor(sorted.length * 0.95)]!;
-    expect(p95).toBeLessThan(FRAME_BUDGET_MS);
+    const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
+    act(() => controller.fitView(false));
+    await nextFrame();
+    expect(screen.getByTestId('mm-record-n1999').style.display).toBe('');
+    const durations = await measureFrames(() => controller.camera.panBy(-2, -1));
+    expect(p95(durations)).toBeLessThan(FRAME_BUDGET_MS);
+  });
+
+  it('keeps p95 frame time under 20 ms while zooming a fitted map of 2,000 linked records', async () => {
+    await page.viewport(1280, 900);
+    const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
+    act(() => controller.fitView(false));
+    await nextFrame();
+    let step = 0;
+    const durations = await measureFrames(() => {
+      step += 1;
+      const factor = Math.floor(step / 30) % 2 === 0 ? 1.02 : 1 / 1.02;
+      controller.camera.zoomAt({ x: 500, y: 350 }, factor);
+    });
+    expect(p95(durations)).toBeLessThan(FRAME_BUDGET_MS);
+  });
+
+  it('promotes the world layer while the camera moves and drops it once it settles', async () => {
+    await page.viewport(1280, 900);
+    const { controller } = mount(grid(10), { x: 1, y: 1, z: 1 });
+    const world = screen.getByTestId('mm-world');
+    expect(world.style.willChange).toBe('');
+    act(() => controller.camera.panBy(10, 0));
+    expect(world.style.willChange).toBe('transform');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    act(() => controller.camera.panBy(10, 0));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(world.style.willChange).toBe('transform');
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(world.style.willChange).toBe('');
   });
 });

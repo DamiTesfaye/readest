@@ -11,6 +11,7 @@ import { recordAriaLabels } from './recordLabels';
 import { useAtomValue, useMapRecordsWhen } from './useCanvasStores';
 
 export const CULL_MARGIN_PX = 200;
+export const CAMERA_SETTLE_MS = 150;
 
 const ORDER_FIELDS: ReadonlySet<string> = new Set(['index', 'deleted', 'type', 'fromId', 'toId']);
 const LABEL_FIELDS: ReadonlySet<string> = new Set([...ORDER_FIELDS, 'label', 'text', 'kind']);
@@ -84,6 +85,7 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
 
   const worldRef = useRef<HTMLDivElement>(null);
   const elements = useRef(new Map<HTMLElement | SVGElement, string>());
+  const moving = useRef(false);
 
   const cull = useCallback(() => {
     const view = controller.viewport.get();
@@ -109,6 +111,7 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
     }
     for (const [element, id] of elements.current) {
       const display = cullAll || onScreen.has(id) ? '' : 'none';
+      if (display === 'none' && moving.current) continue;
       if (element.style.display !== display) element.style.display = display;
     }
   }, [controller]);
@@ -122,19 +125,33 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
 
   useEffect(() => {
     const world = worldRef.current!;
-    const apply = (): void => {
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const place = (): void => {
       const { x, y, z } = controller.camera.get();
       world.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
       cull();
     };
-    apply();
+    const move = (): void => {
+      moving.current = true;
+      place();
+      world.style.willChange = 'transform';
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        moving.current = false;
+        world.style.willChange = '';
+        cull();
+      }, CAMERA_SETTLE_MS);
+    };
+    place();
     const unsubscribers = [
-      controller.camera.subscribe(apply),
+      controller.camera.subscribe(move),
       controller.viewport.subscribe(cull),
       controller.selection.subscribe(cull),
       store.listen(cull),
     ];
     return () => {
+      moving.current = false;
+      clearTimeout(settle);
       for (const unsubscribe of unsubscribers) unsubscribe();
     };
   }, [controller, store, cull]);
