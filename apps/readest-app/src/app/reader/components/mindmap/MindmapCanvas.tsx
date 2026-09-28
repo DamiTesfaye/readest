@@ -29,11 +29,17 @@ export interface MindmapCanvasProps {
   autoFocus: boolean;
   reveal: RevealSummary | null;
   announcement: string;
+  announcementId?: number;
   onJumpToBook: (anchor: RecordAnchor) => void;
   onResetPosition?: (id: string) => void;
   bottomInset?: number;
   worldChildren?: React.ReactNode;
 }
+
+const REPEAT_MARK = '\u00a0';
+
+const markRepeats = (message: string, id: number): string =>
+  id % 2 === 0 ? `${message}${REPEAT_MARK}` : message;
 
 const isDefaultCamera = ({ x, y, z }: { x: number; y: number; z: number }): boolean =>
   x === 0 && y === 0 && z === 1;
@@ -48,6 +54,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   autoFocus,
   reveal,
   announcement,
+  announcementId = 0,
   onJumpToBook,
   onResetPosition,
   bottomInset,
@@ -118,8 +125,8 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   }, [controller, _]);
 
   useEffect(() => {
-    if (announcement) setMessage(announcement);
-  }, [announcement]);
+    if (announcement) setMessage(markRepeats(announcement, announcementId));
+  }, [announcement, announcementId]);
 
   const editing = useAtomValue(controller.editing);
   const wasEditing = useRef(false);

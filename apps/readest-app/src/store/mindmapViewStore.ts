@@ -19,6 +19,7 @@ interface MindmapViewState {
   wheelZooms: boolean;
   reveal: RevealSummary | null;
   announcement: string;
+  announcementId: number;
   openEntry(bookKey: string): Promise<void>;
   showMap(bookKey: string, mapId: string): void;
   showSheet(bookKey: string): void;
@@ -42,6 +43,7 @@ export const useMindmapViewStore = create<MindmapViewState>()(
       wheelZooms: false,
       reveal: null,
       announcement: '',
+      announcementId: 0,
       openEntry: async (bookKey) => {
         const bookHash = useBookDataStore.getState().getBookData(bookKey)?.book?.hash;
         if (!bookHash) throw new Error('mindmap: book has no hash');
@@ -50,16 +52,18 @@ export const useMindmapViewStore = create<MindmapViewState>()(
         if (target.kind === 'map') get().showMap(bookKey, target.mapId);
         else get().showSheet(bookKey);
       },
-      showMap: (bookKey, mapId) => set({ bookKey, mapId, sheetOpen: false, reveal: null }),
+      showMap: (bookKey, mapId) =>
+        set({ bookKey, mapId, sheetOpen: false, reveal: null, announcement: '' }),
       showSheet: (bookKey) => set({ bookKey, sheetOpen: true }),
       closeSheet: () =>
         set(get().mapId ? { sheetOpen: false } : { sheetOpen: false, bookKey: null }),
-      close: () => set({ bookKey: null, mapId: null, sheetOpen: false, reveal: null }),
+      close: () =>
+        set({ bookKey: null, mapId: null, sheetOpen: false, reveal: null, announcement: '' }),
       setLayout: (layout) => set({ layout }),
       setDockWidth: (dockWidth) => set({ dockWidth }),
       setWheelZooms: (wheelZooms) => set({ wheelZooms }),
       setReveal: (reveal) => set({ reveal }),
-      announce: (announcement) => set({ announcement }),
+      announce: (announcement) => set({ announcement, announcementId: get().announcementId + 1 }),
     }),
     {
       name: 'mindmap-view',

@@ -207,6 +207,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
             autoFocus={!docked}
             reveal={view.reveal}
             announcement={view.announcement}
+            announcementId={view.announcementId}
             onJumpToBook={jumpToBook}
             onResetPosition={onResetPosition && ((id) => onResetPosition(mapId, id))}
             bottomInset={bottomInset}

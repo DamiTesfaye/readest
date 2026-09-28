@@ -96,8 +96,11 @@ describe('MindmapCanvas', () => {
     const region = screen.getByTestId('mm-live-region');
     act(() => controller.setTool('pen'));
     expect(region.textContent).toBe('Pen tool');
-    rerender({ announcement: '3 new nodes revealed' });
+    rerender({ announcement: '3 new nodes revealed', announcementId: 1 });
     expect(region.textContent).toBe('3 new nodes revealed');
+    rerender({ announcement: '3 new nodes revealed', announcementId: 2 });
+    expect(region.textContent).not.toBe('3 new nodes revealed');
+    expect(region.textContent?.trim()).toBe('3 new nodes revealed');
   });
 
   it('shows the reveal chip only when reveal data is provided', () => {

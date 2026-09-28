@@ -93,6 +93,25 @@ describe('mindmapViewStore', () => {
     expect(useMindmapViewStore.getState().reveal).toBeNull();
   });
 
+  it('clears a reveal announcement when another map opens or the view closes', () => {
+    const view = useMindmapViewStore.getState();
+    view.showMap('book-1', 'map-1');
+    view.announce('3 new nodes revealed');
+    view.showMap('book-1', 'map-2');
+    expect(useMindmapViewStore.getState().announcement).toBe('');
+    view.announce('2 new nodes revealed');
+    view.close();
+    expect(useMindmapViewStore.getState().announcement).toBe('');
+  });
+
+  it('numbers each announcement so a repeat is announced again', () => {
+    const view = useMindmapViewStore.getState();
+    view.announce('1 new node revealed');
+    const first = useMindmapViewStore.getState().announcementId;
+    view.announce('1 new node revealed');
+    expect(useMindmapViewStore.getState().announcementId).toBe(first + 1);
+  });
+
   it('persists only the layout preferences', () => {
     const view = useMindmapViewStore.getState();
     view.setLayout('docked');
