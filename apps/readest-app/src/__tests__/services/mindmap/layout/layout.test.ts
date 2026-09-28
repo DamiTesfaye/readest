@@ -116,6 +116,22 @@ describe('layoutNewNodes', () => {
     expect(overlaps(first, second)).toBe(false);
   });
 
+  it('keeps every position on the grid for a three-level TOC', () => {
+    const { store, spatial } = setup([]);
+    const placed = layoutNewNodes(store, spatial, [
+      genNode('toc:part', null, 'chapter'),
+      genNode('toc:a1', 'toc:part', 'chapter'),
+      genNode('toc:a2', 'toc:part', 'chapter'),
+      genNode('toc:a2x', 'toc:a2', 'chapter'),
+      genNode('toc:a2y', 'toc:a2', 'chapter'),
+    ]);
+    expect(placed.size).toBe(5);
+    for (const point of placed.values()) {
+      expect(point.x % GRID_SIZE).toBe(0);
+      expect(point.y % GRID_SIZE).toBe(0);
+    }
+  });
+
   it('fans a quote around a chapter placed in the same batch', () => {
     const { store, spatial } = setup([]);
     const placed = layoutNewNodes(store, spatial, [

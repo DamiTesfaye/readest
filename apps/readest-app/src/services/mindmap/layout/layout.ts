@@ -77,7 +77,10 @@ export const layoutNewNodes = (
   const trees = nodes.filter((node) => node.kind !== 'quote');
   const slots = tidyTree(trees.map((node) => ({ key: node.genKey, parentKey: node.parentGenKey })));
   for (const [genKey, slot] of slots) {
-    place(genKey, { x: origin.x + slot.depth * COLUMN_STEP, y: origin.y + slot.row * ROW_STEP });
+    place(genKey, {
+      x: snapToGrid(origin.x + slot.depth * COLUMN_STEP),
+      y: snapToGrid(origin.y + slot.row * ROW_STEP),
+    });
   }
   const byGenKey = new Map(
     records.flatMap((record) => (record.genKey === null ? [] : [[record.genKey, record] as const])),
