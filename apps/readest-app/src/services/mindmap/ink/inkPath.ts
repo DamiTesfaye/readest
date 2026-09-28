@@ -1,7 +1,7 @@
 import { getStroke } from 'perfect-freehand';
 import { type InkPoint, decodeInk } from '@/services/mindmap/ink/ink';
 
-const CACHE_LIMIT = 4000;
+export const INK_PATH_CACHE_LIMIT = 4000;
 const cache = new Map<string, string>();
 
 const round = (value: number): number => Math.round(value * 100) / 100;
@@ -34,8 +34,12 @@ export const strokePath = (points: readonly InkPoint[], size: number, pen: boole
 export const inkRecordPath = (record: { points: string; size: number; pen: boolean }): string => {
   const key = `${record.size}|${record.pen}|${record.points}`;
   const cached = cache.get(key);
-  if (cached !== undefined) return cached;
-  if (cache.size >= CACHE_LIMIT) cache.clear();
+  if (cached !== undefined) {
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached;
+  }
+  if (cache.size >= INK_PATH_CACHE_LIMIT) cache.delete(cache.keys().next().value!);
   const path = strokePath(decodeInk(record.points), record.size, record.pen);
   cache.set(key, path);
   return path;
