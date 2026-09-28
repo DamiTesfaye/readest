@@ -126,9 +126,9 @@ describe('openEntry', () => {
     });
   });
 
-  it('does nothing for a book without a hash', async () => {
+  it('rejects and leaves the view unchanged for a book without a hash', async () => {
     h.hash = undefined;
-    await useMindmapViewStore.getState().openEntry('book-1');
+    await expect(useMindmapViewStore.getState().openEntry('book-1')).rejects.toThrow();
     expect(useMindmapViewStore.getState()).toMatchObject({ bookKey: null, sheetOpen: false });
   });
 

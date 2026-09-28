@@ -44,7 +44,7 @@ export const useMindmapViewStore = create<MindmapViewState>()(
       announcement: '',
       openEntry: async (bookKey) => {
         const bookHash = useBookDataStore.getState().getBookData(bookKey)?.book?.hash;
-        if (!bookHash) return;
+        if (!bookHash) throw new Error('mindmap: book has no hash');
         const appService = await environmentConfig.getAppService();
         const target = await resolveMapEntry(mindmapFsFromAppService(appService), bookHash);
         if (target.kind === 'map') get().showMap(bookKey, target.mapId);
