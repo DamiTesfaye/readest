@@ -1,7 +1,8 @@
 import clsx from 'clsx';
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { inkRecordPath } from '@/services/mindmap/ink/inkPath';
+import { chapterAt } from '@/services/mindmap/reveal/visibility';
 import { isLive, isPositioned } from '@/services/mindmap/spatial/spatialIndex';
 import type { MapStore } from '@/services/mindmap/store/mapStore';
 import type {
@@ -13,6 +14,7 @@ import type {
   SectionRecord,
   ShapeRecord,
 } from '@/services/mindmap/schema/types';
+import { ChapterStartsContext } from './chapterStarts';
 import { useRecord } from './useCanvasStores';
 
 export type RegisterElement = (id: string, element: HTMLElement | SVGElement) => () => void;
@@ -40,9 +42,14 @@ export const stickyTilt = (id: string): number => {
 
 const QuoteNote: React.FC<{ record: NodeRecord }> = ({ record }) => {
   const _ = useTranslation();
-  const caption = record.anchor
-    ? _('Ch. {{chapter}} · your highlight', { chapter: record.anchor.section + 1 })
-    : _('Your highlight');
+  const starts = useContext(ChapterStartsContext);
+  const chapter = !record.anchor
+    ? null
+    : starts
+      ? chapterAt(starts, record.anchor.progress)
+      : record.anchor.section + 1;
+  const caption =
+    chapter === null ? _('Your highlight') : _('Ch. {{chapter}} · your highlight', { chapter });
   return (
     <div
       className='relative flex h-full w-full flex-col justify-center rounded-sm px-3 pb-1 pt-3 font-serif text-sm'

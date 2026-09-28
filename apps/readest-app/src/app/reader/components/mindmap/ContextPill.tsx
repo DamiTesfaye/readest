@@ -25,11 +25,19 @@ const sharedValue = (records: PositionedRecord[], field: string): unknown => {
   return values.size === 1 ? [...values][0] : undefined;
 };
 
+interface MenuItem {
+  label: string;
+  action: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}
+
 interface RecordMenuProps {
   controller: CanvasController;
   at: Point;
   onClose: MenuClose;
   onJumpToBook: (anchor: RecordAnchor) => void;
+  canJumpToBook?: (anchor: RecordAnchor) => boolean;
   onResetPosition?: (id: string) => void;
   anchorRef?: RefObject<HTMLElement | null>;
 }
@@ -39,6 +47,7 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
   at,
   onClose,
   onJumpToBook,
+  canJumpToBook,
   onResetPosition,
   anchorRef,
 }) => {
@@ -52,8 +61,12 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
     action();
     onClose(true);
   };
-  const items = [
-    single?.anchor && { label: _('Jump to book'), action: () => onJumpToBook(single.anchor!) },
+  const candidates: (MenuItem | false | null | undefined)[] = [
+    single?.anchor && {
+      label: _('Jump to book'),
+      action: () => onJumpToBook(single.anchor!),
+      disabled: canJumpToBook?.(single.anchor) === false,
+    },
     onResetPosition &&
       single?.origin === 'generated' &&
       !controller.readOnly && {
@@ -68,9 +81,8 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
       action: controller.deleteSelection,
       danger: true,
     },
-  ].filter((item): item is { label: string; action: () => void; danger?: boolean } =>
-    Boolean(item),
-  );
+  ];
+  const items = candidates.filter((item): item is MenuItem => Boolean(item));
   if (items.length === 0) return null;
   return (
     <div
@@ -88,11 +100,13 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
           type='button'
           role='menuitem'
           tabIndex={-1}
+          aria-disabled={item.disabled || undefined}
           className={clsx(
             'hover:bg-base-200 rounded-md px-3 py-2 text-start transition-colors duration-150',
             item.danger && 'text-error',
+            item.disabled && 'opacity-50',
           )}
-          onClick={run(item.action)}
+          onClick={item.disabled ? undefined : run(item.action)}
         >
           {item.label}
         </button>
@@ -104,6 +118,7 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
 interface ContextPillProps {
   controller: CanvasController;
   onJumpToBook: (anchor: RecordAnchor) => void;
+  canJumpToBook?: (anchor: RecordAnchor) => boolean;
   onResetPosition?: (id: string) => void;
   onFocusLost?: () => void;
   eink?: boolean;
@@ -112,6 +127,7 @@ interface ContextPillProps {
 const ContextPill: React.FC<ContextPillProps> = ({
   controller,
   onJumpToBook,
+  canJumpToBook,
   onResetPosition,
   onFocusLost,
   eink = false,
@@ -190,6 +206,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
         <button
           type='button'
           className='btn btn-ghost btn-sm [@media(pointer:coarse)]:min-h-11 shrink-0 rounded-full [@media(pointer:coarse)]:h-11'
+          disabled={canJumpToBook?.(single.anchor) === false}
           onClick={() => onJumpToBook(single.anchor!)}
         >
           {_('Jump to book')}
@@ -218,6 +235,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
             onFocusLost?.();
           }}
           onJumpToBook={onJumpToBook}
+          canJumpToBook={canJumpToBook}
           onResetPosition={onResetPosition}
         />
       )}

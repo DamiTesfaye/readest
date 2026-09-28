@@ -32,6 +32,7 @@ export interface MindmapCanvasProps {
   announcement: string;
   announcementId?: number;
   onJumpToBook: (anchor: RecordAnchor) => void;
+  canJumpToBook?: (anchor: RecordAnchor) => boolean;
   onResetPosition?: (id: string) => void;
   bottomInset?: number;
   worldChildren?: React.ReactNode;
@@ -59,6 +60,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   announcement,
   announcementId = 0,
   onJumpToBook,
+  canJumpToBook,
   onResetPosition,
   bottomInset,
   worldChildren,
@@ -210,6 +212,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       <ContextPill
         controller={controller}
         onJumpToBook={onJumpToBook}
+        canJumpToBook={canJumpToBook}
         onResetPosition={onResetPosition}
         onFocusLost={keepFocus}
         eink={eink}
@@ -220,6 +223,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
           at={menu}
           onClose={closeMenu}
           onJumpToBook={onJumpToBook}
+          canJumpToBook={canJumpToBook}
           onResetPosition={onResetPosition}
         />
       )}
