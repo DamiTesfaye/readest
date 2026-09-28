@@ -38,6 +38,7 @@ import Spinner from '@/components/Spinner';
 import SideBar from './sidebar/SideBar';
 import Notebook from './notebook/Notebook';
 import MindmapView from './mindmap/MindmapView';
+import { useMindmapActions } from './mindmap/useMindmapActions';
 import BooksGrid from './BooksGrid';
 import SettingsDialog from '@/components/settings/SettingsDialog';
 
@@ -63,6 +64,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const isInitiating = useRef(false);
   const [loading, setLoading] = useState(false);
   const [errorLoading, setErrorLoading] = useState(false);
+  const mindmapActions = useMindmapActions();
 
   useBookShortcuts({ sideBarBookKey, bookKeys });
   useGamepad();
@@ -297,7 +299,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       />
       {isSettingsDialogOpen && <SettingsDialog bookKey={settingsDialogBookKey} />}
       <Notebook />
-      <MindmapView />
+      <MindmapView {...mindmapActions} />
       {showDetailsBook && (
         <BookDetailModal
           isOpen={!!showDetailsBook}

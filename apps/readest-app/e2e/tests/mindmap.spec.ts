@@ -18,6 +18,19 @@ const createBlankMap = async (reader: ReaderPage, page: Page) => {
   return canvas;
 };
 
+const createGeneratedMap = async (reader: ReaderPage, page: Page) => {
+  await openMindmap(reader, page);
+  const sheet = page.getByRole('dialog', { name: 'New mind map' });
+  await expect(sheet.getByLabel('Generated from the book')).toBeChecked();
+  await sheet.getByRole('button', { name: 'Create map' }).click();
+  const canvas = page.getByRole('application', { name: /^Mind map:/ });
+  await expect(canvas).toBeVisible();
+  return canvas;
+};
+
+const chapterNode = (page: Page, label: string) =>
+  page.getByRole('button', { name: new RegExp(`^${label}, Chapter`), includeHidden: true });
+
 const placeNode = async (page: Page, x: number, y: number, label: string) => {
   await page.keyboard.press('n');
   await page.mouse.click(x, y);
@@ -150,6 +163,34 @@ test.describe('Mind map', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: /^Untitled, Idea/ })).toBeVisible();
     await expect(canvas.locator('.animate-mm-pop')).toHaveCount(0);
+  });
+
+  test('creates a generated map from the book and fogs the chapters ahead', async ({
+    openBook,
+    page,
+  }) => {
+    const reader = await openBook();
+    await createGeneratedMap(reader, page);
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 14');
+    await expect(page.getByTestId('mm-fog-cluster')).toContainText('Keep reading to reveal');
+    await expect(chapterNode(page, 'Chapter 12 - Alice’s Evidence')).toHaveCount(0);
+  });
+
+  test('grow mode reveals new nodes after advancing a chapter', async ({ openBook, page }) => {
+    const reader = await openBook();
+    await createGeneratedMap(reader, page);
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 14');
+    await expect(chapterNode(page, 'Chapter 6 - Pig and Pepper')).toHaveCount(0);
+    await page.getByRole('button', { name: /^Back to page/ }).click();
+    await reader.revealHeader();
+    await page.getByRole('button', { name: 'Contents' }).click();
+    await page.getByRole('treeitem', { name: /Chapter 6 - Pig and Pepper/ }).click();
+    await expect.poll(() => bookLocation(page)).toMatch(/^epubcfi\(\/6\/18[!,)]/);
+    await page.keyboard.press('Escape');
+    await openMindmap(reader, page);
+    await expect(chapterNode(page, 'Chapter 6 - Pig and Pepper')).toHaveCount(1);
+    await expect(chapterNode(page, 'Chapter 12 - Alice’s Evidence')).toHaveCount(0);
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('new');
   });
 
   test('returns focus from the new map sheet when it is dismissed', async ({ openBook, page }) => {

@@ -11,10 +11,13 @@ import {
 } from '@/services/mindmap/persist/mindmapStore';
 import { __resetMapSessionsForTests, getOpenMapSession } from '@/services/mindmap/persist/session';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
-import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
+import { DEFAULT_MAP_META, type MapSource } from '@/services/mindmap/schema/types';
 import { getOpenCanvasController } from '@/services/mindmap/tools/controllerRegistry';
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
+import { setBookProgress } from '@/store/readerProgressStore';
+import type { BookDoc } from '@/libs/document';
+import type { BookProgress } from '@/types/book';
 import type { AppService } from '@/types/system';
 import { eventDispatcher } from '@/utils/event';
 import { memoryAppService } from './memoryAppService';
@@ -22,6 +25,10 @@ import { memoryAppService } from './memoryAppService';
 const h = vi.hoisted(() => ({
   appService: null as AppService | null,
   goTo: vi.fn(),
+  goToFraction: vi.fn(),
+  resolvedIndex: 3 as number | undefined,
+  sections: 5,
+  bookDoc: null as BookDoc | null,
   isEink: false,
   wide: false,
   dark: false,
@@ -59,7 +66,13 @@ vi.mock('@/utils/access', () => ({
   getUserProfilePlan: () => 'free',
 }));
 vi.mock('@/store/bookDataStore', () => {
-  const state = { getBookData: () => ({ book: { hash: 'bookhash', title: 'Emma' } }) };
+  const state = {
+    getBookData: () => ({
+      book: { hash: 'bookhash', title: 'Emma', format: 'EPUB', metadata: { subject: 'Fiction' } },
+      bookDoc: h.bookDoc,
+      config: { booknotes: [] },
+    }),
+  };
   return {
     useBookDataStore: Object.assign(<T,>(select: (s: typeof state) => T) => select(state), {
       getState: () => state,
@@ -68,7 +81,13 @@ vi.mock('@/store/bookDataStore', () => {
 });
 vi.mock('@/store/readerStore', () => {
   const state = {
-    getView: () => ({ goTo: h.goTo }),
+    getView: () => ({
+      goTo: h.goTo,
+      goToFraction: h.goToFraction,
+      resolveNavigation: () =>
+        h.resolvedIndex === undefined ? undefined : { index: h.resolvedIndex },
+      book: { sections: Array.from({ length: h.sections }) },
+    }),
     getViewSettings: () => ({ isEink: h.isEink }),
     getProgress: () => ({ fraction: 0.25, pageinfo: { current: 11, total: 200 } }),
     get bookKeys() {
@@ -106,12 +125,12 @@ HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
 let fs: MemoryFileSystem;
 const BOOK_KEY = 'bookhash-1';
 
-const createMap = async (title: string): Promise<string> => {
+const createMap = async (title: string, source: MapSource = 'blank'): Promise<string> => {
   await useMindmapStore.getState().hydrate(fs);
   const clock = createMindmapClock(new HlcGenerator('device-0'), 'device-0');
   const file = await useMindmapStore
     .getState()
-    .createMap('bookhash', { ...DEFAULT_MAP_META, title, source: 'blank' }, clock);
+    .createMap('bookhash', { ...DEFAULT_MAP_META, title, source }, clock);
   return file.mapId;
 };
 
@@ -136,6 +155,11 @@ beforeEach(() => {
   h.systemUIVisible = false;
   h.statusBarHeight = 24;
   h.goTo.mockReset();
+  h.goToFraction.mockReset();
+  h.resolvedIndex = 3;
+  h.sections = 5;
+  h.bookDoc = null;
+  setBookProgress(BOOK_KEY, null);
   window.matchMedia = ((query: string) => ({
     matches: query.includes('min-width: 1024px')
       ? h.wide
@@ -367,7 +391,7 @@ describe('an open map', () => {
     expect(screen.queryByRole('button', { name: 'Dock beside book' })).toBeNull();
   });
 
-  it('jumps to the book, closing the full-screen map', async () => {
+  const selectAnchoredQuote = async (): Promise<string> => {
     const mapId = await createMap('Anchors');
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
     render(<MindmapView />);
@@ -380,25 +404,32 @@ describe('an open map', () => {
       ]);
     });
     const canvas = screen.getByTestId('mindmap-canvas');
-    fireEvent.pointerDown(canvas, {
-      clientX: 5,
-      clientY: 5,
-      pointerId: 2,
-      pointerType: 'mouse',
-      button: 0,
-      detail: 1,
-    });
-    fireEvent.pointerUp(canvas, {
-      clientX: 5,
-      clientY: 5,
-      pointerId: 2,
-      pointerType: 'mouse',
-      button: 0,
-      detail: 1,
-    });
+    pointer(canvas, 'pointerDown', 5, 5);
+    pointer(canvas, 'pointerUp', 5, 5);
+    return mapId;
+  };
+
+  it('jumps to the book, closing the full-screen map', async () => {
+    await selectAnchoredQuote();
     fireEvent.click(await screen.findByRole('button', { name: 'Jump to book' }));
     expect(h.goTo).toHaveBeenCalledWith('epubcfi(/6/8)');
     expect(useMindmapViewStore.getState().mapId).toBeNull();
+  });
+
+  it('falls back to the section progress when the cfi no longer resolves', async () => {
+    h.resolvedIndex = undefined;
+    await selectAnchoredQuote();
+    fireEvent.click(await screen.findByRole('button', { name: 'Jump to book' }));
+    expect(h.goTo).not.toHaveBeenCalled();
+    expect(h.goToFraction).toHaveBeenCalledWith(0.3);
+  });
+
+  it('disables Jump to book when neither the cfi nor its section resolve', async () => {
+    h.resolvedIndex = undefined;
+    h.sections = 2;
+    await selectAnchoredQuote();
+    const jump = (await screen.findByRole('button', { name: 'Jump to book' })) as HTMLButtonElement;
+    expect(jump.disabled).toBe(true);
   });
 
   it('deletes the map after confirmation and closes the view', async () => {
@@ -537,5 +568,61 @@ describe('an open map', () => {
     await openCanvas();
     expect(screen.getByTestId('mm-top-bar').style.marginTop).toBe('40px');
     expect(screen.getByRole('toolbar', { name: 'Tools' }).style.bottom).toBe('calc(0px + 1rem)');
+  });
+});
+
+const section = (id: string) => ({
+  id,
+  cfi: `epubcfi(/6/${id.length * 2})`,
+  size: 1000,
+  linear: 'yes',
+  createDocument: async () => document,
+});
+
+const threeChapterBook = (): BookDoc =>
+  ({
+    metadata: { title: 'Emma', author: '', language: 'en', subject: 'Fiction' },
+    rendition: {},
+    dir: 'ltr',
+    toc: [
+      { id: 1, label: 'Chapter One', href: 'a', index: 0 },
+      { id: 2, label: 'Chapter Two', href: 'bb', index: 0 },
+      { id: 3, label: 'Chapter Three', href: 'ccc', index: 0 },
+    ],
+    sections: [section('a'), section('bb'), section('ccc')],
+    splitTOCHref: (href: string) => href.split('#'),
+    getCover: async () => null,
+  }) as BookDoc;
+
+describe('a generated map', () => {
+  it('fills from the book on open and reveals only what the reader has reached', async () => {
+    h.bookDoc = threeChapterBook();
+    setBookProgress(BOOK_KEY, { fraction: 0.4 } as BookProgress);
+    const mapId = await createMap('Generated', 'generated');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    await openCanvas();
+    await screen.findByRole('button', { name: /^Chapter Two, Chapter/ }, { timeout: 3000 });
+    expect(screen.queryByRole('button', { name: /^Chapter Three/ })).toBeNull();
+    expect(screen.getByTestId('mm-fog-cluster').textContent).toBe(
+      'Keep reading to reveal 1 more nodes',
+    );
+    const chip = screen.getByTestId('mm-reveal-chip');
+    expect(chip.textContent).toContain('Revealed to ch. 2');
+    expect(chip.textContent).toContain('2 of 3');
+    expect(chip.textContent).toContain('1 new');
+    await waitFor(() => expect(getOpenMapSession(mapId)!.meta().lastSeenProgress).toBe(0.4));
+    expect(useMindmapViewStore.getState().announcement).toBe('1 new nodes revealed');
+  });
+
+  it('leaves a blank map empty', async () => {
+    h.bookDoc = threeChapterBook();
+    const mapId = await createMap('Blank');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    await openCanvas();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(getOpenMapSession(mapId)!.store.all()).toEqual([]);
+    expect(screen.queryByTestId('mm-reveal-chip')).toBeNull();
   });
 });

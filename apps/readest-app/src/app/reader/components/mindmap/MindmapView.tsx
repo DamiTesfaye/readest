@@ -4,6 +4,7 @@ import ModalPortal from '@/components/ModalPortal';
 import { usePanelResize } from '@/hooks/usePanelResize';
 import { useTranslation } from '@/hooks/useTranslation';
 import { currentUserPlan } from '@/services/mindmap/entry';
+import { type JumpTarget, resolveJumpTarget } from '@/services/mindmap/generate/anchors';
 import type { MapSession } from '@/services/mindmap/persist/session';
 import type { RecordAnchor } from '@/services/mindmap/schema/types';
 import type { MindmapMode } from '@/services/mindmap/theme/presets';
@@ -18,11 +19,15 @@ import type { UserPlan } from '@/types/quota';
 import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { eventDispatcher } from '@/utils/event';
 import { getPanelTopInset } from '@/utils/insets';
+import FogLayer from './FogLayer';
+import { ChapterStartsContext } from './chapterStarts';
 import MindmapCanvas from './MindmapCanvas';
 import NewMapSheet from './NewMapSheet';
 import SessionFallback from './SessionFallback';
 import TopBar from './TopBar';
 import { useDeleteMap, useMapList } from './useBookMaps';
+import { useBookLocator, useMapReconcile } from './useMapReconcile';
+import { useMapReveal } from './useMapReveal';
 import { useMediaQuery } from './useMediaQuery';
 import { useMindmapSession } from './useMindmapSession';
 
@@ -135,6 +140,10 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   const controller = useCanvasController(session, mapId);
   const eink = getViewSettings(bookKey)?.isEink ?? false;
   const mode: MindmapMode = eink ? 'eink' : isDarkMode ? 'dark' : 'light';
+  const animate = !eink && uiAnimations && !reducedMotion;
+  const locator = useBookLocator(bookKey);
+  useMapReconcile({ bookKey, session, controller, locator, source: meta.source });
+  const reveal = useMapReveal({ bookKey, session, controller, meta, locator, animate });
   const topInset = getPanelTopInset({
     isMobile: false,
     isFullHeightInMobile: true,
@@ -168,8 +177,22 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
     }
   }, [session, _]);
 
+  const jumpTarget = (anchor: RecordAnchor): JumpTarget | null => {
+    const bookView = getView(bookKey);
+    if (!bookView) return null;
+    const sections = bookView.book?.sections.length ?? 0;
+    return resolveJumpTarget(anchor, sections, (cfi) => {
+      const index = bookView.resolveNavigation(cfi)?.index;
+      return index !== undefined && index >= 0 && index < sections;
+    });
+  };
+
   const jumpToBook = (anchor: RecordAnchor): void => {
-    getView(bookKey)?.goTo(anchor.cfi);
+    const bookView = getView(bookKey);
+    const target = jumpTarget(anchor);
+    if (!bookView || !target) return;
+    if (target.kind === 'cfi') bookView.goTo(target.cfi);
+    else bookView.goToFraction(target.fraction);
     if (!docked) view.close();
   };
 
@@ -201,22 +224,26 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
         onExport={onExport && (() => onExport(mapId))}
       />
       <div className='relative min-h-0 flex-1'>
-        {controller && (
-          <MindmapCanvas
-            controller={controller}
-            title={meta.title}
-            mapStyle={meta.style}
-            mode={mode}
-            animate={!eink && uiAnimations && !reducedMotion}
-            wheelZooms={view.wheelZooms}
-            autoFocus={!docked}
-            reveal={view.reveal}
-            announcement={view.announcement}
-            announcementId={view.announcementId}
-            onJumpToBook={jumpToBook}
-            onResetPosition={onResetPosition && ((id) => onResetPosition(mapId, id))}
-            bottomInset={bottomInset}
-          />
+        {controller && reveal.ready && (
+          <ChapterStartsContext.Provider value={reveal.chapterStarts}>
+            <MindmapCanvas
+              controller={controller}
+              title={meta.title}
+              mapStyle={meta.style}
+              mode={mode}
+              animate={animate}
+              wheelZooms={view.wheelZooms}
+              autoFocus={!docked}
+              reveal={view.reveal}
+              announcement={view.announcement}
+              announcementId={view.announcementId}
+              onJumpToBook={jumpToBook}
+              canJumpToBook={(anchor) => jumpTarget(anchor) !== null}
+              onResetPosition={onResetPosition && ((id) => onResetPosition(mapId, id))}
+              bottomInset={bottomInset}
+              worldChildren={<FogLayer clusters={reveal.clusters} redacted={reveal.redacted} />}
+            />
+          </ChapterStartsContext.Provider>
         )}
       </div>
     </>
