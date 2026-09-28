@@ -40,8 +40,10 @@ import {
 import { createSelectTool } from '@/services/mindmap/tools/selectTool';
 import {
   type CanvasPointer,
+  CONNECT_HANDLE_REACH_PX,
   IDLE_LIVE,
   type LiveState,
+  type PointerKind,
   type Tool,
   type ToolContext,
   type ToolId,
@@ -53,6 +55,11 @@ export const ZOOM_STEP = 1.2;
 export const DUPLICATE_OFFSET = 32;
 const FOCUSABLE = new Set(['node', 'sticky', 'text']);
 const VIEW_TOOLS: ReadonlySet<ToolId> = new Set(['select', 'hand']);
+
+export interface ActivePointer {
+  readonly id: number;
+  readonly kind: PointerKind;
+}
 
 export interface CanvasControllerOptions {
   store: MapStore;
@@ -76,6 +83,7 @@ export interface CanvasController {
   setTool(tool: ToolId): void;
   setSpaceHeld(held: boolean): void;
   gestureActive(): boolean;
+  activePointer(): ActivePointer | null;
   toolState(): string;
   pointerDown(pointer: CanvasPointer): void;
   pointerMove(pointer: CanvasPointer, samples: readonly CanvasPointer[]): void;
@@ -113,7 +121,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
   const editing = createAtom<string | null>(null);
   const hover = createAtom<string | null>(null);
   const viewport = createAtom<Viewport>({ width: 0, height: 0 });
-  let active: { pointerId: number; tool: Tool } | null = null;
+  let active: { pointer: ActivePointer; tool: Tool } | null = null;
   let penSeen = false;
   let spaceHeld = false;
 
@@ -163,6 +171,28 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     active = null;
     current.cancel();
   }
+
+  const withinHandleReach = (id: string, pointer: CanvasPointer): boolean => {
+    const record = store.get(id);
+    if (!isLive(record) || !isPositioned(record)) return false;
+    const reach = CONNECT_HANDLE_REACH_PX / camera.get().z;
+    const box = recordBounds(record);
+    const { x, y } = pointer.page;
+    return (
+      x >= box.x - reach &&
+      x <= box.x + box.w + reach &&
+      y >= box.y - reach &&
+      y <= box.y + box.h + reach
+    );
+  };
+
+  const hoverAt = (pointer: CanvasPointer): string | null => {
+    if (pointer.target.kind === 'connect') return pointer.target.id;
+    const hit = spatial.hitTest(pointer.page, HIT_TOLERANCE_PX / camera.get().z);
+    if (hit) return hit;
+    const current = hover.get();
+    return current && withinHandleReach(current, pointer) ? current : null;
+  };
 
   const gesture = (run: () => void): void => {
     const mark = history.mark();
@@ -260,26 +290,26 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
       spaceHeld = held;
     },
     gestureActive: () => active !== null,
+    activePointer: () => active?.pointer ?? null,
     toolState: () => (active ? active.tool.state() : tools[tool.get()].state()),
     pointerDown: (pointer) => {
       if (pointer.kind === 'pen') penSeen = true;
+      if (active?.pointer.kind === 'touch' && pointer.kind === 'pen') pointerCancel();
       if (active) return;
       hover.set(null);
       const current = toolFor(pointer);
-      active = { pointerId: pointer.id, tool: current };
+      active = { pointer: { id: pointer.id, kind: pointer.kind }, tool: current };
       current.down(pointer);
     },
     pointerMove: (pointer, samples) => {
       if (!active) {
-        if (pointer.kind === 'mouse') {
-          hover.set(spatial.hitTest(pointer.page, HIT_TOLERANCE_PX / camera.get().z));
-        }
+        if (pointer.kind === 'mouse') hover.set(hoverAt(pointer));
         return;
       }
-      if (pointer.id === active.pointerId) active.tool.move(pointer, samples);
+      if (pointer.id === active.pointer.id) active.tool.move(pointer, samples);
     },
     pointerUp: (pointer) => {
-      if (!active || pointer.id !== active.pointerId) return;
+      if (!active || pointer.id !== active.pointer.id) return;
       const current = active.tool;
       active = null;
       current.up(pointer);

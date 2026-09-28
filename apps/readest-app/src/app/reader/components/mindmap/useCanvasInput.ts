@@ -5,6 +5,8 @@ import type { CanvasController } from '@/services/mindmap/tools/controller';
 import type { CanvasPointer, PointerKind, PointerTarget } from '@/services/mindmap/tools/types';
 
 export const WHEEL_ZOOM_SPEED = 0.0015;
+const PINCH_ZOOM_SPEED = 0.02;
+const PINCH_MAX_DELTA = 10;
 const LINE_HEIGHT_PX = 16;
 const DOUBLE_CLICK_MS = 400;
 const DOUBLE_CLICK_SLOP_PX = 6;
@@ -51,7 +53,6 @@ export const useCanvasInput = (
     const touches = new Map<number, Point>();
     let pinch: Pinch | null = null;
     let gestureScale = 1;
-    let activeKind: PointerKind | null = null;
     let lastClick: { kind: PointerKind; time: number; screen: Point } | null = null;
 
     const local = (
@@ -98,14 +99,15 @@ export const useCanvasInput = (
       if (event.pointerType === 'touch') {
         touches.set(event.pointerId, local(event));
         if (touches.size >= 2) {
-          if (activeKind !== 'pen') {
+          if (controller.activePointer()?.kind !== 'pen') {
             controller.pointerCancel();
             pinch = touches.size === 2 ? pinchOf() : pinch;
           }
           return;
         }
+      } else if (event.pointerType === 'pen') {
+        pinch = null;
       }
-      const wasActive = controller.gestureActive();
       const rect = root.getBoundingClientRect();
       const screen = local(event, rect);
       const kind = pointerKind(event.pointerType);
@@ -120,11 +122,15 @@ export const useCanvasInput = (
       lastClick = clicks === 2 ? null : { kind, time: event.timeStamp, screen };
       root.setPointerCapture(event.pointerId);
       controller.pointerDown(toPointer(event, rect, pointerTarget(event.target), clicks));
-      if (!wasActive) activeKind = kind;
     };
 
+    const movedPast = (from: Point, to: Point, slop: number): boolean =>
+      Math.hypot(to.x - from.x, to.y - from.y) > slop;
+
     const onMove = (event: PointerEvent): void => {
-      if (touches.has(event.pointerId)) touches.set(event.pointerId, local(event));
+      const at = local(event);
+      if (touches.has(event.pointerId)) touches.set(event.pointerId, at);
+      if (lastClick && movedPast(lastClick.screen, at, DOUBLE_CLICK_SLOP_PX)) lastClick = null;
       if (pinch && touches.size >= 2) {
         const next = pinchOf();
         controller.camera.panBy(next.center.x - pinch.center.x, next.center.y - pinch.center.y);
@@ -151,14 +157,12 @@ export const useCanvasInput = (
       controller.pointerUp(
         toPointer(event, root.getBoundingClientRect(), pointerTarget(event.target)),
       );
-      if (!controller.gestureActive()) activeKind = null;
     };
 
     const onCancel = (event: PointerEvent): void => {
       touches.delete(event.pointerId);
       if (touches.size < 2) pinch = null;
-      controller.pointerCancel();
-      activeKind = null;
+      if (controller.activePointer()?.id === event.pointerId) controller.pointerCancel();
     };
 
     const onWheel = (event: WheelEvent): void => {
@@ -167,7 +171,10 @@ export const useCanvasInput = (
       const scale = event.deltaMode === 1 ? LINE_HEIGHT_PX : 1;
       const dx = event.deltaX * scale;
       const dy = event.deltaY * scale;
-      if (event.ctrlKey || event.metaKey || wheelZooms) {
+      if (event.ctrlKey || event.metaKey) {
+        const step = Math.max(-PINCH_MAX_DELTA, Math.min(PINCH_MAX_DELTA, dy));
+        controller.camera.zoomAt(local(event), Math.exp(-step * PINCH_ZOOM_SPEED));
+      } else if (wheelZooms) {
         controller.camera.zoomAt(local(event), Math.exp(-dy * WHEEL_ZOOM_SPEED));
       } else {
         controller.camera.panBy(-dx, -dy);

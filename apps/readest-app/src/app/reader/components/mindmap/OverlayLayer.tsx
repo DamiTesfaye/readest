@@ -9,10 +9,10 @@ import { isLive, liveLinkEnds, recordBounds } from '@/services/mindmap/spatial/s
 import type { MapStore } from '@/services/mindmap/store/mapStore';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { editableText, livePositioned } from '@/services/mindmap/tools/records';
+import { CONNECT_HANDLE_OFFSET_PX } from '@/services/mindmap/tools/types';
 import LabelEditor from './LabelEditor';
 import { useAtomValue, useMapRecords } from './useCanvasStores';
 
-const HANDLE_OFFSET_PX = 14;
 const LINK_EDITOR_SIZE = { w: 120, h: 32 };
 
 const toScreen = (box: BoundsRect, camera: MapCamera): BoundsRect => ({
@@ -23,10 +23,10 @@ const toScreen = (box: BoundsRect, camera: MapCamera): BoundsRect => ({
 });
 
 const handlePoints = (box: BoundsRect): Array<[LinkAnchor['side'], Point]> => [
-  ['top', { x: box.x + box.w / 2, y: box.y - HANDLE_OFFSET_PX }],
-  ['right', { x: box.x + box.w + HANDLE_OFFSET_PX, y: box.y + box.h / 2 }],
-  ['bottom', { x: box.x + box.w / 2, y: box.y + box.h + HANDLE_OFFSET_PX }],
-  ['left', { x: box.x - HANDLE_OFFSET_PX, y: box.y + box.h / 2 }],
+  ['top', { x: box.x + box.w / 2, y: box.y - CONNECT_HANDLE_OFFSET_PX }],
+  ['right', { x: box.x + box.w + CONNECT_HANDLE_OFFSET_PX, y: box.y + box.h / 2 }],
+  ['bottom', { x: box.x + box.w / 2, y: box.y + box.h + CONNECT_HANDLE_OFFSET_PX }],
+  ['left', { x: box.x - CONNECT_HANDLE_OFFSET_PX, y: box.y + box.h / 2 }],
 ];
 
 const linkPath = (link: LinkRecord, store: MapStore): string | null => {

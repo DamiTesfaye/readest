@@ -66,6 +66,8 @@ export interface Tool {
 
 export const DRAG_THRESHOLD_PX = 3;
 export const HIT_TOLERANCE_PX = 4;
+export const CONNECT_HANDLE_OFFSET_PX = 14;
+export const CONNECT_HANDLE_REACH_PX = CONNECT_HANDLE_OFFSET_PX + 12;
 
 export const patchLive = (ctx: ToolContext, patch: Partial<LiveState>): void => {
   ctx.live.set({ ...ctx.live.get(), ...patch });
