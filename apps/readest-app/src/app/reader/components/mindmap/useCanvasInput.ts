@@ -6,6 +6,8 @@ import type { CanvasPointer, PointerKind, PointerTarget } from '@/services/mindm
 
 export const WHEEL_ZOOM_SPEED = 0.0015;
 const LINE_HEIGHT_PX = 16;
+const DOUBLE_CLICK_MS = 400;
+const DOUBLE_CLICK_SLOP_PX = 6;
 
 interface SafariGestureEvent extends UIEvent {
   scale: number;
@@ -50,6 +52,7 @@ export const useCanvasInput = (
     let pinch: Pinch | null = null;
     let gestureScale = 1;
     let activeKind: PointerKind | null = null;
+    let lastClick: { kind: PointerKind; time: number; screen: Point } | null = null;
 
     const local = (
       event: { clientX: number; clientY: number },
@@ -63,6 +66,7 @@ export const useCanvasInput = (
       event: PointerEvent,
       rect: DOMRect,
       target: PointerTarget,
+      clicks: number = event.detail,
     ): CanvasPointer => {
       const screen = local(event, rect);
       return {
@@ -74,7 +78,7 @@ export const useCanvasInput = (
         pressure: event.pressure,
         alt: event.altKey,
         shift: event.shiftKey,
-        clicks: event.detail,
+        clicks,
         target,
       };
     };
@@ -102,11 +106,21 @@ export const useCanvasInput = (
         }
       }
       const wasActive = controller.gestureActive();
+      const rect = root.getBoundingClientRect();
+      const screen = local(event, rect);
+      const kind = pointerKind(event.pointerType);
+      const clicks =
+        lastClick &&
+        lastClick.kind === kind &&
+        event.timeStamp - lastClick.time <= DOUBLE_CLICK_MS &&
+        Math.hypot(screen.x - lastClick.screen.x, screen.y - lastClick.screen.y) <=
+          DOUBLE_CLICK_SLOP_PX
+          ? 2
+          : 1;
+      lastClick = clicks === 2 ? null : { kind, time: event.timeStamp, screen };
       root.setPointerCapture(event.pointerId);
-      controller.pointerDown(
-        toPointer(event, root.getBoundingClientRect(), pointerTarget(event.target)),
-      );
-      if (!wasActive) activeKind = pointerKind(event.pointerType);
+      controller.pointerDown(toPointer(event, rect, pointerTarget(event.target), clicks));
+      if (!wasActive) activeKind = kind;
     };
 
     const onMove = (event: PointerEvent): void => {

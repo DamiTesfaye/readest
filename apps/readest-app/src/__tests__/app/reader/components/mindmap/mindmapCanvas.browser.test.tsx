@@ -108,6 +108,38 @@ describe('mindmap canvas in a real browser', () => {
     expect(click(controller, CANVAS_LEFT + 5, CANVAS_TOP + 5)).toEqual([]);
   });
 
+  it('opens the label editor on a real double-click, where PointerEvent.detail is always 0', async () => {
+    await page.viewport(1280, 900);
+    const node = createNodeRecord({
+      id: 'a',
+      index: 'a1',
+      x: 100,
+      y: 100,
+      w: 160,
+      h: 64,
+      label: 'Target',
+    });
+    const { controller } = mount([node], { x: 1, y: 1, z: 1 });
+    const canvas = screen.getByTestId('mindmap-canvas');
+    const clientX = CANVAS_LEFT + 1 + 100 + 80;
+    const clientY = CANVAS_TOP + 1 + 100 + 32;
+    const init = {
+      clientX,
+      clientY,
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+    };
+    canvas.dispatchEvent(new PointerEvent('pointerdown', init));
+    expect(new PointerEvent('pointerdown', init).detail).toBe(0);
+    canvas.dispatchEvent(new PointerEvent('pointerup', init));
+    canvas.dispatchEvent(new PointerEvent('pointerdown', init));
+    canvas.dispatchEvent(new PointerEvent('pointerup', init));
+    expect(controller.editing.get()).toBe('a');
+  });
+
   it('places records and links where the camera says, with links scaled with the world', async () => {
     await page.viewport(1280, 900);
     const a = createNodeRecord({ id: 'a', index: 'a1', x: 0, y: 0, w: 100, h: 50, label: 'A' });

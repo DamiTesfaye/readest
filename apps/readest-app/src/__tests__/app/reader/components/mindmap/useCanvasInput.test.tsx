@@ -106,6 +106,26 @@ describe('useCanvasInput pointers', () => {
     expect(controller.store.all().some((r) => r.type === 'ink')).toBe(true);
   });
 
+  it('treats a fast second down at the same spot as a double click even when detail is 0, like Chromium', () => {
+    const { controller } = renderInput([createNodeRecord({ id: 'a', index: 'a1', x: 0, y: 0 })]);
+    pointerAt(root(), 'pointerDown', 80, 32, { detail: 0 });
+    pointerAt(root(), 'pointerUp', 80, 32, { detail: 0 });
+    pointerAt(root(), 'pointerDown', 80, 32, { detail: 0 });
+    pointerAt(root(), 'pointerUp', 80, 32, { detail: 0 });
+    expect(controller.editing.get()).toBe('a');
+  });
+
+  it('does not treat two separate single clicks far apart or slow as a double click', () => {
+    const { controller } = renderInput([
+      createNodeRecord({ id: 'a', index: 'a1', x: 0, y: 0, w: 400 }),
+    ]);
+    pointerAt(root(), 'pointerDown', 10, 32, { detail: 0 });
+    pointerAt(root(), 'pointerUp', 10, 32, { detail: 0 });
+    pointerAt(root(), 'pointerDown', 380, 32, { detail: 0 });
+    pointerAt(root(), 'pointerUp', 380, 32, { detail: 0 });
+    expect(controller.editing.get()).toBeNull();
+  });
+
   it('feeds coalesced pointer events to the pen', () => {
     const { controller } = renderInput();
     act(() => controller.setTool('pen'));
