@@ -212,6 +212,11 @@ describe('RevealChip and LiveRegion', () => {
     expect(screen.getByTestId('mm-reveal-chip').textContent).toContain('Revealed so far');
   });
 
+  it('lifts above the bottom inset like the tool dock and zoom control', () => {
+    render(<RevealChip chapter={6} revealed={24} total={42} newCount={3} bottomInset={20} />);
+    expect(screen.getByTestId('mm-reveal-chip').style.bottom).toBe('calc(20px + 1rem)');
+  });
+
   it('announces politely', () => {
     render(<LiveRegion message='Pen tool' />);
     const region = screen.getByRole('status');

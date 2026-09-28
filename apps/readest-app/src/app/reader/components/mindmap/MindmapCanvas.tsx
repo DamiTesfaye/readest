@@ -162,7 +162,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       )}
       <ToolDock controller={controller} bottomInset={bottomInset} />
       <ZoomControl controller={controller} animate={animate} bottomInset={bottomInset} />
-      {reveal && <RevealChip {...reveal} />}
+      {reveal && <RevealChip {...reveal} bottomInset={bottomInset} />}
       <LiveRegion message={message} />
     </div>
   );
