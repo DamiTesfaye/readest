@@ -15,7 +15,9 @@ import {
   type OpenMapSessionOptions,
   __resetMapSessionsForTests,
   getOpenMapSession,
+  isMapSessionOpening,
   openMapSession,
+  whenMapSessionSettled,
 } from '@/services/mindmap/persist/session';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
 import {
@@ -550,5 +552,41 @@ describe('openMapSession', () => {
     expect((await onDisk(fs)).records['n2']).toBeUndefined();
     expect(getOpenMapSession(MAP)).toBeUndefined();
     expect(await session.flush()).toBe(false);
+  });
+});
+
+describe('whenMapSessionSettled', () => {
+  it('lets a merge that arrives while the map is loading go through the session', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs, withNode(blankFile(), 'a', 'Local', deviceClock()));
+    const opening = openMapSession(fs, BOOK, MAP, deviceClock());
+    expect(isMapSessionOpening(MAP)).toBe(true);
+    const remote = withNode(await onDisk(fs), 'r', 'Remote', deviceClock('device-2'));
+    const session = await whenMapSessionSettled(MAP);
+    expect(isMapSessionOpening(MAP)).toBe(false);
+    expect(session).toBeDefined();
+    expect(session!.mergeRemote(remote)).toBe('merged');
+    const result = await opening;
+    if (result.status !== 'open') throw new Error('expected an open session');
+    expect(result.session).toBe(session);
+    session!.store.update('a', { label: 'Edited' });
+    await session!.close();
+    expect(Object.keys((await onDisk(fs)).records).sort()).toEqual(['a', 'r']);
+  });
+
+  it('settles to undefined when the map cannot be opened', async () => {
+    const fs = new MemoryFileSystem();
+    const opening = openMapSession(fs, BOOK, MAP, deviceClock());
+    expect(await whenMapSessionSettled(MAP)).toBeUndefined();
+    expect(await opening).toEqual({ status: 'unreadable' });
+  });
+
+  it('returns an already open session at once', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs);
+    expect(isMapSessionOpening(MAP)).toBe(false);
+    expect(await whenMapSessionSettled(MAP)).toBe(session);
+    await session.close();
   });
 });

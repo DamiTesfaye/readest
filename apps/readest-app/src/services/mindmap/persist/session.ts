@@ -63,11 +63,22 @@ interface Autosave {
 }
 
 const openSessions = new Map<string, MapSession>();
+const openingSessions = new Map<string, Promise<unknown>>();
 
 export const getOpenMapSession = (mapId: string): MapSession | undefined => openSessions.get(mapId);
 
+export const isMapSessionOpening = (mapId: string): boolean => openingSessions.has(mapId);
+
+export const whenMapSessionSettled = async (mapId: string): Promise<MapSession | undefined> => {
+  for (let opening = openingSessions.get(mapId); opening; opening = openingSessions.get(mapId)) {
+    await opening;
+  }
+  return openSessions.get(mapId);
+};
+
 export const __resetMapSessionsForTests = (): void => {
   openSessions.clear();
+  openingSessions.clear();
 };
 
 const reportSaveError = (error: unknown): void => {
@@ -110,14 +121,30 @@ const createAutosave = (saveNow: () => Promise<boolean>): Autosave => {
   };
 };
 
-export const openMapSession = async (
+export const openMapSession = (
   fs: MindmapFs,
   bookHash: string,
   mapId: string,
   clock: HlcClock,
   options: OpenMapSessionOptions = {},
 ): Promise<OpenMapSessionResult> => {
-  if (openSessions.has(mapId)) return { status: 'already-open' };
+  if (openSessions.has(mapId)) return Promise.resolve({ status: 'already-open' });
+  const opening = loadSession(fs, bookHash, mapId, clock, options);
+  const settled = opening.catch(() => undefined);
+  openingSessions.set(mapId, settled);
+  void settled.then(() => {
+    if (openingSessions.get(mapId) === settled) openingSessions.delete(mapId);
+  });
+  return opening;
+};
+
+const loadSession = async (
+  fs: MindmapFs,
+  bookHash: string,
+  mapId: string,
+  clock: HlcClock,
+  options: OpenMapSessionOptions,
+): Promise<OpenMapSessionResult> => {
   const loaded = await loadMapFile(fs, bookHash, mapId, clock, options.migration);
   if (loaded.status === 'unreadable') return { status: 'unreadable' };
   if (openSessions.has(mapId)) return { status: 'already-open' };
