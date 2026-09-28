@@ -156,6 +156,19 @@ describe('reconcile', () => {
     expect(changesOf(diff, 'l1')).toEqual({ fromId: 'c1', toId: 'q1', deleted: null });
   });
 
+  it('creates a fresh link to a chapter revived in the same pass', () => {
+    const existing = generatedNode('c1', 'toc:a', { label: '', deleted: { by: 'gen' } });
+    const quote: GenNode = { ...chapter('note:1', 'Quote'), kind: 'quote', parentGenKey: 'toc:a' };
+    const diff = run(
+      [existing],
+      [chapter('toc:a', 'Back again'), quote, link('link:note:1', 'toc:a', 'note:1')],
+    );
+    expect(changesOf(diff, 'c1')).toMatchObject({ label: 'Back again', deleted: null });
+    const added = diff.added.find((record) => record.type === 'link') as LinkRecord;
+    const quoteId = diff.added.find((record) => record.type === 'node')!.id;
+    expect(added).toMatchObject({ fromId: 'c1', toId: quoteId, genKey: 'link:note:1' });
+  });
+
   it('skips creating a fresh link when the chapter end was deleted by the reader', () => {
     const existing = generatedNode('c1', 'toc:a', { deleted: { by: 'user' } });
     const quote: GenNode = { ...chapter('note:1', 'Quote'), kind: 'quote', parentGenKey: 'toc:a' };
