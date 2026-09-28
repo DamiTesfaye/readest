@@ -259,3 +259,23 @@ describe('leaving the page', () => {
     expect(savedFile(mapId).records['a']).not.toEqual(before.records['a']);
   });
 });
+
+describe('a map that cannot be opened', () => {
+  it('keeps the switcher so the other maps stay reachable', async () => {
+    const older = await seedMap('Healthy', records());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const broken = await seedMap('Broken', records());
+    fs.files.set(fileKey(broken), '{corrupt');
+    fs.files.delete(`${fileKey(broken)}.bak`);
+    const target = await resolveMapEntry(mindmapFsFromAppService(h.appService!), BOOK_HASH);
+    expect(target).toEqual({ kind: 'map', mapId: broken });
+    act(() => useMindmapViewStore.getState().showMap(BOOK_KEY, broken));
+    render(<MindmapView />);
+    await waitFor(() => expect(screen.getByTestId('mm-error')).toBeTruthy());
+    const switcher = screen.getByRole('combobox', { name: 'Mind map' });
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Healthy' })).toBeTruthy());
+    await userEvent.selectOptions(switcher, older);
+    await waitFor(() => expect(screen.getByTestId('mm-record-a')).toBeTruthy());
+    expect(useMindmapViewStore.getState().mapId).toBe(older);
+  });
+});

@@ -1,18 +1,9 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ModalPortal from '@/components/ModalPortal';
-import Spinner from '@/components/Spinner';
-import { useEnv } from '@/context/EnvContext';
 import { usePanelResize } from '@/hooks/usePanelResize';
 import { useTranslation } from '@/hooks/useTranslation';
 import { currentUserPlan } from '@/services/mindmap/entry';
-import { mindmapFsFromAppService } from '@/services/mindmap/persist/mindmapFs';
-import {
-  type MindmapIndexEntry,
-  listenMindmapIndex,
-  loadMindmapIndex,
-} from '@/services/mindmap/persist/mindmapIndex';
-import { useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
 import type { MapSession } from '@/services/mindmap/persist/session';
 import type { RecordAnchor } from '@/services/mindmap/schema/types';
 import type { MindmapMode } from '@/services/mindmap/theme/presets';
@@ -27,9 +18,11 @@ import { eventDispatcher } from '@/utils/event';
 import { getPanelTopInset } from '@/utils/insets';
 import MindmapCanvas from './MindmapCanvas';
 import NewMapSheet from './NewMapSheet';
+import SessionFallback from './SessionFallback';
 import TopBar from './TopBar';
+import { useDeleteMap, useMapList } from './useBookMaps';
 import { useMediaQuery } from './useMediaQuery';
-import { type SessionState, useMindmapSession } from './useMindmapSession';
+import { useMindmapSession } from './useMindmapSession';
 
 export const DOCK_MEDIA_QUERY = '(min-width: 1024px)';
 export const CAMERA_SAVE_DELAY_MS = 500;
@@ -97,26 +90,6 @@ const useCanvasController = (session: MapSession, mapId: string): CanvasControll
   return controller;
 };
 
-const useMapList = (bookHash: string): MindmapIndexEntry[] => {
-  const { appService } = useEnv();
-  const [maps, setMaps] = useState<MindmapIndexEntry[]>([]);
-  useEffect(() => {
-    if (!appService) return;
-    let current = true;
-    const unlisten = listenMindmapIndex(bookHash, setMaps);
-    loadMindmapIndex(mindmapFsFromAppService(appService), bookHash)
-      .then((entries) => {
-        if (current) setMaps(entries);
-      })
-      .catch((error: unknown) => console.error('mindmap: failed to list maps', error));
-    return () => {
-      current = false;
-      unlisten();
-    };
-  }, [appService, bookHash]);
-  return maps;
-};
-
 const MapWorkspace: React.FC<WorkspaceProps> = ({
   bookKey,
   bookHash,
@@ -179,20 +152,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
     if (!docked) view.close();
   };
 
-  const deleteMap = async (): Promise<void> => {
-    try {
-      await useMindmapStore.getState().moveToTrash(mapId, bookHash);
-      const next = maps.find((entry) => entry.mapId !== mapId);
-      if (next) view.showMap(bookKey, next.mapId);
-      else view.close();
-    } catch (error) {
-      console.error('mindmap: failed to delete the map', error);
-      eventDispatcher.dispatch('toast', {
-        type: 'error',
-        message: _('Could not delete the mind map'),
-      });
-    }
-  };
+  const deleteMap = useDeleteMap(bookKey, bookHash, mapId, maps);
 
   return (
     <>
@@ -239,52 +199,6 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
         )}
       </div>
     </>
-  );
-};
-
-const SessionFallback: React.FC<{ state: SessionState; mapId: string }> = ({ state, mapId }) => {
-  const _ = useTranslation();
-  const { close } = useMindmapViewStore();
-  if (state.status === 'loading') {
-    return (
-      <div className='flex flex-1 items-center justify-center'>
-        <Spinner loading />
-      </div>
-    );
-  }
-  return (
-    <div
-      data-testid='mm-error'
-      className='flex flex-1 flex-col items-center justify-center gap-4 p-6 text-sm'
-    >
-      <p>
-        {state.status === 'already-open'
-          ? _('This map is already open in another window')
-          : _('This map could not be opened')}
-      </p>
-      <div className='flex gap-2'>
-        <button type='button' className='btn btn-ghost' onClick={close}>
-          {_('Close')}
-        </button>
-        {state.status === 'unreadable' && (
-          <button
-            type='button'
-            className='btn btn-error'
-            onClick={() => {
-              useMindmapStore
-                .getState()
-                .moveToTrash(mapId)
-                .then(close)
-                .catch((error: unknown) =>
-                  console.error('mindmap: failed to delete the map', error),
-                );
-            }}
-          >
-            {_('Delete map')}
-          </button>
-        )}
-      </div>
-    </div>
   );
 };
 
@@ -355,7 +269,7 @@ const MindmapView: React.FC<MindmapViewProps> = ({ onExport, onResetPosition }) 
               onResetPosition={onResetPosition}
             />
           ) : (
-            <SessionFallback state={session} mapId={mapId} />
+            <SessionFallback state={session} bookKey={bookKey} bookHash={bookHash} mapId={mapId} />
           )}
         </section>
       )}

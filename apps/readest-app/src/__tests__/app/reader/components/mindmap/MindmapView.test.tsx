@@ -16,6 +16,7 @@ import { getOpenCanvasController } from '@/services/mindmap/tools/controllerRegi
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import type { AppService } from '@/types/system';
+import { eventDispatcher } from '@/utils/event';
 import { memoryAppService } from './memoryAppService';
 
 const h = vi.hoisted(() => ({
@@ -463,7 +464,31 @@ describe('an open map', () => {
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
     render(<MindmapView />);
     expect(await screen.findByText('This map could not be opened')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Delete map' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete map' }));
+    expect(await fs.exists(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete this map' }));
+    await waitFor(() => expect(useMindmapViewStore.getState().mapId).toBeNull());
+    expect(await fs.exists(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR)).toBe(false);
+  });
+
+  it('tells the user when deleting an unreadable map fails', async () => {
+    const mapId = await createMap('Stuck');
+    await fs.writeFile(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR, 'not json');
+    await fs.writeFile(`${mapFilePath('bookhash', mapId)}.bak`, MINDMAP_BASE_DIR, 'not json');
+    const toasts: { type: string }[] = [];
+    const onToast = (event: CustomEvent) => {
+      toasts.push(event.detail as { type: string });
+    };
+    eventDispatcher.on('toast', onToast);
+    const copy = vi.spyOn(fs, 'copyFile').mockRejectedValue(new Error('locked'));
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete map' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete this map' }));
+    await waitFor(() => expect(toasts.map((t) => t.type)).toEqual(['error']));
+    eventDispatcher.off('toast', onToast);
+    copy.mockRestore();
+    expect(useMindmapViewStore.getState().mapId).toBe(mapId);
   });
 
   it('pads the top bar and lifts the bottom chrome for the system UI in full screen', async () => {
