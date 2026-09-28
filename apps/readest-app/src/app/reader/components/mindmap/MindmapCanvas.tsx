@@ -109,16 +109,17 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   }, [editing]);
 
   const openMenu = (event: React.MouseEvent<HTMLDivElement>): void => {
+    if (controller.editing.get() !== null) return;
     event.preventDefault();
     controller.pointerCancel();
     const rect = event.currentTarget.getBoundingClientRect();
-    const screen = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     const hit = controller.spatial.hitTest(
-      controller.camera.screenToPage(screen),
+      controller.camera.screenToPage(point),
       HIT_TOLERANCE_PX / controller.camera.get().z,
     );
     if (hit && !controller.selection.get().includes(hit)) controller.selection.set([hit]);
-    setMenu(controller.selection.get().length > 0 ? screen : null);
+    setMenu(hit ? point : null);
   };
 
   return (

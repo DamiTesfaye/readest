@@ -154,4 +154,29 @@ describe('MindmapCanvas', () => {
     fireEvent.contextMenu(canvas(), { clientX: 900, clientY: 600 });
     expect(screen.queryByRole('menu', { name: 'Record actions' })).toBeNull();
   });
+
+  it('ignores a right click on empty canvas even with a record already selected', () => {
+    const { controller } = renderCanvas([elizabeth]);
+    act(() => controller.selection.set(['e']));
+    fireEvent.contextMenu(canvas(), { clientX: 900, clientY: 600 });
+    expect(screen.queryByRole('menu', { name: 'Record actions' })).toBeNull();
+  });
+
+  it('leaves the browser menu alone for a right click while editing a label', () => {
+    const { controller } = renderCanvas([elizabeth]);
+    act(() => controller.selection.set(['e']));
+    key({ key: 'Tab' });
+    const editor = screen.getByTestId('mm-label-editor');
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 10,
+      clientY: 10,
+    });
+    act(() => {
+      editor.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByRole('menu', { name: 'Record actions' })).toBeNull();
+  });
 });
