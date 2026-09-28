@@ -18,8 +18,12 @@ interface Entry {
   id: string;
 }
 
+export type RecordFilter = (record: MapRecord) => boolean;
+
+export const SHOW_ALL: RecordFilter = () => true;
+
 export interface SpatialIndex {
-  search(bounds: BoundsRect): string[];
+  search(bounds: BoundsRect, includeHidden?: boolean): string[];
   searchLinks(bounds: BoundsRect): string[];
   hitTest(point: Point, tolerance: number): string | null;
   dispose(): void;
@@ -57,6 +61,17 @@ export const liveLinkEnds = (
   const to = lookup(link.toId);
   if (!isLive(from) || !isLive(to) || !isPositioned(from) || !isPositioned(to)) return null;
   return [from, to];
+};
+
+export const isShown = (
+  record: MapRecord | undefined,
+  filter: RecordFilter,
+  lookup: (id: string) => MapRecord | undefined,
+): record is MapRecord => {
+  if (!isLive(record) || !filter(record)) return false;
+  if (record.type !== 'link') return true;
+  const ends = liveLinkEnds(record, lookup);
+  return ends !== null && filter(ends[0]) && filter(ends[1]);
 };
 
 export const hitsLink = (
@@ -140,7 +155,10 @@ const createTree = (): Tree => {
   };
 };
 
-export const createSpatialIndex = (store: MapStore): SpatialIndex => {
+export const createSpatialIndex = (
+  store: MapStore,
+  filter: () => RecordFilter = () => SHOW_ALL,
+): SpatialIndex => {
   const records = createTree();
   const links = createTree();
   const linksByEnd = new Map<string, Set<string>>();
@@ -183,6 +201,16 @@ export const createSpatialIndex = (store: MapStore): SpatialIndex => {
     for (const id of ids) reindex(id);
   });
 
+  const shownOnly = (ids: string[]): string[] => {
+    const current = filter();
+    return current === SHOW_ALL
+      ? ids
+      : ids.filter((id) => isShown(store.get(id), current, store.get));
+  };
+
+  const search = (bounds: BoundsRect, includeHidden = false): string[] =>
+    includeHidden ? records.search(bounds) : shownOnly(records.search(bounds));
+
   const hitLink = (point: Point, tolerance: number): string | null => {
     const box = {
       x: point.x - tolerance,
@@ -190,8 +218,7 @@ export const createSpatialIndex = (store: MapStore): SpatialIndex => {
       w: tolerance * 2,
       h: tolerance * 2,
     };
-    const hits = links
-      .search(box)
+    const hits = shownOnly(links.search(box))
       .map((id) => store.get(id))
       .filter((record): record is LinkRecord => isLive(record) && record.type === 'link')
       .filter((link) => hitsLink(link, store.get, point, tolerance))
@@ -200,8 +227,8 @@ export const createSpatialIndex = (store: MapStore): SpatialIndex => {
   };
 
   return {
-    search: records.search,
-    searchLinks: links.search,
+    search,
+    searchLinks: (bounds) => shownOnly(links.search(bounds)),
     hitTest: (point, tolerance) => {
       const box = {
         x: point.x - tolerance,
@@ -209,8 +236,7 @@ export const createSpatialIndex = (store: MapStore): SpatialIndex => {
         w: tolerance * 2,
         h: tolerance * 2,
       };
-      const hits = records
-        .search(box)
+      const hits = search(box)
         .map((id) => store.get(id))
         .filter((record): record is PositionedRecord => isLive(record) && isPositioned(record))
         .filter((record) => hitsRecord(record, point, tolerance))

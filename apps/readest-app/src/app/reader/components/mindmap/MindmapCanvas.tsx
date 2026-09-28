@@ -32,6 +32,7 @@ export interface MindmapCanvasProps {
   onJumpToBook: (anchor: RecordAnchor) => void;
   onResetPosition?: (id: string) => void;
   bottomInset?: number;
+  worldChildren?: React.ReactNode;
 }
 
 const isDefaultCamera = ({ x, y, z }: { x: number; y: number; z: number }): boolean =>
@@ -50,6 +51,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   onJumpToBook,
   onResetPosition,
   bottomInset,
+  worldChildren,
 }) => {
   const _ = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -159,7 +161,9 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       }}
     >
       <GridLayer camera={controller.camera} eink={eink} />
-      <WorldLayer controller={controller} mapStyle={effectiveStyle} animate={animate} />
+      <WorldLayer controller={controller} mapStyle={effectiveStyle} animate={animate}>
+        {worldChildren}
+      </WorldLayer>
       <LiveLayer controller={controller} />
       <OverlayLayer controller={controller} eink={eink} />
       <ContextPill

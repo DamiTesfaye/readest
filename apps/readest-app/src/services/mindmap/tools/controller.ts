@@ -17,10 +17,13 @@ import type {
 import { GRID_SIZE } from '@/services/mindmap/snap/snap';
 import { type Direction, nearestInDirection } from '@/services/mindmap/spatial/nearestInDirection';
 import {
+  type RecordFilter,
+  SHOW_ALL,
   type SpatialIndex,
   createSpatialIndex,
   isLive,
   isPositioned,
+  isShown,
   recordBounds,
 } from '@/services/mindmap/spatial/spatialIndex';
 import type { FieldChange, MapStore } from '@/services/mindmap/store/mapStore';
@@ -80,6 +83,8 @@ export interface CanvasController {
   readonly editing: Atom<string | null>;
   readonly hover: Atom<string | null>;
   readonly viewport: Atom<Viewport>;
+  readonly visible: Atom<RecordFilter>;
+  isShown(id: string): boolean;
   setTool(tool: ToolId): void;
   setSpaceHeld(held: boolean): void;
   gestureActive(): boolean;
@@ -114,7 +119,8 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
   const readOnly = options.readOnly ?? false;
   const history = createHistory(store);
   const camera = createCamera(options.camera);
-  const spatial = createSpatialIndex(store);
+  const visible = createAtom<RecordFilter>(SHOW_ALL);
+  const spatial = createSpatialIndex(store, visible.get);
   const tool = createAtom<ToolId>('select');
   const selection = createAtom<readonly string[]>([]);
   const live = createAtom<LiveState>(IDLE_LIVE);
@@ -200,9 +206,19 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     history.squashToMark(mark);
   };
 
+  const shown = (id: string | null): id is string =>
+    id !== null && isShown(store.get(id), visible.get(), store.get);
+
   const pruneSelection = (): void => {
-    selection.set(selection.get().filter((id) => isLive(store.get(id))));
+    const kept = selection.get().filter(shown);
+    if (kept.length !== selection.get().length) selection.set(kept);
   };
+
+  const unsubscribeVisible = visible.subscribe(() => {
+    pruneSelection();
+    if (!shown(hover.get())) hover.set(null);
+    if (!shown(editing.get())) editing.set(null);
+  });
 
   const selectedPositioned = (): PositionedRecord[] => livePositioned(store, selection.get());
 
@@ -285,6 +301,8 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     editing,
     hover,
     viewport,
+    visible,
+    isShown: shown,
     setTool,
     setSpaceHeld: (held) => {
       spaceHeld = held;
@@ -377,15 +395,17 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     addSibling: (animate = false) => {
       const current = singleSelected();
       if (readOnly || !current || current.type !== 'node') return null;
+      const parent = parentOf(store, current.id);
       return addNodeAt(
         { x: current.x, y: current.y + current.h + GRID_SIZE * 2 },
-        parentOf(store, current.id),
+        shown(parent) ? parent : null,
         animate,
       );
     },
     selectParent: (animate = false) => {
       const current = singleSelected();
-      const parent = current ? parentOf(store, current.id) : null;
+      const found = current ? parentOf(store, current.id) : null;
+      const parent = shown(found) ? found : null;
       if (parent) {
         selection.set([parent]);
         ensureVisible(parent, animate);
@@ -396,7 +416,8 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
       const candidates = store
         .all()
         .filter(
-          (r): r is PositionedRecord => isLive(r) && isPositioned(r) && FOCUSABLE.has(r.type),
+          (r): r is PositionedRecord =>
+            isLive(r) && isPositioned(r) && FOCUSABLE.has(r.type) && shown(r.id),
         );
       const current = singleSelected();
       const view = viewport.get();
@@ -444,11 +465,19 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
       camera.zoomAt({ x: view.width / 2, y: view.height / 2 }, factor);
     },
     fitView: (animate) => {
-      const bounds = unionBounds(store.all().filter(isLive).filter(isPositioned).map(recordBounds));
+      const bounds = unionBounds(
+        store
+          .all()
+          .filter(isLive)
+          .filter(isPositioned)
+          .filter((record) => shown(record.id))
+          .map(recordBounds),
+      );
       animateCamera(camera, camera.fitTarget(bounds, viewport.get()), animate);
     },
     dispose: () => {
       pointerCancel();
+      unsubscribeVisible();
       history.dispose();
       spatial.dispose();
     },

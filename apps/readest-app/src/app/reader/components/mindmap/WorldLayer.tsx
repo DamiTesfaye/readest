@@ -2,12 +2,17 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from '@/hooks/useTranslation';
 import { compareByIndex } from '@/services/mindmap/order/keyBetween';
 import type { LinkRecord, MapStyle, PositionedRecord } from '@/services/mindmap/schema/types';
-import { isLive, isPositioned, liveLinkEnds } from '@/services/mindmap/spatial/spatialIndex';
+import {
+  isLive,
+  isPositioned,
+  isShown,
+  liveLinkEnds,
+} from '@/services/mindmap/spatial/spatialIndex';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { LinkLabel, LinkPath } from './LinkView';
 import RecordView, { type RegisterElement } from './RecordView';
 import { recordAriaLabels } from './recordLabels';
-import { useMapRecords } from './useCanvasStores';
+import { useAtomValue, useMapRecords } from './useCanvasStores';
 
 export const CULL_MARGIN_PX = 200;
 
@@ -15,11 +20,17 @@ interface WorldLayerProps {
   controller: CanvasController;
   mapStyle: MapStyle;
   animate: boolean;
+  children?: React.ReactNode;
 }
 
-const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate }) => {
+const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, children }) => {
   const _ = useTranslation();
-  const records = useMapRecords(controller.store);
+  const allRecords = useMapRecords(controller.store);
+  const visible = useAtomValue(controller.visible);
+  const records = useMemo(
+    () => allRecords.filter((record) => isShown(record, visible, controller.store.get)),
+    [allRecords, visible, controller.store],
+  );
   const worldRef = useRef<HTMLDivElement>(null);
   const elements = useRef(new Map<HTMLElement | SVGElement, string>());
   const [initialIds] = useState(() => new Set(records.map((record) => record.id)));
@@ -123,6 +134,7 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate }
       {linkViews.map((view) => (
         <LinkLabel key={view.link.id} {...view} mapStyle={mapStyle} register={register} />
       ))}
+      {children}
     </div>
   );
 };

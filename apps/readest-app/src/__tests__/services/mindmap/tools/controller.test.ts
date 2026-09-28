@@ -247,3 +247,86 @@ describe('commands', () => {
     expect(controller.spatial.search({ x: 0, y: 0, w: 10, h: 10 })).toEqual([]);
   });
 });
+
+describe('visibility filter', () => {
+  const hideHidden = (record: MapRecord): boolean => !record.id.startsWith('hidden');
+  const setup = () => {
+    const { store, controller } = setupController([
+      node('a', 0, 0),
+      node('hidden', 400, 0),
+      node('b', 800, 0),
+      createLinkRecord({ id: 'l', index: 'a2', fromId: 'hidden', toId: 'a', path: 'straight' }),
+    ]);
+    controller.visible.set(hideHidden);
+    return { store, controller };
+  };
+
+  it('shows every record by default', () => {
+    const { controller } = setupController([node('a', 0, 0)]);
+    expect(controller.visible.get()(node('a', 0, 0))).toBe(true);
+  });
+
+  it('keeps hidden records and links to them out of search and hit tests', () => {
+    const { controller } = setup();
+    const everywhere = { x: -5000, y: -5000, w: 10000, h: 10000 };
+    expect(controller.spatial.search(everywhere).sort()).toEqual(['a', 'b']);
+    expect(controller.spatial.searchLinks(everywhere)).toEqual([]);
+    expect(controller.spatial.hitTest({ x: 450, y: 30 }, 4)).toBeNull();
+    expect(controller.spatial.hitTest({ x: 250, y: 32 }, 4)).toBeNull();
+    controller.visible.set(() => true);
+    expect(controller.spatial.hitTest({ x: 450, y: 30 }, 4)).toBe('hidden');
+  });
+
+  it('never clicks, hovers or brushes a hidden record', () => {
+    const { controller } = setup();
+    controller.pointerDown(pointer(450, 30));
+    controller.pointerUp(pointer(450, 30));
+    expect(controller.selection.get()).toEqual([]);
+    controller.pointerMove(pointer(450, 30), []);
+    expect(controller.hover.get()).toBeNull();
+    drag(controller, [-50, -50], [1200, 200]);
+    expect([...controller.selection.get()].sort()).toEqual(['a', 'b']);
+  });
+
+  it('skips hidden records when moving focus with the arrows', () => {
+    const { controller } = setup();
+    controller.selection.set(['a']);
+    expect(controller.focusDirection('right')).toBe('b');
+  });
+
+  it('does not select a hidden parent', () => {
+    const { controller } = setup();
+    controller.selection.set(['a']);
+    expect(controller.selectParent()).toBeNull();
+    expect(controller.selection.get()).toEqual(['a']);
+  });
+
+  it('fits the view to the shown records only', () => {
+    const { controller } = setupController([node('a', 0, 0), node('hidden', 5000, 5000)]);
+    controller.visible.set(hideHidden);
+    controller.fitView(false);
+    expect(controller.camera.get()).toEqual({ x: 500 - 80, y: 400 - 32, z: 1 });
+  });
+
+  it('drops records from the selection, hover and editor when they become hidden', () => {
+    const { controller } = setupController([node('a', 0, 0), node('hidden', 400, 0)]);
+    controller.selection.set(['a', 'hidden']);
+    controller.hover.set('hidden');
+    controller.editing.set('hidden');
+    controller.visible.set(hideHidden);
+    expect(controller.selection.get()).toEqual(['a']);
+    expect(controller.hover.get()).toBeNull();
+    expect(controller.editing.get()).toBeNull();
+  });
+
+  it('does not snap a dragged record to a hidden neighbour', () => {
+    const { store, controller } = setupController([node('a', 0, 0), node('hidden', 300, 15)]);
+    controller.visible.set(hideHidden);
+    drag(controller, [10, 10], [10, 23]);
+    expect(store.get('a')).toMatchObject({ y: 16 });
+    controller.visible.set(() => true);
+    store.update('a', { y: 0 });
+    drag(controller, [10, 10], [10, 23]);
+    expect(store.get('a')).toMatchObject({ y: 15 });
+  });
+});

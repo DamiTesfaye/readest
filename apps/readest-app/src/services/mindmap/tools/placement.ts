@@ -22,7 +22,7 @@ export const childrenOf = (store: MapStore, id: string): PositionedRecord[] =>
     .filter((record): record is PositionedRecord => isLive(record) && isPositioned(record));
 
 const occupied = (store: MapStore, spatial: SpatialIndex, box: BoundsRect): boolean =>
-  spatial.search({ x: box.x + 1, y: box.y + 1, w: box.w - 2, h: box.h - 2 }).some((id) => {
+  spatial.search({ x: box.x + 1, y: box.y + 1, w: box.w - 2, h: box.h - 2 }, true).some((id) => {
     const record = store.get(id);
     return isLive(record) && record.type !== 'section';
   });
