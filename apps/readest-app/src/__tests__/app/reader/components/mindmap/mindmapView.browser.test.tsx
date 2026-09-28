@@ -110,11 +110,6 @@ const bumpSchema = (mapId: string): void => {
   fs.files.set(fileKey(mapId), JSON.stringify(json));
 };
 
-const mapFilesSnapshot = (mapId: string): string =>
-  JSON.stringify(
-    [...fs.files.entries()].filter(([key]) => key.includes(`/mindmaps/${mapId}/`)).sort(),
-  );
-
 const records = (): MapRecord[] => [
   createNodeRecord({ id: 'a', index: 'a1', x: 100, y: 100, w: 160, h: 64, label: 'Alpha' }),
   createNodeRecord({ id: 'b', index: 'a2', x: 400, y: 100, w: 160, h: 64, label: 'Beta' }),
@@ -199,5 +194,18 @@ describe('saving', () => {
     await userEvent.click(screen.getByRole('button', { name: /Back to page/ }));
     await waitFor(() => expect(getOpenMapSession(mapId)).toBeUndefined());
     expect(toasts.filter((t) => t.type === 'error')).toHaveLength(1);
+  });
+});
+
+describe('opening notices', () => {
+  it('shows the read-only and restored toasts once per session under StrictMode', async () => {
+    const mapId = await seedMap('Strict', records());
+    bumpSchema(mapId);
+    const key = fileKey(mapId);
+    fs.files.set(`${key}.bak`, fs.files.get(key)!);
+    fs.files.set(key, '{corrupt');
+    await openView(mapId, true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(toasts.map((t) => t.type).sort()).toEqual(['info', 'warning']);
   });
 });

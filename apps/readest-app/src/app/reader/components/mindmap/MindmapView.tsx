@@ -30,6 +30,7 @@ import { type SessionState, useMindmapSession } from './useMindmapSession';
 export const DOCK_MEDIA_QUERY = '(min-width: 1024px)';
 export const CAMERA_SAVE_DELAY_MS = 500;
 const MIN_DOCK_WIDTH = 0.25;
+const noticedSessions = new WeakSet<MapSession>();
 const MAX_DOCK_WIDTH = 0.75;
 
 export interface MindmapViewProps {
@@ -136,6 +137,8 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   }, []);
 
   useEffect(() => {
+    if (noticedSessions.has(session)) return;
+    noticedSessions.add(session);
     if (session.restoredFromBackup) {
       eventDispatcher.dispatch('toast', {
         type: 'info',
