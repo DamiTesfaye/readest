@@ -5,9 +5,10 @@ import { FREE_MAP_LIMIT } from '@/services/mindmap/limits';
 import type { MindmapIndexEntry } from '@/services/mindmap/persist/mindmapIndex';
 import type { MapMeta, MapStyle } from '@/services/mindmap/schema/types';
 import type { UserPlan } from '@/types/quota';
+import MapSwitcher from './MapSwitcher';
 import { intentLabels, spoilerLabels, styleLabels } from './mapLabels';
 
-export const NEW_MAP_OPTION = '__new__';
+export { NEW_MAP_OPTION } from './MapSwitcher';
 const STYLES: MapStyle[] = ['sticker', 'paper', 'ink'];
 const ICON_BUTTON = 'btn btn-ghost btn-circle h-8 min-h-8 w-8 p-0';
 
@@ -16,7 +17,7 @@ export interface TopBarProps {
   topInset?: number;
   meta: MapMeta;
   maps: MindmapIndexEntry[];
-  plan: UserPlan;
+  plan: UserPlan | null;
   bookTitle: string;
   page: number;
   eink: boolean;
@@ -61,25 +62,13 @@ const TopBar: React.FC<TopBarProps> = (props) => {
         <span className='hidden sm:inline'>{_('Back to page {{page}}', { page: props.page })}</span>
       </button>
       {renaming === null ? (
-        <select
-          aria-label={_('Mind map')}
-          className='select select-ghost select-sm max-w-48 font-semibold'
-          value={mapId}
-          onChange={(event) =>
-            event.target.value === NEW_MAP_OPTION
-              ? props.onNewMap()
-              : props.onSwitchMap(event.target.value)
-          }
-        >
-          {maps.map((entry) => (
-            <option key={entry.mapId} value={entry.mapId}>
-              {entry.mapId === mapId
-                ? meta.title || _('Untitled map')
-                : entry.title || _('Untitled map')}
-            </option>
-          ))}
-          <option value={NEW_MAP_OPTION}>{_('New map…')}</option>
-        </select>
+        <MapSwitcher
+          mapId={mapId}
+          currentTitle={meta.title}
+          maps={maps}
+          onSwitchMap={props.onSwitchMap}
+          onNewMap={props.onNewMap}
+        />
       ) : (
         <input
           aria-label={_('Map title')}

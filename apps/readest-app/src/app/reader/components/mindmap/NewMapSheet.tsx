@@ -41,7 +41,7 @@ const NewMapSheet: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     spoiler: 'adaptive',
     style: 'sticker',
   });
-  const [plan, setPlan] = useState<UserPlan>('free');
+  const [plan, setPlan] = useState<UserPlan | null>(null);
   const [limited, setLimited] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -54,7 +54,10 @@ const NewMapSheet: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         setPlan(nextPlan);
         setLimited(!canCreateMap(nextPlan, count));
       })
-      .catch((error: unknown) => console.error('mindmap: failed to check the map limit', error));
+      .catch((error: unknown) => {
+        console.error('mindmap: failed to check the map limit', error);
+        if (!cancelled) setPlan('free');
+      });
     return () => {
       cancelled = true;
     };
@@ -64,7 +67,7 @@ const NewMapSheet: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     setChoices((current) => ({ ...current, [key]: value }));
 
   const create = async (): Promise<void> => {
-    if (!appService || !book || !deviceId) return;
+    if (!appService || !book || !deviceId || !plan) return;
     setBusy(true);
     try {
       const result = await createBookMap({
@@ -194,7 +197,11 @@ const NewMapSheet: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             <button type='button' className='btn btn-ghost' onClick={closeSheet}>
               {_('Cancel')}
             </button>
-            <button type='submit' className='btn btn-contrast' disabled={busy || !deviceId}>
+            <button
+              type='submit'
+              className='btn btn-contrast'
+              disabled={busy || !deviceId || !plan}
+            >
               {_('Create map')}
             </button>
           </div>

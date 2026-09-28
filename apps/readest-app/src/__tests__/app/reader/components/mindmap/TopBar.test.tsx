@@ -67,6 +67,27 @@ describe('TopBar', () => {
     expect(screen.queryByTestId('mm-map-count')).toBeNull();
   });
 
+  it('keeps the open map selected while the list loads or when it is missing from it', () => {
+    renderBar({ maps: [] });
+    const switcher = screen.getByRole('combobox', { name: 'Mind map' }) as HTMLSelectElement;
+    expect(switcher.value).toBe('a');
+    expect(switcher.selectedOptions[0]!.textContent).toBe('People');
+    cleanup();
+    renderBar({ maps: [entry('b', 'Places')] });
+    const other = screen.getByRole('combobox', { name: 'Mind map' }) as HTMLSelectElement;
+    expect(other.selectedOptions[0]!.textContent).toBe('People');
+    expect([...other.options].map((option) => option.textContent)).toEqual([
+      'People',
+      'Places',
+      'New map…',
+    ]);
+  });
+
+  it('hides the free count until the plan is known', () => {
+    renderBar({ plan: null });
+    expect(screen.queryByTestId('mm-map-count')).toBeNull();
+  });
+
   it('renames from the options menu', () => {
     const { onRename } = renderBar();
     fireEvent.click(screen.getByRole('button', { name: 'Map options' }));

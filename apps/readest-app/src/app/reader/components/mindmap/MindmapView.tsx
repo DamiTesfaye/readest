@@ -134,7 +134,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   const bookTitle = useBookDataStore((state) => state.getBookData(bookKey)?.book?.title ?? '');
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [meta, setMeta] = useState(session.meta());
-  const [plan, setPlan] = useState<UserPlan>('free');
+  const [plan, setPlan] = useState<UserPlan | null>(null);
   const maps = useMapList(bookHash);
   const controller = useCanvasController(session, mapId);
   const eink = getViewSettings(bookKey)?.isEink ?? false;

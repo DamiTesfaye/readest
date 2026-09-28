@@ -17,6 +17,7 @@ import { memoryAppService } from './memoryAppService';
 const h = vi.hoisted(() => ({
   appService: null as AppService | null,
   token: null as string | null,
+  tokenReady: Promise.resolve(),
   plan: 'free',
   push: vi.fn(),
 }));
@@ -40,7 +41,10 @@ vi.mock('@/components/Dialog', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: h.push }) }));
 vi.mock('@/context/EnvContext', () => ({ useEnv: () => ({ appService: h.appService }) }));
 vi.mock('@/utils/access', () => ({
-  getAccessToken: async () => h.token,
+  getAccessToken: async () => {
+    await h.tokenReady;
+    return h.token;
+  },
   getUserProfilePlan: () => h.plan,
 }));
 vi.mock('@/store/bookDataStore', () => {
@@ -67,6 +71,7 @@ beforeEach(() => {
   fs = new MemoryFileSystem();
   h.appService = memoryAppService(fs);
   h.token = null;
+  h.tokenReady = Promise.resolve();
   h.plan = 'free';
   __resetMindmapStoreForTests();
   useMindmapViewStore.getState().showSheet('bookhash-1');
@@ -110,8 +115,10 @@ describe('NewMapSheet', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Intent' }), {
       target: { value: 'story' },
     });
+    const create = screen.getByRole('button', { name: 'Create map' }) as HTMLButtonElement;
+    await waitFor(() => expect(create.disabled).toBe(false));
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Create map' }));
+      fireEvent.click(create);
     });
     await waitFor(() => expect(useMindmapViewStore.getState().mapId).not.toBeNull());
     const { mapId, sheetOpen, bookKey } = useMindmapViewStore.getState();
@@ -150,6 +157,18 @@ describe('NewMapSheet', () => {
     await waitFor(() =>
       expect(useMindmapStore.getState().entriesForBook('bookhash')).toHaveLength(4),
     );
+  });
+
+  it('keeps Create disabled until the plan is known', async () => {
+    let release = (): void => undefined;
+    h.tokenReady = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    render(<NewMapSheet bookKey='bookhash-1' />);
+    const create = screen.getByRole('button', { name: 'Create map' }) as HTMLButtonElement;
+    expect(create.disabled).toBe(true);
+    await act(async () => release());
+    await waitFor(() => expect(create.disabled).toBe(false));
   });
 
   it('closes without creating anything on cancel', () => {
