@@ -7,6 +7,7 @@ export interface FieldChange {
   field: string;
   from: unknown;
   to: unknown;
+  explicit?: boolean;
 }
 
 export interface Diff {
@@ -80,12 +81,25 @@ export const diffRecords = (before: readonly MapRecord[], after: readonly MapRec
   return diff;
 };
 
+export const touchedChange = (id: string, touched: string[]): FieldChange => ({
+  id,
+  field: 'touched',
+  from: undefined,
+  to: touched,
+  explicit: true,
+});
+
 const UNTRACKED_FIELDS: ReadonlySet<string> = new Set(['touched', 'deleted']);
 
-const touchGenerated = (next: Map<string, MapRecord>, diff: Diff): void => {
+const touchGenerated = (
+  next: Map<string, MapRecord>,
+  diff: Diff,
+  pinned: ReadonlySet<string>,
+): void => {
   const fields = new Map<string, string[]>();
   for (const { id, field } of diff.changed) {
-    if (!UNTRACKED_FIELDS.has(field)) fields.set(id, [...(fields.get(id) ?? []), field]);
+    if (!UNTRACKED_FIELDS.has(field) && !pinned.has(id))
+      fields.set(id, [...(fields.get(id) ?? []), field]);
   }
   for (const [id, names] of fields) {
     const record = next.get(id)!;
@@ -116,13 +130,17 @@ export const createMapStore = (initial: MapRecord[]): MapStore => {
     for (const change of input.changed) {
       const existing = next.get(change.id);
       if (!existing || change.field === 'id' || change.to === undefined) continue;
-      if (local && change.field === 'touched') continue;
+      if (local && change.field === 'touched' && !change.explicit) continue;
       const from = readField(existing, change.field);
       if (fieldsEqual(from, change.to)) continue;
-      diff.changed.push({ id: change.id, field: change.field, from, to: change.to });
+      const explicit = change.explicit ? { explicit: true } : {};
+      diff.changed.push({ id: change.id, field: change.field, from, to: change.to, ...explicit });
       next.set(change.id, { ...existing, [change.field]: change.to } as MapRecord);
     }
-    if (local) touchGenerated(next, diff);
+    if (local) {
+      const pinned = new Set(input.changed.filter((c) => c.explicit).map((c) => c.id));
+      touchGenerated(next, diff, pinned);
+    }
     for (const id of input.discarded) {
       if (next.delete(id)) diff.discarded.push(id);
     }

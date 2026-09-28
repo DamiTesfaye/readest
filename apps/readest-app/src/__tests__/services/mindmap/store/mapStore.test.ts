@@ -8,6 +8,7 @@ import {
   diffRecords,
   emptyDiff,
   fieldsEqual,
+  touchedChange,
 } from '@/services/mindmap/store/mapStore';
 
 const nodeIn = (store: MapStore, id: string): NodeRecord => store.get(id) as NodeRecord;
@@ -182,6 +183,26 @@ describe('diffRecords', () => {
       added: [c],
       changed: [{ id: 'a', field: 'label', from: 'x', to: 'y' }],
       discarded: ['b'],
+    });
+  });
+});
+
+describe('explicit touched writes', () => {
+  it('lets a local change set touched and keeps its other fields from touching the record', () => {
+    const store = createMapStore([
+      { ...createNodeRecord({ id: 'g1', index: 'a0' }), origin: 'generated', touched: ['x'] },
+    ]);
+    const diff = store.setFields([
+      { id: 'g1', field: 'x', from: undefined, to: 64 },
+      touchedChange('g1', []),
+    ]);
+    expect(store.get('g1')).toMatchObject({ x: 64, touched: [] });
+    expect(diff.changed).toContainEqual({
+      id: 'g1',
+      field: 'touched',
+      from: ['x'],
+      to: [],
+      explicit: true,
     });
   });
 });

@@ -8,6 +8,7 @@ import {
 } from '@/services/mindmap/camera/camera';
 import { type History, createHistory } from '@/services/mindmap/history/history';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
+import type { Point } from '@/services/mindmap/records/geometry';
 import type {
   MapCamera,
   NodeKind,
@@ -26,7 +27,7 @@ import {
   isShown,
   recordBounds,
 } from '@/services/mindmap/spatial/spatialIndex';
-import type { FieldChange, MapStore } from '@/services/mindmap/store/mapStore';
+import { type FieldChange, type MapStore, touchedChange } from '@/services/mindmap/store/mapStore';
 import { createConnectTool } from '@/services/mindmap/tools/connectTool';
 import { createHandTool } from '@/services/mindmap/tools/handTool';
 import { createPenTool } from '@/services/mindmap/tools/penTool';
@@ -57,6 +58,7 @@ import { uniqueId } from '@/utils/misc';
 export const ZOOM_STEP = 1.2;
 export const DUPLICATE_OFFSET = 32;
 const FOCUSABLE = new Set(['node', 'sticky', 'text']);
+const POSITION_FIELDS: ReadonlySet<string> = new Set(['x', 'y']);
 const VIEW_TOOLS: ReadonlySet<ToolId> = new Set(['select', 'hand']);
 
 export interface ActivePointer {
@@ -106,6 +108,7 @@ export interface CanvasController {
   focusDirection(direction: Direction, animate?: boolean): string | null;
   ensureVisible(id: string, animate?: boolean): void;
   nudge(dx: number, dy: number): void;
+  resetPosition(id: string, position: Point): void;
   setColor(color: PresetColor): void;
   setKind(kind: NodeKind): void;
   commitEdit(id: string, text: string): void;
@@ -453,6 +456,20 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
             { id: r.id, field: 'y', from: undefined, to: r.y + dy * GRID_SIZE },
           ]),
         ),
+      );
+    },
+    resetPosition: (id, position) => {
+      const record = store.get(id);
+      if (readOnly || !isLive(record) || !isPositioned(record)) return;
+      gesture(() =>
+        store.setFields([
+          { id, field: 'x', from: undefined, to: position.x },
+          { id, field: 'y', from: undefined, to: position.y },
+          touchedChange(
+            id,
+            record.touched.filter((field) => !POSITION_FIELDS.has(field)),
+          ),
+        ]),
       );
     },
     setColor: (color) =>

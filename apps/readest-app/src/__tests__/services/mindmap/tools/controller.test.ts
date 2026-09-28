@@ -369,3 +369,33 @@ describe('remote and generated changes', () => {
     expect(controller.selection.get()).toBe(selection);
   });
 });
+
+describe('reset position', () => {
+  const generatedNode = (id: string, x: number, y: number): NodeRecord => ({
+    ...node(id, x, y),
+    origin: 'generated',
+    genKey: `toc:${id}`,
+  });
+
+  it('moves a generated record and clears its touched position fields as one undo step', () => {
+    const { store, controller } = setupController([generatedNode('g', 0, 0)]);
+    store.update('g', { label: 'Renamed' });
+    drag(controller, [10, 10], [90, 10]);
+    expect(store.get('g')?.touched).toEqual(['label', 'x']);
+    controller.resetPosition('g', { x: 320, y: 64 });
+    expect(store.get('g')).toMatchObject({ x: 320, y: 64, touched: ['label'] });
+    controller.undo();
+    expect(store.get('g')).toMatchObject({ x: 80, y: 0, touched: ['label', 'x'] });
+    controller.redo();
+    expect(store.get('g')).toMatchObject({ x: 320, y: 64, touched: ['label'] });
+    controller.undo();
+    controller.undo();
+    expect(store.get('g')).toMatchObject({ x: 0, label: 'Renamed' });
+  });
+
+  it('does nothing on a read-only map', () => {
+    const { store, controller } = setupController([generatedNode('g', 0, 0)], true);
+    controller.resetPosition('g', { x: 320, y: 64 });
+    expect(store.get('g')).toMatchObject({ x: 0, y: 0 });
+  });
+});
