@@ -21,6 +21,33 @@ export interface MindmapIndexEntry {
 const MAP_FILE_PATTERN = /^([^/.][^/]*)\/\1\.json$/;
 const queues = new Map<string, Promise<unknown>>();
 
+export type MindmapIndexListener = (entries: MindmapIndexEntry[]) => void;
+
+const listeners = new Map<string, Set<MindmapIndexListener>>();
+
+export const listenMindmapIndex = (
+  bookHash: string,
+  listener: MindmapIndexListener,
+): (() => void) => {
+  const forBook = listeners.get(bookHash) ?? new Set<MindmapIndexListener>();
+  forBook.add(listener);
+  listeners.set(bookHash, forBook);
+  return () => {
+    forBook.delete(listener);
+    if (forBook.size === 0 && listeners.get(bookHash) === forBook) listeners.delete(bookHash);
+  };
+};
+
+const notify = (bookHash: string, entries: MindmapIndexEntry[]): void => {
+  for (const listener of [...(listeners.get(bookHash) ?? [])]) {
+    try {
+      listener(entries);
+    } catch (error) {
+      console.error('mindmap: index listener failed', error);
+    }
+  }
+};
+
 const indexPath = (bookHash: string): string => `${mindmapsDir(bookHash)}/index.json`;
 
 export const buildIndexEntry = (file: MapFile): MindmapIndexEntry => {
@@ -81,6 +108,7 @@ const writeIndex = async (
   const sorted = [...entries].sort(byRecency);
   await fs.createDir(mindmapsDir(bookHash), MINDMAP_BASE_DIR, true);
   await fs.writeFile(indexPath(bookHash), MINDMAP_BASE_DIR, JSON.stringify(sorted));
+  notify(bookHash, sorted);
   return sorted;
 };
 

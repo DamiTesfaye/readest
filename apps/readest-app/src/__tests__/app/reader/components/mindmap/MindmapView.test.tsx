@@ -431,6 +431,20 @@ describe('an open map', () => {
     expect(onResetPosition).toHaveBeenCalledWith(mapId, 'g');
   });
 
+  it('refreshes the switcher and count when maps arrive or go away without a local save', async () => {
+    const mapId = await createMap('Open');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    await openCanvas();
+    await waitFor(() => expect(screen.getByTestId('mm-map-count').textContent).toBe('1/3'));
+    const pulled = await createMap('Pulled');
+    await waitFor(() => expect(screen.getByTestId('mm-map-count').textContent).toBe('2/3'));
+    expect(screen.getByRole('option', { name: 'Pulled' })).toBeTruthy();
+    await act(() => useMindmapStore.getState().moveToTrash(pulled));
+    await waitFor(() => expect(screen.getByTestId('mm-map-count').textContent).toBe('1/3'));
+    expect(screen.queryByRole('option', { name: 'Pulled' })).toBeNull();
+  });
+
   it('stacks the new-map sheet above the full-screen map', async () => {
     const mapId = await createMap('Behind');
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);

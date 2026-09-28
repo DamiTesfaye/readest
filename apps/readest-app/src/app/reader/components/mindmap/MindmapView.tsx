@@ -7,7 +7,11 @@ import { usePanelResize } from '@/hooks/usePanelResize';
 import { useTranslation } from '@/hooks/useTranslation';
 import { currentUserPlan } from '@/services/mindmap/entry';
 import { mindmapFsFromAppService } from '@/services/mindmap/persist/mindmapFs';
-import { type MindmapIndexEntry, loadMindmapIndex } from '@/services/mindmap/persist/mindmapIndex';
+import {
+  type MindmapIndexEntry,
+  listenMindmapIndex,
+  loadMindmapIndex,
+} from '@/services/mindmap/persist/mindmapIndex';
 import { useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
 import type { MapSession } from '@/services/mindmap/persist/session';
 import type { RecordAnchor } from '@/services/mindmap/schema/types';
@@ -93,20 +97,23 @@ const useCanvasController = (session: MapSession, mapId: string): CanvasControll
   return controller;
 };
 
-const useMapList = (bookHash: string, session: MapSession): MindmapIndexEntry[] => {
+const useMapList = (bookHash: string): MindmapIndexEntry[] => {
   const { appService } = useEnv();
   const [maps, setMaps] = useState<MindmapIndexEntry[]>([]);
   useEffect(() => {
     if (!appService) return;
-    const fs = mindmapFsFromAppService(appService);
-    const refresh = (): void => {
-      loadMindmapIndex(fs, bookHash)
-        .then(setMaps)
-        .catch((error: unknown) => console.error('mindmap: failed to list maps', error));
+    let current = true;
+    const unlisten = listenMindmapIndex(bookHash, setMaps);
+    loadMindmapIndex(mindmapFsFromAppService(appService), bookHash)
+      .then((entries) => {
+        if (current) setMaps(entries);
+      })
+      .catch((error: unknown) => console.error('mindmap: failed to list maps', error));
+    return () => {
+      current = false;
+      unlisten();
     };
-    refresh();
-    return session.listenSaved(refresh);
-  }, [appService, bookHash, session]);
+  }, [appService, bookHash]);
   return maps;
 };
 
@@ -128,7 +135,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [meta, setMeta] = useState(session.meta());
   const [plan, setPlan] = useState<UserPlan>('free');
-  const maps = useMapList(bookHash, session);
+  const maps = useMapList(bookHash);
   const controller = useCanvasController(session, mapId);
   const eink = getViewSettings(bookKey)?.isEink ?? false;
   const mode: MindmapMode = eink ? 'eink' : isDarkMode ? 'dark' : 'light';

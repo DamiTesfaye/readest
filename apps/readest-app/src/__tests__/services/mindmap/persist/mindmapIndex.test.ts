@@ -3,6 +3,7 @@ import type { FieldEnvelope, Hlc } from '@/types/replica';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { mapFileDir, mapTrashDir, saveMapFile } from '@/services/mindmap/persist/mapFile';
 import {
+  listenMindmapIndex,
   buildIndexEntry,
   loadMindmapIndex,
   rebuildMindmapIndex,
@@ -90,5 +91,22 @@ describe('mindmap index', () => {
     expect(await updateMindmapIndex(fs, BOOK, file)).toEqual([buildIndexEntry(file)]);
     expect(await removeFromMindmapIndex(fs, BOOK, 'm1')).toEqual([]);
     expect((await rebuildMindmapIndex(fs, BOOK)).map((entry) => entry.mapId)).toEqual(['m1']);
+  });
+});
+
+describe('listenMindmapIndex', () => {
+  it('tells listeners of a book about every index write until they unsubscribe', async () => {
+    const fs = new MemoryFileSystem();
+    const seen: string[][] = [];
+    const other: string[][] = [];
+    const stop = listenMindmapIndex(BOOK, (entries) => seen.push(entries.map((e) => e.mapId)));
+    listenMindmapIndex('book2', (entries) => other.push(entries.map((e) => e.mapId)));
+    await updateMindmapIndex(fs, BOOK, mapFile('m1', 'One', 1000));
+    await updateMindmapIndex(fs, BOOK, mapFile('m2', 'Two', 2000));
+    await removeFromMindmapIndex(fs, BOOK, 'm1');
+    stop();
+    await removeFromMindmapIndex(fs, BOOK, 'm2');
+    expect(seen).toEqual([[], ['m1'], ['m2', 'm1'], ['m2']]);
+    expect(other).toEqual([]);
   });
 });
