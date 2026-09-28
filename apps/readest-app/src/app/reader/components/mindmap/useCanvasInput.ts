@@ -49,6 +49,7 @@ export const useCanvasInput = (
     const touches = new Map<number, Point>();
     let pinch: Pinch | null = null;
     let gestureScale = 1;
+    let activeKind: PointerKind | null = null;
 
     const local = (
       event: { clientX: number; clientY: number },
@@ -93,15 +94,19 @@ export const useCanvasInput = (
       if (event.pointerType === 'touch') {
         touches.set(event.pointerId, local(event));
         if (touches.size >= 2) {
-          controller.pointerCancel();
-          pinch = touches.size === 2 ? pinchOf() : pinch;
+          if (activeKind !== 'pen') {
+            controller.pointerCancel();
+            pinch = touches.size === 2 ? pinchOf() : pinch;
+          }
           return;
         }
       }
+      const wasActive = controller.gestureActive();
       root.setPointerCapture(event.pointerId);
       controller.pointerDown(
         toPointer(event, root.getBoundingClientRect(), pointerTarget(event.target)),
       );
+      if (!wasActive) activeKind = pointerKind(event.pointerType);
     };
 
     const onMove = (event: PointerEvent): void => {
@@ -132,12 +137,14 @@ export const useCanvasInput = (
       controller.pointerUp(
         toPointer(event, root.getBoundingClientRect(), pointerTarget(event.target)),
       );
+      if (!controller.gestureActive()) activeKind = null;
     };
 
     const onCancel = (event: PointerEvent): void => {
       touches.delete(event.pointerId);
       if (touches.size < 2) pinch = null;
       controller.pointerCancel();
+      activeKind = null;
     };
 
     const onWheel = (event: WheelEvent): void => {

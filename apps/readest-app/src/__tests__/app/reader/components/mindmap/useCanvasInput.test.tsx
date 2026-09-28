@@ -93,6 +93,19 @@ describe('useCanvasInput pointers', () => {
     expect(controller.gestureActive()).toBe(false);
   });
 
+  it('keeps drawing through two palm touches once a pen stroke has started', () => {
+    const { controller } = renderInput();
+    act(() => controller.setTool('pen'));
+    pointerAt(root(), 'pointerDown', 0, 0, { pointerType: 'pen', pointerId: 1 });
+    pointerAt(root(), 'pointerMove', 15, 15, { pointerType: 'pen', pointerId: 1 });
+    pointerAt(root(), 'pointerDown', 100, 10, { pointerType: 'touch', pointerId: 2 });
+    pointerAt(root(), 'pointerDown', 150, 10, { pointerType: 'touch', pointerId: 3 });
+    expect(controller.gestureActive()).toBe(true);
+    pointerAt(root(), 'pointerMove', 30, 30, { pointerType: 'pen', pointerId: 1 });
+    pointerAt(root(), 'pointerUp', 30, 30, { pointerType: 'pen', pointerId: 1 });
+    expect(controller.store.all().some((r) => r.type === 'ink')).toBe(true);
+  });
+
   it('feeds coalesced pointer events to the pen', () => {
     const { controller } = renderInput();
     act(() => controller.setTool('pen'));
