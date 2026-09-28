@@ -63,6 +63,21 @@ const NewMapSheet: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     };
   }, [appService, book]);
 
+  useEffect(() => {
+    const active = document.activeElement;
+    const opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    return () => {
+      requestAnimationFrame(() => {
+        const focused = document.activeElement;
+        if (focused && focused !== document.body) return;
+        const target = opener?.isConnected
+          ? opener
+          : document.querySelector<HTMLElement>('[data-mindmap-root]');
+        target?.focus({ preventScroll: true });
+      });
+    };
+  }, []);
+
   const update = <K extends keyof NewMapChoices>(key: K, value: NewMapChoices[K]): void =>
     setChoices((current) => ({ ...current, [key]: value }));
 

@@ -151,4 +151,39 @@ test.describe('Mind map', () => {
     await expect(page.getByRole('button', { name: /^Untitled, Idea/ })).toBeVisible();
     await expect(canvas.locator('.animate-mm-pop')).toHaveCount(0);
   });
+
+  test('returns focus from the new map sheet when it is dismissed', async ({ openBook, page }) => {
+    const reader = await openBook();
+    await openMindmap(reader, page);
+    const sheet = page.getByRole('dialog', { name: 'New mind map' });
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await expect
+      .poll(() => page.evaluate(() => document.activeElement?.getAttribute('title') ?? 'BODY'))
+      .toBe('Spark');
+  });
+
+  test('keeps Tab inside the full-screen map', async ({ openBook, page }) => {
+    const reader = await openBook();
+    const canvas = await createBlankMap(reader, page);
+    await expect(canvas).toBeFocused();
+    const outside: string[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      await page.keyboard.press('Tab');
+      const where = await page.evaluate(() => {
+        const active = document.activeElement;
+        if (!active || active === document.body || active.closest('[data-mindmap-view]')) {
+          return null;
+        }
+        return active.outerHTML.slice(0, 80);
+      });
+      if (where) outside.push(where);
+    }
+    expect(outside).toEqual([]);
+    await page.getByRole('button', { name: /^Back to page/ }).click();
+    await expect(canvas).toBeHidden();
+    await expect(page.locator('[inert]')).toHaveCount(0);
+  });
 });

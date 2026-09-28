@@ -45,6 +45,7 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
           message: _('Could not open the mind map'),
         });
       });
+    anchorEl?.focus({ preventScroll: true });
     onClose();
   };
 

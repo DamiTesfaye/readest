@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ModalPortal from '@/components/ModalPortal';
 import { usePanelResize } from '@/hooks/usePanelResize';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -12,8 +12,10 @@ import { registerCanvasController } from '@/services/mindmap/tools/controllerReg
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { useReaderStore } from '@/store/readerStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useThemeStore } from '@/store/themeStore';
 import type { UserPlan } from '@/types/quota';
+import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { eventDispatcher } from '@/utils/event';
 import { getPanelTopInset } from '@/utils/insets';
 import MindmapCanvas from './MindmapCanvas';
@@ -29,6 +31,26 @@ export const CAMERA_SAVE_DELAY_MS = 500;
 const MIN_DOCK_WIDTH = 0.25;
 const noticedSessions = new WeakSet<MapSession>();
 const MAX_DOCK_WIDTH = 0.75;
+const KEEP_INTERACTIVE = '.toast, [aria-live], [role="alert"], [role="status"]';
+
+const inertOutside = (element: HTMLElement): (() => void) => {
+  const changed: HTMLElement[] = [];
+  for (
+    let node = element;
+    node.parentElement && node !== document.body;
+    node = node.parentElement
+  ) {
+    for (const sibling of node.parentElement.children) {
+      if (sibling === node || !(sibling instanceof HTMLElement)) continue;
+      if (sibling.inert || sibling.matches(KEEP_INTERACTIVE)) continue;
+      sibling.inert = true;
+      changed.push(sibling);
+    }
+  }
+  return () => {
+    for (const sibling of changed) sibling.inert = false;
+  };
+};
 
 export interface MindmapViewProps {
   onExport?: (mapId: string) => void;
@@ -106,21 +128,20 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   const { getView, getViewSettings, getProgress } = useReaderStore();
   const bookTitle = useBookDataStore((state) => state.getBookData(bookKey)?.book?.title ?? '');
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const uiAnimations = useSettingsStore((state) => resolveUIAnimationsEnabled(state.settings));
   const [meta, setMeta] = useState(session.meta());
   const [plan, setPlan] = useState<UserPlan | null>(null);
   const maps = useMapList(bookHash);
   const controller = useCanvasController(session, mapId);
   const eink = getViewSettings(bookKey)?.isEink ?? false;
   const mode: MindmapMode = eink ? 'eink' : isDarkMode ? 'dark' : 'light';
-  const topInset = docked
-    ? 0
-    : getPanelTopInset({
-        isMobile: false,
-        isFullHeightInMobile: true,
-        systemUIVisible,
-        statusBarHeight,
-        safeAreaInsets,
-      });
+  const topInset = getPanelTopInset({
+    isMobile: false,
+    isFullHeightInMobile: true,
+    systemUIVisible,
+    statusBarHeight,
+    safeAreaInsets,
+  });
   const bottomInset = docked ? 0 : safeAreaInsets?.bottom || 0;
 
   useEffect(() => session.listenMeta(setMeta), [session]);
@@ -186,7 +207,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
             title={meta.title}
             mapStyle={meta.style}
             mode={mode}
-            animate={!eink && !reducedMotion}
+            animate={!eink && uiAnimations && !reducedMotion}
             wheelZooms={view.wheelZooms}
             autoFocus={!docked}
             reveal={view.reveal}
@@ -216,6 +237,12 @@ const MindmapView: React.FC<MindmapViewProps> = ({ onExport, onResetPosition }) 
   const session = useMindmapSession(mapId ? bookHash : null, mapId);
   const canDock = useMediaQuery(DOCK_MEDIA_QUERY);
   const docked = layout === 'docked' && canDock;
+  const sectionRef = useRef<HTMLElement>(null);
+  const fullscreen = Boolean(bookKey && mapId && bookHash) && !docked;
+  useEffect(() => {
+    if (!fullscreen || !sectionRef.current) return;
+    return inertOutside(sectionRef.current);
+  }, [fullscreen]);
   const { handleResizeStart, handleResizeKeyDown } = usePanelResize({
     side: 'end',
     minWidth: MIN_DOCK_WIDTH,
@@ -233,6 +260,7 @@ const MindmapView: React.FC<MindmapViewProps> = ({ onExport, onResetPosition }) 
       )}
       {mapId && bookHash && (
         <section
+          ref={sectionRef}
           data-testid='mm-view'
           data-mindmap-view
           data-layout={docked ? 'docked' : 'fullscreen'}

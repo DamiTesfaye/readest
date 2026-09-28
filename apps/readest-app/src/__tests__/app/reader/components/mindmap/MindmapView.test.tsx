@@ -26,6 +26,7 @@ const h = vi.hoisted(() => ({
   wide: false,
   dark: false,
   reducedMotion: false,
+  uiAnimations: undefined as boolean | undefined,
   bookKeys: ['bookhash-1'] as string[],
   safeAreaInsets: null as { top: number; right: number; bottom: number; left: number } | null,
   systemUIVisible: false,
@@ -89,8 +90,11 @@ vi.mock('@/store/themeStore', () => {
   };
 });
 vi.mock('@/store/settingsStore', () => ({
-  useSettingsStore: <T,>(select: (s: { settings: { replicaDeviceId: string } }) => T) =>
-    select({ settings: { replicaDeviceId: 'device-1' } }),
+  useSettingsStore: <T,>(
+    select: (s: {
+      settings: { replicaDeviceId: string; uiAnimationsEnabled: boolean | undefined };
+    }) => T,
+  ) => select({ settings: { replicaDeviceId: 'device-1', uiAnimationsEnabled: h.uiAnimations } }),
 }));
 
 const { default: MindmapView } = await import('@/app/reader/components/mindmap/MindmapView');
@@ -126,6 +130,7 @@ beforeEach(() => {
   h.wide = false;
   h.dark = false;
   h.reducedMotion = false;
+  h.uiAnimations = undefined;
   h.bookKeys = [BOOK_KEY];
   h.safeAreaInsets = null;
   h.systemUIVisible = false;
@@ -239,6 +244,20 @@ describe('an open map', () => {
     render(<MindmapView />);
     const canvas = await openCanvas();
     expect(canvas.dataset['mmMode']).toBe('dark');
+    act(() => {
+      getOpenMapSession(mapId)!.store.put([
+        createNodeRecord({ id: 'fresh', index: 'a1', label: 'Fresh' }),
+      ]);
+    });
+    expect(screen.getByTestId('mm-record-fresh').innerHTML).not.toContain('animate-');
+  });
+
+  it('skips pop-in when UI animations are turned off in settings', async () => {
+    h.uiAnimations = false;
+    const mapId = await createMap('Still');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    await openCanvas();
     act(() => {
       getOpenMapSession(mapId)!.store.put([
         createNodeRecord({ id: 'fresh', index: 'a1', label: 'Fresh' }),
@@ -506,15 +525,17 @@ describe('an open map', () => {
     );
   });
 
-  it('ignores safe area insets while docked', async () => {
+  it('clears the status bar but not the bottom inset while docked', async () => {
     h.wide = true;
     h.safeAreaInsets = { top: 40, right: 0, bottom: 20, left: 0 };
     h.systemUIVisible = true;
+    h.statusBarHeight = 24;
     const mapId = await createMap('Docked insets');
     useMindmapViewStore.setState({ layout: 'docked' });
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
     render(<MindmapView />);
     await openCanvas();
-    expect(screen.getByTestId('mm-top-bar').style.marginTop).toBe('');
+    expect(screen.getByTestId('mm-top-bar').style.marginTop).toBe('40px');
+    expect(screen.getByRole('toolbar', { name: 'Tools' }).style.bottom).toBe('calc(0px + 1rem)');
   });
 });
