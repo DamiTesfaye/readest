@@ -18,6 +18,23 @@ const createBlankMap = async (reader: ReaderPage, page: Page) => {
   return canvas;
 };
 
+const placeNode = async (page: Page, x: number, y: number, label: string) => {
+  await page.keyboard.press('n');
+  await page.mouse.click(x, y);
+  await expect(page.getByTestId('mm-label-editor')).toBeFocused();
+  await page.keyboard.type(label);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: new RegExp(`^${label}, Idea`) })).toBeVisible();
+};
+
+const bookLocation = (page: Page) =>
+  page.evaluate(() => {
+    const view = document.querySelector('foliate-view') as unknown as {
+      lastLocation?: { cfi?: string };
+    } | null;
+    return view?.lastLocation?.cfi ?? '';
+  });
+
 test.describe('Mind map', () => {
   test('creates a blank map, drags a node and keeps its position after reload', async ({
     openBook,
@@ -74,6 +91,45 @@ test.describe('Mind map', () => {
     await canvas.press('n');
     await expect(page.getByRole('button', { name: 'Node', pressed: true })).toBeVisible();
     await expect(reader.notebook).toBeHidden();
+  });
+
+  test('keeps the reader shortcuts dialog closed when ? is pressed in the map', async ({
+    openBook,
+    page,
+  }) => {
+    const reader = await openBook();
+    const canvas = await createBlankMap(reader, page);
+    await canvas.focus();
+    await page.keyboard.press('Shift+?');
+    await page.waitForTimeout(300);
+    await expect(page.getByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeHidden();
+  });
+
+  test('keeps arrow keys in the map when a page turner key is bound to them', async ({
+    openBook,
+    page,
+  }) => {
+    const reader = await openBook();
+    await page.keyboard.press('Shift+F');
+    await page.locator('[data-tab="Control"]').click();
+    const turner = page.locator('[data-setting-id="settings.control.pageTurner"]');
+    await turner.getByRole('checkbox').first().click();
+    await page.getByRole('button', { name: /^Next Page: Set key/ }).click();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('button', { name: /^Next Page: / })).not.toHaveText(/Set key/);
+    await page.keyboard.press('Escape');
+    const canvas = await createBlankMap(reader, page);
+    const box = (await canvas.boundingBox())!;
+    await canvas.focus();
+    await placeNode(page, box.x + 300, box.y + 240, 'Left');
+    await placeNode(page, box.x + 700, box.y + 240, 'Right');
+    const left = (await page.getByRole('button', { name: /^Left, Idea/ }).boundingBox())!;
+    await page.mouse.click(left.x + left.width / 2, left.y + left.height / 2);
+    const before = await bookLocation(page);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('button', { name: /^Right, Idea/ })).toBeFocused();
+    expect(await bookLocation(page)).toBe(before);
   });
 
   test('forces Ink & margin without animation on e-ink', async ({ openBook, page }) => {

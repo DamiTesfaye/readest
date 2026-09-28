@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
+import { isMindmapKeyEvent } from '@/hooks/useShortcuts';
 import { FoliateView } from '@/types/view';
 import { ViewSettings } from '@/types/book';
 import { useReaderStore } from '@/store/readerStore';
@@ -396,7 +397,7 @@ export const usePagination = (
   const handleHardwareDomKey = (event: KeyboardEvent | MessageEvent) => {
     let candidate: KeyCandidate;
     if (event instanceof KeyboardEvent) {
-      if (event.repeat) return;
+      if (event.repeat || isMindmapKeyEvent(event)) return;
       const target = event.target as HTMLElement | null;
       if (target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? '')) {
         return;

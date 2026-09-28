@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { isMindmapKeyEvent } from '@/hooks/useShortcuts';
 import { useTranslation } from '@/hooks/useTranslation';
 import { isMacPlatform } from '@/services/environment';
 import { getShortcutsForDisplay } from '@/helpers/shortcuts';
@@ -89,7 +90,7 @@ export const KeyboardShortcutsHelp = () => {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== '?') return;
+      if (event.key !== '?' || isMindmapKeyEvent(event)) return;
 
       const activeElement = document.activeElement as HTMLElement;
       const isInteractive =
