@@ -5,7 +5,7 @@ import type { PositionedRecord } from '@/services/mindmap/schema/types';
 import { GRID_SIZE, snapToGrid } from '@/services/mindmap/snap/snap';
 import { type SpatialIndex, isLive, isPositioned } from '@/services/mindmap/spatial/spatialIndex';
 import type { MapStore } from '@/services/mindmap/store/mapStore';
-import { CHILD_GAP_X, SIBLING_GAP_Y, parentOf } from '@/services/mindmap/tools/placement';
+import { CHILD_GAP_X, SIBLING_GAP_Y, occupied, parentOf } from '@/services/mindmap/tools/placement';
 
 export const NEW_NODE_SIZE = { w: 160, h: 64 } as const;
 export const COLUMN_STEP = NEW_NODE_SIZE.w + CHILD_GAP_X;
@@ -44,11 +44,7 @@ const isFree = (
   placed: readonly BoundsRect[],
   ignore?: string,
 ): boolean =>
-  !placed.some((other) => intersects(other, box)) &&
-  !spatial.search({ x: box.x + 1, y: box.y + 1, w: box.w - 2, h: box.h - 2 }, true).some((id) => {
-    const record = store.get(id);
-    return id !== ignore && isLive(record) && record.type !== 'section';
-  });
+  !placed.some((other) => intersects(other, box)) && !occupied(store, spatial, box, ignore);
 
 const fanAround = (center: Point, size: Size, fits: (box: BoundsRect) => boolean): Point | null => {
   for (let ring = 1; ring <= FAN_RINGS; ring += 1) {

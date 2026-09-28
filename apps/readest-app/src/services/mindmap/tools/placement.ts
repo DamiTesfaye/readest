@@ -21,10 +21,15 @@ export const childrenOf = (store: MapStore, id: string): PositionedRecord[] =>
     .map((link) => store.get(link.toId))
     .filter((record): record is PositionedRecord => isLive(record) && isPositioned(record));
 
-const occupied = (store: MapStore, spatial: SpatialIndex, box: BoundsRect): boolean =>
+export const occupied = (
+  store: MapStore,
+  spatial: SpatialIndex,
+  box: BoundsRect,
+  ignore?: string,
+): boolean =>
   spatial.search({ x: box.x + 1, y: box.y + 1, w: box.w - 2, h: box.h - 2 }, true).some((id) => {
     const record = store.get(id);
-    return isLive(record) && record.type !== 'section';
+    return id !== ignore && isLive(record) && record.type !== 'section';
   });
 
 export const freeSpotBelow = (
