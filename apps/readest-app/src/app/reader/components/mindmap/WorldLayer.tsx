@@ -1,20 +1,38 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { compareByIndex } from '@/services/mindmap/order/keyBetween';
-import type { LinkRecord, MapStyle, PositionedRecord } from '@/services/mindmap/schema/types';
-import {
-  isLive,
-  isPositioned,
-  isShown,
-  liveLinkEnds,
-} from '@/services/mindmap/spatial/spatialIndex';
+import type { MapRecord, MapStyle } from '@/services/mindmap/schema/types';
+import { type RecordFilter, isPositioned, isShown } from '@/services/mindmap/spatial/spatialIndex';
+import type { Diff } from '@/services/mindmap/store/mapStore';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { LinkLabel, LinkPath } from './LinkView';
-import RecordView, { type RegisterElement } from './RecordView';
+import { type RegisterElement, RecordSlot } from './RecordView';
 import { recordAriaLabels } from './recordLabels';
-import { useAtomValue, useMapRecords } from './useCanvasStores';
+import { useAtomValue, useMapRecordsWhen } from './useCanvasStores';
 
 export const CULL_MARGIN_PX = 200;
+
+const ORDER_FIELDS: ReadonlySet<string> = new Set(['index', 'deleted', 'type', 'fromId', 'toId']);
+const LABEL_FIELDS: ReadonlySet<string> = new Set([...ORDER_FIELDS, 'label', 'text', 'kind']);
+
+interface WorldIds {
+  sections: string[];
+  others: string[];
+  links: string[];
+}
+
+const partition = (
+  records: readonly MapRecord[],
+  filter: RecordFilter,
+  lookup: (id: string) => MapRecord | undefined,
+): WorldIds => {
+  const shown = records.filter((record) => isShown(record, filter, lookup)).sort(compareByIndex);
+  return {
+    sections: shown.filter((r) => r.type === 'section').map((r) => r.id),
+    others: shown.filter((r) => isPositioned(r) && r.type !== 'section').map((r) => r.id),
+    links: shown.filter((r) => r.type === 'link').map((r) => r.id),
+  };
+};
 
 interface WorldLayerProps {
   controller: CanvasController;
@@ -25,26 +43,46 @@ interface WorldLayerProps {
 
 const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, children }) => {
   const _ = useTranslation();
-  const allRecords = useMapRecords(controller.store);
-  const visible = useAtomValue(controller.visible);
-  const records = useMemo(
-    () => allRecords.filter((record) => isShown(record, visible, controller.store.get)),
-    [allRecords, visible, controller.store],
+  const { store } = controller;
+  const rendered = useRef(new Set<string>());
+
+  const touches = useCallback(
+    (fields: ReadonlySet<string>) => (diff: Diff) =>
+      diff.added.length > 0 ||
+      diff.discarded.length > 0 ||
+      diff.changed.some(
+        (change) =>
+          fields.has(change.field) ||
+          rendered.current.has(change.id) !== controller.isShown(change.id),
+      ),
+    [controller],
   );
+  const touchesOrder = useMemo(() => touches(ORDER_FIELDS), [touches]);
+  const touchesLabels = useMemo(() => touches(LABEL_FIELDS), [touches]);
+  const orderRecords = useMapRecordsWhen(store, touchesOrder);
+  const labelRecords = useMapRecordsWhen(store, touchesLabels);
+  const visible = useAtomValue(controller.visible);
+
+  const ids = useMemo(
+    () => partition(orderRecords, visible, store.get),
+    [orderRecords, visible, store],
+  );
+  const labels = useMemo(
+    () =>
+      recordAriaLabels(
+        labelRecords.filter((record) => isShown(record, visible, store.get)),
+        _,
+      ),
+    [labelRecords, visible, store, _],
+  );
+  const shownIds = useMemo(() => new Set([...ids.sections, ...ids.others, ...ids.links]), [ids]);
+  const [initialIds] = useState(shownIds);
+  useLayoutEffect(() => {
+    rendered.current = shownIds;
+  }, [shownIds]);
+
   const worldRef = useRef<HTMLDivElement>(null);
   const elements = useRef(new Map<HTMLElement | SVGElement, string>());
-  const [initialIds] = useState(() => new Set(records.map((record) => record.id)));
-
-  const { sections, others, links } = useMemo(() => {
-    const live = records.filter(isLive).sort(compareByIndex);
-    const positioned = live.filter(isPositioned);
-    return {
-      sections: positioned.filter((record) => record.type === 'section'),
-      others: positioned.filter((record) => record.type !== 'section'),
-      links: live.filter((record): record is LinkRecord => record.type === 'link'),
-    };
-  }, [records]);
-  const labels = useMemo(() => recordAriaLabels(records, _), [records, _]);
 
   const cull = useCallback(() => {
     const view = controller.viewport.get();
@@ -57,13 +95,13 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
       w: bounds.w + margin * 2,
       h: bounds.h + margin * 2,
     };
-    const visible = new Set([
+    const onScreen = new Set([
       ...controller.spatial.search(area),
       ...controller.spatial.searchLinks(area),
     ]);
-    for (const id of controller.selection.get()) visible.add(id);
+    for (const id of controller.selection.get()) onScreen.add(id);
     for (const [element, id] of elements.current) {
-      const display = cullAll || visible.has(id) ? '' : 'none';
+      const display = cullAll || onScreen.has(id) ? '' : 'none';
       if (element.style.display !== display) element.style.display = display;
     }
   }, [controller]);
@@ -83,33 +121,30 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
       cull();
     };
     apply();
-    const unsubscribeCamera = controller.camera.subscribe(apply);
-    const unsubscribeViewport = controller.viewport.subscribe(cull);
-    const unsubscribeSelection = controller.selection.subscribe(cull);
+    const unsubscribers = [
+      controller.camera.subscribe(apply),
+      controller.viewport.subscribe(cull),
+      controller.selection.subscribe(cull),
+      store.listen(cull),
+    ];
     return () => {
-      unsubscribeCamera();
-      unsubscribeViewport();
-      unsubscribeSelection();
+      for (const unsubscribe of unsubscribers) unsubscribe();
     };
-  }, [controller, cull]);
+  }, [controller, store, cull]);
 
-  useLayoutEffect(cull, [cull, records]);
+  useLayoutEffect(cull, [cull, ids]);
 
-  const renderRecord = (record: PositionedRecord) => (
-    <RecordView
-      key={record.id}
-      record={record}
+  const renderRecord = (id: string) => (
+    <RecordSlot
+      key={id}
+      id={id}
+      store={store}
       mapStyle={mapStyle}
-      ariaLabel={labels.get(record.id)}
-      pop={animate && !initialIds.has(record.id)}
+      ariaLabel={labels.get(id)}
+      pop={animate && !initialIds.has(id)}
       register={register}
     />
   );
-
-  const linkViews = links.flatMap((link) => {
-    const ends = liveLinkEnds(link, controller.store.get);
-    return ends ? [{ link, from: ends[0], to: ends[1] }] : [];
-  });
 
   return (
     <div
@@ -118,7 +153,7 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
       className='pointer-events-none absolute left-0 top-0'
       style={{ transformOrigin: '0 0' }}
     >
-      {sections.map(renderRecord)}
+      {ids.sections.map(renderRecord)}
       <svg
         data-testid='mm-links'
         className='pointer-events-none absolute left-0 top-0 overflow-visible'
@@ -126,13 +161,13 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
         height={1}
         aria-hidden='true'
       >
-        {linkViews.map((view) => (
-          <LinkPath key={view.link.id} {...view} mapStyle={mapStyle} register={register} />
+        {ids.links.map((id) => (
+          <LinkPath key={id} id={id} store={store} mapStyle={mapStyle} register={register} />
         ))}
       </svg>
-      {others.map(renderRecord)}
-      {linkViews.map((view) => (
-        <LinkLabel key={view.link.id} {...view} mapStyle={mapStyle} register={register} />
+      {ids.others.map(renderRecord)}
+      {ids.links.map((id) => (
+        <LinkLabel key={id} id={id} store={store} mapStyle={mapStyle} register={register} />
       ))}
       {children}
     </div>

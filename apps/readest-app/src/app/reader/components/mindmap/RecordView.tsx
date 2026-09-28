@@ -2,6 +2,8 @@ import clsx from 'clsx';
 import React from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { inkRecordPath } from '@/services/mindmap/ink/inkPath';
+import { isLive, isPositioned } from '@/services/mindmap/spatial/spatialIndex';
+import type { MapStore } from '@/services/mindmap/store/mapStore';
 import type {
   InkRecord,
   MapStyle,
@@ -11,6 +13,7 @@ import type {
   SectionRecord,
   ShapeRecord,
 } from '@/services/mindmap/schema/types';
+import { useRecord } from './useCanvasStores';
 
 export type RegisterElement = (id: string, element: HTMLElement | SVGElement) => () => void;
 
@@ -221,5 +224,17 @@ const RecordView: React.FC<RecordViewProps> = ({ record, mapStyle, ariaLabel, po
     </div>
   </div>
 );
+
+interface RecordSlotProps extends Omit<RecordViewProps, 'record'> {
+  id: string;
+  store: MapStore;
+}
+
+const RecordSlotView: React.FC<RecordSlotProps> = ({ id, store, ...rest }) => {
+  const record = useRecord(store, id);
+  return isLive(record) && isPositioned(record) ? <RecordView record={record} {...rest} /> : null;
+};
+
+export const RecordSlot = React.memo(RecordSlotView);
 
 export default React.memo(RecordView);

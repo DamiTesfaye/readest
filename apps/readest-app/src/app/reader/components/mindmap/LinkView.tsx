@@ -1,8 +1,10 @@
 import React from 'react';
 import { linkShape } from '@/services/mindmap/records/linkGeometry';
 import type { LinkRecord, MapStyle, PositionedRecord } from '@/services/mindmap/schema/types';
-import { recordBounds } from '@/services/mindmap/spatial/spatialIndex';
+import { liveLinkEnds, recordBounds } from '@/services/mindmap/spatial/spatialIndex';
+import type { MapStore } from '@/services/mindmap/store/mapStore';
 import type { RegisterElement } from './RecordView';
+import { useRecord } from './useCanvasStores';
 
 interface LinkViewProps {
   link: LinkRecord;
@@ -50,5 +52,32 @@ const LinkLabelView: React.FC<LinkViewProps> = ({ link, from, to, mapStyle, regi
   );
 };
 
-export const LinkPath = React.memo(LinkPathView);
-export const LinkLabel = React.memo(LinkLabelView);
+interface LinkSlotProps {
+  id: string;
+  store: MapStore;
+  mapStyle: MapStyle;
+  register: RegisterElement;
+}
+
+const useLinkEnds = (store: MapStore, id: string) => {
+  const record = useRecord(store, id);
+  const link = record?.type === 'link' ? record : null;
+  const from = useRecord(store, link?.fromId ?? '');
+  const to = useRecord(store, link?.toId ?? '');
+  if (!link || link.deleted !== null) return null;
+  const ends = liveLinkEnds(link, (endId) => (endId === link.fromId ? from : to));
+  return ends ? { link, from: ends[0], to: ends[1] } : null;
+};
+
+const LinkPathSlot: React.FC<LinkSlotProps> = ({ id, store, ...rest }) => {
+  const view = useLinkEnds(store, id);
+  return view ? <LinkPathView {...view} {...rest} /> : null;
+};
+
+const LinkLabelSlot: React.FC<LinkSlotProps> = ({ id, store, ...rest }) => {
+  const view = useLinkEnds(store, id);
+  return view ? <LinkLabelView {...view} {...rest} /> : null;
+};
+
+export const LinkPath = React.memo(LinkPathSlot);
+export const LinkLabel = React.memo(LinkLabelSlot);

@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
+import { Profiler } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import MindmapCanvas, {
@@ -20,6 +21,7 @@ const CANVAS_TOP = 60;
 const FRAME_BUDGET_MS = 20;
 const WARM_UP_FRAMES = 20;
 const MEASURED_FRAMES = 120;
+const DRAG_REACT_BUDGET_MS = 2;
 
 const rgb = (hex: string): string => {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -45,16 +47,26 @@ const mount = (
     onJumpToBook: vi.fn(),
     ...props,
   };
+  const react = { commits: 0, ms: 0 };
   const frame = (next: MindmapCanvasProps) => (
     <div
       style={{ position: 'absolute', left: CANVAS_LEFT, top: CANVAS_TOP, width: 1000, height: 700 }}
     >
-      <MindmapCanvas {...next} />
+      <Profiler
+        id='canvas'
+        onRender={(_id, _phase, actual) => {
+          react.commits += 1;
+          react.ms += actual;
+        }}
+      >
+        <MindmapCanvas {...next} />
+      </Profiler>
     </div>
   );
   const view = render(frame(base));
   return {
     controller,
+    react,
     rerender: (next: Partial<MindmapCanvasProps>) => view.rerender(frame({ ...base, ...next })),
   };
 };
@@ -226,6 +238,34 @@ describe('mindmap canvas in a real browser', () => {
     const start = performance.now();
     for (let i = 0; i < 200; i += 1) controller.spatial.hitTest({ x: 190, y: 100 + i * 0.01 }, 4);
     expect((performance.now() - start) / 200).toBeLessThan(1);
+  });
+
+  it('drags one record among 2,000 linked records with little React work per move', async () => {
+    await page.viewport(1280, 900);
+    const { react } = mount(linkedTree(2000), { x: 1, y: 1, z: 1 });
+    await nextFrame();
+    const canvas = screen.getByTestId('mindmap-canvas');
+    const at = (x: number) => ({
+      clientX: CANVAS_LEFT + 1 + x,
+      clientY: CANVAS_TOP + 1 + 30,
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      buttons: 1,
+      bubbles: true,
+      cancelable: true,
+    });
+    canvas.dispatchEvent(new PointerEvent('pointerdown', at(60)));
+    for (let x = 60; x < 120; x += 3) canvas.dispatchEvent(new PointerEvent('pointermove', at(x)));
+    await nextFrame();
+    const before = react.ms;
+    const moves = MEASURED_FRAMES;
+    for (let i = 0; i < moves; i += 1) {
+      canvas.dispatchEvent(new PointerEvent('pointermove', at(120 + i * 3)));
+      await nextFrame();
+    }
+    canvas.dispatchEvent(new PointerEvent('pointerup', at(120 + moves * 3)));
+    expect((react.ms - before) / moves).toBeLessThan(DRAG_REACT_BUDGET_MS);
   });
 
   it('keeps p95 frame time under 20 ms while panning 2,000 records', async () => {
