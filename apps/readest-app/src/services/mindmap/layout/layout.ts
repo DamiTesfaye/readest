@@ -25,7 +25,10 @@ const intersects = (a: BoundsRect, b: BoundsRect): boolean =>
 const positioned = (store: MapStore, ignore?: string): PositionedRecord[] =>
   store
     .all()
-    .filter((record): record is PositionedRecord => isPositioned(record) && record.id !== ignore);
+    .filter(
+      (record): record is PositionedRecord =>
+        isLive(record) && isPositioned(record) && record.id !== ignore,
+    );
 
 const below = (boxes: readonly BoundsRect[]): Point =>
   boxes.length === 0

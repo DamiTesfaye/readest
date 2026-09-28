@@ -119,6 +119,8 @@ export const reconcile = (
     const fromId = idOf(record.fromGenKey);
     const toId = idOf(record.toGenKey);
     if (!fromId || !toId) continue;
+    if (canonical.get(record.fromGenKey)?.deleted || canonical.get(record.toGenKey)?.deleted)
+      continue;
     added.push({
       ...createLinkRecord({ id, index: nextIndex(), fromId, toId, label: record.label }),
       ...origin,

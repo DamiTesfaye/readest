@@ -156,6 +156,17 @@ describe('reconcile', () => {
     expect(changesOf(diff, 'l1')).toEqual({ fromId: 'c1', toId: 'q1', deleted: null });
   });
 
+  it('skips creating a fresh link when the chapter end was deleted by the reader', () => {
+    const existing = generatedNode('c1', 'toc:a', { deleted: { by: 'user' } });
+    const quote: GenNode = { ...chapter('note:1', 'Quote'), kind: 'quote', parentGenKey: 'toc:a' };
+    const diff = run(
+      [existing],
+      [chapter('toc:a', 'A'), quote, link('link:note:1', 'toc:a', 'note:1')],
+    );
+    expect(diff.added.some((record) => record.type === 'link')).toBe(false);
+    expect(diff.added.some((record) => record.genKey === 'note:1')).toBe(true);
+  });
+
   it('leaves a record the reader deleted deleted', () => {
     const deleted = generatedNode('r1', 'toc:a', { deleted: { by: 'user' } });
     expect(run([deleted], [chapter('toc:a', 'A')])).toEqual(EMPTY);

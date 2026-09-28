@@ -77,10 +77,7 @@ describe('tidyTree', () => {
 
 describe('layoutNewNodes', () => {
   it('stacks a new chapter tree below the lowest record, on the grid', () => {
-    const { store, spatial } = setup([
-      existing('top', 40, 0),
-      existing('low', 300, 500, { deleted: { by: 'user' } }),
-    ]);
+    const { store, spatial } = setup([existing('top', 40, 0), existing('low', 300, 500)]);
     const placed = layoutNewNodes(store, spatial, [
       genNode('toc:a', null, 'chapter'),
       genNode('toc:a1', 'toc:a', 'chapter'),
@@ -130,6 +127,18 @@ describe('layoutNewNodes', () => {
       expect(point.x % GRID_SIZE).toBe(0);
       expect(point.y % GRID_SIZE).toBe(0);
     }
+  });
+
+  it('ignores a tombstoned chapter when stacking below and fanning a quote', () => {
+    const deletedChapter = existing('c1', 900, 900, {
+      origin: 'generated',
+      genKey: 'toc:c',
+      deleted: { by: 'user' },
+    });
+    const live = existing('other', 0, 96);
+    const { store, spatial } = setup([deletedChapter, live]);
+    const placed = layoutNewNodes(store, spatial, [genNode('note:1', 'toc:c', 'quote')]);
+    expect(placed.get('note:1')).toEqual({ x: 0, y: 224 });
   });
 
   it('fans a quote around a chapter placed in the same batch', () => {
