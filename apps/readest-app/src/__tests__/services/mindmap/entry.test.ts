@@ -77,6 +77,16 @@ describe('resolveMapEntry', () => {
   });
 });
 
+describe('resolveMapEntry with a preferred map', () => {
+  it('opens the preferred map while the book index still lists it', async () => {
+    const hlc = clock();
+    await saveMap(fs, 'bookhash', createMapFile(DEFAULT_MAP_META, 'older', hlc));
+    await saveMap(fs, 'bookhash', createMapFile(DEFAULT_MAP_META, 'newer', hlc));
+    expect(await resolveMapEntry(fs, 'bookhash', 'older')).toEqual({ kind: 'map', mapId: 'older' });
+    expect(await resolveMapEntry(fs, 'bookhash', 'gone')).toEqual({ kind: 'map', mapId: 'newer' });
+  });
+});
+
 describe('createBookMap', () => {
   it('writes the first map file under the book hash with the reading progress', async () => {
     const result = await createBookMap({

@@ -52,6 +52,7 @@ afterEach(() => {
     layout: 'fullscreen',
     dockWidth: DEFAULT_DOCK_WIDTH,
     wheelZooms: false,
+    lastOpened: {},
   });
   localStorage.clear();
   __resetMindmapStoreForTests();
@@ -120,7 +121,12 @@ describe('mindmapViewStore', () => {
     view.showMap('book-1', 'map-1');
     view.announce('hello');
     const stored = JSON.parse(localStorage.getItem('mindmap-view')!).state;
-    expect(stored).toEqual({ layout: 'docked', dockWidth: '55%', wheelZooms: true });
+    expect(stored).toEqual({
+      layout: 'docked',
+      dockWidth: '55%',
+      wheelZooms: true,
+      lastOpened: { bookhash: 'map-1' },
+    });
   });
 });
 
@@ -143,6 +149,23 @@ describe('openEntry', () => {
       mapId: newest,
       sheetOpen: false,
     });
+  });
+
+  it('reopens the map used last, not the one edited last', async () => {
+    const older = await createMap('Older');
+    await createMap('Newest');
+    useMindmapViewStore.getState().showMap('book-1', older);
+    useMindmapViewStore.getState().close();
+    await useMindmapViewStore.getState().openEntry('book-1');
+    expect(useMindmapViewStore.getState().mapId).toBe(older);
+  });
+
+  it('falls back to the newest map when the one used last is gone', async () => {
+    const newest = await createMap('Newest');
+    useMindmapViewStore.getState().showMap('book-1', 'deleted-map');
+    useMindmapViewStore.getState().close();
+    await useMindmapViewStore.getState().openEntry('book-1');
+    expect(useMindmapViewStore.getState().mapId).toBe(newest);
   });
 
   it('rejects and leaves the view unchanged for a book without a hash', async () => {

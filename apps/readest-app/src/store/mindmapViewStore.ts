@@ -20,6 +20,7 @@ interface MindmapViewState {
   reveal: RevealSummary | null;
   announcement: string;
   announcementId: number;
+  lastOpened: Record<string, string>;
   openEntry(bookKey: string): Promise<void>;
   showMap(bookKey: string, mapId: string): void;
   showSheet(bookKey: string): void;
@@ -44,16 +45,24 @@ export const useMindmapViewStore = create<MindmapViewState>()(
       reveal: null,
       announcement: '',
       announcementId: 0,
+      lastOpened: {},
       openEntry: async (bookKey) => {
         const bookHash = useBookDataStore.getState().getBookData(bookKey)?.book?.hash;
         if (!bookHash) throw new Error('mindmap: book has no hash');
         const appService = await environmentConfig.getAppService();
-        const target = await resolveMapEntry(mindmapFsFromAppService(appService), bookHash);
+        const target = await resolveMapEntry(
+          mindmapFsFromAppService(appService),
+          bookHash,
+          get().lastOpened[bookHash],
+        );
         if (target.kind === 'map') get().showMap(bookKey, target.mapId);
         else get().showSheet(bookKey);
       },
-      showMap: (bookKey, mapId) =>
-        set({ bookKey, mapId, sheetOpen: false, reveal: null, announcement: '' }),
+      showMap: (bookKey, mapId) => {
+        const bookHash = useBookDataStore.getState().getBookData(bookKey)?.book?.hash;
+        const lastOpened = bookHash ? { ...get().lastOpened, [bookHash]: mapId } : get().lastOpened;
+        set({ bookKey, mapId, sheetOpen: false, reveal: null, announcement: '', lastOpened });
+      },
       showSheet: (bookKey) => set({ bookKey, sheetOpen: true }),
       closeSheet: () =>
         set(get().mapId ? { sheetOpen: false } : { sheetOpen: false, bookKey: null }),
@@ -68,7 +77,12 @@ export const useMindmapViewStore = create<MindmapViewState>()(
     {
       name: 'mindmap-view',
       storage: createJSONStorage(() => localStorage),
-      partialize: ({ layout, dockWidth, wheelZooms }) => ({ layout, dockWidth, wheelZooms }),
+      partialize: ({ layout, dockWidth, wheelZooms, lastOpened }) => ({
+        layout,
+        dockWidth,
+        wheelZooms,
+        lastOpened,
+      }),
     },
   ),
 );

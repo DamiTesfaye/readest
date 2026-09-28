@@ -34,10 +34,15 @@ export interface CreateBookMapInput {
 
 export type CreateBookMapResult = { status: 'created'; mapId: string } | { status: 'limit' };
 
-export const resolveMapEntry = async (fs: MindmapFs, bookHash: string): Promise<EntryTarget> => {
+export const resolveMapEntry = async (
+  fs: MindmapFs,
+  bookHash: string,
+  preferredMapId?: string,
+): Promise<EntryTarget> => {
   await useMindmapStore.getState().hydrate(fs);
-  const [latest] = await loadMindmapIndex(fs, bookHash);
-  return latest ? { kind: 'map', mapId: latest.mapId } : { kind: 'sheet' };
+  const index = await loadMindmapIndex(fs, bookHash);
+  const target = index.find((entry) => entry.mapId === preferredMapId) ?? index[0];
+  return target ? { kind: 'map', mapId: target.mapId } : { kind: 'sheet' };
 };
 
 export const bookMapCount = async (fs: MindmapFs, bookHash: string): Promise<number> => {
