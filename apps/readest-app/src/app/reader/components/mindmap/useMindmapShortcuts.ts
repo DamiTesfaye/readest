@@ -34,6 +34,9 @@ export const isTypingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 
+const targetsCanvas = (target: EventTarget | null, root: HTMLElement): boolean =>
+  target === root || (target instanceof Element && target.closest('[data-record-id]') !== null);
+
 const handleModified = (
   event: KeyboardEvent,
   controller: CanvasController,
@@ -106,10 +109,13 @@ export const useMindmapShortcuts = (
     if (!root) return;
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.defaultPrevented || isTypingTarget(event.target)) return;
-      let handled: boolean;
       if (event.metaKey || event.ctrlKey) {
-        handled = handleModified(event, controller, animate);
-      } else if (event.altKey) {
+        if (handleModified(event, controller, animate)) event.preventDefault();
+        return;
+      }
+      if (!targetsCanvas(event.target, root)) return;
+      let handled: boolean;
+      if (event.altKey) {
         const direction = ARROWS[event.key];
         if (direction) controller.nudge(...NUDGE[direction]);
         handled = direction !== undefined;

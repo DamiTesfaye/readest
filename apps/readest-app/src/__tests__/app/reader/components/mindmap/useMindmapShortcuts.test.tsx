@@ -95,6 +95,17 @@ describe('useMindmapShortcuts', () => {
     expect(controller.store.get('b')!.deleted).toEqual({ by: 'user' });
   });
 
+  it('leaves keys alone when the target is chrome outside the canvas record tree', () => {
+    const { controller } = renderInput([node('a', 0)]);
+    act(() => controller.selection.set(['a']));
+    const chrome = screen.getByTestId('chrome');
+    expect(key({ key: ' ' }, chrome).defaultPrevented).toBe(false);
+    expect(key({ key: 'Enter' }, chrome).defaultPrevented).toBe(false);
+    expect(controller.store.all().filter((r) => r.type === 'node')).toHaveLength(1);
+    expect(key({ key: 'Tab' }, chrome).defaultPrevented).toBe(false);
+    expect(controller.editing.get()).toBeNull();
+  });
+
   it('holds the hand tool while Space is down and releases it on blur', () => {
     const { controller } = renderInput();
     const held = vi.spyOn(controller, 'setSpaceHeld');
