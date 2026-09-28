@@ -76,7 +76,8 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
     [labelRecords, visible, store, _],
   );
   const shownIds = useMemo(() => new Set([...ids.sections, ...ids.others, ...ids.links]), [ids]);
-  const [initialIds] = useState(shownIds);
+  const [popped] = useState(() => new Set(shownIds));
+  const markPopped = useCallback((id: string) => popped.add(id), [popped]);
   useLayoutEffect(() => {
     rendered.current = shownIds;
   }, [shownIds]);
@@ -141,8 +142,9 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
       store={store}
       mapStyle={mapStyle}
       ariaLabel={labels.get(id)}
-      pop={animate && !initialIds.has(id)}
+      pop={animate && !popped.has(id)}
       register={register}
+      onPopped={markPopped}
     />
   );
 

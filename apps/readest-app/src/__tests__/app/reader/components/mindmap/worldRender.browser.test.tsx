@@ -6,6 +6,7 @@ import MindmapCanvas, {
 } from '@/app/reader/components/mindmap/MindmapCanvas';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import type { MapCamera, MapRecord } from '@/services/mindmap/schema/types';
+import { type RecordFilter, SHOW_ALL } from '@/services/mindmap/spatial/spatialIndex';
 import { createMapStore } from '@/services/mindmap/store/mapStore';
 import { createCanvasController } from '@/services/mindmap/tools/controller';
 import type { CanvasPointer } from '@/services/mindmap/tools/types';
@@ -25,8 +26,10 @@ const mount = (
   records: MapRecord[],
   camera: MapCamera = { x: 0.5, y: 0, z: 1 },
   props: Partial<MindmapCanvasProps> = {},
+  filter: RecordFilter = SHOW_ALL,
 ) => {
   const controller = createCanvasController({ store: createMapStore(records), camera });
+  controller.visible.set(filter);
   const base: MindmapCanvasProps = {
     controller,
     title: 'World',
@@ -236,5 +239,59 @@ describe('hidden records in a real browser', () => {
     expect(screen.getByTestId('mm-world').contains(fog)).toBe(true);
     expect(fog.getBoundingClientRect().left).toBeCloseTo(20 + 300 * 2, 0);
     expect(fog.getBoundingClientRect().width).toBeCloseTo(100, 0);
+  });
+});
+
+describe('pop-in in a real browser', () => {
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const popping = (id: string): number => {
+    const inner = screen.getByTestId(`mm-record-${id}`).firstElementChild as HTMLElement;
+    return inner.getAnimations().filter((a) => a.playState === 'running').length;
+  };
+
+  it('pops a created record once, not again when it scrolls back into view', async () => {
+    await page.viewport(1000, 800);
+    const { controller } = mount([], { x: 0, y: 0, z: 1 }, { animate: true });
+    act(() => {
+      controller.store.put([
+        createNodeRecord({ id: 'fresh', index: 'a1', x: 100, y: 100, label: 'Fresh' }),
+      ]);
+    });
+    await nextFrame();
+    expect(popping('fresh')).toBe(1);
+    await wait(400);
+    expect(popping('fresh')).toBe(0);
+    act(() => controller.camera.set({ x: -5000, y: 0, z: 1 }));
+    await nextFrame();
+    expect(screen.getByTestId('mm-record-fresh').style.display).toBe('none');
+    await nextFrame();
+    act(() => controller.camera.set({ x: 0, y: 0, z: 1 }));
+    await nextFrame();
+    expect(popping('fresh')).toBe(0);
+  });
+
+  it('pops a record revealed after mount, once, and never one shown at mount', async () => {
+    await page.viewport(1000, 800);
+    const { controller } = mount(
+      [
+        createNodeRecord({ id: 'old', index: 'a1', x: 100, y: 100, label: 'Old' }),
+        createNodeRecord({ id: 'later', index: 'a2', x: 400, y: 100, label: 'Later' }),
+      ],
+      { x: 0, y: 0, z: 1 },
+      { animate: true },
+      (record) => record.id !== 'later',
+    );
+    await nextFrame();
+    expect(screen.queryByTestId('mm-record-later')).toBeNull();
+    expect(popping('old')).toBe(0);
+    act(() => controller.visible.set(() => true));
+    await nextFrame();
+    expect(popping('later')).toBe(1);
+    expect(popping('old')).toBe(0);
+    await wait(400);
+    act(() => controller.visible.set((record) => record.id !== 'later'));
+    act(() => controller.visible.set(() => true));
+    await nextFrame();
+    expect(popping('later')).toBe(0);
   });
 });

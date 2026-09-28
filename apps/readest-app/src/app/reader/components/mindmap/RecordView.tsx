@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { inkRecordPath } from '@/services/mindmap/ink/inkPath';
 import { isLive, isPositioned } from '@/services/mindmap/spatial/spatialIndex';
@@ -26,6 +26,7 @@ interface RecordViewProps {
   ariaLabel: string | undefined;
   pop: boolean;
   register: RegisterElement;
+  onPopped?: (id: string) => void;
 }
 
 const token = (color: PresetColor, part: 'fill' | 'text' | 'rim' | 'stroke'): string =>
@@ -208,22 +209,39 @@ const RecordBody: React.FC<{ record: PositionedRecord; mapStyle: MapStyle }> = (
   );
 };
 
-const RecordView: React.FC<RecordViewProps> = ({ record, mapStyle, ariaLabel, pop, register }) => (
-  <div
-    ref={(element) => (element ? register(record.id, element) : undefined)}
-    data-record-id={record.id}
-    data-testid={`mm-record-${record.id}`}
-    role={ariaLabel ? 'button' : undefined}
-    tabIndex={ariaLabel ? -1 : undefined}
-    aria-label={ariaLabel}
-    className='absolute outline-none'
-    style={{ left: record.x, top: record.y, width: record.w, height: record.h }}
-  >
-    <div className={clsx('h-full w-full', pop && POP_CLASS)}>
-      <RecordBody record={record} mapStyle={mapStyle} />
+const RecordView: React.FC<RecordViewProps> = ({
+  record,
+  mapStyle,
+  ariaLabel,
+  pop,
+  register,
+  onPopped,
+}) => {
+  const [popping, setPopping] = useState(pop);
+  return (
+    <div
+      ref={(element) => (element ? register(record.id, element) : undefined)}
+      data-record-id={record.id}
+      data-testid={`mm-record-${record.id}`}
+      role={ariaLabel ? 'button' : undefined}
+      tabIndex={ariaLabel ? -1 : undefined}
+      aria-label={ariaLabel}
+      className='absolute outline-none'
+      style={{ left: record.x, top: record.y, width: record.w, height: record.h }}
+    >
+      <div
+        className={clsx('h-full w-full', pop && popping && POP_CLASS)}
+        onAnimationEnd={(event) => {
+          if (event.target !== event.currentTarget) return;
+          setPopping(false);
+          onPopped?.(record.id);
+        }}
+      >
+        <RecordBody record={record} mapStyle={mapStyle} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface RecordSlotProps extends Omit<RecordViewProps, 'record'> {
   id: string;
