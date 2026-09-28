@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useState } from 'react';
+import React, { type RefObject, useRef, useState } from 'react';
 import { MdMoreHoriz } from 'react-icons/md';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Point } from '@/services/mindmap/records/geometry';
@@ -11,6 +11,7 @@ import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { unionBounds } from '@/services/mindmap/tools/records';
 import { colorLabels, kindLabels } from './recordLabels';
 import { useAtomValue, useMapRecords } from './useCanvasStores';
+import { type MenuClose, useMenuFocus } from './useMenuFocus';
 
 const PILL_HEIGHT_PX = 44;
 const PILL_GAP_PX = 12;
@@ -24,9 +25,10 @@ const sharedValue = (records: PositionedRecord[], field: string): unknown => {
 interface RecordMenuProps {
   controller: CanvasController;
   at: Point;
-  onClose: () => void;
+  onClose: MenuClose;
   onJumpToBook: (anchor: RecordAnchor) => void;
   onResetPosition?: (id: string) => void;
+  anchorRef?: RefObject<HTMLElement | null>;
 }
 
 export const RecordMenu: React.FC<RecordMenuProps> = ({
@@ -35,14 +37,17 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
   onClose,
   onJumpToBook,
   onResetPosition,
+  anchorRef,
 }) => {
   const _ = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const onKeyDown = useMenuFocus(menuRef, onClose, anchorRef);
   const selection = useAtomValue(controller.selection);
   const records = selection.map((id) => controller.store.get(id)).filter(isLive);
   const single = records.length === 1 ? records[0]! : null;
   const run = (action: () => void) => () => {
     action();
-    onClose();
+    onClose(true);
   };
   const items = [
     single?.anchor && { label: _('Jump to book'), action: () => onJumpToBook(single.anchor!) },
@@ -66,20 +71,20 @@ export const RecordMenu: React.FC<RecordMenuProps> = ({
   if (items.length === 0) return null;
   return (
     <div
+      ref={menuRef}
       role='menu'
       aria-label={_('Record actions')}
       data-testid='mm-record-menu'
       className='nodrag nowheel eink-bordered bg-base-100 text-base-content absolute z-10 flex min-w-44 flex-col rounded-lg p-1 text-sm shadow-lg'
       style={{ left: at.x, top: at.y }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
+      onKeyDown={onKeyDown}
     >
       {items.map((item) => (
         <button
           key={item.label}
           type='button'
           role='menuitem'
+          tabIndex={-1}
           className={clsx(
             'hover:bg-base-200 rounded-md px-3 py-2 text-start transition-colors duration-150',
             item.danger && 'text-error',
@@ -97,10 +102,17 @@ interface ContextPillProps {
   controller: CanvasController;
   onJumpToBook: (anchor: RecordAnchor) => void;
   onResetPosition?: (id: string) => void;
+  onFocusLost?: () => void;
 }
 
-const ContextPill: React.FC<ContextPillProps> = ({ controller, onJumpToBook, onResetPosition }) => {
+const ContextPill: React.FC<ContextPillProps> = ({
+  controller,
+  onJumpToBook,
+  onResetPosition,
+  onFocusLost,
+}) => {
   const _ = useTranslation();
+  const moreRef = useRef<HTMLButtonElement>(null);
   useMapRecords(controller.store);
   const selection = useAtomValue(controller.selection);
   const camera = useAtomValue(controller.camera);
@@ -172,6 +184,7 @@ const ContextPill: React.FC<ContextPillProps> = ({ controller, onJumpToBook, onR
         </button>
       )}
       <button
+        ref={moreRef}
         type='button'
         aria-label={_('More actions')}
         aria-haspopup='menu'
@@ -185,7 +198,13 @@ const ContextPill: React.FC<ContextPillProps> = ({ controller, onJumpToBook, onR
         <RecordMenu
           controller={controller}
           at={{ x: 0, y: PILL_HEIGHT_PX }}
-          onClose={() => setMenuOpen(false)}
+          anchorRef={moreRef}
+          onClose={(returnFocus) => {
+            setMenuOpen(false);
+            if (!returnFocus) return;
+            moreRef.current?.focus({ preventScroll: true });
+            onFocusLost?.();
+          }}
           onJumpToBook={onJumpToBook}
           onResetPosition={onResetPosition}
         />

@@ -30,6 +30,8 @@ const NUDGE: Readonly<Record<Direction, [number, number]>> = {
   right: [1, 0],
 };
 
+const NOOP = (): void => undefined;
+
 export const isTypingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
@@ -41,11 +43,13 @@ const handleModified = (
   event: KeyboardEvent,
   controller: CanvasController,
   animate: boolean,
+  keepFocus: () => void,
 ): boolean => {
   const key = event.key.toLowerCase();
   if (key === 'z') {
     if (event.shiftKey) controller.redo();
     else controller.undo();
+    keepFocus();
   } else if (key === '0') {
     controller.fitView(animate);
   } else if (key === '=' || key === '+') {
@@ -63,6 +67,7 @@ const handleMapKey = (
   controller: CanvasController,
   focusRecord: (id: string) => void,
   animate: boolean,
+  keepFocus: () => void,
 ): boolean => {
   const { key, shiftKey } = event;
   const selection = controller.selection.get();
@@ -86,6 +91,7 @@ const handleMapKey = (
   }
   if (key === 'Delete' || key === 'Backspace') {
     controller.deleteSelection();
+    keepFocus();
     return true;
   }
   if (key === 'Escape') {
@@ -104,6 +110,7 @@ export const useMindmapShortcuts = (
   controller: CanvasController,
   focusRecord: (id: string) => void,
   animate: boolean,
+  keepFocus: () => void = NOOP,
 ): void => {
   useEffect(() => {
     const root = rootRef.current;
@@ -111,7 +118,7 @@ export const useMindmapShortcuts = (
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.defaultPrevented || isTypingTarget(event.target)) return;
       if (event.metaKey || event.ctrlKey) {
-        if (handleModified(event, controller, animate)) event.preventDefault();
+        if (handleModified(event, controller, animate, keepFocus)) event.preventDefault();
         return;
       }
       if (!targetsCanvas(event.target, root)) return;
@@ -124,7 +131,7 @@ export const useMindmapShortcuts = (
         controller.setSpaceHeld(true);
         handled = true;
       } else {
-        handled = handleMapKey(event, controller, focusRecord, animate);
+        handled = handleMapKey(event, controller, focusRecord, animate, keepFocus);
       }
       if (handled) event.preventDefault();
     };
@@ -143,5 +150,5 @@ export const useMindmapShortcuts = (
       root.removeEventListener('keyup', onKeyUp);
       root.removeEventListener('focusout', onBlur);
     };
-  }, [rootRef, controller, focusRecord, animate]);
+  }, [rootRef, controller, focusRecord, animate, keepFocus]);
 };

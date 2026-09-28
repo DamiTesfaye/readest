@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Point } from '@/services/mindmap/records/geometry';
 import type { MapStyle, RecordAnchor } from '@/services/mindmap/schema/types';
+import { isLive } from '@/services/mindmap/spatial/spatialIndex';
 import { type MindmapMode, mindmapCssVars } from '@/services/mindmap/theme/presets';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { HIT_TOLERANCE_PX } from '@/services/mindmap/tools/types';
@@ -74,6 +75,35 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       ?.focus({ preventScroll: true });
   }, []);
 
+  const focusSelectionOrRoot = useCallback((): void => {
+    const root = rootRef.current;
+    if (!root) return;
+    const selection = controller.selection.get();
+    const id = selection.length === 1 ? selection[0]! : null;
+    const target =
+      id && isLive(controller.store.get(id))
+        ? root.querySelector<HTMLElement>(`[data-record-id="${CSS.escape(id)}"]`)
+        : null;
+    (target ?? root).focus({ preventScroll: true });
+  }, [controller]);
+
+  const keepFocus = useCallback((): void => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body || !active.isConnected) focusSelectionOrRoot();
+    });
+  }, [focusSelectionOrRoot]);
+
+  const closeMenu = useCallback(
+    (returnFocus: boolean): void => {
+      setMenu(null);
+      if (!returnFocus) return;
+      focusSelectionOrRoot();
+      keepFocus();
+    },
+    [focusSelectionOrRoot, keepFocus],
+  );
+
   const press = useRef(0);
   const menuPress = useRef(-1);
   const openMenuAt = useCallback(
@@ -94,7 +124,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   );
 
   useCanvasInput(rootRef, controller, wheelZooms, openMenuAt);
-  useMindmapShortcuts(rootRef, controller, focusRecord, animate);
+  useMindmapShortcuts(rootRef, controller, focusRecord, animate, keepFocus);
 
   useEffect(() => {
     const root = rootRef.current!;
@@ -161,10 +191,8 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       onKeyDownCapture={() => {
         press.current += 1;
       }}
-      onPointerDownCapture={(event) => {
+      onPointerDownCapture={() => {
         press.current += 1;
-        if (menu && !(event.target instanceof Element && event.target.closest('[role="menu"]')))
-          setMenu(null);
       }}
     >
       <GridLayer camera={controller.camera} eink={eink} />
@@ -177,12 +205,13 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
         controller={controller}
         onJumpToBook={onJumpToBook}
         onResetPosition={onResetPosition}
+        onFocusLost={keepFocus}
       />
       {menu && (
         <RecordMenu
           controller={controller}
           at={menu}
-          onClose={() => setMenu(null)}
+          onClose={closeMenu}
           onJumpToBook={onJumpToBook}
           onResetPosition={onResetPosition}
         />
