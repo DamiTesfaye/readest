@@ -64,9 +64,23 @@ const useCanvasController = (session: MapSession, mapId: string): CanvasControll
       if (timer) clearTimeout(timer);
       timer = setTimeout(saveCamera, CAMERA_SAVE_DELAY_MS);
     });
+    const saveNow = (): void => {
+      if (timer) {
+        clearTimeout(timer);
+        saveCamera();
+      }
+      void session.flush();
+    };
+    const saveWhenHidden = (): void => {
+      if (document.visibilityState === 'hidden') saveNow();
+    };
+    window.addEventListener('pagehide', saveNow);
+    document.addEventListener('visibilitychange', saveWhenHidden);
     const unregister = registerCanvasController(mapId, created);
     setController(created);
     return () => {
+      window.removeEventListener('pagehide', saveNow);
+      document.removeEventListener('visibilitychange', saveWhenHidden);
       unregister();
       unsubscribe();
       if (timer) {

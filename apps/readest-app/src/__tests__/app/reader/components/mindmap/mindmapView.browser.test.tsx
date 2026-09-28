@@ -209,3 +209,53 @@ describe('opening notices', () => {
     expect(toasts.map((t) => t.type).sort()).toEqual(['info', 'warning']);
   });
 });
+
+describe('leaving the page', () => {
+  const savedFile = (mapId: string) =>
+    JSON.parse(fs.files.get(fileKey(mapId))!) as {
+      meta: { camera: { v: { x: number } } };
+      records: Record<string, { x: { v: number } }>;
+    };
+
+  it('saves a pending edit and camera move at once when the page is hidden', async () => {
+    const mapId = await seedMap('Leaving', records());
+    await openView(mapId);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    const before = savedFile(mapId);
+    const canvas = screen.getByTestId('mindmap-canvas');
+    const a = centerOf('a');
+    canvas.dispatchEvent(pointer('pointerdown', a.x, a.y));
+    canvas.dispatchEvent(pointer('pointerup', a.x, a.y));
+    canvas.focus();
+    await userEvent.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    canvas.dispatchEvent(
+      new WheelEvent('wheel', { deltaX: 80, deltaY: 0, bubbles: true, cancelable: true }),
+    );
+    window.dispatchEvent(new PageTransitionEvent('pagehide'));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const after = savedFile(mapId);
+    expect(after.records['a']!.x.v).toBeGreaterThan(before.records['a']!.x.v);
+    expect(after.meta.camera.v.x).not.toBe(before.meta.camera.v.x);
+  });
+
+  it('saves a pending edit when the tab goes to the background', async () => {
+    const mapId = await seedMap('Hidden', records());
+    await openView(mapId);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    const before = savedFile(mapId);
+    const canvas = screen.getByTestId('mindmap-canvas');
+    const a = centerOf('a');
+    canvas.dispatchEvent(pointer('pointerdown', a.x, a.y));
+    canvas.dispatchEvent(pointer('pointerup', a.x, a.y));
+    canvas.focus();
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    try {
+      document.dispatchEvent(new Event('visibilitychange'));
+    } finally {
+      Reflect.deleteProperty(document, 'visibilityState');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(savedFile(mapId).records['a']).not.toEqual(before.records['a']);
+  });
+});
