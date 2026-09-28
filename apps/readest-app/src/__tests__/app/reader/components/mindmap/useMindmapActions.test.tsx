@@ -122,6 +122,14 @@ describe('useMindmapActions', () => {
     );
   });
 
+  it('does not export when there is no open canvas controller', async () => {
+    unregister();
+    const { result } = renderHook(() => useMindmapActions());
+    result.current.onExport(MAP);
+    await Promise.resolve();
+    expect(h.saveFile).not.toHaveBeenCalled();
+  });
+
   it('tells the reader when the export fails', async () => {
     const dispatch = vi.spyOn(eventDispatcher, 'dispatch');
     vi.spyOn(console, 'error').mockImplementation(() => undefined);

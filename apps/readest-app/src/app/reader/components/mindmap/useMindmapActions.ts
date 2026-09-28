@@ -32,14 +32,15 @@ export const useMindmapActions = (): MindmapActions => {
     const exportMap = async (mapId: string): Promise<void> => {
       const session = getOpenMapSession(mapId);
       if (!session || !appService) return;
+      const controller = getOpenCanvasController(mapId);
+      if (!controller) return;
       const book = bookKey ? useBookDataStore.getState().getBookData(bookKey)?.book : null;
       const bookFile = book
         ? `${makeSafeFilename(book.sourceTitle || book.title)}.${EXTS[book.format]}`
         : '';
-      const controller = getOpenCanvasController(mapId);
       const canvas = exportJsonCanvas(session.store.all(), {
         bookFile,
-        include: controller && ((record) => controller.isShown(record.id)),
+        include: (record) => controller.isShown(record.id),
       });
       const title = session.meta().title || _('Untitled map');
       const saved = await appService.saveFile(
