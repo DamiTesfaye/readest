@@ -461,6 +461,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             onClose={handleCloseLibrary}
           />
           <SparkPopover
+            bookKey={bookKey}
             isOpen={isSparkOpen}
             anchorEl={sparkAnchorRef.current}
             onClose={handleCloseSpark}

@@ -2,11 +2,13 @@ import React from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import ToolbarPopover from '@/components/ToolbarPopover';
+import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { eventDispatcher } from '@/utils/event';
 
 export const SPARK_POPOVER_WIDTH = 380;
 
 interface SparkPopoverProps {
+  bookKey: string;
   isOpen: boolean;
   anchorEl: HTMLElement | null;
   onClose: () => void;
@@ -18,11 +20,31 @@ const TITLE_CLASS =
   'popover-action-label text-base-content whitespace-nowrap text-sm leading-tight';
 const SUBTITLE_CLASS = 'popover-label text-base-content/60 text-xxs leading-tight';
 
-const SparkPopover: React.FC<SparkPopoverProps> = ({ isOpen, anchorEl, onClose, onToggleTTS }) => {
+const SparkPopover: React.FC<SparkPopoverProps> = ({
+  bookKey,
+  isOpen,
+  anchorEl,
+  onClose,
+  onToggleTTS,
+}) => {
   const _ = useTranslation();
 
   const handleComingSoon = () => {
     eventDispatcher.dispatch('toast', { type: 'info', message: _('Coming soon') });
+    onClose();
+  };
+
+  const handleOpenMindmap = () => {
+    useMindmapViewStore
+      .getState()
+      .openEntry(bookKey)
+      .catch((error: unknown) => {
+        console.error('mindmap: failed to open', error);
+        eventDispatcher.dispatch('toast', {
+          type: 'error',
+          message: _('Could not open the mind map'),
+        });
+      });
     onClose();
   };
 
@@ -37,7 +59,7 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({ isOpen, anchorEl, onClose, 
       title: _('Mindmap'),
       subtitle: _('Organise thoughts'),
       iconClass: 'h-20',
-      onClick: handleComingSoon,
+      onClick: handleOpenMindmap,
     },
     {
       icon: 'mood-modes',

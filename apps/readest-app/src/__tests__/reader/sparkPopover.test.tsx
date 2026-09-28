@@ -1,11 +1,14 @@
 import React from 'react';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { dispatch } = vi.hoisted(() => ({ dispatch: vi.fn() }));
+const { dispatch, openEntry } = vi.hoisted(() => ({ dispatch: vi.fn(), openEntry: vi.fn() }));
 
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
 vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch } }));
+vi.mock('@/store/mindmapViewStore', () => ({
+  useMindmapViewStore: { getState: () => ({ openEntry }) },
+}));
 vi.mock('@/components/ToolbarPopover', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
     isOpen ? <div>{children}</div> : null,
@@ -15,6 +18,7 @@ import SparkPopover from '@/app/reader/components/SparkPopover';
 
 const renderPopover = (overrides: Partial<React.ComponentProps<typeof SparkPopover>> = {}) => {
   const props = {
+    bookKey: 'book-1',
     isOpen: true,
     anchorEl: document.body,
     onClose: vi.fn(),
@@ -27,6 +31,8 @@ const renderPopover = (overrides: Partial<React.ComponentProps<typeof SparkPopov
 
 beforeEach(() => {
   dispatch.mockReset();
+  openEntry.mockReset();
+  openEntry.mockResolvedValue(undefined);
 });
 
 afterEach(cleanup);
@@ -90,7 +96,7 @@ describe('SparkPopover', () => {
   });
 
   it('shows a coming soon toast and closes for unreleased features', () => {
-    for (const name of [/Mindmap/, /Mood & Modes/, /Summarise/, /Discuss/, /Gallery/]) {
+    for (const name of [/Mood & Modes/, /Summarise/, /Discuss/, /Gallery/]) {
       dispatch.mockReset();
       const props = renderPopover();
       fireEvent.click(screen.getByRole('button', { name }));
@@ -102,5 +108,28 @@ describe('SparkPopover', () => {
       expect(props.onToggleTTS).not.toHaveBeenCalled();
       cleanup();
     }
+  });
+
+  it('opens the mind map for the book and closes from the Mindmap card', async () => {
+    const props = renderPopover();
+    fireEvent.click(screen.getByRole('button', { name: /Mindmap/ }));
+    expect(openEntry).toHaveBeenCalledWith('book-1');
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('shows an error toast when the mind map cannot open', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    openEntry.mockRejectedValue(new Error('disk'));
+    renderPopover();
+    fireEvent.click(screen.getByRole('button', { name: /Mindmap/ }));
+    await waitFor(() =>
+      expect(dispatch).toHaveBeenCalledWith('toast', {
+        type: 'error',
+        message: 'Could not open the mind map',
+      }),
+    );
+    error.mockRestore();
   });
 });
