@@ -40,4 +40,33 @@ describe('useShortcuts and the mindmap', () => {
     keyboardEventFor(book, { key: 'n' });
     expect(onToggleNotebook).toHaveBeenCalledOnce();
   });
+
+  it('ignores keys aimed at the full-screen mindmap chrome outside the canvas root', () => {
+    const onToggleNotebook = vi.fn();
+    const Harness = () => {
+      useShortcuts({ onToggleNotebook }, []);
+      return (
+        <section data-mindmap-view data-layout='fullscreen' data-testid='view'>
+          <button type='button' data-testid='top-bar-button' />
+        </section>
+      );
+    };
+    render(<Harness />);
+    const button = screen.getByTestId('top-bar-button');
+    button.focus();
+    const event = keyboardEventFor(button, { key: 'n' });
+    expect(onToggleNotebook).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('ignores reader shortcuts on document.body while the full-screen map is open', () => {
+    const onToggleNotebook = vi.fn();
+    const Harness = () => {
+      useShortcuts({ onToggleNotebook }, []);
+      return <section data-mindmap-view data-layout='fullscreen' data-testid='view' />;
+    };
+    render(<Harness />);
+    keyboardEventFor(document.body, { key: 'n' });
+    expect(onToggleNotebook).not.toHaveBeenCalled();
+  });
 });

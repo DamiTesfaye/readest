@@ -265,6 +265,7 @@ const MindmapView: React.FC = () => {
       {mapId && bookHash && (
         <section
           data-testid='mm-view'
+          data-mindmap-view
           data-layout={docked ? 'docked' : 'fullscreen'}
           aria-label={_('Mind map')}
           className={clsx(

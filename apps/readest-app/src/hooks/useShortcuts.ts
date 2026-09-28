@@ -7,7 +7,10 @@ export type KeyActionHandlers = {
 };
 
 export const isInsideMindmap = (target: EventTarget | null): boolean =>
-  target instanceof Element && target.closest('[data-mindmap-root]') !== null;
+  target instanceof Element && target.closest('[data-mindmap-root], [data-mindmap-view]') !== null;
+
+const isMindmapFullscreenOpen = (): boolean =>
+  document.querySelector('[data-mindmap-view][data-layout="fullscreen"]') !== null;
 
 const useShortcuts = (actions: KeyActionHandlers, dependencies: React.DependencyList = []) => {
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>(loadShortcuts);
@@ -41,7 +44,10 @@ const useShortcuts = (actions: KeyActionHandlers, dependencies: React.Dependency
   };
 
   const unifiedHandleKeyDown = (event: KeyboardEvent | MessageEvent) => {
-    if (event instanceof KeyboardEvent && isInsideMindmap(event.target)) return;
+    if (event instanceof KeyboardEvent) {
+      if (isInsideMindmap(event.target)) return;
+      if (event.target === document.body && isMindmapFullscreenOpen()) return;
+    }
     // Check if the focus is on an input, textarea, or contenteditable element
     const activeElement = document.activeElement as HTMLElement;
     const isInteractiveElement =
