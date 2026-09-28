@@ -12,6 +12,7 @@ import {
 import { __resetMapSessionsForTests, getOpenMapSession } from '@/services/mindmap/persist/session';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
 import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
+import { getOpenCanvasController } from '@/services/mindmap/tools/controllerRegistry';
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import type { AppService } from '@/types/system';
@@ -390,6 +391,44 @@ describe('an open map', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Tap again to delete this map' }));
     await waitFor(() => expect(useMindmapViewStore.getState().mapId).toBeNull());
     expect(useMindmapStore.getState().getEntry(mapId)).toBeUndefined();
+  });
+
+  it('registers its controller for the open map, StrictMode safe, until it closes', async () => {
+    const mapId = await createMap('Registered');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(
+      <StrictMode>
+        <MindmapView />
+      </StrictMode>,
+    );
+    await openCanvas();
+    const controller = getOpenCanvasController(mapId);
+    expect(controller?.store).toBe(getOpenMapSession(mapId)!.store);
+    act(() => useMindmapViewStore.getState().close());
+    await waitFor(() => expect(getOpenCanvasController(mapId)).toBeUndefined());
+  });
+
+  it('forwards export and reset position handlers with the open map id', async () => {
+    const mapId = await createMap('Handlers');
+    const onExport = vi.fn();
+    const onResetPosition = vi.fn();
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView onExport={onExport} onResetPosition={onResetPosition} />);
+    await openCanvas();
+    fireEvent.click(screen.getByRole('button', { name: 'Map options' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Export JSON Canvas' }));
+    expect(onExport).toHaveBeenCalledWith(mapId);
+    act(() => {
+      getOpenMapSession(mapId)!.store.put([
+        { ...createNodeRecord({ id: 'g', index: 'a1', label: 'Gen' }), origin: 'generated' },
+      ]);
+    });
+    const canvas = screen.getByTestId('mindmap-canvas');
+    pointer(canvas, 'pointerDown', 5, 5);
+    pointer(canvas, 'pointerUp', 5, 5);
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reset position' }));
+    expect(onResetPosition).toHaveBeenCalledWith(mapId, 'g');
   });
 
   it('stacks the new-map sheet above the full-screen map', async () => {

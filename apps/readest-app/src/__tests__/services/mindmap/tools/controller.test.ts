@@ -399,3 +399,18 @@ describe('reset position', () => {
     expect(store.get('g')).toMatchObject({ x: 0, y: 0 });
   });
 });
+
+describe('gesture signal', () => {
+  it('is true from pointer down until the gesture ends or is cancelled', () => {
+    const { controller } = setupController([node('a', 0, 0)]);
+    const seen: boolean[] = [];
+    controller.gesture.subscribe(() => seen.push(controller.gesture.get()));
+    expect(controller.gesture.get()).toBe(false);
+    drag(controller, [10, 10], [90, 10]);
+    controller.pointerDown(pointer(10, 10));
+    expect(controller.gesture.get()).toBe(true);
+    controller.pointerCancel();
+    expect(controller.gesture.get()).toBe(false);
+    expect(seen).toEqual([true, false, true, false]);
+  });
+});

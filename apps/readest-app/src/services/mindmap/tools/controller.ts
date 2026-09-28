@@ -86,6 +86,7 @@ export interface CanvasController {
   readonly hover: Atom<string | null>;
   readonly viewport: Atom<Viewport>;
   readonly visible: Atom<RecordFilter>;
+  readonly gesture: Atom<boolean>;
   isShown(id: string): boolean;
   setTool(tool: ToolId): void;
   setSpaceHeld(held: boolean): void;
@@ -130,7 +131,12 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
   const editing = createAtom<string | null>(null);
   const hover = createAtom<string | null>(null);
   const viewport = createAtom<Viewport>({ width: 0, height: 0 });
+  const gestureAtom = createAtom(false);
   let active: { pointer: ActivePointer; tool: Tool } | null = null;
+  const setActive = (next: { pointer: ActivePointer; tool: Tool } | null): void => {
+    active = next;
+    gestureAtom.set(next !== null);
+  };
   let penSeen = false;
   let spaceHeld = false;
 
@@ -177,7 +183,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
   function pointerCancel(): void {
     if (!active) return;
     const current = active.tool;
-    active = null;
+    setActive(null);
     current.cancel();
   }
 
@@ -310,6 +316,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     hover,
     viewport,
     visible,
+    gesture: gestureAtom,
     isShown: shown,
     setTool,
     setSpaceHeld: (held) => {
@@ -324,7 +331,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
       if (active) return;
       hover.set(null);
       const current = toolFor(pointer);
-      active = { pointer: { id: pointer.id, kind: pointer.kind }, tool: current };
+      setActive({ pointer: { id: pointer.id, kind: pointer.kind }, tool: current });
       current.down(pointer);
     },
     pointerMove: (pointer, samples) => {
@@ -337,7 +344,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     pointerUp: (pointer) => {
       if (!active || pointer.id !== active.pointer.id) return;
       const current = active.tool;
-      active = null;
+      setActive(null);
       current.up(pointer);
     },
     pointerCancel,

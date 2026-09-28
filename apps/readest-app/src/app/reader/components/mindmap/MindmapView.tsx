@@ -13,6 +13,7 @@ import type { MapSession } from '@/services/mindmap/persist/session';
 import type { RecordAnchor } from '@/services/mindmap/schema/types';
 import type { MindmapMode } from '@/services/mindmap/theme/presets';
 import { type CanvasController, createCanvasController } from '@/services/mindmap/tools/controller';
+import { registerCanvasController } from '@/services/mindmap/tools/controllerRegistry';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { useReaderStore } from '@/store/readerStore';
@@ -31,7 +32,12 @@ export const CAMERA_SAVE_DELAY_MS = 500;
 const MIN_DOCK_WIDTH = 0.25;
 const MAX_DOCK_WIDTH = 0.75;
 
-interface WorkspaceProps {
+export interface MindmapViewProps {
+  onExport?: (mapId: string) => void;
+  onResetPosition?: (mapId: string, recordId: string) => void;
+}
+
+interface WorkspaceProps extends MindmapViewProps {
   bookKey: string;
   bookHash: string;
   mapId: string;
@@ -40,7 +46,7 @@ interface WorkspaceProps {
   canDock: boolean;
 }
 
-const useCanvasController = (session: MapSession): CanvasController | null => {
+const useCanvasController = (session: MapSession, mapId: string): CanvasController | null => {
   const [controller, setController] = useState<CanvasController | null>(null);
   useEffect(() => {
     const created = createCanvasController({
@@ -57,8 +63,10 @@ const useCanvasController = (session: MapSession): CanvasController | null => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(saveCamera, CAMERA_SAVE_DELAY_MS);
     });
+    const unregister = registerCanvasController(mapId, created);
     setController(created);
     return () => {
+      unregister();
       unsubscribe();
       if (timer) {
         clearTimeout(timer);
@@ -66,7 +74,7 @@ const useCanvasController = (session: MapSession): CanvasController | null => {
       }
       created.dispose();
     };
-  }, [session]);
+  }, [session, mapId]);
   return controller;
 };
 
@@ -94,6 +102,8 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   session,
   docked,
   canDock,
+  onExport,
+  onResetPosition,
 }) => {
   const _ = useTranslation();
   const view = useMindmapViewStore();
@@ -104,7 +114,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
   const [meta, setMeta] = useState(session.meta());
   const [plan, setPlan] = useState<UserPlan>('free');
   const maps = useMapList(bookHash, session);
-  const controller = useCanvasController(session);
+  const controller = useCanvasController(session, mapId);
   const eink = getViewSettings(bookKey)?.isEink ?? false;
   const mode: MindmapMode = eink ? 'eink' : isDarkMode ? 'dark' : 'light';
   const topInset = docked
@@ -183,6 +193,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
         onToggleDock={() => view.setLayout(docked ? 'fullscreen' : 'docked')}
         onToggleWheelZooms={() => view.setWheelZooms(!view.wheelZooms)}
         onDelete={() => void deleteMap()}
+        onExport={onExport && (() => onExport(mapId))}
       />
       <div className='relative min-h-0 flex-1'>
         {controller && (
@@ -197,6 +208,7 @@ const MapWorkspace: React.FC<WorkspaceProps> = ({
             reveal={view.reveal}
             announcement={view.announcement}
             onJumpToBook={jumpToBook}
+            onResetPosition={onResetPosition && ((id) => onResetPosition(mapId, id))}
             bottomInset={bottomInset}
           />
         )}
@@ -251,7 +263,7 @@ const SessionFallback: React.FC<{ state: SessionState; mapId: string }> = ({ sta
   );
 };
 
-const MindmapView: React.FC = () => {
+const MindmapView: React.FC<MindmapViewProps> = ({ onExport, onResetPosition }) => {
   const _ = useTranslation();
   const { bookKey, mapId, sheetOpen, layout, dockWidth, setDockWidth, close } =
     useMindmapViewStore();
@@ -314,6 +326,8 @@ const MindmapView: React.FC = () => {
               session={session.session}
               docked={docked}
               canDock={canDock}
+              onExport={onExport}
+              onResetPosition={onResetPosition}
             />
           ) : (
             <SessionFallback state={session} mapId={mapId} />
