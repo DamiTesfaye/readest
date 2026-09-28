@@ -103,6 +103,7 @@ interface ContextPillProps {
   onJumpToBook: (anchor: RecordAnchor) => void;
   onResetPosition?: (id: string) => void;
   onFocusLost?: () => void;
+  eink?: boolean;
 }
 
 const ContextPill: React.FC<ContextPillProps> = ({
@@ -110,6 +111,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
   onJumpToBook,
   onResetPosition,
   onFocusLost,
+  eink = false,
 }) => {
   const _ = useTranslation();
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -126,6 +128,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
   if (!bounds || editing || live.guides.length > 0 || live.brush) return null;
   const canColor =
     !controller.readOnly &&
+    !eink &&
     records.some((record) => record.type !== 'text' && record.type !== 'sticky');
   const nodes = records.every((record) => record.type === 'node');
   const single = records.length === 1 ? records[0]! : null;
@@ -154,8 +157,10 @@ const ContextPill: React.FC<ContextPillProps> = ({
             aria-pressed={currentColor === color}
             onClick={() => controller.setColor(color)}
             className={clsx(
-              'size-6 rounded-full border-2',
-              currentColor === color ? 'border-base-content' : 'border-transparent',
+              'size-6 rounded-full',
+              currentColor === color
+                ? 'border-base-content border-2'
+                : 'border-base-content/60 border',
             )}
             style={{ background: `var(--mm-${color}-fill)` }}
           />

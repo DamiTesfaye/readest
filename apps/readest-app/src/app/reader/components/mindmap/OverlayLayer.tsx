@@ -167,7 +167,7 @@ const OverlayLayer: React.FC<OverlayLayerProps> = ({ controller, eink }) => {
               )}
               style={{
                 background: eink ? '#ffffff' : 'var(--mm-select)',
-                color: eink ? '#000000' : '#ffffff',
+                color: eink ? '#000000' : 'var(--mm-on-select)',
               }}
             >
               <MdAdd size={12} />

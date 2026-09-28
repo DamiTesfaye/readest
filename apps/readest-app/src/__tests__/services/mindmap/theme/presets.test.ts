@@ -1,12 +1,16 @@
 import tinycolor from 'tinycolor2';
 import { describe, expect, it } from 'vitest';
 import {
+  LINK_TINT_PERCENT,
   type MindmapMode,
+  ON_SELECT_COLOR,
   PRESET_COLORS,
   PRESET_TOKENS,
   QUOTE_HIGHLIGHT,
   QUOTE_TINT_PERCENT,
+  SELECT_COLOR,
   STICKY_TOKENS,
+  STROKE_TOKENS,
   contrastRatio,
   mindmapCssVars,
 } from '@/services/mindmap/theme/presets';
@@ -14,6 +18,7 @@ import { themes } from '@/styles/themes';
 
 const MODES: MindmapMode[] = ['light', 'dark', 'eink'];
 const AA = 4.5;
+const UI_AA = 3;
 
 describe('mindmap presets', () => {
   it('measures black on white as 21:1', () => {
@@ -49,6 +54,36 @@ describe('mindmap presets', () => {
     }
   }
 
+  for (const theme of themes) {
+    for (const scheme of ['light', 'dark'] as const) {
+      const palette = theme.colors[scheme];
+      const canvas = palette['base-200'];
+      it(`every stroke meets 3:1 on the canvas in ${theme.name} ${scheme}`, () => {
+        const link = tinycolor.mix(canvas, palette['base-content'], LINK_TINT_PERCENT[scheme]);
+        expect(contrastRatio(link.toHexString(), canvas)).toBeGreaterThanOrEqual(UI_AA);
+        expect(contrastRatio(palette['base-content'], canvas)).toBeGreaterThanOrEqual(UI_AA);
+        for (const stroke of Object.values(STROKE_TOKENS[scheme])) {
+          expect(contrastRatio(stroke, canvas)).toBeGreaterThanOrEqual(UI_AA);
+        }
+        expect(contrastRatio(PRESET_TOKENS[scheme].paper.rim, canvas)).toBeGreaterThanOrEqual(
+          UI_AA,
+        );
+      });
+    }
+  }
+
+  for (const mode of ['light', 'dark'] as const) {
+    it(`connect handle glyph meets 3:1 on the handle in ${mode} mode`, () => {
+      expect(contrastRatio(ON_SELECT_COLOR[mode], SELECT_COLOR[mode])).toBeGreaterThanOrEqual(
+        UI_AA,
+      );
+    });
+  }
+
+  it('drops the quote note rules on e-ink', () => {
+    expect(mindmapCssVars('eink')['--mm-quote-rule']).toBe('transparent');
+  });
+
   it('defines every token the canvas uses in every mode', () => {
     for (const mode of MODES) {
       const vars = mindmapCssVars(mode);
@@ -71,6 +106,8 @@ describe('mindmap presets', () => {
         'section',
         'fog',
         'quote-paper',
+        'quote-rule',
+        'on-select',
       ]) {
         expect(vars[`--mm-${name}`]).toBeTruthy();
       }

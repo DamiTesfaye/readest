@@ -5,7 +5,7 @@ import { type CanvasController, ZOOM_STEP } from '@/services/mindmap/tools/contr
 import { useAtomValue } from './useCanvasStores';
 
 const BUTTON =
-  'flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm transition-colors duration-150 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/15';
+  'flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm transition-colors duration-150 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content';
 
 const ZoomControl: React.FC<{
   controller: CanvasController;

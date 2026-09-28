@@ -62,8 +62,10 @@ const ToolDock: React.FC<{ controller: CanvasController; bottomInset?: number }>
           onClick={() => controller.setTool(id)}
           className={clsx(
             'flex h-11 w-10 flex-col items-center justify-center rounded-full transition-colors duration-150',
-            'focus-visible:ring-base-content/15 focus-visible:outline-none focus-visible:ring-2',
-            active === id ? 'bg-base-content text-base-100' : 'text-base-content hover:bg-base-200',
+            'focus-visible:ring-base-content focus-visible:outline-none focus-visible:ring-2',
+            active === id
+              ? 'bg-base-content text-base-100 eink-inverted'
+              : 'text-base-content hover:bg-base-200',
           )}
         >
           <Icon size={18} aria-hidden='true' />

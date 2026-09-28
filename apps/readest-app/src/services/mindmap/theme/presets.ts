@@ -28,6 +28,29 @@ export const PRESET_COLORS: readonly PresetColor[] = [
 const LIGHT_RIM = '#fff4e0';
 const DARK_RIM = 'oklch(var(--b3))';
 const EINK: PresetTokens = { fill: '#ffffff', text: '#000000', rim: '#000000' };
+const THEME_STROKE = 'oklch(var(--bc))';
+
+export const STROKE_TOKENS: Record<
+  'light' | 'dark',
+  Record<Exclude<PresetColor, 'ink'>, string>
+> = {
+  light: {
+    terracotta: '#ac4923',
+    plum: '#9f4685',
+    sky: '#0073b3',
+    mustard: '#906200',
+    olive: '#597900',
+    paper: '#76695a',
+  },
+  dark: {
+    terracotta: '#e8946f',
+    plum: '#d99ac6',
+    sky: '#7dbde6',
+    mustard: '#d6ad45',
+    olive: '#a9c46a',
+    paper: '#cfc6b0',
+  },
+};
 
 export const PRESET_TOKENS: Record<MindmapMode, Record<PresetColor, PresetTokens>> = {
   light: {
@@ -37,7 +60,7 @@ export const PRESET_TOKENS: Record<MindmapMode, Record<PresetColor, PresetTokens
     mustard: { fill: '#906200', text: '#fffaf3', rim: LIGHT_RIM },
     olive: { fill: '#597900', text: '#fffaf3', rim: LIGHT_RIM },
     ink: { fill: '#2b2a28', text: '#fbf8f2', rim: LIGHT_RIM },
-    paper: { fill: '#f3ecdc', text: '#2b2a28', rim: LIGHT_RIM },
+    paper: { fill: '#f3ecdc', text: '#2b2a28', rim: STROKE_TOKENS.light.paper },
   },
   dark: {
     terracotta: { fill: '#924d35', text: '#f7f3ec', rim: DARK_RIM },
@@ -46,7 +69,7 @@ export const PRESET_TOKENS: Record<MindmapMode, Record<PresetColor, PresetTokens
     mustard: { fill: '#7d5e07', text: '#f7f3ec', rim: DARK_RIM },
     olive: { fill: '#566d27', text: '#f7f3ec', rim: DARK_RIM },
     ink: { fill: '#d9d4c7', text: '#1d1c1a', rim: DARK_RIM },
-    paper: { fill: '#4a4538', text: '#f6f1e4', rim: DARK_RIM },
+    paper: { fill: '#4a4538', text: '#f6f1e4', rim: STROKE_TOKENS.dark.paper },
   },
   eink: {
     terracotta: EINK,
@@ -70,6 +93,14 @@ export const SELECT_COLOR: Record<MindmapMode, string> = {
   dark: '#7fb2ff',
   eink: '#000000',
 };
+
+export const ON_SELECT_COLOR: Record<MindmapMode, string> = {
+  light: '#ffffff',
+  dark: '#0b1b33',
+  eink: '#ffffff',
+};
+
+export const LINK_TINT_PERCENT: Record<'light' | 'dark', number> = { light: 65, dark: 55 };
 
 export const QUOTE_HIGHLIGHT = HIGHLIGHT_COLOR_HEX['yellow'] ?? '#facc15';
 
@@ -97,29 +128,38 @@ const modeSurfaces = (mode: MindmapMode): Record<string, string> => {
       '--mm-label-text': '#000000',
       '--mm-quote-paper': '#ffffff',
       '--mm-quote-tape': '#000000',
+      '--mm-quote-rule': 'transparent',
     };
   }
+  const link = tint(LINK_TINT_PERCENT[mode]);
   return {
     '--mm-canvas': 'oklch(var(--b2))',
     '--mm-grid': tint(22),
-    '--mm-link': tint(45),
+    '--mm-link': link,
     '--mm-section': tint(6),
-    '--mm-section-border': tint(25),
+    '--mm-section-border': link,
     '--mm-fog': tint(10),
-    '--mm-fog-border': tint(25),
+    '--mm-fog-border': link,
     '--mm-shadow': mode === 'light' ? tint(25) : 'transparent',
     '--mm-edge': mode === 'dark' ? 'color-mix(in srgb, #ffffff 18%, transparent)' : 'transparent',
     '--mm-label-bg': 'oklch(var(--b1))',
     '--mm-label-text': 'oklch(var(--bc))',
     '--mm-quote-paper': `color-mix(in srgb, ${QUOTE_HIGHLIGHT} ${QUOTE_TINT_PERCENT[mode]}%, oklch(var(--b1)))`,
     '--mm-quote-tape': `color-mix(in srgb, ${QUOTE_HIGHLIGHT} 55%, transparent)`,
+    '--mm-quote-rule': 'color-mix(in srgb, var(--mm-link) 35%, transparent)',
   };
+};
+
+const presetStroke = (mode: MindmapMode, preset: PresetColor): string => {
+  if (mode === 'eink') return '#000000';
+  return preset === 'ink' ? THEME_STROKE : STROKE_TOKENS[mode][preset];
 };
 
 export const mindmapCssVars = (mode: MindmapMode): Record<string, string> => {
   const vars: Record<string, string> = {
     ...modeSurfaces(mode),
     '--mm-select': SELECT_COLOR[mode],
+    '--mm-on-select': ON_SELECT_COLOR[mode],
     '--mm-sticky-fill': STICKY_TOKENS[mode].fill,
     '--mm-sticky-text': STICKY_TOKENS[mode].text,
   };
@@ -128,10 +168,7 @@ export const mindmapCssVars = (mode: MindmapMode): Record<string, string> => {
     vars[`--mm-${preset}-fill`] = tokens.fill;
     vars[`--mm-${preset}-text`] = tokens.text;
     vars[`--mm-${preset}-rim`] = tokens.rim;
-    vars[`--mm-${preset}-stroke`] =
-      mode !== 'eink' && preset === 'ink' ? 'oklch(var(--bc))' : tokens.fill;
+    vars[`--mm-${preset}-stroke`] = presetStroke(mode, preset);
   }
-  if (mode === 'eink')
-    for (const preset of PRESET_COLORS) vars[`--mm-${preset}-stroke`] = '#000000';
   return vars;
 };

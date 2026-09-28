@@ -185,7 +185,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       role='application'
       aria-label={_('Mind map: {{title}}', { title: title || _('Untitled map') })}
       tabIndex={0}
-      className='focus-visible:ring-base-content/15 relative h-full w-full touch-none select-none overflow-hidden outline-none focus-visible:ring-2'
+      className='focus-visible:ring-base-content relative h-full w-full touch-none select-none overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset'
       style={{ ...cssVars, background: 'var(--mm-canvas)' } as React.CSSProperties}
       onContextMenu={openMenu}
       onKeyDownCapture={() => {
@@ -206,6 +206,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
         onJumpToBook={onJumpToBook}
         onResetPosition={onResetPosition}
         onFocusLost={keepFocus}
+        eink={eink}
       />
       {menu && (
         <RecordMenu

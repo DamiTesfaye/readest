@@ -51,7 +51,7 @@ const QuoteNote: React.FC<{ record: NodeRecord }> = ({ record }) => {
         color: 'var(--mm-label-text)',
         boxShadow: '2px 2px 0 var(--mm-shadow)',
         backgroundImage:
-          'repeating-linear-gradient(transparent 0 15px, color-mix(in srgb, var(--mm-link) 35%, transparent) 15px 16px)',
+          'repeating-linear-gradient(transparent 0 15px, var(--mm-quote-rule) 15px 16px)',
       }}
     >
       <span
