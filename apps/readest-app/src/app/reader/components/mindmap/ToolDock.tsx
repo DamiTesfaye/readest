@@ -48,7 +48,7 @@ const ToolDock: React.FC<{ controller: CanvasController; bottomInset?: number }>
     <div
       role='toolbar'
       aria-label={_('Tools')}
-      className='nodrag nowheel eink-bordered bg-base-100 absolute left-1/2 flex -translate-x-1/2 gap-0.5 rounded-full p-1 shadow-md'
+      className='nodrag nowheel eink-bordered bg-base-100 no-scrollbar absolute left-1/2 flex max-w-[calc(100%-2rem)] -translate-x-1/2 gap-0.5 overflow-x-auto rounded-full p-1 shadow-md'
       style={{ bottom: `calc(1rem + ${bottomInset || 0}px)` }}
     >
       {tools.map(({ id, shortcut, icon: Icon }) => (
@@ -61,7 +61,7 @@ const ToolDock: React.FC<{ controller: CanvasController; bottomInset?: number }>
           aria-pressed={active === id}
           onClick={() => controller.setTool(id)}
           className={clsx(
-            'flex h-11 w-10 flex-col items-center justify-center rounded-full transition-colors duration-150',
+            'flex h-11 w-10 shrink-0 flex-col items-center justify-center rounded-full transition-colors duration-150',
             'focus-visible:ring-base-content focus-visible:outline-none focus-visible:ring-2',
             active === id
               ? 'bg-base-content text-base-100 eink-inverted'

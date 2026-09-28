@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { MdArrowBack, MdFullscreen, MdMoreHoriz, MdViewSidebar } from 'react-icons/md';
 import { useTranslation } from '@/hooks/useTranslation';
 import { FREE_MAP_LIMIT } from '@/services/mindmap/limits';
@@ -7,10 +7,12 @@ import type { MapMeta, MapStyle } from '@/services/mindmap/schema/types';
 import type { UserPlan } from '@/types/quota';
 import MapSwitcher from './MapSwitcher';
 import { intentLabels, spoilerLabels, styleLabels } from './mapLabels';
+import { type MenuClose, useMenuFocus } from './useMenuFocus';
 
 export { NEW_MAP_OPTION } from './MapSwitcher';
 const STYLES: MapStyle[] = ['sticker', 'paper', 'ink'];
-const ICON_BUTTON = 'btn btn-ghost btn-circle h-8 min-h-8 w-8 p-0';
+const COARSE_TARGET = '[@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:min-h-11';
+const ICON_BUTTON = `btn btn-ghost btn-circle h-8 min-h-8 w-8 p-0 [@media(pointer:coarse)]:w-11 ${COARSE_TARGET}`;
 
 export interface TopBarProps {
   mapId: string;
@@ -42,11 +44,13 @@ const TopBar: React.FC<TopBarProps> = (props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const optionsRef = useRef<HTMLButtonElement>(null);
   const styles = styleLabels(_);
-  const close = (): void => {
+  const close = useCallback<MenuClose>((returnFocus) => {
     setMenuOpen(false);
     setConfirmDelete(false);
-  };
+    if (returnFocus) optionsRef.current?.focus({ preventScroll: true });
+  }, []);
   return (
     <header
       data-testid='mm-top-bar'
@@ -55,7 +59,8 @@ const TopBar: React.FC<TopBarProps> = (props) => {
     >
       <button
         type='button'
-        className='btn btn-ghost btn-sm gap-1 rounded-full'
+        className={`btn btn-ghost btn-sm gap-1 rounded-full ${COARSE_TARGET}`}
+        aria-label={_('Back to page {{page}}', { page: props.page })}
         onClick={props.onBack}
       >
         <MdArrowBack size={18} />
@@ -127,77 +132,105 @@ const TopBar: React.FC<TopBarProps> = (props) => {
         </button>
       )}
       <button
+        ref={optionsRef}
         type='button'
         className={ICON_BUTTON}
         aria-label={_('Map options')}
         aria-haspopup='menu'
         aria-expanded={menuOpen}
-        onClick={() => (menuOpen ? close() : setMenuOpen(true))}
+        onClick={() => (menuOpen ? close(false) : setMenuOpen(true))}
       >
         <MdMoreHoriz size={18} />
       </button>
       {menuOpen && (
-        <div
-          role='menu'
-          aria-label={_('Map options')}
-          className='eink-bordered bg-base-100 absolute end-2 top-12 z-10 flex min-w-52 flex-col rounded-lg p-1 text-sm shadow-lg'
-        >
-          {!props.readOnly && (
-            <button
-              type='button'
-              role='menuitem'
-              className='hover:bg-base-200 rounded-md px-3 py-2 text-start'
-              onClick={() => {
-                setRenaming(meta.title);
-                close();
-              }}
-            >
-              {_('Rename')}
-            </button>
-          )}
-          {props.onExport && (
-            <button
-              type='button'
-              role='menuitem'
-              className='hover:bg-base-200 rounded-md px-3 py-2 text-start'
-              onClick={() => {
-                props.onExport?.();
-                close();
-              }}
-            >
-              {_('Export JSON Canvas')}
-            </button>
-          )}
-          <button
-            type='button'
-            role='menuitemcheckbox'
-            aria-checked={props.wheelZooms}
-            className='hover:bg-base-200 rounded-md px-3 py-2 text-start'
-            onClick={() => {
-              props.onToggleWheelZooms();
-              close();
-            }}
-          >
-            {_('Scroll wheel zooms')}
-          </button>
-          <button
-            type='button'
-            role='menuitem'
-            className='hover:bg-base-200 text-error rounded-md px-3 py-2 text-start'
-            onClick={() => {
-              if (!confirmDelete) {
-                setConfirmDelete(true);
-                return;
-              }
-              close();
-              props.onDelete();
-            }}
-          >
-            {confirmDelete ? _('Tap again to delete this map') : _('Delete map')}
-          </button>
-        </div>
+        <MapOptionsMenu
+          {...props}
+          close={close}
+          onRename={() => setRenaming(meta.title)}
+          confirmDelete={confirmDelete}
+          onConfirmDelete={() => setConfirmDelete(true)}
+          anchorRef={optionsRef}
+        />
       )}
     </header>
+  );
+};
+
+interface MapOptionsMenuProps extends Omit<TopBarProps, 'onRename'> {
+  close: MenuClose;
+  onRename: () => void;
+  confirmDelete: boolean;
+  onConfirmDelete: () => void;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+}
+
+const MapOptionsMenu: React.FC<MapOptionsMenuProps> = (props) => {
+  const _ = useTranslation();
+  const { close, confirmDelete } = props;
+  const menuRef = useRef<HTMLDivElement>(null);
+  const onKeyDown = useMenuFocus(menuRef, close, props.anchorRef);
+  return (
+    <div
+      ref={menuRef}
+      role='menu'
+      aria-label={_('Map options')}
+      className='eink-bordered bg-base-100 absolute end-2 top-12 z-10 flex min-w-52 flex-col rounded-lg p-1 text-sm shadow-lg'
+      onKeyDown={onKeyDown}
+    >
+      {!props.readOnly && (
+        <button
+          type='button'
+          role='menuitem'
+          className='hover:bg-base-200 rounded-md px-3 py-2 text-start'
+          onClick={() => {
+            props.onRename();
+            close(false);
+          }}
+        >
+          {_('Rename')}
+        </button>
+      )}
+      {props.onExport && (
+        <button
+          type='button'
+          role='menuitem'
+          className='hover:bg-base-200 rounded-md px-3 py-2 text-start'
+          onClick={() => {
+            props.onExport?.();
+            close(true);
+          }}
+        >
+          {_('Export JSON Canvas')}
+        </button>
+      )}
+      <button
+        type='button'
+        role='menuitemcheckbox'
+        aria-checked={props.wheelZooms}
+        className='hover:bg-base-200 rounded-md px-3 py-2 text-start'
+        onClick={() => {
+          props.onToggleWheelZooms();
+          close(true);
+        }}
+      >
+        {_('Scroll wheel zooms')}
+      </button>
+      <button
+        type='button'
+        role='menuitem'
+        className='hover:bg-base-200 text-error rounded-md px-3 py-2 text-start'
+        onClick={() => {
+          if (!confirmDelete) {
+            props.onConfirmDelete();
+            return;
+          }
+          close(true);
+          props.onDelete();
+        }}
+      >
+        {confirmDelete ? _('Tap again to delete this map') : _('Delete map')}
+      </button>
+    </div>
   );
 };
 

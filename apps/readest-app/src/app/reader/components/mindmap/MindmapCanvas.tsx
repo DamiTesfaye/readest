@@ -38,6 +38,8 @@ export interface MindmapCanvasProps {
 }
 
 const REPEAT_MARK = '\u00a0';
+const STACKED_CHROME_BELOW_PX = 800;
+const DOCK_ROW_PX = 60;
 
 const markRepeats = (message: string, id: number): string =>
   id % 2 === 0 ? `${message}${REPEAT_MARK}` : message;
@@ -158,6 +160,10 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
     if (announcement) setMessage(markRepeats(announcement, announcementId));
   }, [announcement, announcementId]);
 
+  const viewport = useAtomValue(controller.viewport);
+  const stacked = viewport.width > 0 && viewport.width < STACKED_CHROME_BELOW_PX;
+  const cornerInset = (bottomInset || 0) + (stacked ? DOCK_ROW_PX : 0);
+
   const editing = useAtomValue(controller.editing);
   const wasEditing = useRef(false);
   useEffect(() => {
@@ -218,8 +224,8 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
         />
       )}
       <ToolDock controller={controller} bottomInset={bottomInset} />
-      <ZoomControl controller={controller} animate={animate} bottomInset={bottomInset} />
-      {reveal && <RevealChip {...reveal} bottomInset={bottomInset} />}
+      <ZoomControl controller={controller} animate={animate} bottomInset={cornerInset} />
+      {reveal && <RevealChip {...reveal} bottomInset={cornerInset} />}
       <LiveRegion message={message} />
     </div>
   );

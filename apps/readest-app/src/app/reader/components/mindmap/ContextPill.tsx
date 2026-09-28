@@ -11,9 +11,12 @@ import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { unionBounds } from '@/services/mindmap/tools/records';
 import { colorLabels, kindLabels } from './recordLabels';
 import { useAtomValue, useMapRecords } from './useCanvasStores';
+import { useMediaQuery } from './useMediaQuery';
 import { type MenuClose, useMenuFocus } from './useMenuFocus';
 
 const PILL_HEIGHT_PX = 44;
+const COARSE_PILL_HEIGHT_PX = 52;
+const COARSE_TARGET = '[@media(pointer:coarse)]:size-11 [@media(pointer:coarse)]:min-h-11';
 const PILL_GAP_PX = 12;
 const KINDS: NodeKind[] = ['character', 'place', 'chapter', 'theme', 'quote', 'idea'];
 
@@ -121,6 +124,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
   const editing = useAtomValue(controller.editing);
   const live = useAtomValue(controller.live);
   const [menuOpen, setMenuOpen] = useState(false);
+  const pillHeight = useMediaQuery('(pointer: coarse)') ? COARSE_PILL_HEIGHT_PX : PILL_HEIGHT_PX;
   const records = selection
     .map((id) => controller.store.get(id))
     .filter((record): record is PositionedRecord => isLive(record) && record.type !== 'link');
@@ -134,7 +138,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
   const single = records.length === 1 ? records[0]! : null;
   const top = bounds.y * camera.z + camera.y;
   const bottom = (bounds.y + bounds.h) * camera.z + camera.y;
-  const above = top - PILL_HEIGHT_PX - PILL_GAP_PX;
+  const above = top - pillHeight - PILL_GAP_PX;
   const colorNames = colorLabels(_);
   const kindNames = kindLabels(_);
   const currentColor = sharedValue(records, 'color');
@@ -142,29 +146,32 @@ const ContextPill: React.FC<ContextPillProps> = ({
   return (
     <div
       data-testid='mm-context-pill'
-      className='nodrag nowheel eink-bordered bg-base-100 text-base-content absolute z-10 flex -translate-x-1/2 items-center gap-1 rounded-full px-2 py-1 shadow-md'
+      className='nodrag nowheel eink-bordered bg-base-100 text-base-content absolute z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-1 rounded-full px-2 py-1 shadow-md'
       style={{
         left: (bounds.x + bounds.w / 2) * camera.z + camera.x,
         top: above >= 0 ? above : bottom + PILL_GAP_PX,
       }}
     >
-      {canColor &&
-        PRESET_COLORS.map((color) => (
-          <button
-            key={color}
-            type='button'
-            aria-label={colorNames[color]}
-            aria-pressed={currentColor === color}
-            onClick={() => controller.setColor(color)}
-            className={clsx(
-              'size-6 rounded-full',
-              currentColor === color
-                ? 'border-base-content border-2'
-                : 'border-base-content/60 border',
-            )}
-            style={{ background: `var(--mm-${color}-fill)` }}
-          />
-        ))}
+      {canColor && (
+        <div className='no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto'>
+          {PRESET_COLORS.map((color) => (
+            <button
+              key={color}
+              type='button'
+              aria-label={colorNames[color]}
+              aria-pressed={currentColor === color}
+              onClick={() => controller.setColor(color)}
+              className={clsx(
+                'size-6 shrink-0 rounded-full [@media(pointer:coarse)]:size-11',
+                currentColor === color
+                  ? 'border-base-content border-2'
+                  : 'border-base-content/60 border',
+              )}
+              style={{ background: `var(--mm-${color}-fill)` }}
+            />
+          ))}
+        </div>
+      )}
       {nodes && !controller.readOnly && (
         <select
           aria-label={_('Node kind')}
@@ -182,7 +189,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
       {single?.anchor && (
         <button
           type='button'
-          className='btn btn-ghost btn-sm rounded-full'
+          className='btn btn-ghost btn-sm [@media(pointer:coarse)]:min-h-11 shrink-0 rounded-full [@media(pointer:coarse)]:h-11'
           onClick={() => onJumpToBook(single.anchor!)}
         >
           {_('Jump to book')}
@@ -194,7 +201,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
         aria-label={_('More actions')}
         aria-haspopup='menu'
         aria-expanded={menuOpen}
-        className='btn btn-ghost btn-circle btn-sm'
+        className={`btn btn-ghost btn-circle btn-sm shrink-0 ${COARSE_TARGET}`}
         onClick={() => setMenuOpen((open) => !open)}
       >
         <MdMoreHoriz size={18} />
@@ -202,7 +209,7 @@ const ContextPill: React.FC<ContextPillProps> = ({
       {menuOpen && (
         <RecordMenu
           controller={controller}
-          at={{ x: 0, y: PILL_HEIGHT_PX }}
+          at={{ x: 0, y: pillHeight }}
           anchorRef={moreRef}
           onClose={(returnFocus) => {
             setMenuOpen(false);
