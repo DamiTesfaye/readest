@@ -1939,5 +1939,6 @@
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
-  "{{tool}} tool": "__STRING_NOT_TRANSLATED__"
+  "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
+  "Could not save the mind map": "Δεν ήταν δυνατή η αποθήκευση του νοητικού χάρτη"
 }

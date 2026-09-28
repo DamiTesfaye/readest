@@ -590,3 +590,16 @@ describe('whenMapSessionSettled', () => {
     await session.close();
   });
 });
+
+describe('close result', () => {
+  it('reports whether the final flush saved', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs, { hooks: { onError: () => undefined } });
+    session.updateMeta({ title: 'Lost' });
+    vi.spyOn(fs, 'writeFile').mockRejectedValue(new Error('disk full'));
+    expect(await session.close()).toBe(false);
+    const other = await open(fs);
+    expect(await other.close()).toBe(true);
+  });
+});

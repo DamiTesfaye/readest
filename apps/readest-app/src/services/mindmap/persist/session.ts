@@ -47,7 +47,7 @@ export interface MapSession {
   updateMeta(patch: Partial<MapMeta>): void;
   mergeRemote(remote: MapFile): MergeRemoteResult;
   flush(): Promise<boolean>;
-  close(): Promise<void>;
+  close(): Promise<boolean>;
   discard(): Promise<void>;
 }
 
@@ -263,8 +263,9 @@ const loadSession = async (
     flush: () => autosave.flush(),
     close: async () => {
       autosave.stop();
-      await autosave.flush();
+      const saved = await autosave.flush();
       release();
+      return saved;
     },
     discard: async () => {
       discarded = true;
