@@ -91,19 +91,24 @@ export const loadMapFile = async (
   clock: HlcClock,
   migration: MigrationConfig = DEFAULT_MIGRATION_CONFIG,
 ): Promise<LoadMapFileResult> => {
-  const read = await readMapFile(fs, bookHash, mapId, true);
+  const read = await readMapFile(fs, bookHash, mapId);
   if (!read) return { status: 'unreadable' };
   const { file, restoredFromBackup } = read;
   observeFileClock(clock, file);
   if (file.schemaVersion > CURRENT_SCHEMA_VERSION) {
     return { status: 'read-only', reason: 'newer-schema', file, restoredFromBackup, error: null };
   }
+  let migrated: MapFile;
   try {
-    const migrated = migrateMapFile(file, clock, migration);
-    return { status: 'ok', file: migrated, restoredFromBackup, migrated: migrated !== file };
+    migrated = migrateMapFile(file, clock, migration);
   } catch (error) {
     return { status: 'read-only', reason: 'migration-failed', file, restoredFromBackup, error };
   }
+  if (restoredFromBackup) {
+    const path = mapFilePath(bookHash, mapId);
+    await fs.copyFile(`${path}.bak`, MINDMAP_BASE_DIR, path, MINDMAP_BASE_DIR);
+  }
+  return { status: 'ok', file: migrated, restoredFromBackup, migrated: migrated !== file };
 };
 
 export const saveMapFile = async (

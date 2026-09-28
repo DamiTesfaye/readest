@@ -125,6 +125,21 @@ describe('saveMapFile and loadMapFile', () => {
     expect(loaded.status === 'read-only' && loaded.file.records['n1']!['version']!.v).toBe(1);
   });
 
+  it('leaves the corrupt main file alone when the backup opens read-only', async () => {
+    const fs = new MemoryFileSystem();
+    const newer = await saveMapFile(fs, BOOK, {
+      ...mapWithNode(),
+      schemaVersion: CURRENT_SCHEMA_VERSION + 1,
+    });
+    await fs.writeFile(`${MAIN}.bak`, 'Books', newer);
+    await fs.writeFile(MAIN, 'Books', 'not json');
+    fs.clearWrites();
+    const loaded = await loadMapFile(fs, BOOK, MAP, clock());
+    expect(loaded).toMatchObject({ status: 'read-only', restoredFromBackup: true });
+    expect(fs.writes).toEqual([]);
+    expect(await fs.readFile(MAIN, 'Books')).toBe('not json');
+  });
+
   it('opens read-only with the error when a migration throws', async () => {
     const fs = new MemoryFileSystem();
     await saveMapFile(fs, BOOK, mapWithNode());
