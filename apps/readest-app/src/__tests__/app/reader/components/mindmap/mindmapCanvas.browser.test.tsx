@@ -113,6 +113,26 @@ const click = (controller: CanvasController, clientX: number, clientY: number) =
 
 const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
 
+const measureFrames = async (step: () => void): Promise<number[]> => {
+  for (let i = 0; i < WARM_UP_FRAMES; i += 1) {
+    step();
+    await nextFrame();
+  }
+  const durations: number[] = [];
+  let last = performance.now();
+  for (let i = 0; i < MEASURED_FRAMES; i += 1) {
+    step();
+    await nextFrame();
+    const now = performance.now();
+    durations.push(now - last);
+    last = now;
+  }
+  return durations;
+};
+
+const p95 = (durations: number[]): number =>
+  [...durations].sort((a, b) => a - b)[Math.floor(durations.length * 0.95)]!;
+
 afterEach(cleanup);
 
 describe('mindmap canvas in a real browser', () => {
@@ -266,6 +286,36 @@ describe('mindmap canvas in a real browser', () => {
     }
     canvas.dispatchEvent(new PointerEvent('pointerup', at(120 + moves * 3)));
     expect((react.ms - before) / moves).toBeLessThan(DRAG_REACT_BUDGET_MS);
+  });
+
+  it('culls and rings only on-screen records when 2,000 are selected', async () => {
+    await page.viewport(1280, 900);
+    const { controller } = mount(grid(2000), { x: 1, y: 1, z: 1 });
+    act(() => controller.selection.set(controller.store.all().map((record) => record.id)));
+    await nextFrame();
+    expect(screen.getByTestId('mm-record-n1999').style.display).toBe('none');
+    const rings = document.querySelectorAll('[data-testid="mm-selection-ring"]').length;
+    expect(rings).toBeGreaterThan(0);
+    expect(rings).toBeLessThan(200);
+    act(() => controller.fitView(false));
+    await nextFrame();
+    expect(document.querySelectorAll('[data-testid="mm-selection-ring"]')).toHaveLength(1);
+  });
+
+  it('keeps p95 frame time under 20 ms while panning with 2,000 records selected', async () => {
+    await page.viewport(1280, 900);
+    const { controller } = mount(linkedTree(2000), { x: 1, y: 1, z: 1 });
+    act(() =>
+      controller.selection.set(
+        controller.store
+          .all()
+          .filter((record) => record.type === 'node')
+          .map((record) => record.id),
+      ),
+    );
+    await nextFrame();
+    const durations = await measureFrames(() => controller.camera.panBy(-4, -2));
+    expect(p95(durations)).toBeLessThan(FRAME_BUDGET_MS);
   });
 
   it('keeps p95 frame time under 20 ms while panning 2,000 records', async () => {

@@ -295,3 +295,23 @@ describe('pop-in in a real browser', () => {
     expect(popping('later')).toBe(0);
   });
 });
+
+describe('selection culling in a real browser', () => {
+  it('keeps the record holding focus drawn when the camera pans away from it', async () => {
+    await page.viewport(1000, 800);
+    const { controller } = mount(
+      [
+        createNodeRecord({ id: 'a', index: 'a1', x: 100, y: 100, label: 'A' }),
+        createNodeRecord({ id: 'b', index: 'a2', x: 400, y: 100, label: 'B' }),
+      ],
+      { x: 0, y: 0, z: 1 },
+    );
+    act(() => controller.selection.set(['a', 'b']));
+    const a = screen.getByTestId('mm-record-a');
+    a.focus();
+    act(() => controller.camera.set({ x: -9000, y: 0, z: 1 }));
+    expect(a.style.display).toBe('');
+    expect(document.activeElement).toBe(a);
+    expect(screen.getByTestId('mm-record-b').style.display).toBe('none');
+  });
+});

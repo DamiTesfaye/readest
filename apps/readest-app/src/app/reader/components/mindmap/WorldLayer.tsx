@@ -100,7 +100,13 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
       ...controller.spatial.search(area),
       ...controller.spatial.searchLinks(area),
     ]);
-    for (const id of controller.selection.get()) onScreen.add(id);
+    const selection = controller.selection.get();
+    if (selection.length === 1) onScreen.add(selection[0]!);
+    const focused = document.activeElement;
+    if (focused instanceof Element && worldRef.current?.contains(focused)) {
+      const id = focused.getAttribute('data-record-id');
+      if (id) onScreen.add(id);
+    }
     for (const [element, id] of elements.current) {
       const display = cullAll || onScreen.has(id) ? '' : 'none';
       if (element.style.display !== display) element.style.display = display;

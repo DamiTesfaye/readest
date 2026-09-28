@@ -4,16 +4,24 @@ import { MdAdd } from 'react-icons/md';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { BoundsRect, Point } from '@/services/mindmap/records/geometry';
 import { linkShape } from '@/services/mindmap/records/linkGeometry';
-import type { LinkAnchor, LinkRecord, MapCamera, MapRecord } from '@/services/mindmap/schema/types';
+import type {
+  LinkAnchor,
+  LinkRecord,
+  MapCamera,
+  MapRecord,
+  PositionedRecord,
+} from '@/services/mindmap/schema/types';
+import type { Viewport } from '@/services/mindmap/camera/camera';
 import { isLive, liveLinkEnds, recordBounds } from '@/services/mindmap/spatial/spatialIndex';
 import type { MapStore } from '@/services/mindmap/store/mapStore';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
-import { editableText, livePositioned } from '@/services/mindmap/tools/records';
+import { editableText, livePositioned, unionBounds } from '@/services/mindmap/tools/records';
 import { CONNECT_HANDLE_OFFSET_PX } from '@/services/mindmap/tools/types';
 import LabelEditor from './LabelEditor';
 import { useAtomValue, useMapRecords } from './useCanvasStores';
 
 const LINK_EDITOR_SIZE = { w: 120, h: 32 };
+const MAX_RINGS = 100;
 
 const toScreen = (box: BoundsRect, camera: MapCamera): BoundsRect => ({
   x: box.x * camera.z + camera.x,
@@ -28,6 +36,23 @@ const handlePoints = (box: BoundsRect): Array<[LinkAnchor['side'], Point]> => [
   ['bottom', { x: box.x + box.w / 2, y: box.y + box.h + CONNECT_HANDLE_OFFSET_PX }],
   ['left', { x: box.x - CONNECT_HANDLE_OFFSET_PX, y: box.y + box.h / 2 }],
 ];
+
+const overlaps = (a: BoundsRect, b: BoundsRect): boolean =>
+  a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
+
+const selectionRings = (
+  records: readonly PositionedRecord[],
+  camera: MapCamera,
+  viewport: Viewport,
+): Array<[string, BoundsRect]> => {
+  const view = { x: 0, y: 0, w: viewport.width, h: viewport.height };
+  const measured = viewport.width > 0 && viewport.height > 0;
+  const rings = records
+    .map((record): [string, BoundsRect] => [record.id, toScreen(recordBounds(record), camera)])
+    .filter(([, box]) => !measured || overlaps(box, view));
+  if (rings.length <= MAX_RINGS) return rings;
+  return [['union', unionBounds(rings.map(([, box]) => box))!]];
+};
 
 const linkPath = (link: LinkRecord, store: MapStore): string | null => {
   const ends = liveLinkEnds(link, store.get);
@@ -59,6 +84,7 @@ const OverlayLayer: React.FC<OverlayLayerProps> = ({ controller, eink }) => {
   const hover = useAtomValue(controller.hover);
   const editing = useAtomValue(controller.editing);
   const { brush, guides } = useAtomValue(controller.live);
+  const viewport = useAtomValue(controller.viewport);
   const { store, readOnly } = controller;
 
   const selected = livePositioned(store, selection);
@@ -106,11 +132,10 @@ const OverlayLayer: React.FC<OverlayLayerProps> = ({ controller, eink }) => {
           ))}
         </g>
       </svg>
-      {selected.map((record) => {
-        const box = toScreen(recordBounds(record), camera);
+      {selectionRings(selected, camera, viewport).map(([key, box]) => {
         return (
           <div
-            key={record.id}
+            key={key}
             data-testid='mm-selection-ring'
             className='absolute rounded-md border-2'
             style={{
