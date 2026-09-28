@@ -24,6 +24,7 @@ const h = vi.hoisted(() => ({
   wide: false,
   dark: false,
   reducedMotion: false,
+  bookKeys: ['bookhash-1'] as string[],
 }));
 
 vi.mock('@/components/Dialog', () => ({
@@ -64,6 +65,9 @@ vi.mock('@/store/readerStore', () => {
     getView: () => ({ goTo: h.goTo }),
     getViewSettings: () => ({ isEink: h.isEink }),
     getProgress: () => ({ fraction: 0.25, pageinfo: { current: 11, total: 200 } }),
+    get bookKeys() {
+      return h.bookKeys;
+    },
   };
   return { useReaderStore: Object.assign(() => state, { getState: () => state }) };
 });
@@ -109,6 +113,7 @@ beforeEach(() => {
   h.wide = false;
   h.dark = false;
   h.reducedMotion = false;
+  h.bookKeys = [BOOK_KEY];
   h.goTo.mockReset();
   window.matchMedia = ((query: string) => ({
     matches: query.includes('min-width: 1024px')
@@ -161,6 +166,30 @@ const pointer = (target: Element, type: 'pointerDown' | 'pointerUp', x: number, 
     button: 0,
     detail: 1,
   });
+
+describe('closing with the book', () => {
+  it('closes the view when its book is no longer open in the reader', async () => {
+    const mapId = await createMap('Closing');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    const view = render(<MindmapView />);
+    await openCanvas();
+    h.bookKeys = [];
+    view.rerender(<MindmapView />);
+    await waitFor(() => expect(useMindmapViewStore.getState().bookKey).toBeNull());
+  });
+
+  it('does not close on the StrictMode double mount even though bookKeys briefly re-evaluates', async () => {
+    const mapId = await createMap('Stays');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(
+      <StrictMode>
+        <MindmapView />
+      </StrictMode>,
+    );
+    await openCanvas();
+    expect(useMindmapViewStore.getState().bookKey).toBe(BOOK_KEY);
+  });
+});
 
 describe('an open map', () => {
   it('survives the StrictMode double mount with one live session and a live spatial index', async () => {

@@ -240,10 +240,15 @@ const SessionFallback: React.FC<{ state: SessionState; mapId: string }> = ({ sta
 
 const MindmapView: React.FC = () => {
   const _ = useTranslation();
-  const { bookKey, mapId, sheetOpen, layout, dockWidth, setDockWidth } = useMindmapViewStore();
+  const { bookKey, mapId, sheetOpen, layout, dockWidth, setDockWidth, close } =
+    useMindmapViewStore();
+  const { bookKeys } = useReaderStore();
   const bookHash = useBookDataStore((state) =>
     bookKey ? (state.getBookData(bookKey)?.book?.hash ?? null) : null,
   );
+  useEffect(() => {
+    if (bookKey && !bookKeys.includes(bookKey)) close();
+  }, [bookKey, bookKeys, close]);
   const session = useMindmapSession(mapId ? bookHash : null, mapId);
   const canDock = useMediaQuery(DOCK_MEDIA_QUERY);
   const docked = layout === 'docked' && canDock;
