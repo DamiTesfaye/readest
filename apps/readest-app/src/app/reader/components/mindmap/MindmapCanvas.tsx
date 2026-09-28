@@ -65,7 +65,26 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       ?.focus({ preventScroll: true });
   }, []);
 
-  useCanvasInput(rootRef, controller, wheelZooms);
+  const press = useRef(0);
+  const menuPress = useRef(-1);
+  const openMenuAt = useCallback(
+    (point: Point): boolean => {
+      if (controller.editing.get() !== null) return false;
+      if (menuPress.current === press.current) return true;
+      menuPress.current = press.current;
+      controller.pointerCancel();
+      const hit = controller.spatial.hitTest(
+        controller.camera.screenToPage(point),
+        HIT_TOLERANCE_PX / controller.camera.get().z,
+      );
+      if (hit && !controller.selection.get().includes(hit)) controller.selection.set([hit]);
+      setMenu(hit ? point : null);
+      return true;
+    },
+    [controller],
+  );
+
+  useCanvasInput(rootRef, controller, wheelZooms, openMenuAt);
   useMindmapShortcuts(rootRef, controller, focusRecord, animate);
 
   useEffect(() => {
@@ -111,17 +130,10 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   }, [editing]);
 
   const openMenu = (event: React.MouseEvent<HTMLDivElement>): void => {
-    if (controller.editing.get() !== null) return;
-    event.preventDefault();
-    controller.pointerCancel();
     const rect = event.currentTarget.getBoundingClientRect();
-    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    const hit = controller.spatial.hitTest(
-      controller.camera.screenToPage(point),
-      HIT_TOLERANCE_PX / controller.camera.get().z,
-    );
-    if (hit && !controller.selection.get().includes(hit)) controller.selection.set([hit]);
-    setMenu(hit ? point : null);
+    if (openMenuAt({ x: event.clientX - rect.left, y: event.clientY - rect.top })) {
+      event.preventDefault();
+    }
   };
 
   return (
@@ -137,7 +149,11 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       className='focus-visible:ring-base-content/15 relative h-full w-full touch-none select-none overflow-hidden outline-none focus-visible:ring-2'
       style={{ ...cssVars, background: 'var(--mm-canvas)' } as React.CSSProperties}
       onContextMenu={openMenu}
+      onKeyDownCapture={() => {
+        press.current += 1;
+      }}
       onPointerDownCapture={(event) => {
+        press.current += 1;
         if (menu && !(event.target instanceof Element && event.target.closest('[role="menu"]')))
           setMenu(null);
       }}

@@ -2,7 +2,12 @@ import { type RefObject, useEffect } from 'react';
 import type { Point } from '@/services/mindmap/records/geometry';
 import type { LinkAnchor } from '@/services/mindmap/schema/types';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
-import type { CanvasPointer, PointerKind, PointerTarget } from '@/services/mindmap/tools/types';
+import {
+  type CanvasPointer,
+  HIT_TOLERANCE_PX,
+  type PointerKind,
+  type PointerTarget,
+} from '@/services/mindmap/tools/types';
 
 export const WHEEL_ZOOM_SPEED = 0.0015;
 const PINCH_ZOOM_SPEED = 0.02;
@@ -10,6 +15,8 @@ const PINCH_MAX_DELTA = 10;
 const LINE_HEIGHT_PX = 16;
 const DOUBLE_CLICK_MS = 400;
 const DOUBLE_CLICK_SLOP_PX = 6;
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_SLOP_PX = 10;
 
 interface SafariGestureEvent extends UIEvent {
   scale: number;
@@ -20,6 +27,12 @@ interface SafariGestureEvent extends UIEvent {
 interface Pinch {
   distance: number;
   center: Point;
+}
+
+interface LongPress {
+  id: number;
+  start: Point;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 const pointerKind = (type: string): PointerKind =>
@@ -46,6 +59,7 @@ export const useCanvasInput = (
   rootRef: RefObject<HTMLElement | null>,
   controller: CanvasController,
   wheelZooms: boolean,
+  onLongPress?: (point: Point) => void,
 ): void => {
   useEffect(() => {
     const root = rootRef.current;
@@ -53,6 +67,7 @@ export const useCanvasInput = (
     const touches = new Map<number, Point>();
     let pinch: Pinch | null = null;
     let gestureScale = 1;
+    let longPress: LongPress | null = null;
     let lastClick: { kind: PointerKind; time: number; screen: Point } | null = null;
 
     const local = (
@@ -92,10 +107,28 @@ export const useCanvasInput = (
       };
     };
 
+    const cancelLongPress = (): void => {
+      if (longPress) clearTimeout(longPress.timer);
+      longPress = null;
+    };
+
+    const startLongPress = (id: number, start: Point): void => {
+      if (!onLongPress) return;
+      const timer = setTimeout(() => {
+        longPress = null;
+        const page = controller.camera.screenToPage(start);
+        if (controller.spatial.hitTest(page, HIT_TOLERANCE_PX / controller.camera.get().z)) {
+          onLongPress(start);
+        }
+      }, LONG_PRESS_MS);
+      longPress = { id, start, timer };
+    };
+
     const onDown = (event: PointerEvent): void => {
       if (event.button === 2 || closestIn(event.target, '.nodrag, .nopan')) return;
       event.preventDefault();
       root.focus({ preventScroll: true });
+      cancelLongPress();
       if (event.pointerType === 'touch') {
         touches.set(event.pointerId, local(event));
         if (touches.size >= 2) {
@@ -122,6 +155,9 @@ export const useCanvasInput = (
       lastClick = clicks === 2 ? null : { kind, time: event.timeStamp, screen };
       root.setPointerCapture(event.pointerId);
       controller.pointerDown(toPointer(event, rect, pointerTarget(event.target), clicks));
+      if (kind === 'touch' && controller.activePointer()?.id === event.pointerId) {
+        startLongPress(event.pointerId, screen);
+      }
     };
 
     const movedPast = (from: Point, to: Point, slop: number): boolean =>
@@ -130,6 +166,9 @@ export const useCanvasInput = (
     const onMove = (event: PointerEvent): void => {
       const at = local(event);
       if (touches.has(event.pointerId)) touches.set(event.pointerId, at);
+      if (longPress?.id === event.pointerId && movedPast(longPress.start, at, LONG_PRESS_SLOP_PX)) {
+        cancelLongPress();
+      }
       if (lastClick && movedPast(lastClick.screen, at, DOUBLE_CLICK_SLOP_PX)) lastClick = null;
       if (pinch && touches.size >= 2) {
         const next = pinchOf();
@@ -149,6 +188,7 @@ export const useCanvasInput = (
 
     const onUp = (event: PointerEvent): void => {
       touches.delete(event.pointerId);
+      if (longPress?.id === event.pointerId) cancelLongPress();
       if (pinch) {
         if (touches.size < 2) pinch = null;
         return;
@@ -162,6 +202,7 @@ export const useCanvasInput = (
     const onCancel = (event: PointerEvent): void => {
       touches.delete(event.pointerId);
       if (touches.size < 2) pinch = null;
+      if (longPress?.id === event.pointerId) cancelLongPress();
       if (controller.activePointer()?.id === event.pointerId) controller.pointerCancel();
     };
 
@@ -201,6 +242,7 @@ export const useCanvasInput = (
     root.addEventListener('gesturestart', onGestureStart);
     root.addEventListener('gesturechange', onGestureChange);
     return () => {
+      cancelLongPress();
       root.removeEventListener('pointerdown', onDown);
       root.removeEventListener('pointermove', onMove);
       root.removeEventListener('pointerup', onUp);
@@ -209,5 +251,5 @@ export const useCanvasInput = (
       root.removeEventListener('gesturestart', onGestureStart);
       root.removeEventListener('gesturechange', onGestureChange);
     };
-  }, [rootRef, controller, wheelZooms]);
+  }, [rootRef, controller, wheelZooms, onLongPress]);
 };
