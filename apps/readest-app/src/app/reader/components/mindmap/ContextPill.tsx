@@ -112,7 +112,9 @@ const ContextPill: React.FC<ContextPillProps> = ({ controller, onJumpToBook, onR
     .filter((record): record is PositionedRecord => isLive(record) && record.type !== 'link');
   const bounds = unionBounds(records.map(recordBounds));
   if (!bounds || editing || live.guides.length > 0 || live.brush) return null;
-  const canColor = !controller.readOnly && records.some((record) => record.type !== 'text');
+  const canColor =
+    !controller.readOnly &&
+    records.some((record) => record.type !== 'text' && record.type !== 'sticky');
   const nodes = records.every((record) => record.type === 'node');
   const single = records.length === 1 ? records[0]! : null;
   const top = bounds.y * camera.z + camera.y;

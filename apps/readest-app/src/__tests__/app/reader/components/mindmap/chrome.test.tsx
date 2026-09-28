@@ -5,7 +5,11 @@ import LiveRegion from '@/app/reader/components/mindmap/LiveRegion';
 import RevealChip from '@/app/reader/components/mindmap/RevealChip';
 import ToolDock from '@/app/reader/components/mindmap/ToolDock';
 import ZoomControl from '@/app/reader/components/mindmap/ZoomControl';
-import { createNodeRecord, createTextRecord } from '@/services/mindmap/records/defaults';
+import {
+  createNodeRecord,
+  createStickyRecord,
+  createTextRecord,
+} from '@/services/mindmap/records/defaults';
 import type { MapRecord, NodeRecord } from '@/services/mindmap/schema/types';
 import { createMapStore } from '@/services/mindmap/store/mapStore';
 import { createCanvasController } from '@/services/mindmap/tools/controller';
@@ -123,6 +127,15 @@ describe('ContextPill', () => {
     act(() => readOnly.selection.set(['a']));
     expect(screen.queryByRole('button', { name: 'Sky' })).toBeNull();
     expect(screen.queryByRole('combobox', { name: 'Node kind' })).toBeNull();
+  });
+
+  it('offers no colour swatches for a sticky, which always stays yellow', () => {
+    const controller = controllerFor([createStickyRecord({ id: 's', index: 'a1', x: 0, y: 200 })]);
+    render(<ContextPill controller={controller} onJumpToBook={vi.fn()} />);
+    act(() => controller.selection.set(['s']));
+    expect(screen.queryByRole('button', { name: 'Sky' })).toBeNull();
+    act(() => controller.setColor('sky'));
+    expect(controller.store.get('s')).toMatchObject({ color: 'mustard' });
   });
 
   it('opens the record menu for restacking, duplicating and deleting', () => {

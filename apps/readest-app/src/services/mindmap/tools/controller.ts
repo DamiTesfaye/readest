@@ -364,7 +364,8 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
         ),
       );
     },
-    setColor: (color) => setSelectedFields('color', color, (r) => r.type !== 'text'),
+    setColor: (color) =>
+      setSelectedFields('color', color, (r) => r.type !== 'text' && r.type !== 'sticky'),
     setKind: (kind) => setSelectedFields('kind', kind, (r) => r.type === 'node'),
     commitEdit: (id, text) => {
       const record = store.get(id);
