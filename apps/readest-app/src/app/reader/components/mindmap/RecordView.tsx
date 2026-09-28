@@ -162,7 +162,7 @@ const ShapeBody: React.FC<{ record: ShapeRecord; mapStyle: MapStyle }> = ({ reco
 };
 
 const InkBody: React.FC<{ record: InkRecord }> = ({ record }) => (
-  <svg className='h-full w-full overflow-visible' aria-hidden='true'>
+  <svg className='absolute left-0 top-0 overflow-visible' width={1} height={1} aria-hidden='true'>
     <path
       data-testid='mm-ink-path'
       d={inkRecordPath(record)}
