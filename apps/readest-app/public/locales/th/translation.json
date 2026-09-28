@@ -1137,6 +1137,7 @@
   "Auto-download new items": "ดาวน์โหลดรายการใหม่อัตโนมัติ",
   "Automatically download new publications when the app syncs": "ดาวน์โหลดสิ่งพิมพ์ใหม่อัตโนมัติเมื่อแอปซิงค์",
   "{{count}} new item(s) downloaded from OPDS_other": "ดาวน์โหลด {{count}} รายการใหม่จาก OPDS แล้ว",
+  "{{count}} new_other": "ใหม่ {{count}} รายการ",
   "Failed to sync {{count}} OPDS catalog(s)_other": "ไม่สามารถซิงค์แคตตาล็อก OPDS {{count}} รายการได้",
   "Last synced {{when}}": "ซิงค์ครั้งล่าสุด {{when}}",
   "Failed downloads": "การดาวน์โหลดที่ล้มเหลว",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (จาก {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "ไม่สามารถบันทึกแผนผังความคิดได้"

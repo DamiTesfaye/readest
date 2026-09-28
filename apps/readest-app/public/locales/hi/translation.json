@@ -1152,6 +1152,8 @@
   "Automatically download new publications when the app syncs": "ऐप सिंक होने पर नए प्रकाशन स्वचालित रूप से डाउनलोड करें",
   "{{count}} new item(s) downloaded from OPDS_one": "OPDS से {{count}} नया आइटम डाउनलोड किया गया",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDS से {{count}} नई आइटम डाउनलोड की गईं",
+  "{{count}} new_one": "{{count}} नया",
+  "{{count}} new_other": "{{count}} नए",
   "Failed to sync {{count}} OPDS catalog(s)_one": "{{count}} OPDS कैटलॉग सिंक करने में विफल",
   "Failed to sync {{count}} OPDS catalog(s)_other": "{{count}} OPDS कैटलॉग सिंक करने में विफल",
   "Last synced {{when}}": "अंतिम सिंक्रनाइज़ेशन {{when}}",
@@ -1938,6 +1940,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} ({{source}} से)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "माइंड मैप सहेजा नहीं जा सका"

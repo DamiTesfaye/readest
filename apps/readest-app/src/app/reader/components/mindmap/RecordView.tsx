@@ -226,7 +226,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       role={ariaLabel ? 'button' : undefined}
       tabIndex={ariaLabel ? -1 : undefined}
       aria-label={ariaLabel}
-      className='absolute outline-none'
+      className='focus-visible:ring-base-content absolute rounded-md outline-none focus-visible:ring-2'
       style={{ left: record.x, top: record.y, width: record.w, height: record.h }}
     >
       <div

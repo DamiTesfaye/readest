@@ -663,6 +663,7 @@ rounded-window page frame (`.window-border`, `z-99` in `globals.css`), then laye
 | ------- | ----- | ----- |
 | `99` | Desktop window-border page frame | `globals.css` |
 | `100` | RSVP immersive reading overlay | `RSVPOverlay` |
+| `100` | Full-screen mind map (the reader behind it is `inert`) | `MindmapView` |
 | `101` | RSVP immersive controls (start dialog, lookup chip) | `RSVPStartDialog`, `RSVPOverlay` |
 | `110` | Settings app dialog (above RSVP for in-overlay dictionary mgmt) | `SettingsDialog` |
 | `120` | Modal / command palette | `ModalPortal`, `CommandPalette` |

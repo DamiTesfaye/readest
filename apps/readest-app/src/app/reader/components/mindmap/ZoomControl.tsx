@@ -2,6 +2,7 @@ import React from 'react';
 import { MdAdd, MdRemove } from 'react-icons/md';
 import { useTranslation } from '@/hooks/useTranslation';
 import { type CanvasController, ZOOM_STEP } from '@/services/mindmap/tools/controller';
+import { getLocale } from '@/utils/misc';
 import { useAtomValue } from './useCanvasStores';
 
 const BUTTON =
@@ -14,7 +15,7 @@ const ZoomControl: React.FC<{
 }> = ({ controller, animate, bottomInset }) => {
   const _ = useTranslation();
   const { z } = useAtomValue(controller.camera);
-  const percent = new Intl.NumberFormat(undefined, { style: 'percent' }).format(z);
+  const percent = new Intl.NumberFormat(getLocale(), { style: 'percent' }).format(z);
   return (
     <div
       className='nodrag nowheel eink-bordered bg-base-100 text-base-content absolute end-4 flex items-center rounded-full p-1 shadow-md'

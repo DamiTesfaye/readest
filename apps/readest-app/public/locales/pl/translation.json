@@ -1182,6 +1182,10 @@
   "{{count}} new item(s) downloaded from OPDS_few": "Pobrano {{count}} nowe pozycje z OPDS",
   "{{count}} new item(s) downloaded from OPDS_many": "Pobrano {{count}} nowych pozycji z OPDS",
   "{{count}} new item(s) downloaded from OPDS_other": "Pobrano {{count}} nowych pozycji z OPDS",
+  "{{count}} new_one": "{{count}} nowy",
+  "{{count}} new_few": "{{count}} nowe",
+  "{{count}} new_many": "{{count}} nowych",
+  "{{count}} new_other": "{{count}} nowych",
   "Failed to sync {{count}} OPDS catalog(s)_one": "Nie udało się zsynchronizować {{count}} katalogu OPDS",
   "Failed to sync {{count}} OPDS catalog(s)_few": "Nie udało się zsynchronizować {{count}} katalogów OPDS",
   "Failed to sync {{count}} OPDS catalog(s)_many": "Nie udało się zsynchronizować {{count}} katalogów OPDS",
@@ -2006,6 +2010,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (od {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Nie udało się zapisać mapy myśli"

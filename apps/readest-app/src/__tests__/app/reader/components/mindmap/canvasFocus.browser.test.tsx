@@ -85,6 +85,15 @@ describe('canvas focus in real Chromium', () => {
     expect(document.activeElement).not.toBe(document.body);
   });
 
+  it('draws a visible focus ring on a record reached with the arrow keys', async () => {
+    mount();
+    await userEvent.keyboard('{ArrowRight}');
+    const record = document.activeElement as HTMLElement;
+    expect(record.getAttribute('data-record-id')).toBeTruthy();
+    expect(record.matches(':focus-visible')).toBe(true);
+    expect(getComputedStyle(record).boxShadow).not.toBe('none');
+  });
+
   it('keeps focus in the map when redo removes the focused record', async () => {
     const controller = mount();
     act(() => controller.selection.set(['a']));

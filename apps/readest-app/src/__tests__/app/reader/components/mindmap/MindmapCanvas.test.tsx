@@ -1,8 +1,14 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNodeRecord } from '@/services/mindmap/records/defaults';
+import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import { PRESET_TOKENS } from '@/services/mindmap/theme/presets';
 import { renderCanvas } from './canvasFixture';
+
+const locale = vi.hoisted(() => ({ current: 'en-US' }));
+vi.mock('@/utils/misc', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/misc')>()),
+  getLocale: () => locale.current,
+}));
 
 const elizabeth = createNodeRecord({
   id: 'e',
@@ -34,6 +40,7 @@ const key = (init: KeyboardEventInit, target: Element = canvas()) => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  locale.current = 'en-US';
 });
 
 describe('MindmapCanvas', () => {
@@ -43,6 +50,22 @@ describe('MindmapCanvas', () => {
     expect(root.hasAttribute('data-mindmap-root')).toBe(true);
     expect(root.getAttribute('tabindex')).toBe('0');
     expect(root.className).toContain('touch-none');
+  });
+
+  it("lists a record's connections in the UI language", () => {
+    locale.current = 'de';
+    renderCanvas([
+      elizabeth,
+      darcy,
+      createNodeRecord({ id: 'j', index: 'a3', x: 0, y: 300, label: 'Jane' }),
+      createLinkRecord({ id: 'l1', index: 'a4', fromId: 'e', toId: 'd', label: 'slights' }),
+      createLinkRecord({ id: 'l2', index: 'a5', fromId: 'e', toId: 'j', label: 'loves' }),
+      createNodeRecord({ id: 'b', index: 'a6', x: 400, y: 300, label: 'Bingley' }),
+      createLinkRecord({ id: 'l3', index: 'a7', fromId: 'e', toId: 'b', label: 'meets' }),
+    ]);
+    expect(screen.getByTestId('mm-record-e').getAttribute('aria-label')).toBe(
+      'Elizabeth, Character, slights Mr Darcy, loves Jane und meets Bingley',
+    );
   });
 
   it('focuses itself on open when asked', () => {

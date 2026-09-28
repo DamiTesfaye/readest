@@ -1137,6 +1137,7 @@
   "Auto-download new items": "新着アイテムを自動ダウンロード",
   "Automatically download new publications when the app syncs": "アプリの同期時に新しい出版物を自動的にダウンロードします",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDSから{{count}}件の新着アイテムをダウンロードしました",
+  "{{count}} new_other": "新規 {{count}} 件",
   "Failed to sync {{count}} OPDS catalog(s)_other": "OPDSカタログ{{count}}件の同期に失敗しました",
   "Last synced {{when}}": "最終同期 {{when}}",
   "Failed downloads": "失敗したダウンロード",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}}（{{source}} から）",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "マインドマップを保存できませんでした"

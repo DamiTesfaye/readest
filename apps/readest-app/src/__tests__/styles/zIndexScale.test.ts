@@ -46,6 +46,10 @@ const RSVP_CONTROLS = firstZ(
 const ANCHORED = firstZ(read('src/components/AnchoredPanel.tsx'), /fixed z-\[(\d+)\]/);
 const TOAST = firstZ(read('src/components/Toast.tsx'), /toast z-\[(\d+)\]/);
 const APP_LOCK = firstZ(read('src/components/AppLockScreen.tsx'), /z-\[(\d+)\]/);
+const MINDMAP = firstZ(
+  read('src/app/reader/components/mindmap/MindmapView.tsx'),
+  /fixed inset-0 z-\[(\d+)\]/,
+);
 
 describe('overlay z-index scale', () => {
   it('renders a modal (e.g. Add OPDS Catalog) above the Settings dialog', () => {
@@ -71,6 +75,13 @@ describe('overlay z-index scale', () => {
     // and ModalPortal (120).
     expect(TOAST).toBeGreaterThan(MODAL);
     expect(TOAST).toBeGreaterThan(SETTINGS);
+  });
+
+  it('keeps the full screen mind map above the page frame and below modals and toasts', () => {
+    expect(MINDMAP).toBeGreaterThan(PAGE_FRAME);
+    expect(MINDMAP).toBeLessThan(SETTINGS);
+    expect(MINDMAP).toBeLessThan(MODAL);
+    expect(MINDMAP).toBeLessThan(TOAST);
   });
 
   it('lifts an anchored dropdown above the popover it was opened from', () => {

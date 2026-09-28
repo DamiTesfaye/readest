@@ -1232,6 +1232,8 @@
   "Select Dictionary Files": "Lugʻat fayllarini tanlash",
   "{{count}} new item(s) downloaded from OPDS_one": "OPDS-dan {{count}} ta yangi element yuklab olindi",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDS-dan {{count}} ta yangi elementlar yuklab olindi",
+  "{{count}} new_one": "{{count}} ta yangi",
+  "{{count}} new_other": "{{count}} ta yangi",
   "Failed to sync {{count}} OPDS catalog(s)_one": "{{count}} ta OPDS katalogini sinxronlab boʻlmadi",
   "Failed to sync {{count}} OPDS catalog(s)_other": "{{count}} ta OPDS kataloglarini sinxronlab boʻlmadi",
   "Book not in your library": "Kitob kutubxonangizda yoʻq",
@@ -1938,6 +1940,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} ({{source}} tomonidan)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Aqliy xaritani saqlab bo‘lmadi"

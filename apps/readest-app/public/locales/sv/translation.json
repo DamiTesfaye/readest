@@ -1152,6 +1152,8 @@
   "Automatically download new publications when the app syncs": "Hämta nya publikationer automatiskt när appen synkroniserar",
   "{{count}} new item(s) downloaded from OPDS_one": "{{count}} nytt objekt nedladdat från OPDS",
   "{{count}} new item(s) downloaded from OPDS_other": "{{count}} nya objekt nedladdade från OPDS",
+  "{{count}} new_one": "{{count}} ny",
+  "{{count}} new_other": "{{count}} nya",
   "Failed to sync {{count}} OPDS catalog(s)_one": "Det gick inte att synkronisera {{count}} OPDS-katalog",
   "Failed to sync {{count}} OPDS catalog(s)_other": "Det gick inte att synkronisera {{count}} OPDS-kataloger",
   "Last synced {{when}}": "Senast synkroniserad {{when}}",
@@ -1938,6 +1940,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (från {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Det gick inte att spara tankekartan"

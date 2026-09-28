@@ -1152,6 +1152,8 @@
   "Automatically download new publications when the app syncs": "பயன்பாடு ஒத்திசைக்கப்படும்போது புதிய வெளியீடுகளைத் தானாகப் பதிவிறக்கு",
   "{{count}} new item(s) downloaded from OPDS_one": "OPDS-இலிருந்து {{count}} புதிய உருப்படி பதிவிறக்கப்பட்டது",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDS-இலிருந்து {{count}} புதிய உருப்படிகள் பதிவிறக்கப்பட்டன",
+  "{{count}} new_one": "{{count}} புதியது",
+  "{{count}} new_other": "{{count}} புதியவை",
   "Failed to sync {{count}} OPDS catalog(s)_one": "{{count}} OPDS பட்டியலை ஒத்திசைக்க முடியவில்லை",
   "Failed to sync {{count}} OPDS catalog(s)_other": "{{count}} OPDS பட்டியல்களை ஒத்திசைக்க முடியவில்லை",
   "Last synced {{when}}": "கடைசியாக ஒத்திசைக்கப்பட்டது {{when}}",
@@ -1938,6 +1940,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} ({{source}} இலிருந்து)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "மன வரைபடத்தைச் சேமிக்க முடியவில்லை"

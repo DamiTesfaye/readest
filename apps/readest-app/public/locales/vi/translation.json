@@ -1137,6 +1137,7 @@
   "Auto-download new items": "Tự động tải xuống mục mới",
   "Automatically download new publications when the app syncs": "Tự động tải xuống các ấn phẩm mới khi ứng dụng đồng bộ hóa",
   "{{count}} new item(s) downloaded from OPDS_other": "Đã tải xuống {{count}} mục mới từ OPDS",
+  "{{count}} new_other": "{{count}} mới",
   "Failed to sync {{count}} OPDS catalog(s)_other": "Không thể đồng bộ {{count}} danh mục OPDS",
   "Last synced {{when}}": "Đồng bộ lần cuối {{when}}",
   "Failed downloads": "Tải xuống thất bại",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (từ {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Không thể lưu sơ đồ tư duy"

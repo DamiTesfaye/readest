@@ -1137,6 +1137,7 @@
   "Auto-download new items": "གསར་འདོན་གསར་པ་རང་འགུལ་ཕབ་ལེན།",
   "Automatically download new publications when the app syncs": "མཉེན་ཆས་མཉམ་སྦྱོར་སྐབས་གསར་འདོན་གསར་པ་རང་འགུལ་ཕབ་ལེན་བྱེད།",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDS ནས་གསར་འདོན་གསར་པ་ {{count}} ཕབ་ལེན་བྱས།",
+  "{{count}} new_other": "གསར་པ་ {{count}}",
   "Failed to sync {{count}} OPDS catalog(s)_other": "OPDS དཀར་ཆག་ {{count}} མཉམ་སྦྱོར་མ་ཐུབ།",
   "Last synced {{when}}": "མཐའ་མའི་མཐུན་སྒྲིག་ {{when}}",
   "Failed downloads": "ཕབ་ལེན་ཕམ་ཁ།",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} ({{source}} ནས།)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "བསམ་བློའི་ས་བཀྲ་ཉར་ཚགས་བྱེད་མ་ཐུབ།"

@@ -60,6 +60,8 @@
   "{{count}} items_other": "{{count}} items",
   "{{count}} new item(s) downloaded from OPDS_one": "{{count}} new item downloaded from OPDS",
   "{{count}} new item(s) downloaded from OPDS_other": "{{count}} new items downloaded from OPDS",
+  "{{count}} new_one": "{{count}} new",
+  "{{count}} new_other": "{{count}} new",
   "{{engine}}: {{count}} voices_one": "{{engine}}: {{count}} voice",
   "{{engine}}: {{count}} voices_other": "{{engine}}: {{count}} voices",
   "Cleared {{count}} highlights and notes._one": "Cleared {{count}} highlight and note.",

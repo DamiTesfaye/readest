@@ -1137,6 +1137,7 @@
   "Auto-download new items": "Unduh item baru otomatis",
   "Automatically download new publications when the app syncs": "Otomatis unduh publikasi baru saat aplikasi disinkronkan",
   "{{count}} new item(s) downloaded from OPDS_other": "{{count}} item baru telah diunduh dari OPDS",
+  "{{count}} new_other": "{{count}} baru",
   "Failed to sync {{count}} OPDS catalog(s)_other": "Gagal menyinkronkan {{count}} katalog OPDS",
   "Last synced {{when}}": "Sinkronisasi terakhir {{when}}",
   "Failed downloads": "Unduhan gagal",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (dari {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Tidak dapat menyimpan peta pikiran"

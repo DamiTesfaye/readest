@@ -1137,6 +1137,7 @@
   "Auto-download new items": "自動下載新項目",
   "Automatically download new publications when the app syncs": "應用同步時自動下載新出版物",
   "{{count}} new item(s) downloaded from OPDS_other": "已從 OPDS 下載 {{count}} 個新項目",
+  "{{count}} new_other": "新增 {{count}} 個",
   "Failed to sync {{count}} OPDS catalog(s)_other": "同步 {{count}} 個 OPDS 目錄失敗",
   "Last synced {{when}}": "上次同步 {{when}}",
   "Failed downloads": "失敗的下載",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}}（來自 {{source}}）",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "無法儲存心智圖"

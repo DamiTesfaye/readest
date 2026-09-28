@@ -1137,6 +1137,7 @@
   "Auto-download new items": "새 항목 자동 다운로드",
   "Automatically download new publications when the app syncs": "앱 동기화 시 새 출판물 자동 다운로드",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDS에서 {{count}}개의 새 항목이 다운로드됨",
+  "{{count}} new_other": "새 항목 {{count}}개",
   "Failed to sync {{count}} OPDS catalog(s)_other": "OPDS 카탈로그 {{count}}개 동기화 실패",
   "Last synced {{when}}": "마지막 동기화 {{when}}",
   "Failed downloads": "실패한 다운로드",
@@ -1904,6 +1905,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} ({{source}}에서)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "마인드맵을 저장할 수 없습니다"

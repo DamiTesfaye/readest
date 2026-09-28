@@ -1152,6 +1152,8 @@
   "Automatically download new publications when the app syncs": "অ্যাপ সিঙ্ক হওয়ার সময় নতুন প্রকাশনা স্বয়ংক্রিয়ভাবে ডাউনলোড করুন",
   "{{count}} new item(s) downloaded from OPDS_one": "OPDS থেকে {{count}}টি নতুন আইটেম ডাউনলোড হয়েছে",
   "{{count}} new item(s) downloaded from OPDS_other": "OPDS থেকে {{count}}টি নতুন আইটেম ডাউনলোড হয়েছে",
+  "{{count}} new_one": "{{count}}টি নতুন",
+  "{{count}} new_other": "{{count}}টি নতুন",
   "Failed to sync {{count}} OPDS catalog(s)_one": "{{count}}টি OPDS ক্যাটালগ সিঙ্ক করতে ব্যর্থ",
   "Failed to sync {{count}} OPDS catalog(s)_other": "{{count}}টি OPDS ক্যাটালগ সিঙ্ক করতে ব্যর্থ",
   "Last synced {{when}}": "শেষ সিঙ্ক হয়েছে {{when}}",
@@ -1938,6 +1940,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} ({{source}} থেকে)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "মাইন্ড ম্যাপ সংরক্ষণ করা যায়নি"

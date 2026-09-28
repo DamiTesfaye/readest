@@ -1167,6 +1167,9 @@
   "{{count}} new item(s) downloaded from OPDS_one": "Se descargó {{count}} nuevo elemento desde OPDS",
   "{{count}} new item(s) downloaded from OPDS_many": "Se descargaron {{count}} nuevos elementos desde OPDS",
   "{{count}} new item(s) downloaded from OPDS_other": "Se descargaron {{count}} nuevos elementos desde OPDS",
+  "{{count}} new_one": "{{count}} nuevo",
+  "{{count}} new_many": "{{count}} nuevos",
+  "{{count}} new_other": "{{count}} nuevos",
   "Failed to sync {{count}} OPDS catalog(s)_one": "No se pudo sincronizar {{count}} catálogo OPDS",
   "Failed to sync {{count}} OPDS catalog(s)_many": "No se pudieron sincronizar {{count}} catálogos OPDS",
   "Failed to sync {{count}} OPDS catalog(s)_other": "No se pudieron sincronizar {{count}} catálogos OPDS",
@@ -1972,6 +1975,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (de {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "No se pudo guardar el mapa mental"

@@ -41,14 +41,14 @@ export const recordAriaLabels = (
     const from = byId.get(link.fromId);
     const to = byId.get(link.toId);
     if (!isLive(from) || !isLive(to)) continue;
-    const relation = link.label.trim() || _('linked to');
-    for (const [self, other] of [
-      [from, to],
-      [to, from],
-    ] as const) {
-      const described = _('{{relation}} {{target}}', { relation, target: nameOf(other, _) });
-      connections.set(self.id, [...(connections.get(self.id) ?? []), described]);
-    }
+    const label = link.label.trim();
+    const relation = label || _('linked to');
+    const outgoing = _('{{relation}} {{target}}', { relation, target: nameOf(to, _) });
+    const incoming = label
+      ? _('{{relation}} (from {{source}})', { relation, source: nameOf(from, _) })
+      : _('{{relation}} {{target}}', { relation, target: nameOf(from, _) });
+    connections.set(from.id, [...(connections.get(from.id) ?? []), outgoing]);
+    connections.set(to.id, [...(connections.get(to.id) ?? []), incoming]);
   }
   const labels = new Map<string, string>();
   for (const record of records) {

@@ -5,6 +5,7 @@ import type { MapRecord, MapStyle } from '@/services/mindmap/schema/types';
 import { type RecordFilter, isPositioned, isShown } from '@/services/mindmap/spatial/spatialIndex';
 import type { Diff } from '@/services/mindmap/store/mapStore';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
+import { getLocale } from '@/utils/misc';
 import { LinkLabel, LinkPath } from './LinkView';
 import { type RegisterElement, RecordSlot } from './RecordView';
 import { recordAriaLabels } from './recordLabels';
@@ -73,6 +74,7 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
       recordAriaLabels(
         labelRecords.filter((record) => isShown(record, visible, store.get)),
         _,
+        getLocale(),
       ),
     [labelRecords, visible, store, _],
   );

@@ -1152,6 +1152,8 @@
   "Automatically download new publications when the app syncs": "Αυτόματη λήψη νέων δημοσιεύσεων κατά τον συγχρονισμό της εφαρμογής",
   "{{count}} new item(s) downloaded from OPDS_one": "Λήφθηκε {{count}} νέο στοιχείο από OPDS",
   "{{count}} new item(s) downloaded from OPDS_other": "Λήφθηκαν {{count}} νέα στοιχεία από OPDS",
+  "{{count}} new_one": "{{count}} νέο",
+  "{{count}} new_other": "{{count}} νέα",
   "Failed to sync {{count}} OPDS catalog(s)_one": "Αποτυχία συγχρονισμού {{count}} καταλόγου OPDS",
   "Failed to sync {{count}} OPDS catalog(s)_other": "Αποτυχία συγχρονισμού {{count}} καταλόγων OPDS",
   "Last synced {{when}}": "Τελευταίος συγχρονισμός {{when}}",
@@ -1938,6 +1940,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (από {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Δεν ήταν δυνατή η αποθήκευση του νοητικού χάρτη"

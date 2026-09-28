@@ -1182,6 +1182,10 @@
   "{{count}} new item(s) downloaded from OPDS_two": "Preneseni sta {{count}} novi vsebini iz OPDS",
   "{{count}} new item(s) downloaded from OPDS_few": "Prenesene so {{count}} nove vsebine iz OPDS",
   "{{count}} new item(s) downloaded from OPDS_other": "Preneseno je {{count}} novih vsebin iz OPDS",
+  "{{count}} new_one": "{{count}} nov",
+  "{{count}} new_two": "{{count}} nova",
+  "{{count}} new_few": "{{count}} novi",
+  "{{count}} new_other": "{{count}} novih",
   "Failed to sync {{count}} OPDS catalog(s)_one": "Sinhronizacija {{count}} kataloga OPDS ni uspela",
   "Failed to sync {{count}} OPDS catalog(s)_two": "Sinhronizacija {{count}} katalogov OPDS ni uspela",
   "Failed to sync {{count}} OPDS catalog(s)_few": "Sinhronizacija {{count}} katalogov OPDS ni uspela",
@@ -2006,6 +2010,7 @@
   "{{label}}, {{kind}}": "__STRING_NOT_TRANSLATED__",
   "{{label}}, {{kind}}, {{connections}}": "__STRING_NOT_TRANSLATED__",
   "{{relation}} {{target}}": "__STRING_NOT_TRANSLATED__",
+  "{{relation}} (from {{source}})": "{{relation}} (od {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Miselnega vzorca ni bilo mogoče shraniti"

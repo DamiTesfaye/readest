@@ -25,7 +25,8 @@ describe('recordAriaLabels', () => {
       'en',
     );
     expect(labels.get('e')).toBe('Elizabeth, Character, slights Mr Darcy, sisters with Jane');
-    expect(labels.get('j')).toBe('Jane, Character, sisters with Elizabeth');
+    expect(labels.get('d')).toBe('Mr Darcy, Character, slights (from Elizabeth)');
+    expect(labels.get('j')).toBe('Jane, Character, sisters with (from Elizabeth)');
   });
 
   it('describes unlabelled links, stickies, text and untitled records', () => {
