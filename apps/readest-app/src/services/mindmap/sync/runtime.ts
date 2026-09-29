@@ -18,6 +18,7 @@ import { incomingDir } from '@/services/mindmap/sync/versions';
 import { MINDMAP_KIND } from '@/services/sync/adapters/mindmap';
 import { queueReplicaBinaryUpload } from '@/services/sync/replicaBinaryUpload';
 import { publishReplicaUpsert } from '@/services/sync/replicaPublish';
+import { getReplicaSync } from '@/services/sync/replicaSync';
 import { isSyncCategoryEnabled } from '@/services/sync/syncCategories';
 import { transferManager } from '@/services/transferManager';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -40,6 +41,7 @@ const isOnline = (): boolean => typeof navigator === 'undefined' || navigator.on
 
 const canPush = async (): Promise<boolean> =>
   isSyncCategoryEnabled(MINDMAP_KIND) &&
+  (getReplicaSync()?.manager.isKindSupported(MINDMAP_KIND) ?? true) &&
   isOnline() &&
   transferManager.isReady() &&
   Boolean(await getAccessToken());

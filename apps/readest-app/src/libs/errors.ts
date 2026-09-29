@@ -25,6 +25,7 @@ export interface SyncErrorContext {
   kind?: string;
   field?: string;
   status?: number;
+  offendingIndex?: number;
   cause?: unknown;
 }
 

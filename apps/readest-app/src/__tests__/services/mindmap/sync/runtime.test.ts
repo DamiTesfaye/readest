@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   queueReplicaUpload: vi.fn((..._args: unknown[]) => 'upload-1' as string | null),
   queueReplicaDownload: vi.fn((..._args: unknown[]) => 'download-1' as string | null),
   publishReplicaUpsert: vi.fn(async (..._args: unknown[]) => {}),
+  mindmapSupported: true,
 }));
 
 vi.mock('@/services/environment', () => ({
@@ -24,6 +25,18 @@ vi.mock('@/utils/access', () => ({ getAccessToken: async () => h.token }));
 vi.mock('@/services/sync/replicaPublish', () => ({
   publishReplicaUpsert: h.publishReplicaUpsert,
 }));
+vi.mock('@/services/sync/replicaSync', async (importOriginal) => {
+  const { HlcGenerator } = await import('@/libs/crdt');
+  const context = {
+    hlc: new HlcGenerator('dev-a'),
+    deviceId: 'dev-a',
+    manager: { isKindSupported: (kind: string) => kind !== 'mindmap' || h.mindmapSupported },
+  };
+  return {
+    ...(await importOriginal<typeof import('@/services/sync/replicaSync')>()),
+    getReplicaSync: () => context,
+  };
+});
 
 import { HlcGenerator } from '@/libs/crdt';
 import { canonicalStringify, md5Hex } from '@/services/mindmap/file/canonicalStringify';
@@ -82,6 +95,7 @@ beforeEach(async () => {
   fs = new MemoryFileSystem();
   h.service = serviceOver(fs);
   h.token = 'token';
+  h.mindmapSupported = true;
   useSettingsStore.setState({
     settings: { replicaDeviceId: 'dev-a', syncCategories: {} } as SystemSettings,
   });
@@ -134,6 +148,7 @@ describe('mindmap sync runtime', () => {
         }),
     ],
     ['offline', () => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)],
+    ['the server does not know mind maps', () => void (h.mindmapSupported = false)],
   ])('writes and uploads nothing while %s', async (_label, arrange) => {
     const mapId = await createMap();
     arrange();

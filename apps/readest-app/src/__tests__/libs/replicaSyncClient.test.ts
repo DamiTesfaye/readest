@@ -99,6 +99,19 @@ describe('ReplicaSyncClient.push', () => {
     await expect(client.push([sampleRow])).rejects.toMatchObject({ code: 'UNKNOWN_KIND' });
   });
 
+  test('422 / UNKNOWN_KIND carries the offending row index', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'unknown', code: 'UNKNOWN_KIND', offendingIndex: 1 }), {
+        status: 422,
+      }),
+    );
+    const client = new ReplicaSyncClient();
+    await expect(client.push([sampleRow, sampleRow])).rejects.toMatchObject({
+      code: 'UNKNOWN_KIND',
+      context: { status: 422, offendingIndex: 1 },
+    });
+  });
+
   test('5xx → SyncError SERVER', async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: 'oops' }), { status: 500 }),
@@ -311,6 +324,19 @@ describe('ReplicaSyncClient.pullBatch', () => {
     const result = await client.pullBatch([]);
     expect(result).toEqual([]);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test('422 / UNKNOWN_KIND carries the offending cursor index', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'unknown', code: 'UNKNOWN_KIND', offendingIndex: 0 }), {
+        status: 422,
+      }),
+    );
+    const client = new ReplicaSyncClient();
+    await expect(client.pullBatch([{ kind: 'mindmap', since: null }])).rejects.toMatchObject({
+      code: 'UNKNOWN_KIND',
+      context: { status: 422, offendingIndex: 0 },
+    });
   });
 
   test('5xx → SyncError SERVER', async () => {
