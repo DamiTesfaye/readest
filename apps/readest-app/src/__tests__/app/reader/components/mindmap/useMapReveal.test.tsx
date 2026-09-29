@@ -1,4 +1,4 @@
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { useMapReveal } from '@/app/reader/components/mindmap/useMapReveal';
@@ -195,5 +195,43 @@ describe('useMapReveal reading position', () => {
       expect(useMindmapViewStore.getState().reveal).toMatchObject({ revealed: 1 }),
     );
     expect(session.meta().lastSeenProgress).toBe(0.2);
+  });
+});
+
+describe('useMapReveal announcements', () => {
+  it('never pops in or announces records on a whole-book map', async () => {
+    setBook('History');
+    render(true);
+    expect(controller.isShown('fresh')).toBe(true);
+    await waitFor(() => expect(session.meta().lastSeenProgress).toBe(0.5));
+    expect(useMindmapViewStore.getState().announcement).toBe('');
+  });
+
+  it('does not announce records again after reading back and forth', async () => {
+    render(false);
+    await waitFor(() =>
+      expect(useMindmapViewStore.getState().announcement).toBe('1 new nodes revealed'),
+    );
+    const firstId = useMindmapViewStore.getState().announcementId;
+    act(() => setBookProgress(BOOK_KEY, { fraction: 0.25 } as BookProgress));
+    act(() => setBookProgress(BOOK_KEY, { fraction: 0.5 } as BookProgress));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(useMindmapViewStore.getState().announcementId).toBe(firstId);
+  });
+
+  it('shows no reveal chip while a generated map has nothing in it', async () => {
+    session.store.applyGenerated({
+      added: [],
+      changed: session.store.all().map((record) => ({
+        id: record.id,
+        field: 'deleted',
+        from: null,
+        to: { by: 'gen' },
+      })),
+      discarded: [],
+    });
+    render(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(useMindmapViewStore.getState().reveal).toBeNull();
   });
 });

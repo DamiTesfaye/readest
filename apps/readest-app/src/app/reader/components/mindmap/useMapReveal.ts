@@ -130,13 +130,15 @@ export const useMapReveal = ({
     return () => cancelAnimationFrame(frame);
   }, [ready, opening]);
 
-  const announced = useRef(0);
+  const announced = useRef<ReadonlySet<string>>(new Set());
   useEffect(() => {
     if (!ready || opening) return;
-    const fresh = state.newIds.length - announced.current;
-    announced.current = state.newIds.length;
-    if (fresh > 0) {
-      useMindmapViewStore.getState().announce(_('{{count}} new nodes revealed', { count: fresh }));
+    const fresh = state.newIds.filter((id) => !announced.current.has(id));
+    announced.current = new Set([...announced.current, ...fresh]);
+    if (fresh.length > 0) {
+      useMindmapViewStore
+        .getState()
+        .announce(_('{{count}} new nodes revealed', { count: fresh.length }));
     }
     const stored = session.meta().lastSeenProgress;
     if (!session.readOnly && revealsBetween(records, stored, floor)) {
@@ -144,7 +146,7 @@ export const useMapReveal = ({
     }
   }, [ready, opening, state, records, floor, session, _]);
 
-  const showChip = meta.source === 'generated' && spoiler !== 'whole';
+  const showChip = meta.source === 'generated' && spoiler !== 'whole' && state.total > 0;
   const chapter = chapterAt(chapterStarts, floor);
   useEffect(() => {
     useMindmapViewStore.getState().setReveal(

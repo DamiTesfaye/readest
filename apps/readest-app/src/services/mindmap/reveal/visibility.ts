@@ -116,7 +116,7 @@ export const computeReveal = ({
         : [],
     revealed: counted.length - hidden.size,
     total: counted.length,
-    newIds: counted
+    newIds: (spoiler === 'whole' ? [] : counted)
       .filter(
         ({ revealAt }) => revealAt !== null && revealAt > lastSeenProgress && revealAt <= progress,
       )
