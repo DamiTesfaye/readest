@@ -10,6 +10,7 @@ import { stampDiff, stampMeta } from '@/services/mindmap/file/stampDiff';
 import { mapFileDir, mapFilePath, readMapFile } from '@/services/mindmap/persist/mapFile';
 import { saveMap } from '@/services/mindmap/persist/maps';
 import { loadMindmapIndex } from '@/services/mindmap/persist/mindmapIndex';
+import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
 import {
   __resetMindmapStoreForTests,
   useMindmapStore,
@@ -172,6 +173,38 @@ describe('mergeIncomingVersion', () => {
     expect(await fs.readFile(mapFilePath(BOOK, MAP), 'Books')).toBe(text);
     expect(store().getEntry(MAP)).toMatchObject({ name: 'Shared', syncedMd5: md5Hex(text) });
     expect((await loadMindmapIndex(fs, BOOK)).map((entry) => entry.mapId)).toEqual([MAP]);
+  });
+
+  it('merges a download the file system reads back as bytes, as the web and Tauri apps do', async () => {
+    const shared = base();
+    await seedLocal(relabel(shared, 'n1', 'Libellé local', local), 'old');
+    const title = 'Carte mentale é 思维导图';
+    const text = canonicalStringify(stampMeta(shared, { title }, remoteClock));
+    expect(new TextEncoder().encode(text).length).toBeGreaterThan(text.length);
+    const files = await deliver(text);
+    const binaryReads: string[] = [];
+    const bytesFs: MindmapFs = {
+      exists: (path, base) => fs.exists(path, base),
+      writeFile: (path, base, content) => fs.writeFile(path, base, content),
+      copyFile: (from, fromBase, to, toBase) => fs.copyFile(from, fromBase, to, toBase),
+      createDir: async () => {},
+      readDir: (path, base) => fs.readDir(path, base),
+      removeDir: (path, base) => fs.removeDir(path, base),
+      removeFile: (path, base) => fs.removeFile(path, base),
+      readFile: async (path, base, mode) => {
+        const content = await fs.readFile(path, base);
+        if (mode !== 'binary') return content;
+        binaryReads.push(path);
+        return new TextEncoder().encode(content).buffer as ArrayBuffer;
+      },
+    };
+    expect(await mergeIncomingVersion({ ...deps, fs: bytesFs }, MAP, files)).toBe('merged');
+    expect(binaryReads).toEqual([files[0]!.lfp]);
+    const merged = await diskFile();
+    expect(merged.meta['title']!.v).toBe(title);
+    expect(merged.records['n1']!['label']!.v).toBe('Libellé local');
+    expect(store().getEntry(MAP)).toMatchObject({ syncedMd5: md5Hex(text), name: title });
+    expect(await fs.exists(files[0]!.lfp, 'Books')).toBe(false);
   });
 
   it('merges into an open map through its session so autosave keeps the remote edit', async () => {
