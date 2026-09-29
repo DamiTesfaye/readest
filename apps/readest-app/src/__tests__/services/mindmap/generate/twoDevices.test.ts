@@ -144,4 +144,17 @@ describe('generated maps on two devices', () => {
     expect(liveByKey(a, 'note:h1')).toHaveLength(0);
     expect(liveByKey(a, 'link:note:h1')).toHaveLength(0);
   });
+
+  it('keeps a quote the reader deleted gone after merging the copy another device made', async () => {
+    const [a, b] = await twoDevices();
+    const notes = [note('h1', 'Quote one')];
+    await reconcileOn(a, inputOf(notes));
+    await reconcileOn(b, inputOf(notes));
+    const mine = liveByKey(a, 'note:h1')[0]!;
+    a.controller.selection.set([mine.id]);
+    a.controller.deleteSelection();
+    pushTo(b, a);
+    await reconcileOn(a, inputOf(notes));
+    expect(liveByKey(a, 'note:h1')).toEqual([]);
+  });
 });

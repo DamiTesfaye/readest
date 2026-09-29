@@ -17,11 +17,13 @@ export interface ReconcileDeps {
   isGone?(genKey: string): boolean;
 }
 
-const preferred = (a: MapRecord, b: MapRecord): boolean => {
-  if ((a.deleted === null) !== (b.deleted === null)) return a.deleted === null;
-  if (a.touched.length > 0 !== b.touched.length > 0) return a.touched.length > 0;
-  return a.id < b.id;
+const rank = (record: MapRecord): number => {
+  if (record.deleted === null) return record.touched.length > 0 ? 0 : 2;
+  return record.deleted.by === 'user' ? 1 : 3;
 };
+
+const preferred = (a: MapRecord, b: MapRecord): boolean =>
+  rank(a) !== rank(b) ? rank(a) < rank(b) : a.id < b.id;
 
 const canonicalByKey = (existing: readonly MapRecord[]): Map<string, MapRecord> => {
   const byKey = new Map<string, MapRecord>();

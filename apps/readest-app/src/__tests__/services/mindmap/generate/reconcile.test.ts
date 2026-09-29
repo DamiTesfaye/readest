@@ -233,3 +233,54 @@ describe('reconcile with keys the generator cannot vouch for', () => {
     expect(diff.changed).toEqual([{ id: 'c', field: 'deleted', from: null, to: { by: 'gen' } }]);
   });
 });
+
+describe('reconcile duplicates from two devices', () => {
+  const generated = [chapter('toc:a', 'Old')];
+  const deleted = (by: 'user' | 'gen') => ({ deleted: { by } });
+  const deletedIds = (diff: Diff) =>
+    diff.changed.filter((change) => change.field === 'deleted').map((change) => change.id);
+
+  it('keeps a key the reader deleted on one device deleted when the other device holds a live copy', () => {
+    const diff = run(
+      [
+        generatedNode('a', 'toc:a', { label: 'Old', ...deleted('user') }),
+        generatedNode('b', 'toc:a', { label: 'Old' }),
+      ],
+      generated,
+    );
+    expect(diff.changed).toEqual([{ id: 'b', field: 'deleted', from: null, to: { by: 'gen' } }]);
+  });
+
+  it('never revives a gen-tombstoned copy after the reader deletes the live one', () => {
+    const diff = run(
+      [
+        generatedNode('a', 'toc:a', { label: 'Old', ...deleted('gen') }),
+        generatedNode('b', 'toc:a', { label: 'Old', ...deleted('user') }),
+      ],
+      generated,
+    );
+    expect(diff).toEqual(EMPTY);
+  });
+
+  it('prefers a live copy over a gen tombstone with a smaller id', () => {
+    const diff = run(
+      [
+        generatedNode('a', 'toc:a', { label: 'Old', ...deleted('gen') }),
+        generatedNode('b', 'toc:a', { label: 'Old' }),
+      ],
+      generated,
+    );
+    expect(deletedIds(diff)).toEqual([]);
+  });
+
+  it('keeps a live copy the reader moved over a copy the reader deleted', () => {
+    const diff = run(
+      [
+        generatedNode('a', 'toc:a', { label: 'Old', ...deleted('user') }),
+        generatedNode('b', 'toc:a', { label: 'Old', touched: ['x'] }),
+      ],
+      generated,
+    );
+    expect(diff).toEqual(EMPTY);
+  });
+});
