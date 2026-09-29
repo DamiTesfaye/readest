@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { hlcPack } from '@/libs/crdt';
 import {
   latestMindmapManifest,
@@ -40,6 +40,7 @@ const manifestFile = (filename: string): ManifestFile => ({
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   __resetMindmapManifestsForTests();
 });
 
@@ -85,6 +86,19 @@ describe('mindmapAdapter', () => {
   test('remembers the manifest it was asked about for the merge to compare against', () => {
     binary.isCurrent!(entry(), [manifestFile(`map1.${OTHER}.json`)]);
     expect(latestMindmapManifest('map1')).toEqual(manifestFile(`map1.${OTHER}.json`));
+  });
+
+  test.each([
+    ['a path outside the map', [manifestFile('../x.json')]],
+    ['a nested path', [manifestFile(`sub/map1.${OTHER}.json`)]],
+    ["another map's version", [manifestFile(`map2.${OTHER}.json`)]],
+    ['two files', [manifestFile(`map1.${OTHER}.json`), manifestFile(`map1.${MD5}.json`)]],
+    ['no files', []],
+  ])('downloads nothing and remembers nothing for a manifest with %s', (_label, files) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(binary.isCurrent!(entry({ syncedMd5: null }), files)).toBe(true);
+    expect(latestMindmapManifest('map1')).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
   });
 
   test('downloads into incoming/ and uploads the outgoing copy', () => {

@@ -4,6 +4,7 @@ import {
   incomingDir,
   noteMindmapManifest,
   outgoingDir,
+  parseVersionFilename,
   versionFilename,
 } from '@/services/mindmap/sync/versions';
 import type { ReplicaAdapter } from '@/services/sync/replicaRegistry';
@@ -70,12 +71,18 @@ export const mindmapAdapter: ReplicaAdapter<MindmapReplicaRecord> = {
           ]
         : [],
     isCurrent: (record, manifestFiles) => {
-      const [file] = manifestFiles;
-      if (file) noteMindmapManifest(record.mapId, file);
+      const file = manifestFiles.length === 1 ? manifestFiles[0] : undefined;
+      if (!file || parseVersionFilename(file.filename)?.mapId !== record.mapId) {
+        console.warn('mindmap: ignored a manifest that does not name one version of this map', {
+          mapId: record.mapId,
+          filenames: manifestFiles.map((entry) => entry.filename),
+        });
+        return true;
+      }
+      noteMindmapManifest(record.mapId, file);
       return (
-        manifestFiles.length === 1 &&
         record.syncedMd5 !== null &&
-        file?.filename === versionFilename(record.mapId, record.syncedMd5)
+        file.filename === versionFilename(record.mapId, record.syncedMd5)
       );
     },
     downloadPath: (filename, bundleDir) => `${incomingDir(bundleDir)}/${filename}`,
