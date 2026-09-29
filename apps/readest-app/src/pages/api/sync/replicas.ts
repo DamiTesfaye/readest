@@ -23,6 +23,28 @@ const errorResponse = (status: number, code: string, message: string, offendingI
     { status },
   );
 
+interface MergeError {
+  code?: string;
+  message: string;
+  details?: string | null;
+}
+
+const KIND_CHECK_CONSTRAINT = 'replicas_kind_allowlist';
+
+const isKindCheckViolation = (error: MergeError): boolean =>
+  error.code === '23514' &&
+  [error.message, error.details].some((text) => text?.includes(KIND_CHECK_CONSTRAINT));
+
+const mergeErrorResponse = (row: ReplicaRow, index: number, error: MergeError) => {
+  if (isKindCheckViolation(error)) {
+    console.error('crdt_merge_replica rejected the kind', { kind: row.kind, index, error });
+    const message = `row[${index}].kind=${row.kind} is not allowed by the database`;
+    return errorResponse(422, 'UNKNOWN_KIND', message, index);
+  }
+  console.error('crdt_merge_replica failed', { row, error });
+  return errorResponse(500, 'SERVER', error.message);
+};
+
 export async function POST(req: NextRequest) {
   const { user, token } = await validateUserAndToken(req.headers.get('authorization'));
   if (!user || !token) {
@@ -93,7 +115,7 @@ export async function POST(req: NextRequest) {
 
   const merged: ReplicaRow[] = [];
   let fileStore: ReplicaFileStore | null = null;
-  for (const pushed of validation.rows) {
+  for (const [index, pushed] of validation.rows.entries()) {
     let prune: PreparedPrune | null = null;
     if (KIND_ALLOWLIST[pushed.kind]?.pruneReplacedFiles) {
       fileStore ??= createReplicaFileStore(supabase, createSupabaseAdminClient());
@@ -114,10 +136,7 @@ export async function POST(req: NextRequest) {
       })
       .single<ReplicaRow>();
 
-    if (error) {
-      console.error('crdt_merge_replica failed', { row, error });
-      return errorResponse(500, 'SERVER', error.message);
-    }
+    if (error) return mergeErrorResponse(row, index, error);
     if (data) {
       merged.push(data);
       if (prune) await prune.finish(data);

@@ -15,8 +15,13 @@ type Filter = (row: Row) => boolean;
 
 interface QueryResult<T> {
   data: T;
-  error: { message: string } | null;
+  error: { message: string; code?: string } | null;
 }
+
+const KIND_CHECK_VIOLATION = {
+  code: '23514',
+  message: 'new row for relation "replicas" violates check constraint "replicas_kind_allowlist"',
+};
 
 const byteLength = (text: string): number => new TextEncoder().encode(text).length;
 
@@ -115,16 +120,17 @@ export class FakeReplicaCloud {
   failDeletes = false;
   failObjectDeletes = false;
   failReads = false;
+  kindsRejectedByCheck = new Set<string>();
   private nextFileId = 1;
 
   client() {
     return {
       from: (table: 'replicas' | 'files') => createQuery(this, table),
       rpc: (_name: 'crdt_merge_replica', params: Record<string, unknown>) => ({
-        single: async (): Promise<QueryResult<ReplicaRow>> => ({
-          data: this.merge(params),
-          error: null,
-        }),
+        single: async (): Promise<QueryResult<ReplicaRow | null>> =>
+          this.kindsRejectedByCheck.has(params['p_kind'] as string)
+            ? { data: null, error: KIND_CHECK_VIOLATION }
+            : { data: this.merge(params), error: null },
       }),
     };
   }
