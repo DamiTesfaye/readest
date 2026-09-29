@@ -136,3 +136,22 @@ describe('seedGenerator', () => {
     expect(records.some((record) => record.type === 'link')).toBe(false);
   });
 });
+
+describe('seedGenerator.isGone', () => {
+  const input = (annotations: BookNote[]) => ({
+    book,
+    toc: toc(),
+    annotations,
+    intent: 'story' as const,
+    locator,
+  });
+
+  it('treats a quote key as gone only when its booknote is known here', () => {
+    const isGone = seedGenerator.isGone!;
+    expect(isGone('note:n1', input([]))).toBe(false);
+    expect(isGone('link:note:n1', input([]))).toBe(false);
+    expect(isGone('note:n1', input([note({ deletedAt: 5 })]))).toBe(true);
+    expect(isGone('link:note:n1', input([note({ type: 'bookmark' })]))).toBe(true);
+    expect(isGone('toc:ch1.xhtml', input([]))).toBe(true);
+  });
+});

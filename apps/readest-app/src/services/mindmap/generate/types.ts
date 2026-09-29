@@ -42,4 +42,5 @@ export interface GenerateInput {
 export interface MapGenerator {
   id: string;
   generate(input: GenerateInput): Promise<GenRecord[]>;
+  isGone?(genKey: string, input: GenerateInput): boolean;
 }

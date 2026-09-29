@@ -218,3 +218,18 @@ describe('reconcile', () => {
     expect(store.get('r1')).toMatchObject({ label: 'New', touched: [] });
   });
 });
+
+describe('reconcile with keys the generator cannot vouch for', () => {
+  it('leaves a missing record alone when its key is not proven gone', () => {
+    const existing = [
+      generatedNode('q', 'note:n1'),
+      generatedNode('touched', 'note:n2', { touched: ['x'] }),
+      generatedNode('c', 'toc:a'),
+    ];
+    const diff = reconcile(existing, [], {
+      ...deps(),
+      isGone: (genKey) => !genKey.startsWith('note:'),
+    });
+    expect(diff.changed).toEqual([{ id: 'c', field: 'deleted', from: null, to: { by: 'gen' } }]);
+  });
+});

@@ -4,6 +4,7 @@ import type { GenNode, GenRecord, MapGenerator } from '@/services/mindmap/genera
 import type { BookNote } from '@/types/book';
 
 const QUOTE_TYPES: ReadonlySet<BookNote['type']> = new Set(['annotation', 'excerpt']);
+const NOTE_KEY = /^(?:link:)?note:(.+)$/;
 
 const chapterNodes = (toc: readonly TOCItem[], locator: BookLocator): GenNode[] => {
   const nodes: GenNode[] = [];
@@ -86,5 +87,9 @@ export const seedGenerator: MapGenerator = {
   generate: async ({ toc, annotations, locator }) => {
     const chapters = chapterNodes(toc, locator);
     return [...chapters, ...quoteRecords(annotations, chapters, locator)];
+  },
+  isGone: (genKey, { annotations }) => {
+    const noteId = NOTE_KEY.exec(genKey)?.[1];
+    return noteId === undefined || annotations.some((note) => note.id === noteId);
   },
 };

@@ -14,6 +14,7 @@ import {
 export interface ReconcileDeps {
   createId(): string;
   place(nodes: readonly GenNode[]): ReadonlyMap<string, Point>;
+  isGone?(genKey: string): boolean;
 }
 
 const preferred = (a: MapRecord, b: MapRecord): boolean => {
@@ -63,6 +64,7 @@ export const reconcile = (
     if (record.origin !== 'generated' || record.genKey === null || record.deleted !== null)
       continue;
     if (seen.has(record.genKey) && canonical.get(record.genKey) === record) continue;
+    if (!seen.has(record.genKey) && deps.isGone?.(record.genKey) === false) continue;
     if (record.touched.length === 0) {
       set(record, 'deleted', { by: 'gen' });
     } else {

@@ -48,6 +48,7 @@ export const reconcileMap = async ({
     const diff = reconcile(store.all(), generated, {
       createId,
       place: (nodes) => layoutNewNodes(store, spatial, nodes),
+      isGone: (genKey) => generator.isGone?.(genKey, input) ?? true,
     });
     if (isEmptyDiff(diff)) return 'unchanged';
     store.applyGenerated(diff);
