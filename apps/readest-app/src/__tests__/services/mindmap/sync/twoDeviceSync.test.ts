@@ -1,17 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
 import { FakeReplicaCloud } from '@/__tests__/helpers/fakeReplicaCloud';
-import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
-import { InMemoryHlcStore } from '@/libs/hlcStore';
+import {
+  BOOK,
+  USER,
+  byteLength,
+  cloudPath,
+  createMap,
+  createMindmapSim,
+  type Device,
+  drain,
+  edit,
+  entryOf,
+  errorToasts,
+  fieldOf,
+  localText,
+  metaOf,
+  nodeRecord,
+  openMap,
+  pull,
+  pullDeps,
+  push,
+  settle,
+  syncRounds,
+  transfersOf,
+} from '@/__tests__/helpers/mindmapSyncSim';
+import type { AppService } from '@/types/system';
 import { hlcPack } from '@/libs/crdt';
-import type { MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
-import type { PullAndApplyDeps } from '@/services/sync/replicaPullAndApply';
-import type { Hlc, ReplicaRow } from '@/types/replica';
-import type { SystemSettings } from '@/types/settings';
-import type { AppService, BaseDir } from '@/types/system';
-
-const USER = 'u1';
-const BOOK = 'book1';
 
 const holder = vi.hoisted(() => ({
   cloud: null as FakeReplicaCloud | null,
@@ -35,285 +49,8 @@ vi.mock('@/services/environment', () => ({
   default: { getAppService: async () => holder.service },
 }));
 
-import { GET, POST } from '@/pages/api/sync/replicas';
-
-const byteLength = (text: string): number => new TextEncoder().encode(text).length;
-const cloudPath = (kind: string, replicaId: string, filename: string): string =>
-  `Readest/Replicas/${kind}/${replicaId}/${filename}`;
-
-const parentOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
-
-const deviceService = (fs: MemoryFileSystem): AppService => {
-  const dirs = new Set<string>();
-  const createDir = async (path: string, base: BaseDir): Promise<void> => {
-    for (let dir = path; dir; dir = parentOf(dir)) dirs.add(`${base}:${dir}`);
-  };
-  return {
-    exists: fs.exists.bind(fs),
-    readFile: fs.readFile.bind(fs),
-    writeFile: fs.writeFile.bind(fs),
-    copyFile: fs.copyFile.bind(fs),
-    createDir,
-    readDirectory: fs.readDir.bind(fs),
-    deleteDir: fs.removeDir.bind(fs),
-    deleteFile: fs.removeFile.bind(fs),
-    openFile: async (path: string, base: BaseDir) =>
-      new File([await fs.readFile(path, base)], path.split('/').pop()!),
-    uploadReplicaFile: async (
-      kind: string,
-      replicaId: string,
-      filename: string,
-      lfp: string,
-      base: BaseDir,
-    ) => {
-      const body = await fs.readFile(lfp, base);
-      const cloud = holder.cloud!;
-      const signed = cloud.signUpload(
-        USER,
-        cloudPath(kind, replicaId, filename),
-        byteLength(body),
-        kind,
-        replicaId,
-      );
-      cloud.put(signed.fileKey, signed.signedSize, body);
-    },
-    downloadReplicaFile: async (
-      kind: string,
-      replicaId: string,
-      filename: string,
-      lfp: string,
-      base: BaseDir,
-    ) => {
-      const body = holder.cloud!.download(USER, cloudPath(kind, replicaId, filename));
-      if (!dirs.has(`${base}:${parentOf(lfp)}`)) throw new Error(`ENOENT: ${parentOf(lfp)}`);
-      await fs.writeFile(lfp, base, body);
-    },
-  } as unknown as AppService;
-};
-
-const routeClient = {
-  push: async (rows: ReplicaRow[]): Promise<ReplicaRow[]> => {
-    const response = await POST(
-      new NextRequest('http://localhost/api/sync/replicas', {
-        method: 'POST',
-        headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
-        body: JSON.stringify({ rows }),
-      }),
-    );
-    if (response.status !== 200) throw new Error(`push failed: ${await response.text()}`);
-    return ((await response.json()) as { rows: ReplicaRow[] }).rows;
-  },
-  pull: async (kind: string, since: Hlc | null): Promise<ReplicaRow[]> => {
-    const query = since ? `kind=${kind}&since=${since}` : `kind=${kind}`;
-    const response = await GET(
-      new NextRequest(`http://localhost/api/sync/replicas?${query}`, {
-        headers: { authorization: 'Bearer token' },
-      }),
-    );
-    return ((await response.json()) as { rows: ReplicaRow[] }).rows;
-  },
-  pullBatch: async (cursors: { kind: string; since: Hlc | null }[]) =>
-    Promise.all(
-      cursors.map(async ({ kind, since }) => ({ kind, rows: await routeClient.pull(kind, since) })),
-    ),
-};
-
-const loadModules = async () => ({
-  replicaSync: await import('@/services/sync/replicaSync'),
-  bootstrap: await import('@/services/sync/replicaBootstrap'),
-  integration: await import('@/services/sync/replicaTransferIntegration'),
-  transfers: await import('@/services/transferManager'),
-  transferStore: await import('@/store/transferStore'),
-  settings: await import('@/store/settingsStore'),
-  store: await import('@/services/mindmap/persist/mindmapStore'),
-  sessions: await import('@/services/mindmap/persist/session'),
-  maps: await import('@/services/mindmap/persist/mapFile'),
-  versions: await import('@/services/mindmap/sync/versions'),
-  clockSource: await import('@/services/mindmap/persist/clockSource'),
-  runtime: await import('@/services/mindmap/sync/runtime'),
-  deleteMap: await import('@/services/mindmap/sync/deleteMap'),
-  pullAndApply: await import('@/services/sync/replicaPullAndApply'),
-  adapter: await import('@/services/sync/adapters/mindmap'),
-  events: await import('@/utils/event'),
-  file: await import('@/services/mindmap/file/canonicalStringify'),
-  schema: await import('@/services/mindmap/schema/types'),
-});
-
-type Modules = Awaited<ReturnType<typeof loadModules>>;
-
-interface Device {
-  name: string;
-  fs: MemoryFileSystem;
-  service: AppService;
-  m: Modules;
-  toasts: { type: string; message: string }[];
-  handled: number;
-}
-
-const devices: Device[] = [];
-
-const startDevice = async (name: string): Promise<Device> => {
-  vi.resetModules();
-  const fs = new MemoryFileSystem();
-  const service = deviceService(fs);
-  holder.service = service;
-  const m = await loadModules();
-  const device: Device = { name, fs, service, m, toasts: [], handled: 0 };
-  m.settings.useSettingsStore.setState({
-    settings: { replicaDeviceId: name, syncCategories: {} } as SystemSettings,
-  });
-  m.replicaSync.initReplicaSync({
-    deviceId: name,
-    cursorStore: { get: () => null, set: () => {} },
-    hlcStore: new InMemoryHlcStore(),
-    client: routeClient,
-  });
-  m.bootstrap.bootstrapReplicaAdapters();
-  m.integration.startReplicaTransferIntegration(service);
-  m.events.eventDispatcher.on('replica-transfer-complete', () => {
-    device.handled += 1;
-  });
-  m.events.eventDispatcher.on('toast', (event: CustomEvent) => {
-    device.toasts.push(event.detail as { type: string; message: string });
-  });
-  await m.transfers.transferManager.initialize(
-    service,
-    () => [],
-    async () => {},
-    (key: string) => key,
-  );
-  await m.runtime.getMindmapSync();
-  await m.store.useMindmapStore.getState().hydrate((await m.runtime.getMindmapSync()).fs);
-  devices.push(device);
-  return device;
-};
-
-const transfersOf = (device: Device) =>
-  Object.values(device.m.transferStore.useTransferStore.getState().transfers);
-
-const drain = async (device: Device): Promise<void> => {
-  await vi.waitFor(
-    () => {
-      const transfers = transfersOf(device);
-      const busy = transfers.some((t) => t.status === 'pending' || t.status === 'in_progress');
-      const completed = transfers.filter((t) => t.status === 'completed').length;
-      if (busy || device.handled < completed) throw new Error(`${device.name} is busy`);
-    },
-    { timeout: 5_000, interval: 10 },
-  );
-  await (await device.m.runtime.getMindmapSync()).pusher.idle();
-};
-
-const settle = async (device: Device): Promise<void> => {
-  for (let round = 0; round < 4; round++) {
-    await drain(device);
-    await (await device.m.runtime.getMindmapSync()).pusher.flushAll();
-    await device.m.replicaSync.getReplicaSync()!.manager.flush();
-  }
-};
-
-const pullDeps = (device: Device): PullAndApplyDeps<MindmapReplicaRecord> => {
-  const { m, service } = device;
-  const store = m.store.useMindmapStore;
-  const manager = m.replicaSync.getReplicaSync()!.manager;
-  return {
-    adapter: m.adapter.mindmapAdapter,
-    pull: () => manager.pull('mindmap', { since: null }),
-    findByContentId: m.store.findMindmapByContentId,
-    hydrateLocalStore: m.runtime.beginMindmapPull,
-    applyRemote: (record) => store.getState().applyRemoteMap(record),
-    softDeleteByContentId: (id) => store.getState().softDeleteByContentId(id),
-    createBundleDir: async (dir) => {
-      await service.createDir(dir!, 'Books', true);
-      return dir!;
-    },
-    ensureDir: (dir) => service.createDir(dir, 'Books', true),
-    queueReplicaDownload: (id, title, files, _dir, base) =>
-      m.transfers.transferManager.queueReplicaDownload('mindmap', id, title, files, base, {
-        isBackground: true,
-      }),
-    filesExist: async () => false,
-  };
-};
-
-const pull = async (device: Device): Promise<void> => {
-  await device.m.pullAndApply.replicaPullAndApply(pullDeps(device));
-  await device.m.runtime.finishMindmapPull();
-  await settle(device);
-};
-
-const clockOf = (device: Device) => device.m.clockSource.getMindmapClock(device.name);
-
-const createMap = async (device: Device, title: string): Promise<string> => {
-  const file = await device.m.store.useMindmapStore
-    .getState()
-    .createMap(BOOK, { ...device.m.schema.DEFAULT_MAP_META, title }, clockOf(device));
-  return file.mapId;
-};
-
-const openMap = async (device: Device, mapId: string) => {
-  const sync = await device.m.runtime.getMindmapSync();
-  const opened = await device.m.sessions.openMapSession(sync.fs, BOOK, mapId, clockOf(device));
-  if (opened.status !== 'open') throw new Error('expected an open session');
-  return opened.session;
-};
-
-const edit = async (
-  device: Device,
-  mapId: string,
-  change: (session: Awaited<ReturnType<typeof openMap>>) => void,
-): Promise<void> => {
-  const session = await openMap(device, mapId);
-  change(session);
-  await session.close();
-};
-
-const push = async (device: Device, mapId: string): Promise<string> => {
-  const result = await (await device.m.runtime.getMindmapSync()).pusher.pushNow(mapId);
-  await settle(device);
-  return result;
-};
-
-const localText = async (device: Device, mapId: string): Promise<string> =>
-  device.fs.readFile(device.m.maps.mapFilePath(BOOK, mapId), 'Books');
-
-const entryOf = (device: Device, mapId: string) =>
-  device.m.store.useMindmapStore.getState().getEntry(mapId);
-
-const serverVersion = (mapId: string): string | undefined =>
-  holder.cloud!.row(USER, 'mindmap', mapId)?.manifest_jsonb?.files[0]?.filename;
-
-const storedVersions = (mapId: string) => holder.cloud!.fileRows('mindmap', mapId);
-
-const outgoingFiles = async (device: Device, mapId: string): Promise<string[]> => {
-  const dir = device.m.versions.outgoingDir(device.m.maps.mapFileDir(BOOK, mapId));
-  const items = await device.fs.readDir(dir, 'Books').catch(() => []);
-  return items.map((item) => item.path);
-};
-
-const expectConverged = async (mapId: string, ...group: Device[]): Promise<void> => {
-  const texts = await Promise.all(group.map((device) => localText(device, mapId)));
-  expect(new Set(texts).size).toBe(1);
-  const md5 = group[0]!.m.file.md5Hex(texts[0]!);
-  for (const device of group) expect(entryOf(device, mapId)!.syncedMd5).toBe(md5);
-  expect(serverVersion(mapId)).toBe(`${mapId}.${md5}.json`);
-  expect(storedVersions(mapId).map((row) => row.file_key)).toEqual([
-    `${USER}/${cloudPath('mindmap', mapId, `${mapId}.${md5}.json`)}`,
-  ]);
-  expect(storedVersions(mapId)[0]!.file_size).toBe(byteLength(texts[0]!));
-  for (const device of group) expect(await outgoingFiles(device, mapId)).toEqual([]);
-};
-
-const metaOf = (text: string, key: string): unknown =>
-  (JSON.parse(text) as { meta: Record<string, { v: unknown }> }).meta[key]?.v;
-
-const syncRounds = async (rounds: number, ...group: Device[]): Promise<void> => {
-  for (let round = 0; round < rounds; round++) {
-    for (const device of group) await pull(device);
-  }
-};
-
-const errorToasts = (device: Device) => device.toasts.filter((toast) => toast.type === 'error');
+const { startDevice, stopAll, serverVersion, storedVersions, expectConverged } =
+  createMindmapSim(holder);
 
 beforeEach(() => {
   holder.cloud = new FakeReplicaCloud();
@@ -322,12 +59,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const device of devices.splice(0)) {
-    device.m.replicaSync.__resetReplicaSyncForTests();
-    device.m.integration.__resetReplicaTransferIntegrationForTests();
-    device.m.runtime.__resetMindmapSyncForTests();
-    device.m.transfers.transferManager.pauseQueue();
-  }
+  stopAll();
   localStorage.clear();
   vi.restoreAllMocks();
 });
@@ -337,11 +69,11 @@ describe('mind map sync between two devices', () => {
     const a = await startDevice('dev-a');
     const b = await startDevice('dev-b');
     expect(b.m.store.useMindmapStore).not.toBe(a.m.store.useMindmapStore);
-    const mapId = await createMap(a, 'Characters');
+    const mapId = await createMap(a, 'Personnages é 人物');
     expect(await push(a, mapId)).toBe('queued');
     await pull(b);
     await expectConverged(mapId, a, b);
-    expect(entryOf(b, mapId)).toMatchObject({ bookHash: BOOK, name: 'Characters' });
+    expect(entryOf(b, mapId)).toMatchObject({ bookHash: BOOK, name: 'Personnages é 人物' });
     expect(transfersOf(b).every((t) => t.isBackground)).toBe(true);
     expect([...errorToasts(a), ...errorToasts(b)]).toEqual([]);
   });
@@ -353,31 +85,7 @@ describe('mind map sync between two devices', () => {
     await push(a, mapId);
     await pull(b);
     await edit(a, mapId, (session) => session.updateMeta({ title: 'Renamed on A' }));
-    await edit(b, mapId, (session) =>
-      session.store.put([
-        {
-          id: 'n-b',
-          type: 'node',
-          version: 1,
-          parentId: null,
-          index: 'a0',
-          origin: 'user',
-          genKey: null,
-          touched: [],
-          anchor: null,
-          revealAt: null,
-          deleted: null,
-          x: 0,
-          y: 0,
-          w: 160,
-          h: 64,
-          label: 'Added on B',
-          kind: 'idea',
-          color: 'terracotta',
-          icon: '',
-        },
-      ]),
-    );
+    await edit(b, mapId, (session) => session.store.put([nodeRecord('n-b', 'Added on B')]));
     const syncB = await b.m.runtime.getMindmapSync();
     expect(await syncB.pusher.pushNow(mapId)).toBe('queued');
     await drain(b);
@@ -513,5 +221,65 @@ describe('mind map sync between two devices', () => {
     await syncRounds(3, a, b);
     await expectConverged(mapId, a, b);
     expect(metaOf(await localText(b, mapId), 'title')).toBe('Renamed again');
+  });
+});
+
+describe('mind map sync convergence between two devices', () => {
+  const sharedNode = async (a: Device, b: Device): Promise<string> => {
+    const mapId = await createMap(a, 'Shared');
+    await edit(a, mapId, (session) => session.store.put([nodeRecord('n1', 'Original')]));
+    await push(a, mapId);
+    await pull(b);
+    return mapId;
+  };
+
+  const later = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
+
+  it('queues no transfer and pushes no row when a full pull runs again on converged devices', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await sharedNode(a, b);
+    await syncRounds(1, a, b);
+    await expectConverged(mapId, a, b);
+    const queued = [a, b].map((device) => [
+      vi.spyOn(device.m.transfers.transferManager, 'queueReplicaDownload'),
+      vi.spyOn(device.m.transfers.transferManager, 'queueReplicaUpload'),
+    ]);
+    const pushes = a.knobs.pushes + b.knobs.pushes;
+    await syncRounds(2, a, b);
+    for (const spy of queued.flat()) expect(spy).not.toHaveBeenCalled();
+    expect(a.knobs.pushes + b.knobs.pushes).toBe(pushes);
+    await expectConverged(mapId, a, b);
+  });
+
+  it('merges concurrent edits to one node field by field, the later clock winning a shared field', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await sharedNode(a, b);
+    await edit(a, mapId, (session) => session.store.update('n1', { label: 'From A', w: 200 }));
+    await later();
+    await edit(b, mapId, (session) => session.store.update('n1', { label: 'From B', x: 50 }));
+    await push(b, mapId);
+    await push(a, mapId);
+    await syncRounds(3, a, b);
+    await expectConverged(mapId, a, b);
+    const text = await localText(a, mapId);
+    expect(fieldOf(text, 'n1', 'label')).toBe('From B');
+    expect(fieldOf(text, 'n1', 'x')).toBe(50);
+    expect(fieldOf(text, 'n1', 'w')).toBe(200);
+  });
+
+  it('keeps the furthest lastSeenProgress even when the lower value was written later', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await sharedNode(a, b);
+    await edit(a, mapId, (session) => session.updateMeta({ lastSeenProgress: 0.7 }));
+    await later();
+    await edit(b, mapId, (session) => session.updateMeta({ lastSeenProgress: 0.3 }));
+    await push(b, mapId);
+    await push(a, mapId);
+    await syncRounds(3, a, b);
+    await expectConverged(mapId, a, b);
+    expect(metaOf(await localText(b, mapId), 'lastSeenProgress')).toBe(0.7);
   });
 });
