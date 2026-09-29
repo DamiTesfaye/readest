@@ -122,14 +122,14 @@ export const publishReplicaManifest = async (
   contentId: string,
   files: { filename: string; byteSize: number; partialMd5: string }[],
   reincarnation?: string,
-): Promise<void> => {
-  if (!isSyncCategoryEnabled(kind)) return;
+): Promise<boolean> => {
+  if (!isSyncCategoryEnabled(kind)) return false;
   const ctx = getReplicaSync();
-  if (!ctx) return;
+  if (!ctx) return false;
   const adapter = getReplicaAdapter(kind);
-  if (!adapter) return;
+  if (!adapter) return false;
   const userId = await getUserID();
-  if (!userId) return;
+  if (!userId) return false;
 
   const updatedAt = ctx.hlc.next();
   const row: ReplicaRow = {
@@ -144,4 +144,5 @@ export const publishReplicaManifest = async (
     schema_version: adapter.schemaVersion,
   };
   ctx.manager.markDirty(row);
+  return true;
 };

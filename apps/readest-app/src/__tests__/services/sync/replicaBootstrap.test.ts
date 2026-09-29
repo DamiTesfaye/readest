@@ -45,7 +45,7 @@ import type { AppService } from '@/types/system';
 import { eventDispatcher } from '@/utils/event';
 
 vi.mock('@/services/sync/replicaPublish', () => ({
-  publishReplicaManifest: vi.fn(async () => {}),
+  publishReplicaManifest: vi.fn(async () => true),
 }));
 
 afterEach(() => {

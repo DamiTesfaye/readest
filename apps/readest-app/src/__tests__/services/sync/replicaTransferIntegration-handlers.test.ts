@@ -85,6 +85,7 @@ describe('replica transfer handlers', () => {
     const order: string[] = [];
     mockPublish.mockImplementation(async () => {
       order.push('publish');
+      return true;
     });
     registerReplicaUploadHandler('mindmap', async (replicaId, files) => {
       order.push(`uploaded:${replicaId}:${files[0]!.logical}`);
@@ -108,6 +109,20 @@ describe('replica transfer handlers', () => {
       type: 'upload',
       files: FILES,
     });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  test('an upload handler does not run when the manifest was not published', async () => {
+    const handler = vi.fn();
+    mockPublish.mockResolvedValue(false);
+    registerReplicaUploadHandler('mindmap', handler);
+    await eventDispatcher.dispatch('replica-transfer-complete', {
+      kind: 'mindmap',
+      replicaId: 'map1',
+      type: 'upload',
+      files: FILES,
+    });
+    expect(mockPublish).toHaveBeenCalledOnce();
     expect(handler).not.toHaveBeenCalled();
   });
 

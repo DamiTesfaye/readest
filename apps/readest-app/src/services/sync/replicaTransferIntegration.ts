@@ -64,13 +64,13 @@ const handleReplicaUpload = async (detail: ReplicaTransferCompleteDetail): Promi
         return { filename: f.logical, byteSize: f.byteSize, partialMd5 };
       }),
     );
-    await publishReplicaManifest(
+    const published = await publishReplicaManifest(
       detail.kind,
       detail.replicaId,
       manifestFiles,
       detail.reincarnation,
     );
-    await uploadHandlers.get(detail.kind)?.(detail.replicaId, detail.files);
+    if (published) await uploadHandlers.get(detail.kind)?.(detail.replicaId, detail.files);
   } catch (err) {
     console.warn('replica-transfer-complete upload handler failed', err);
   }
