@@ -94,7 +94,7 @@ describe('reconcileMap', () => {
     expect(await savedLabel(record!.id)).toBe('Chapter A');
   });
 
-  it('writes a tombstone with null content and restores it on revival', async () => {
+  it('writes a tombstone with null content and restores it on revival on the same device', async () => {
     await run(fixed([chapter('toc:a', 'Chapter A')]));
     const id = session.store.all()[0]!.id;
     expect(await run(fixed([]))).toBe('applied');

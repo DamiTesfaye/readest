@@ -8,7 +8,7 @@ import type { BookLocator } from '@/services/mindmap/generate/anchors';
 import { reconcileMap } from '@/services/mindmap/generate/reconcileMap';
 import { seedGenerator } from '@/services/mindmap/generate/seedGenerator';
 import type { GenerateInput } from '@/services/mindmap/generate/types';
-import { saveMapFile } from '@/services/mindmap/persist/mapFile';
+import { readMapFile, saveMapFile } from '@/services/mindmap/persist/mapFile';
 import {
   type MapSession,
   __resetMapSessionsForTests,
@@ -57,6 +57,7 @@ const inputOf = (annotations: BookNote[], toc: TOCItem[] = TOC): GenerateInput =
 });
 
 interface Device {
+  fs: MemoryFileSystem;
   session: MapSession;
   controller: CanvasController;
 }
@@ -74,7 +75,7 @@ const openDevice = async (deviceId: string, file: MapFile): Promise<Device> => {
     store: result.session.store,
     camera: result.session.meta().camera,
   });
-  const device = { session: result.session, controller };
+  const device = { fs, session: result.session, controller };
   opened.push(device);
   return device;
 };
@@ -156,5 +157,22 @@ describe('generated maps on two devices', () => {
     pushTo(b, a);
     await reconcileOn(a, inputOf(notes));
     expect(liveByKey(a, 'note:h1')).toEqual([]);
+  });
+
+  it('restores a revived quote on a device that only has its tombstone on disk', async () => {
+    const [a, b] = await twoDevices();
+    await reconcileOn(a, inputOf([note('h1', 'Quote one')]));
+    const id = liveByKey(a, 'note:h1')[0]!.id;
+    await reconcileOn(a, inputOf([note('h1', 'Quote one', 5)]));
+    await a.session.flush();
+    pushTo(a, b);
+    await b.session.flush();
+    const tombstoned = (await readMapFile(b.fs, BOOK, MAP))!.file;
+    expect(tombstoned.records[id]!['label']!.v).toBeNull();
+    await reconcileOn(a, inputOf([note('h1', 'Quote one')]));
+    await a.session.flush();
+    const reopened = await openDevice('device-b', tombstoned);
+    reopened.session.mergeRemote((await readMapFile(a.fs, BOOK, MAP))!.file);
+    expect(reopened.session.store.get(id)).toMatchObject({ deleted: null, label: 'Quote one' });
   });
 });
