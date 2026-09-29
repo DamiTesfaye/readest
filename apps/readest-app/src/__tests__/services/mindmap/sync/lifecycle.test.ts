@@ -25,6 +25,7 @@ import {
   flushMindmapSync,
   installMindmapLifecycle,
   pushMindmap,
+  refetchUnreadableMindmap,
   watchMindmapSession,
 } from '@/services/mindmap/sync/lifecycle';
 
@@ -108,6 +109,17 @@ describe('mindmap sync lifecycle', () => {
     pusher.flushAll.mockRejectedValue(new Error('offline'));
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     await expect(flushMindmapSync()).resolves.toBeUndefined();
+  });
+
+  it('clears the synced version of an unreadable map once, and leaves an unsynced map alone', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { mapId } = await openMap();
+    useMindmapStore.getState().setSyncedMd5(mapId, 'a'.repeat(32));
+    refetchUnreadableMindmap(mapId);
+    expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).toBeNull();
+    refetchUnreadableMindmap(mapId);
+    refetchUnreadableMindmap('unknown');
+    expect(warn).toHaveBeenCalledOnce();
   });
 
   it('flushes when the app goes to the background, and only then', async () => {

@@ -35,6 +35,9 @@ export const mapFileDir = (bookHash: string, mapId: string): string => {
 export const mapFilePath = (bookHash: string, mapId: string): string =>
   `${mapFileDir(bookHash, mapId)}/${mapId}.json`;
 
+export const unreadableMapPath = (bookHash: string, mapId: string): string =>
+  `${mapFilePath(bookHash, mapId)}.unreadable`;
+
 export const mapTrashDir = (bookHash: string, mapId: string): string => {
   assertSafeId(mapId);
   return `${mindmapsDir(bookHash)}/.trash/${mapId}`;
@@ -72,7 +75,26 @@ export const readRawMapText = async (
   mapId: string,
 ): Promise<string | null> => {
   const path = mapFilePath(bookHash, mapId);
-  return (await readText(fs, path)) ?? (await readText(fs, `${path}.bak`));
+  return (
+    (await readText(fs, path)) ??
+    (await readText(fs, `${path}.bak`)) ??
+    (await readText(fs, unreadableMapPath(bookHash, mapId)))
+  );
+};
+
+export const setUnreadableMapAside = async (
+  fs: MindmapFs,
+  bookHash: string,
+  mapId: string,
+): Promise<void> => {
+  const path = mapFilePath(bookHash, mapId);
+  const target = unreadableMapPath(bookHash, mapId);
+  if (await fs.exists(target, MINDMAP_BASE_DIR)) {
+    console.warn('mindmap: kept the older unreadable copy of a map', { mapId });
+    return;
+  }
+  await fs.copyFile(path, MINDMAP_BASE_DIR, target, MINDMAP_BASE_DIR);
+  await fs.removeFile(path, MINDMAP_BASE_DIR);
 };
 
 export const readMapFile = async (

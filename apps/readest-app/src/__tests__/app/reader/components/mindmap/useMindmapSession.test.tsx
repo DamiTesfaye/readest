@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { HlcGenerator } from '@/libs/crdt';
 import { createMindmapClock } from '@/services/mindmap/file/clock';
+import { mapFilePath } from '@/services/mindmap/persist/mapFile';
 import {
   __resetMindmapStoreForTests,
   useMindmapStore,
@@ -93,6 +94,27 @@ describe('useMindmapSession', () => {
   it('reports an unreadable map', async () => {
     const { result } = renderHook(() => useMindmapSession('bookhash', 'missing'));
     await waitFor(() => expect(result.current.status).toBe('unreadable'));
+  });
+
+  it('forgets the synced version of a map it cannot read so the next pull fetches it again', async () => {
+    const mapId = await createMap('Broken');
+    useMindmapStore.getState().setSyncedMd5(mapId, 'a'.repeat(32));
+    const path = mapFilePath('bookhash', mapId);
+    await fs.writeFile(path, 'Books', '{');
+    await fs.removeFile(`${path}.bak`, 'Books');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() => useMindmapSession('bookhash', mapId));
+    await waitFor(() => expect(result.current.status).toBe('unreadable'));
+    await waitFor(() => expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).toBeNull());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('cannot be read'), { mapId });
+  });
+
+  it('keeps the synced version of a map it can read', async () => {
+    const mapId = await createMap('Fine');
+    useMindmapStore.getState().setSyncedMd5(mapId, 'a'.repeat(32));
+    const { result } = renderHook(() => useMindmapSession('bookhash', mapId));
+    await waitFor(() => expect(result.current.status).toBe('open'));
+    expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).toBe('a'.repeat(32));
   });
 
   it('waits for the device id before opening', async () => {

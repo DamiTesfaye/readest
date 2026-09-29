@@ -4,7 +4,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getMindmapClock } from '@/services/mindmap/persist/clockSource';
 import { mindmapFsFromAppService } from '@/services/mindmap/persist/mindmapFs';
 import { type MapSession, openMapSession } from '@/services/mindmap/persist/session';
-import { pushMindmap, watchMindmapSession } from '@/services/mindmap/sync/lifecycle';
+import {
+  pushMindmap,
+  refetchUnreadableMindmap,
+  watchMindmapSession,
+} from '@/services/mindmap/sync/lifecycle';
 import { useSettingsStore } from '@/store/settingsStore';
 import { eventDispatcher } from '@/utils/event';
 
@@ -55,6 +59,7 @@ export const useMindmapSession = (bookHash: string | null, mapId: string | null)
     opening
       .then((result) => {
         if (result.status === 'open') unwatch = watchMindmapSession(result.session, mapId);
+        if (result.status === 'unreadable') refetchUnreadableMindmap(mapId);
         if (!cancelled)
           setState(result.status === 'open' ? { status: 'open', session: result.session } : result);
       })

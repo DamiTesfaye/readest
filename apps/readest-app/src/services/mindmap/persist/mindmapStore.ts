@@ -29,7 +29,7 @@ export interface MindmapStoreState {
   upsertEntry(entry: MindmapEntry): void;
   removeEntry(mapId: string): void;
   applyRemoteMap(entry: MindmapEntry): void;
-  setSyncedMd5(mapId: string, md5: string): void;
+  setSyncedMd5(mapId: string, md5: string | null): void;
   softDeleteByContentId(mapId: string): void;
   moveToTrash(mapId: string, bookHash?: string): Promise<void>;
   removeByBookHash(bookHash: string): void;

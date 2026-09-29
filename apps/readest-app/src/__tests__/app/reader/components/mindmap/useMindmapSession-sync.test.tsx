@@ -17,6 +17,7 @@ vi.mock('@/services/mindmap/sync/lifecycle', () => ({
     return h.unwatch;
   },
   pushMindmap: h.push,
+  refetchUnreadableMindmap: vi.fn(),
 }));
 
 import { HlcGenerator } from '@/libs/crdt';

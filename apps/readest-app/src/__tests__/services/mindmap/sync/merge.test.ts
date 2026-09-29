@@ -262,13 +262,46 @@ describe('mergeIncomingVersion', () => {
     expect(store().getEntry(MAP)!.syncedMd5).toBe('old');
   });
 
-  it('never overwrites a local file it cannot read', async () => {
+  it('moves a local file it cannot read aside, byte for byte, and restores the map from the download', async () => {
+    await seedLocal(base(), 'old');
+    await fs.writeFile(mapFilePath(BOOK, MAP), 'Books', '{');
+    await fs.removeFile(`${mapFilePath(BOOK, MAP)}.bak`, 'Books');
+    const remote = stampMeta(base(), { title: 'Remote title' }, remoteClock);
+    const text = canonicalStringify(remote);
+    const files = await deliver(text);
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('merged');
+    expect(await fs.readFile(`${mapFilePath(BOOK, MAP)}.unreadable`, 'Books')).toBe('{');
+    expect(await fs.readFile(mapFilePath(BOOK, MAP), 'Books')).toBe(text);
+    expect(store().getEntry(MAP)).toMatchObject({ syncedMd5: md5Hex(text), name: 'Remote title' });
+    expect(await fs.exists(files[0]!.lfp, 'Books')).toBe(false);
+    expect(deps.schedulePush).not.toHaveBeenCalled();
+    expect((await loadMindmapIndex(fs, BOOK)).map((entry) => entry.title)).toEqual([
+      'Remote title',
+    ]);
+  });
+
+  it('keeps an older copy moved aside as unreadable instead of overwriting it', async () => {
+    await seedLocal(base(), 'old');
+    await fs.writeFile(`${mapFilePath(BOOK, MAP)}.unreadable`, 'Books', 'first');
+    await fs.writeFile(mapFilePath(BOOK, MAP), 'Books', 'second');
+    await fs.removeFile(`${mapFilePath(BOOK, MAP)}.bak`, 'Books');
+    const text = canonicalStringify(base());
+    expect(await mergeIncomingVersion(deps, MAP, await deliver(text))).toBe('merged');
+    expect(await fs.readFile(`${mapFilePath(BOOK, MAP)}.unreadable`, 'Books')).toBe('first');
+    expect(await fs.readFile(mapFilePath(BOOK, MAP), 'Books')).toBe(text);
+  });
+
+  it('never overwrites a local file it cannot read or move aside', async () => {
     await seedLocal(base(), 'old');
     await fs.writeFile(mapFilePath(BOOK, MAP), 'Books', '{');
     await fs.removeFile(`${mapFilePath(BOOK, MAP)}.bak`, 'Books');
     const files = await deliver(canonicalStringify(base()));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(fs, 'copyFile').mockRejectedValue(new Error('disk full'));
     expect(await mergeIncomingVersion(deps, MAP, files)).toBe('local-unreadable');
+    expect(error).toHaveBeenCalled();
     expect(await fs.readFile(mapFilePath(BOOK, MAP), 'Books')).toBe('{');
+    expect(await fs.exists(files[0]!.lfp, 'Books')).toBe(true);
     expect(store().getEntry(MAP)!.syncedMd5).toBe('old');
   });
 

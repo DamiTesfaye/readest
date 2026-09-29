@@ -2,7 +2,12 @@ import { canonicalStringify, md5Hex } from '@/services/mindmap/file/canonicalStr
 import { type HlcClock, observeFileClock } from '@/services/mindmap/file/clock';
 import { mergeMapFiles } from '@/services/mindmap/file/mergeMapFiles';
 import { parseMapFile } from '@/services/mindmap/file/parseMapFile';
-import { MINDMAP_BASE_DIR, mapFilePath, readMapFile } from '@/services/mindmap/persist/mapFile';
+import {
+  MINDMAP_BASE_DIR,
+  mapFilePath,
+  readMapFile,
+  setUnreadableMapAside,
+} from '@/services/mindmap/persist/mapFile';
 import { saveMap } from '@/services/mindmap/persist/maps';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
 import { type MindmapEntry, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
@@ -89,7 +94,18 @@ const mergeOnDisk = async (
 ): Promise<LocalMerge> => {
   const read = await readMapFile(deps.fs, entry.bookHash, entry.mapId);
   if (!read && (await deps.fs.exists(mapFilePath(entry.bookHash, entry.mapId), MINDMAP_BASE_DIR))) {
-    return { outcome: 'local-unreadable' };
+    try {
+      await setUnreadableMapAside(deps.fs, entry.bookHash, entry.mapId);
+    } catch (error) {
+      console.error('mindmap: could not move an unreadable map aside', {
+        mapId: entry.mapId,
+        error,
+      });
+      return { outcome: 'local-unreadable' };
+    }
+    console.warn('mindmap: restored a map that cannot be read from its synced version', {
+      mapId: entry.mapId,
+    });
   }
   if (read && read.file.schemaVersion > CURRENT_SCHEMA_VERSION) return { outcome: 'newer-schema' };
   observeFileClock(deps.clock(), remote);

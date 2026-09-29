@@ -28,6 +28,15 @@ export const pushMindmap = async (mapId: string): Promise<void> => {
   }
 };
 
+export const refetchUnreadableMindmap = (mapId: string): void => {
+  const store = useMindmapStore.getState();
+  if (!store.getEntry(mapId)?.syncedMd5) return;
+  console.warn('mindmap: this map cannot be read; the next pull fetches its synced version', {
+    mapId,
+  });
+  store.setSyncedMd5(mapId, null);
+};
+
 export const flushMindmapSync = async (): Promise<void> => {
   try {
     await Promise.all(listOpenMapSessions().map((session) => session.flush()));
