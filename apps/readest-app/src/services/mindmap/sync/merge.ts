@@ -94,7 +94,26 @@ const mergeOnDisk = async (
   if (read && read.file.schemaVersion > CURRENT_SCHEMA_VERSION) return { outcome: 'newer-schema' };
   observeFileClock(deps.clock(), remote);
   const merged = read ? mergeMapFiles(read.file, remote) : remote;
-  return { outcome: 'merged', text: await saveMap(deps.fs, entry.bookHash, merged), file: merged };
+  try {
+    return {
+      outcome: 'merged',
+      text: await saveMap(deps.fs, entry.bookHash, merged),
+      file: merged,
+    };
+  } catch (error) {
+    console.error('mindmap: failed to save a merged map', error);
+    return { outcome: 'save-failed' };
+  }
+};
+
+const mergeClosedMap = async (
+  deps: MindmapMergeDeps,
+  entry: MindmapEntry,
+  remote: MapFile,
+): Promise<LocalMerge> => {
+  const onDisk = await mergeOnDisk(deps, entry, remote);
+  if (!('text' in onDisk)) return onDisk;
+  return (await mergeIntoSession(entry.mapId, onDisk.file)) ?? onDisk;
 };
 
 const queueNewerVersion = (deps: MindmapMergeDeps, mapId: string, merged: string): void => {
@@ -133,7 +152,7 @@ export const mergeIncomingVersion = async (
     return 'newer-schema';
   }
   const result =
-    (await mergeIntoSession(mapId, remote)) ?? (await mergeOnDisk(deps, entry, remote));
+    (await mergeIntoSession(mapId, remote)) ?? (await mergeClosedMap(deps, entry, remote));
   if (!('text' in result)) return result.outcome;
   store.setSyncedMd5(mapId, incoming.md5);
   const current = useMindmapStore.getState().getEntry(mapId);

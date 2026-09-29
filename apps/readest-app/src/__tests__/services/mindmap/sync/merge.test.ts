@@ -199,6 +199,59 @@ describe('mergeIncomingVersion', () => {
     expect(opened.session.store.get('n2')).toMatchObject({ label: 'Late' });
   });
 
+  it('re-merges into a session that opened while the closed-map write was pending', async () => {
+    const shared = base();
+    await seedLocal(shared);
+    const files = await deliver(
+      canonicalStringify(withNode(shared, 'n2', 'From device B', remoteClock)),
+    );
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let reached: () => void = () => {};
+    const writing = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const realWrite = fs.writeFile.bind(fs);
+    let armed = true;
+    vi.spyOn(fs, 'writeFile').mockImplementation(async (path, baseDir, content) => {
+      if (armed && path === mapFilePath(BOOK, MAP)) {
+        armed = false;
+        reached();
+        await held;
+      }
+      return realWrite(path, baseDir, content);
+    });
+    const merging = mergeIncomingVersion(deps, MAP, files);
+    await writing;
+    const opened = await openMapSession(fs, BOOK, MAP, local);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    const { session } = opened;
+    session.store.update('n1', { label: 'Typed locally' });
+    release();
+    expect(await merging).toBe('merged');
+    expect(session.store.get('n2')).toMatchObject({ label: 'From device B' });
+    await session.close();
+    const saved = await diskFile();
+    expect(saved.records['n1']!['label']!.v).toBe('Typed locally');
+    expect(saved.records['n2']!['label']!.v).toBe('From device B');
+  });
+
+  it('reports save-failed and keeps the incoming copy when the closed-map write fails', async () => {
+    await seedLocal(base(), 'old');
+    const files = await deliver(
+      canonicalStringify(withNode(base(), 'n2', 'From device B', remoteClock)),
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(fs, 'writeFile').mockRejectedValue(new Error('disk full'));
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('save-failed');
+    expect(error).toHaveBeenCalled();
+    expect(await fs.exists(files[0]!.lfp, 'Books')).toBe(true);
+    expect(store().getEntry(MAP)!.syncedMd5).toBe('old');
+    expect(deps.schedulePush).not.toHaveBeenCalled();
+  });
+
   it('leaves a read-only open map and its incoming copy untouched', async () => {
     await seedLocal({ ...base(), schemaVersion: 99 }, 'old');
     const opened = await openMapSession(fs, BOOK, MAP, local);
