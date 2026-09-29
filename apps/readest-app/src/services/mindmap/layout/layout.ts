@@ -12,8 +12,15 @@ export const COLUMN_STEP = NEW_NODE_SIZE.w + CHILD_GAP_X;
 export const ROW_STEP = NEW_NODE_SIZE.h + SIBLING_GAP_Y;
 export const BLOCK_GAP = 64;
 export const FAN_RING_STEP = 224;
-const FAN_RINGS = 4;
-const FAN_ANGLES = [0, -30, 30, -60, 60, -90, 90, -120, 120, -150, 150, 180];
+const FAN_RINGS = 16;
+const FAN_STEP_DEGREES = 30;
+
+const fanAngles = (ring: number): number[] => {
+  const step = FAN_STEP_DEGREES / ring;
+  const angles = [0];
+  for (let k = 1; k * step < 180; k += 1) angles.push(-k * step, k * step);
+  return [...angles, 180];
+};
 
 type Size = { w: number; h: number };
 
@@ -37,6 +44,11 @@ const below = (boxes: readonly BoundsRect[]): Point =>
 
 const centerOf = (box: BoundsRect): Point => ({ x: box.x + box.w / 2, y: box.y + box.h / 2 });
 
+const revivable = (records: readonly PositionedRecord[]): BoundsRect[] =>
+  records
+    .filter((record) => record.deleted?.by === 'gen')
+    .map(({ x, y, w, h }) => ({ x, y, w, h }));
+
 const isFree = (
   store: MapStore,
   spatial: SpatialIndex,
@@ -48,7 +60,7 @@ const isFree = (
 
 const fanAround = (center: Point, size: Size, fits: (box: BoundsRect) => boolean): Point | null => {
   for (let ring = 1; ring <= FAN_RINGS; ring += 1) {
-    for (const degrees of FAN_ANGLES) {
+    for (const degrees of fanAngles(ring)) {
       const radians = (degrees * Math.PI) / 180;
       const box = {
         ...size,
@@ -68,7 +80,7 @@ export const layoutNewNodes = (
 ): Map<string, Point> => {
   const records = positioned(store);
   const placed = new Map<string, Point>();
-  const boxes: BoundsRect[] = [];
+  const boxes: BoundsRect[] = revivable(records);
   const place = (genKey: string, point: Point): void => {
     placed.set(genKey, point);
     boxes.push({ ...point, ...NEW_NODE_SIZE });
@@ -84,7 +96,7 @@ export const layoutNewNodes = (
   }
   const byGenKey = new Map(
     records
-      .filter(isLive)
+      .filter((record) => record.deleted?.by !== 'user')
       .flatMap((record) => (record.genKey === null ? [] : [[record.genKey, record] as const])),
   );
   const fits = (box: BoundsRect): boolean => isFree(store, spatial, box, boxes);
@@ -108,7 +120,8 @@ export const resetPlacement = (
   if (record.type === 'node' && record.kind === 'quote') {
     const parentId = parentOf(store, id);
     const parent = parentId ? store.get(parentId) : undefined;
-    const fits = (box: BoundsRect): boolean => isFree(store, spatial, box, [], id);
+    const blocked = revivable(positioned(store, id));
+    const fits = (box: BoundsRect): boolean => isFree(store, spatial, box, blocked, id);
     const point = parent && isPositioned(parent) ? fanAround(centerOf(parent), record, fits) : null;
     if (point) return point;
   }

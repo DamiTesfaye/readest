@@ -189,3 +189,51 @@ describe('resetPlacement', () => {
     expect(resetPlacement(store, spatial, 'l')).toBeNull();
   });
 });
+
+describe('layoutNewNodes around tombstones and busy chapters', () => {
+  it('never places a new quote on a tombstone the generator may revive', () => {
+    const chapter = existing('chapter', 0, 0, { origin: 'generated', genKey: 'toc:c' });
+    const tombstone = existing('old', 224, 0, {
+      origin: 'generated',
+      genKey: 'note:old',
+      kind: 'quote',
+      deleted: { by: 'gen' },
+    });
+    const { store, spatial } = setup([chapter, tombstone]);
+    const point = layoutNewNodes(store, spatial, [genNode('note:new', 'toc:c', 'quote')]).get(
+      'note:new',
+    )!;
+    expect(overlaps(point, tombstone)).toBe(false);
+  });
+
+  it('fans a quote around its chapter when the chapter is revived in the same pass', () => {
+    const chapter = existing('chapter', 0, 0, {
+      origin: 'generated',
+      genKey: 'toc:c',
+      deleted: { by: 'gen' },
+    });
+    const { store, spatial } = setup([chapter, existing('far', 0, 3200)]);
+    const point = layoutNewNodes(store, spatial, [genNode('note:new', 'toc:c', 'quote')]).get(
+      'note:new',
+    )!;
+    expect(Math.hypot(point.x, point.y)).toBeLessThanOrEqual(4 * FAN_RING_STEP);
+  });
+
+  it('keeps 200 quotes of one chapter on the grid, apart, and around their chapter', () => {
+    const { store, spatial } = setup([]);
+    const quotes = Array.from({ length: 200 }, (_, i) => genNode(`note:${i}`, 'toc:c', 'quote'));
+    const placed = layoutNewNodes(store, spatial, [genNode('toc:c', null, 'chapter'), ...quotes]);
+    const chapter = placed.get('toc:c')!;
+    const points = quotes.map((quote) => placed.get(quote.genKey)!);
+    for (const point of points) {
+      expect(Math.abs(point.x % GRID_SIZE) + Math.abs(point.y % GRID_SIZE)).toBe(0);
+    }
+    for (let i = 0; i < points.length; i += 1)
+      for (let j = i + 1; j < points.length; j += 1)
+        expect(overlaps(points[i]!, points[j]!)).toBe(false);
+    const farthest = Math.max(
+      ...points.map((point) => Math.hypot(point.x - chapter.x, point.y - chapter.y)),
+    );
+    expect(farthest).toBeLessThanOrEqual(8 * FAN_RING_STEP);
+  });
+});
