@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { PullAndApplyDeps, ReplicaLocalRecord } from '@/services/sync/replicaPullAndApply';
@@ -81,6 +83,16 @@ describe('useReplicaPull mindmap kind', () => {
   test('the reader and library pages pull mind maps', () => {
     expect(READER_REPLICA_KINDS).toContain('mindmap');
     expect(LIBRARY_REPLICA_KINDS).toContain('mindmap');
+  });
+
+  test('the reader and library pages pull their page kinds', () => {
+    const source = (file: string): string => readFileSync(path.join(process.cwd(), file), 'utf8');
+    expect(source('src/app/reader/components/Reader.tsx')).toMatch(
+      /useReplicaPull\(\{\s*kinds:\s*READER_REPLICA_KINDS\s*\}\)/,
+    );
+    expect(source('src/app/library/page.tsx')).toMatch(
+      /useReplicaPull\(\{\s*kinds:\s*LIBRARY_REPLICA_KINDS\s*\}\)/,
+    );
   });
 
   test('hydrates through the sync runtime and finishes the sync cycle after the pull', async () => {
