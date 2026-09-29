@@ -46,6 +46,18 @@ const canPush = async (): Promise<boolean> =>
   transferManager.isReady() &&
   Boolean(await getAccessToken());
 
+const confirmManifest = async (mapId: string): Promise<boolean> => {
+  const context = getReplicaSync();
+  if (!context) return false;
+  try {
+    await context.manager.flush();
+  } catch (error) {
+    console.warn('mindmap: could not send the manifest of an uploaded version', { mapId, error });
+    return false;
+  }
+  return context.manager.isKindSupported(MINDMAP_KIND);
+};
+
 const createRuntime = async (): Promise<MindmapSync> => {
   const service = await environmentConfig.getAppService();
   const fs = mindmapFsFromAppService(service);
@@ -57,6 +69,7 @@ const createRuntime = async (): Promise<MindmapSync> => {
       queueReplicaBinaryUpload(MINDMAP_KIND, record, service, { isBackground: true }),
     isUploadPending: (mapId) =>
       useTransferStore.getState().getReplicaTransfer(MINDMAP_KIND, mapId, 'upload') !== undefined,
+    confirmManifest,
   });
   const merge: MindmapMergeDeps = {
     fs,

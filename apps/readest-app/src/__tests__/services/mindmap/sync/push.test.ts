@@ -31,6 +31,7 @@ let deps: {
   canPush: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
   publishRow: ReturnType<typeof vi.fn<MindmapPushDeps['publishRow']>>;
   queueUpload: ReturnType<typeof vi.fn<(record: MindmapReplicaRecord) => Promise<string | null>>>;
+  confirmManifest: ReturnType<typeof vi.fn<MindmapPushDeps['confirmManifest']>>;
 };
 
 const store = () => useMindmapStore.getState();
@@ -49,6 +50,14 @@ const localMd5 = async (mapId: string): Promise<string> =>
 const outgoingFiles = async (mapId: string): Promise<string[]> =>
   (await fs.readDir(`${BOOK}/mindmaps/${mapId}/outgoing`, 'Books')).map((item) => item.path);
 
+const held = <T>() => {
+  let release: (value: T) => void = () => {};
+  const promise = new Promise<T>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release: (value: T) => release(value) };
+};
+
 const uploaded = (call = 0): MindmapReplicaRecord => deps.queueUpload.mock.calls[call]![0];
 
 beforeEach(async () => {
@@ -62,6 +71,7 @@ beforeEach(async () => {
       pending.add(record.mapId);
       return `upload-${record.mapId}`;
     }),
+    confirmManifest: vi.fn(async () => true),
   };
   pusher = createMindmapPusher({
     fs,
@@ -206,6 +216,67 @@ describe('mindmap push', () => {
     release(true);
     expect(await result).toBe('current');
     expect(deps.queueUpload).not.toHaveBeenCalled();
+  });
+
+  it('keeps a version unsynced with its copy when the server did not take its manifest, and pushes it again later', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    const copy = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    deps.confirmManifest.mockResolvedValueOnce(false);
+    await pusher.committed(mapId, [{ logical: copy, lfp: '', byteSize: 1 }]);
+    expect(deps.confirmManifest).toHaveBeenCalledWith(mapId);
+    expect(store().getEntry(mapId)!.syncedMd5).toBeNull();
+    expect(await outgoingFiles(mapId)).toEqual([copy]);
+    expect(pusher.unpushed()).toEqual([mapId]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('mindmap'),
+      expect.objectContaining({ mapId, md5: copy.split('.')[1] }),
+    );
+    await vi.advanceTimersByTimeAsync(PUSH_DEBOUNCE_MS - 1);
+    expect(deps.queueUpload).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    await pusher.idle();
+    expect(deps.queueUpload).toHaveBeenCalledTimes(2);
+    expect(uploaded(1).outgoing!.filename).toBe(copy);
+    expect(pusher.unpushed()).toEqual([]);
+  });
+
+  it('marks a version synced only once its manifest is confirmed', async () => {
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    const copy = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    const confirm = held<boolean>();
+    deps.confirmManifest.mockReturnValueOnce(confirm.promise);
+    const commit = pusher.committed(mapId, [{ logical: copy, lfp: '', byteSize: 1 }]);
+    await vi.waitFor(() => expect(deps.confirmManifest).toHaveBeenCalledOnce());
+    expect(store().getEntry(mapId)!.syncedMd5).toBeNull();
+    expect(await outgoingFiles(mapId)).toEqual([copy]);
+    confirm.release(true);
+    await commit;
+    expect(store().getEntry(mapId)!.syncedMd5).toBe(copy.split('.')[1]);
+    expect(await outgoingFiles(mapId)).toEqual([]);
+  });
+
+  it('applies the commits of one map in the order they arrive', async () => {
+    const mapId = await createMap('Ab');
+    await pusher.pushNow(mapId);
+    const first = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    await rename(mapId, 'Cd');
+    await pusher.pushNow(mapId);
+    const second = uploaded(1).outgoing!.filename;
+    pending.delete(mapId);
+    const confirm = held<boolean>();
+    deps.confirmManifest.mockReturnValueOnce(confirm.promise);
+    const early = pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
+    const late = pusher.committed(mapId, [{ logical: second, lfp: '', byteSize: 1 }]);
+    confirm.release(true);
+    await Promise.all([early, late]);
+    expect(store().getEntry(mapId)!.syncedMd5).toBe(second.split('.')[1]);
   });
 
   it('ignores a commit for a file that is not a version of the map', async () => {

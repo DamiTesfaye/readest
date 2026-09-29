@@ -30,6 +30,7 @@ export interface MindmapPushDeps {
   publishRow(entry: MindmapEntry): Promise<void>;
   queueUpload(record: MindmapReplicaRecord): Promise<string | null>;
   isUploadPending(mapId: string): boolean;
+  confirmManifest(mapId: string): Promise<boolean>;
 }
 
 export interface MindmapPusher {
@@ -61,6 +62,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
   const chains = new Map<string, Promise<PushResult>>();
   const waiting = new Set<string>();
   const unpushed = new Set<string>();
+  const commits = new Map<string, Promise<void>>();
 
   const cancel = (mapId: string): void => {
     const timer = timers.get(mapId);
@@ -130,12 +132,24 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     );
   };
 
-  const committed = async (mapId: string, files: ReplicaTransferFile[]): Promise<void> => {
+  const retryUnconfirmed = (mapId: string, md5: string): void => {
+    console.warn('mindmap: the server does not have this version yet; pushing it again later', {
+      mapId,
+      md5,
+    });
+    waiting.delete(mapId);
+    unpushed.add(mapId);
+    schedule(mapId);
+  };
+
+  const commit = async (mapId: string, files: ReplicaTransferFile[]): Promise<void> => {
     const version = files
       .map((file) => parseVersionFilename(file.logical))
       .find((parsed) => parsed?.mapId === mapId);
+    if (!version || !useMindmapStore.getState().getEntry(mapId)) return;
+    if (!(await deps.confirmManifest(mapId))) return retryUnconfirmed(mapId, version.md5);
     const entry = useMindmapStore.getState().getEntry(mapId);
-    if (!version || !entry) return;
+    if (!entry) return;
     useMindmapStore.getState().setSyncedMd5(mapId, version.md5);
     const copy = `${outgoingDir(entry.bundleDir)}/${versionFilename(mapId, version.md5)}`;
     const needed = chains.has(mapId) || deps.isUploadPending(mapId);
@@ -146,6 +160,18 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     const changed = read !== null && md5Hex(canonicalStringify(read.file)) !== version.md5;
     const wasWaiting = waiting.delete(mapId);
     if (changed || wasWaiting) schedule(mapId, REPUSH_DELAY_MS);
+  };
+
+  const committed = (mapId: string, files: ReplicaTransferFile[]): Promise<void> => {
+    const previous = commits.get(mapId) ?? Promise.resolve();
+    const next = previous.catch(() => undefined).then(() => commit(mapId, files));
+    commits.set(mapId, next);
+    void next
+      .catch(() => undefined)
+      .finally(() => {
+        if (commits.get(mapId) === next) commits.delete(mapId);
+      });
+    return next;
   };
 
   const idle = async (): Promise<void> => {

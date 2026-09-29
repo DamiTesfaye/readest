@@ -10,6 +10,8 @@ const h = vi.hoisted(() => ({
   publishReplicaUpsert: vi.fn(async (..._args: unknown[]) => {}),
   mindmapSupported: true,
   appServiceError: null as Error | null,
+  flush: vi.fn(async () => {}),
+  syncContext: true,
 }));
 
 vi.mock('@/services/environment', () => ({
@@ -36,11 +38,14 @@ vi.mock('@/services/sync/replicaSync', async (importOriginal) => {
   const context = {
     hlc: new HlcGenerator('dev-a'),
     deviceId: 'dev-a',
-    manager: { isKindSupported: (kind: string) => kind !== 'mindmap' || h.mindmapSupported },
+    manager: {
+      isKindSupported: (kind: string) => kind !== 'mindmap' || h.mindmapSupported,
+      flush: () => h.flush(),
+    },
   };
   return {
     ...(await importOriginal<typeof import('@/services/sync/replicaSync')>()),
-    getReplicaSync: () => context,
+    getReplicaSync: () => (h.syncContext ? context : null),
   };
 });
 
@@ -103,6 +108,8 @@ beforeEach(async () => {
   h.token = 'token';
   h.mindmapSupported = true;
   h.appServiceError = null;
+  h.syncContext = true;
+  h.flush.mockImplementation(async () => {});
   useSettingsStore.setState({
     settings: { replicaDeviceId: 'dev-a', syncCategories: {} } as SystemSettings,
   });
@@ -186,6 +193,47 @@ describe('mindmap sync runtime', () => {
     const read = await readMapFile(fs, BOOK, mapId);
     expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).toBe(
       md5Hex(canonicalStringify(read!.file)),
+    );
+  });
+
+  it('marks the version synced only after the replica flush has sent its manifest', async () => {
+    const mapId = await createMap();
+    await (await getMindmapSync()).pusher.pushNow(mapId);
+    const [, , , files] = h.queueReplicaUpload.mock.calls[0]!;
+    let release: () => void = () => {};
+    h.flush.mockImplementationOnce(() => new Promise<void>((resolve) => (release = resolve)));
+    const commit = handleMindmapUpload(mapId, files as never);
+    await vi.waitFor(() => expect(h.flush).toHaveBeenCalledOnce());
+    expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).toBeNull();
+    release();
+    await commit;
+    expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).not.toBeNull();
+  });
+
+  it.each([
+    ['the replica flush fails', () => h.flush.mockRejectedValueOnce(new Error('Network error'))],
+    ['sync has no context', () => void (h.syncContext = false)],
+    [
+      'the server stops supporting mind maps during the flush',
+      () =>
+        h.flush.mockImplementationOnce(async () => {
+          h.mindmapSupported = false;
+        }),
+    ],
+  ])('keeps the version unsynced and its copy when %s', async (_label, arrange) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const mapId = await createMap();
+    const sync = await getMindmapSync();
+    await sync.pusher.pushNow(mapId);
+    const [, , , files] = h.queueReplicaUpload.mock.calls[0]!;
+    arrange();
+    await handleMindmapUpload(mapId, files as never);
+    expect(useMindmapStore.getState().getEntry(mapId)!.syncedMd5).toBeNull();
+    expect(await fs.readDir(`${mapFileDir(BOOK, mapId)}/outgoing`, 'Books')).toHaveLength(1);
+    expect(sync.pusher.unpushed()).toEqual([mapId]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('mindmap'),
+      expect.objectContaining({ mapId }),
     );
   });
 
