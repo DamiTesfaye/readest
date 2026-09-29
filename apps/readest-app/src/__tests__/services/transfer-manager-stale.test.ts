@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
 import { transferManager } from '@/services/transferManager';
 import { clearReplicaAdapters, registerReplicaAdapter } from '@/services/sync/replicaRegistry';
 import type { ReplicaAdapter } from '@/services/sync/replicaRegistry';
@@ -7,7 +8,7 @@ import type { AppService } from '@/types/system';
 import { eventDispatcher } from '@/utils/event';
 
 const downloadReplicaFile = vi.fn(async () => {
-  throw new Error('File not found');
+  throw new Error(STORAGE_FILE_NOT_FOUND_ERROR);
 });
 
 const onStaleDownload = vi.fn();

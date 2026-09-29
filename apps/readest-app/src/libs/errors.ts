@@ -1,3 +1,5 @@
+export const STORAGE_FILE_NOT_FOUND_ERROR = 'File not found';
+
 export type SyncErrorCode =
   | 'TIMEOUT'
   | 'AUTH'

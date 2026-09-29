@@ -6,15 +6,15 @@ import { ProgressHandler, ProgressPayload } from '@/utils/transfer';
 import { eventDispatcher } from '@/utils/event';
 import { getTransferMessages } from './transferMessages';
 import { getReplicaAdapter } from './sync/replicaRegistry';
+import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
 
 const TRANSFER_QUEUE_KEY = 'readest_transfer_queue';
 const RETRY_DELAY_BASE_MS = 2000;
-const MISSING_FILE_ERROR = 'File not found';
 
 const isStaleReplicaDownload = (transfer: TransferItem, errorMessage: string): boolean =>
   transfer.kind === 'replica' &&
   transfer.type === 'download' &&
-  errorMessage === MISSING_FILE_ERROR &&
+  errorMessage === STORAGE_FILE_NOT_FOUND_ERROR &&
   getReplicaAdapter(transfer.replicaKind ?? '')?.binary?.staleWhenMissing === true;
 
 const dropStaleReplicaDownload = (transfer: TransferItem): void => {
