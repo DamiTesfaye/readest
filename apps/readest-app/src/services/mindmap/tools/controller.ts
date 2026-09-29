@@ -38,6 +38,7 @@ import {
   bottomIndex,
   editableField,
   livePositioned,
+  sectionAt,
   topIndex,
   unionBounds,
 } from '@/services/mindmap/tools/records';
@@ -468,10 +469,17 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     resetPosition: (id, position) => {
       const record = store.get(id);
       if (readOnly || !isLive(record) || !isPositioned(record)) return;
+      const centre = { x: position.x + record.w / 2, y: position.y + record.h / 2 };
+      const parentId = record.type === 'section' ? null : sectionAt(store, centre);
+      const membership: FieldChange[] =
+        parentId === record.parentId
+          ? []
+          : [{ id, field: 'parentId', from: undefined, to: parentId }];
       gesture(() =>
         store.setFields([
           { id, field: 'x', from: undefined, to: position.x },
           { id, field: 'y', from: undefined, to: position.y },
+          ...membership,
           touchedChange(
             id,
             record.touched.filter((field) => !POSITION_FIELDS.has(field)),

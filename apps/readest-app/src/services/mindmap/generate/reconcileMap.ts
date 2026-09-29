@@ -5,6 +5,7 @@ import { layoutNewNodes } from '@/services/mindmap/layout/layout';
 import type { MapMeta } from '@/services/mindmap/schema/types';
 import { isEmptyDiff } from '@/services/mindmap/store/mapStore';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
+import { sectionAt } from '@/services/mindmap/tools/records';
 import { uniqueId } from '@/utils/misc';
 
 export type ReconcileOutcome = 'applied' | 'unchanged' | 'skipped' | 'failed';
@@ -49,6 +50,7 @@ export const reconcileMap = async ({
       createId,
       place: (nodes) => layoutNewNodes(store, spatial, nodes),
       isGone: (genKey) => generator.isGone?.(genKey, input) ?? true,
+      sectionOf: (box) => sectionAt(store, { x: box.x + box.w / 2, y: box.y + box.h / 2 }),
     });
     if (isEmptyDiff(diff)) return 'unchanged';
     store.applyGenerated(diff);

@@ -300,3 +300,13 @@ describe('reconcile links to records the reader deleted', () => {
     expect(diff.changed.filter((change) => change.id === 'l')).toEqual([]);
   });
 });
+
+describe('reconcile placement in sections', () => {
+  it('adds a new record to the section its placed box lands in', () => {
+    const diff = reconcile([], [chapter('toc:a', 'A')], {
+      ...deps(),
+      sectionOf: (box) => (box.y >= 800 ? 'sec' : null),
+    });
+    expect(diff.added[0]).toMatchObject({ genKey: 'toc:a', parentId: 'sec' });
+  });
+});

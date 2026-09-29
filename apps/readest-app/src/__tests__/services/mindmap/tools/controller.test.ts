@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
+import {
+  createLinkRecord,
+  createNodeRecord,
+  createSectionRecord,
+} from '@/services/mindmap/records/defaults';
 import type { MapRecord, NodeRecord, PositionedRecord } from '@/services/mindmap/schema/types';
 import { createMapStore } from '@/services/mindmap/store/mapStore';
 import { type CanvasController, createCanvasController } from '@/services/mindmap/tools/controller';
@@ -391,6 +395,22 @@ describe('reset position', () => {
     controller.undo();
     controller.undo();
     expect(store.get('g')).toMatchObject({ x: 0, label: 'Renamed' });
+  });
+
+  it('updates section membership with the move, in the same undo step', () => {
+    const inner = createSectionRecord({ id: 'inner', index: 'a0', x: -64, y: -64, w: 400, h: 256 });
+    const outer = createSectionRecord({ id: 'outer', index: 'a1', x: 960, y: 0, w: 400, h: 256 });
+    const { store, controller } = setupController([
+      inner,
+      outer,
+      { ...generatedNode('g', 0, 0), parentId: 'inner' },
+    ]);
+    controller.resetPosition('g', { x: 1024, y: 64 });
+    expect(store.get('g')).toMatchObject({ x: 1024, parentId: 'outer' });
+    controller.resetPosition('g', { x: 0, y: 1600 });
+    expect(store.get('g')).toMatchObject({ y: 1600, parentId: null });
+    controller.undo();
+    expect(store.get('g')).toMatchObject({ x: 1024, parentId: 'outer' });
   });
 
   it('does nothing on a read-only map', () => {

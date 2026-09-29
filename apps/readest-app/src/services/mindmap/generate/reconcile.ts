@@ -2,7 +2,7 @@ import type { GenNode, GenRecord } from '@/services/mindmap/generate/types';
 import { NEW_NODE_SIZE } from '@/services/mindmap/layout/layout';
 import { keyBetween } from '@/services/mindmap/order/keyBetween';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
-import type { Point } from '@/services/mindmap/records/geometry';
+import type { BoundsRect, Point } from '@/services/mindmap/records/geometry';
 import type { MapRecord } from '@/services/mindmap/schema/types';
 import {
   type Diff,
@@ -15,6 +15,7 @@ export interface ReconcileDeps {
   createId(): string;
   place(nodes: readonly GenNode[]): ReadonlyMap<string, Point>;
   isGone?(genKey: string): boolean;
+  sectionOf?(box: BoundsRect): string | null;
 }
 
 const rank = (record: MapRecord): number => {
@@ -115,6 +116,7 @@ export const reconcile = (
       const node = createNodeRecord({
         id,
         index: nextIndex(),
+        parentId: deps.sectionOf?.({ ...at, ...NEW_NODE_SIZE }) ?? null,
         ...at,
         ...NEW_NODE_SIZE,
         label,
