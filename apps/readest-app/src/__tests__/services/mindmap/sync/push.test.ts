@@ -246,6 +246,16 @@ describe('mindmap push', () => {
     );
   });
 
+  it('remembers maps it could not push until a later push succeeds', async () => {
+    deps.canPush.mockResolvedValue(false);
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    expect(pusher.unpushed()).toEqual([mapId]);
+    deps.canPush.mockResolvedValue(true);
+    await pusher.pushNow(mapId);
+    expect(pusher.unpushed()).toEqual([]);
+  });
+
   it('reports a map it does not know and a map whose file cannot be read', async () => {
     expect(await pusher.pushNow('missing')).toBe('unknown-map');
     const mapId = await createMap();

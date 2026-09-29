@@ -38,8 +38,11 @@ export interface MindmapPusher {
   committed(mapId: string, files: ReplicaTransferFile[]): Promise<void>;
   flushAll(): Promise<void>;
   idle(): Promise<void>;
+  unpushed(): string[];
   dispose(): void;
 }
+
+const UNPUSHED_RESULTS: readonly PushResult[] = ['skipped', 'not-queued', 'save-failed'];
 
 const byteLength = (text: string): number => new TextEncoder().encode(text).length;
 
@@ -57,6 +60,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const chains = new Map<string, Promise<PushResult>>();
   const waiting = new Set<string>();
+  const unpushed = new Set<string>();
 
   const cancel = (mapId: string): void => {
     const timer = timers.get(mapId);
@@ -99,9 +103,14 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     const next = previous
       .catch(() => 'current' as const)
       .then(() => push(mapId))
-      .catch((error: unknown) => {
+      .catch((error: unknown): PushResult => {
         console.error('mindmap: push failed', { mapId, error });
-        return 'not-queued' as const;
+        return 'not-queued';
+      })
+      .then((result) => {
+        if (UNPUSHED_RESULTS.includes(result)) unpushed.add(mapId);
+        else unpushed.delete(mapId);
+        return result;
       });
     chains.set(mapId, next);
     void next.finally(() => {
@@ -151,9 +160,11 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
       await idle();
     },
     idle,
+    unpushed: () => [...unpushed],
     dispose: () => {
       for (const mapId of [...timers.keys()]) cancel(mapId);
       waiting.clear();
+      unpushed.clear();
     },
   };
 };
