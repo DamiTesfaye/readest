@@ -12,6 +12,7 @@ describe('mindmapFsFromAppService', () => {
       createDir: vi.fn(async () => {}),
       readDirectory: vi.fn(async () => [{ path: 'm1/m1.json', size: 2 }]),
       deleteDir: vi.fn(async () => {}),
+      deleteFile: vi.fn(async () => {}),
     };
     const fs = mindmapFsFromAppService(service as unknown as AppService);
 
@@ -23,5 +24,11 @@ describe('mindmapFsFromAppService', () => {
     expect(service.readDirectory).toHaveBeenCalledWith('b1/mindmaps', 'Books');
     expect(service.deleteDir).toHaveBeenCalledWith('b1/mindmaps/m1', 'Books', true);
     expect(service.copyFile).toHaveBeenCalledWith('a', 'Books', 'b', 'Books');
+  });
+
+  it('maps removeFile onto deleteFile', async () => {
+    const service = { deleteFile: vi.fn(async () => {}) };
+    await mindmapFsFromAppService(service as unknown as AppService).removeFile('a', 'Books');
+    expect(service.deleteFile).toHaveBeenCalledWith('a', 'Books');
   });
 });

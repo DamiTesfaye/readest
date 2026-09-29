@@ -1,0 +1,229 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
+import { HlcGenerator } from '@/libs/crdt';
+import { canonicalStringify, md5Hex } from '@/services/mindmap/file/canonicalStringify';
+import { createMindmapClock } from '@/services/mindmap/file/clock';
+import { readMapFile } from '@/services/mindmap/persist/mapFile';
+import { saveMap } from '@/services/mindmap/persist/maps';
+import {
+  __resetMindmapStoreForTests,
+  useMindmapStore,
+} from '@/services/mindmap/persist/mindmapStore';
+import { __resetMapSessionsForTests, openMapSession } from '@/services/mindmap/persist/session';
+import { stampMeta } from '@/services/mindmap/file/stampDiff';
+import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
+import {
+  type MindmapPushDeps,
+  type MindmapPusher,
+  PUSH_DEBOUNCE_MS,
+  REPUSH_DELAY_MS,
+  createMindmapPusher,
+} from '@/services/mindmap/sync/push';
+import type { MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
+
+const BOOK = 'book1';
+const clock = createMindmapClock(new HlcGenerator('dev-a'), 'dev-a');
+
+let fs: MemoryFileSystem;
+let pusher: MindmapPusher;
+let pending: Set<string>;
+let deps: {
+  canPush: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
+  publishRow: ReturnType<typeof vi.fn<MindmapPushDeps['publishRow']>>;
+  queueUpload: ReturnType<typeof vi.fn<(record: MindmapReplicaRecord) => Promise<string | null>>>;
+};
+
+const store = () => useMindmapStore.getState();
+
+const createMap = async (title = 'Characters'): Promise<string> =>
+  (await store().createMap(BOOK, { ...DEFAULT_MAP_META, title }, clock)).mapId;
+
+const rename = async (mapId: string, title: string): Promise<void> => {
+  const read = await readMapFile(fs, BOOK, mapId);
+  await saveMap(fs, BOOK, stampMeta(read!.file, { title }, clock));
+};
+
+const localMd5 = async (mapId: string): Promise<string> =>
+  md5Hex(canonicalStringify((await readMapFile(fs, BOOK, mapId))!.file));
+
+const outgoingFiles = async (mapId: string): Promise<string[]> =>
+  (await fs.readDir(`${BOOK}/mindmaps/${mapId}/outgoing`, 'Books')).map((item) => item.path);
+
+const uploaded = (call = 0): MindmapReplicaRecord => deps.queueUpload.mock.calls[call]![0];
+
+beforeEach(async () => {
+  fs = new MemoryFileSystem();
+  await store().hydrate(fs);
+  pending = new Set();
+  deps = {
+    canPush: vi.fn(async () => true),
+    publishRow: vi.fn(async () => {}),
+    queueUpload: vi.fn(async (record: MindmapReplicaRecord) => {
+      pending.add(record.mapId);
+      return `upload-${record.mapId}`;
+    }),
+  };
+  pusher = createMindmapPusher({
+    fs,
+    ...deps,
+    isUploadPending: (mapId) => pending.has(mapId),
+  });
+});
+
+afterEach(() => {
+  pusher.dispose();
+  vi.useRealTimers();
+  __resetMapSessionsForTests();
+  __resetMindmapStoreForTests();
+});
+
+describe('mindmap push', () => {
+  it('writes a content-named outgoing copy, publishes the row, then queues its upload', async () => {
+    const mapId = await createMap('Carte mentale é');
+    expect(await pusher.pushNow(mapId)).toBe('queued');
+    const md5 = await localMd5(mapId);
+    const text = await fs.readFile(`${BOOK}/mindmaps/${mapId}/${mapId}.json`, 'Books');
+    expect(await outgoingFiles(mapId)).toEqual([`${mapId}.${md5}.json`]);
+    expect(deps.publishRow).toHaveBeenCalledWith(store().getEntry(mapId));
+    expect(uploaded()).toMatchObject({
+      mapId,
+      contentId: mapId,
+      outgoing: {
+        filename: `${mapId}.${md5}.json`,
+        byteSize: new TextEncoder().encode(text).length,
+      },
+    });
+    expect(uploaded().outgoing!.byteSize).toBeGreaterThan(text.length);
+  });
+
+  it('pushes nothing when the local file is the version the server already has', async () => {
+    const mapId = await createMap();
+    store().setSyncedMd5(mapId, await localMd5(mapId));
+    expect(await pusher.pushNow(mapId)).toBe('current');
+    expect(deps.queueUpload).not.toHaveBeenCalled();
+    expect(await outgoingFiles(mapId)).toEqual([]);
+  });
+
+  it('waits for 30 s without changes before pushing', async () => {
+    vi.useFakeTimers();
+    const mapId = await createMap();
+    pusher.schedule(mapId);
+    await vi.advanceTimersByTimeAsync(PUSH_DEBOUNCE_MS - 1);
+    pusher.schedule(mapId);
+    await vi.advanceTimersByTimeAsync(PUSH_DEBOUNCE_MS - 1);
+    expect(deps.queueUpload).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await pusher.idle();
+    expect(deps.queueUpload).toHaveBeenCalledOnce();
+  });
+
+  it('never rewrites the outgoing copy while its upload is pending, and pushes again after the commit', async () => {
+    vi.useFakeTimers();
+    const mapId = await createMap('Ab');
+    await pusher.pushNow(mapId);
+    const first = uploaded().outgoing!.filename;
+    await rename(mapId, 'Cd');
+    expect(await pusher.pushNow(mapId)).toBe('pending');
+    expect(await outgoingFiles(mapId)).toEqual([first]);
+    pending.delete(mapId);
+    await pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
+    expect(store().getEntry(mapId)!.syncedMd5).toBe(first.split('.')[1]);
+    expect(await outgoingFiles(mapId)).toEqual([]);
+    await vi.advanceTimersByTimeAsync(REPUSH_DELAY_MS);
+    await pusher.idle();
+    expect(deps.queueUpload).toHaveBeenCalledTimes(2);
+    const second = uploaded(1).outgoing!.filename;
+    expect(second).not.toBe(first);
+    expect(second.length).toBe(first.length);
+    expect(second).toBe(`${mapId}.${await localMd5(mapId)}.json`);
+  });
+
+  it('does not push again after a commit when nothing changed since', async () => {
+    vi.useFakeTimers();
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    pending.delete(mapId);
+    await pusher.committed(mapId, [
+      { logical: uploaded().outgoing!.filename, lfp: '', byteSize: 1 },
+    ]);
+    await vi.advanceTimersByTimeAsync(REPUSH_DELAY_MS);
+    await pusher.idle();
+    expect(deps.queueUpload).toHaveBeenCalledOnce();
+  });
+
+  it('deletes only the committed copy, never a newer copy already waiting to upload', async () => {
+    const mapId = await createMap('Ab');
+    await pusher.pushNow(mapId);
+    const first = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    await rename(mapId, 'Cd');
+    await pusher.pushNow(mapId);
+    const second = uploaded(1).outgoing!.filename;
+    await pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
+    expect(await outgoingFiles(mapId)).toEqual([second]);
+  });
+
+  it('ignores a commit for a file that is not a version of the map', async () => {
+    const mapId = await createMap();
+    await pusher.committed(mapId, [{ logical: 'other.json', lfp: '', byteSize: 1 }]);
+    expect(store().getEntry(mapId)!.syncedMd5).toBeNull();
+  });
+
+  it('writes nothing while signed out, offline or with mind map sync turned off', async () => {
+    deps.canPush.mockResolvedValue(false);
+    const mapId = await createMap();
+    expect(await pusher.pushNow(mapId)).toBe('skipped');
+    expect(deps.publishRow).not.toHaveBeenCalled();
+    expect(await outgoingFiles(mapId)).toEqual([]);
+  });
+
+  it('saves an open map before reading it, so a pending edit is pushed', async () => {
+    const mapId = await createMap();
+    const opened = await openMapSession(fs, BOOK, mapId, clock);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    opened.session.updateMeta({ title: 'Edited just now' });
+    await pusher.pushNow(mapId);
+    const pushed = await fs.readFile(
+      `${BOOK}/mindmaps/${mapId}/outgoing/${uploaded().outgoing!.filename}`,
+      'Books',
+    );
+    expect(pushed).toContain('Edited just now');
+  });
+
+  it('runs one push per map at a time', async () => {
+    const mapId = await createMap();
+    const results = await Promise.all([pusher.pushNow(mapId), pusher.pushNow(mapId)]);
+    expect(results).toEqual(['queued', 'pending']);
+    expect(deps.queueUpload).toHaveBeenCalledOnce();
+  });
+
+  it('clears an outgoing copy left by an upload that failed before writing the next one', async () => {
+    const mapId = await createMap('Ab');
+    await pusher.pushNow(mapId);
+    const stale = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    await rename(mapId, 'Cd');
+    await pusher.pushNow(mapId);
+    expect(await outgoingFiles(mapId)).toEqual([uploaded(1).outgoing!.filename]);
+    expect(await outgoingFiles(mapId)).not.toContain(stale);
+  });
+
+  it('pushes every scheduled map at once on flush', async () => {
+    const first = await createMap('One');
+    const second = await createMap('Two');
+    pusher.schedule(first);
+    pusher.schedule(second);
+    await pusher.flushAll();
+    expect(deps.queueUpload.mock.calls.map(([record]) => record.mapId).sort()).toEqual(
+      [first, second].sort(),
+    );
+  });
+
+  it('reports a map it does not know and a map whose file cannot be read', async () => {
+    expect(await pusher.pushNow('missing')).toBe('unknown-map');
+    const mapId = await createMap();
+    await fs.writeFile(`${BOOK}/mindmaps/${mapId}/${mapId}.json`, 'Books', '{');
+    await fs.removeFile(`${BOOK}/mindmaps/${mapId}/${mapId}.json.bak`, 'Books');
+    expect(await pusher.pushNow(mapId)).toBe('unreadable');
+  });
+});

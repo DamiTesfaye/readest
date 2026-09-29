@@ -2,7 +2,14 @@ import type { AppService, FileSystem } from '@/types/system';
 
 export type MindmapFs = Pick<
   FileSystem,
-  'exists' | 'readFile' | 'writeFile' | 'copyFile' | 'createDir' | 'readDir' | 'removeDir'
+  | 'exists'
+  | 'readFile'
+  | 'writeFile'
+  | 'copyFile'
+  | 'createDir'
+  | 'readDir'
+  | 'removeDir'
+  | 'removeFile'
 >;
 
 export const mindmapFsFromAppService = (service: AppService): MindmapFs => ({
@@ -14,4 +21,5 @@ export const mindmapFsFromAppService = (service: AppService): MindmapFs => ({
   createDir: (path, base, recursive) => service.createDir(path, base, recursive),
   readDir: (path, base) => service.readDirectory(path, base),
   removeDir: (path, base, recursive) => service.deleteDir(path, base, recursive),
+  removeFile: (path, base) => service.deleteFile(path, base),
 });
