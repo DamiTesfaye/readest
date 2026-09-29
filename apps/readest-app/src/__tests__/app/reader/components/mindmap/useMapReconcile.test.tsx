@@ -10,7 +10,9 @@ import { HlcGenerator } from '@/libs/crdt';
 import type { BookDoc, TOCItem } from '@/libs/document';
 import { createMindmapClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
-import type { BookLocator } from '@/services/mindmap/generate/anchors';
+import { type BookLocator, createBookLocator } from '@/services/mindmap/generate/anchors';
+import { reconcileMap } from '@/services/mindmap/generate/reconcileMap';
+import { seedGenerator } from '@/services/mindmap/generate/seedGenerator';
 import { saveMapFile } from '@/services/mindmap/persist/mapFile';
 import {
   type MapSession,
@@ -213,5 +215,41 @@ describe('useMapReconcile', () => {
       }),
     );
     expect(session.store.all()).toEqual([]);
+  });
+});
+
+describe('useMapReconcile after a remote merge', () => {
+  it('collapses the duplicates a merge brings in without waiting for another trigger', async () => {
+    const other = new MemoryFileSystem();
+    const otherClock = createMindmapClock(new HlcGenerator('device-2'), 'device-2');
+    await saveMapFile(other, 'bookhash', session.file());
+    render('generated');
+    await waitFor(() => expect(genKeys()).toEqual(['toc:a', 'toc:b']));
+    __resetMapSessionsForTests();
+    const opened = await openMapSession(other, 'bookhash', 'm1', otherClock);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    const otherController = createCanvasController({
+      store: opened.session.store,
+      camera: opened.session.meta().camera,
+    });
+    await reconcileMap({
+      controller: otherController,
+      meta: opened.session.meta(),
+      generator: seedGenerator,
+      input: {
+        book: { hash: 'bookhash', title: 'Emma', format: 'EPUB' } as Book,
+        toc: [chapter('a', 'One'), chapter('b', 'Two')],
+        annotations: [],
+        intent: 'story',
+        locator: createBookLocator(bookDoc([chapter('a', 'One'), chapter('b', 'Two')])),
+      },
+    });
+    act(() => {
+      session.mergeRemote(opened.session.file());
+    });
+    expect(genKeys()).toEqual(['toc:a', 'toc:a', 'toc:b', 'toc:b']);
+    await waitFor(() => expect(genKeys()).toEqual(['toc:a', 'toc:b']));
+    otherController.dispose();
+    await opened.session.close();
   });
 });

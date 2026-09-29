@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { TOCItem } from '@/libs/document';
 import { type BookLocator, createBookLocator } from '@/services/mindmap/generate/anchors';
@@ -7,6 +7,7 @@ import { seedGenerator } from '@/services/mindmap/generate/seedGenerator';
 import type { MapSession } from '@/services/mindmap/persist/session';
 import { resolveAdaptive } from '@/services/mindmap/reveal/adaptive';
 import type { MapSource } from '@/services/mindmap/schema/types';
+import type { Diff } from '@/services/mindmap/store/mapStore';
 import { isLive } from '@/services/mindmap/spatial/spatialIndex';
 import type { CanvasController } from '@/services/mindmap/tools/controller';
 import { useBookDataStore } from '@/store/bookDataStore';
@@ -15,6 +16,11 @@ import { eventDispatcher } from '@/utils/event';
 
 export const RECONCILE_DELAY_MS = 250;
 const EMPTY_TOC: readonly TOCItem[] = [];
+const GENERATED_FIELDS: ReadonlySet<string> = new Set(['genKey', 'deleted']);
+
+const bringsGenerated = (diff: Diff): boolean =>
+  diff.added.some((record) => record.genKey !== null) ||
+  diff.changed.some((change) => GENERATED_FIELDS.has(change.field));
 
 export interface MapReconcileInput {
   bookKey: string;
@@ -48,6 +54,15 @@ export const useMapReconcile = ({
     (state) => state.getBookData(bookKey)?.config?.booknotes ?? null,
   );
   const queue = useRef<Promise<void>>(Promise.resolve());
+  const [merges, setMerges] = useState(0);
+
+  useEffect(
+    () =>
+      session.store.listen((diff, source) => {
+        if (source === 'remote' && bringsGenerated(diff)) setMerges((count) => count + 1);
+      }),
+    [session],
+  );
 
   useEffect(() => {
     if (!controller || !locator || source !== 'generated') return;
@@ -94,5 +109,5 @@ export const useMapReconcile = ({
       abort.abort();
       if (fitViewFrame !== null) cancelAnimationFrame(fitViewFrame);
     };
-  }, [bookKey, session, controller, locator, toc, booknotes, source]);
+  }, [bookKey, session, controller, locator, toc, booknotes, source, merges]);
 };
