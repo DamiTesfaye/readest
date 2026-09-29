@@ -180,6 +180,7 @@ const indexedDBFileSystem: FileSystem = {
   },
   async removeDir(path: string, base: BaseDir) {
     const { fp } = this.resolvePath(path, base);
+    const dir = fp.replace(/\/+$/, '');
     const db = await openIndexedDB();
 
     return new Promise<void>((resolve, reject) => {
@@ -190,7 +191,7 @@ const indexedDBFileSystem: FileSystem = {
       request.onsuccess = () => {
         const files = request.result as { path: string }[];
         files.forEach((file) => {
-          if (file.path.startsWith(fp)) {
+          if (file.path === dir || file.path.startsWith(`${dir}/`)) {
             store.delete(file.path);
           }
         });

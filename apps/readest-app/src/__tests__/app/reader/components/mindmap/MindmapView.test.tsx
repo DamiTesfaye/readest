@@ -65,6 +65,7 @@ vi.mock('@/utils/access', () => ({
   getAccessToken: async () => null,
   getUserProfilePlan: () => 'free',
 }));
+vi.mock('@/services/sync/replicaPublish', () => ({ publishReplicaDelete: async () => {} }));
 vi.mock('@/store/bookDataStore', () => {
   const state = {
     getBookData: () => ({

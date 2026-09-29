@@ -7,7 +7,7 @@ import {
   listenMindmapIndex,
   loadMindmapIndex,
 } from '@/services/mindmap/persist/mindmapIndex';
-import { useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
+import { deleteMindmap } from '@/services/mindmap/sync/deleteMap';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { eventDispatcher } from '@/utils/event';
 
@@ -41,7 +41,7 @@ export const useDeleteMap = (
   const { showMap, close } = useMindmapViewStore();
   return async () => {
     try {
-      await useMindmapStore.getState().moveToTrash(mapId, bookHash);
+      await deleteMindmap(mapId, bookHash);
       const next = maps.find((entry) => entry.mapId !== mapId);
       if (next) showMap(bookKey, next.mapId);
       else close();

@@ -18,6 +18,7 @@ import { ClosableFile } from '@/utils/file';
 import { ProgressHandler } from '@/utils/transfer';
 import { CLOUD_BOOKS_SUBDIR, CLOUD_REPLICAS_SUBDIR } from './constants';
 import { isBookFileContentSource, resolveBookContentSource } from './bookContent';
+import { useMindmapStore } from './mindmap/persist/mindmapStore';
 
 export async function deleteBook(
   fs: FileSystem,
@@ -49,6 +50,7 @@ export async function deleteBook(
       if (await fs.exists(dir, 'Books')) {
         await fs.removeDir(dir, 'Books', true);
       }
+      useMindmapStore.getState().removeByBookHash(book.hash);
     }
 
     if (deleteAction === 'both' && (await fs.exists(getCoverFilename(book), 'Books'))) {

@@ -7,6 +7,7 @@ import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { isSafeMindmapId, mapFileDir } from '@/services/mindmap/persist/mapFile';
 import { saveMap, trashMap } from '@/services/mindmap/persist/maps';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
+import { recordTrashedMap } from '@/services/mindmap/persist/mindmapTrash';
 import { getOpenMapSession } from '@/services/mindmap/persist/session';
 import type { MapFile, MapMeta } from '@/services/mindmap/schema/types';
 
@@ -146,6 +147,7 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
       if (!owner) return;
       await getOpenMapSession(mapId)?.discard();
       await trashMap(requireFs(), owner, mapId);
+      await recordTrashedMap(requireFs(), owner, mapId);
       if (get().getEntry(mapId)) get().removeEntry(mapId);
     },
     removeByBookHash: (bookHash) => {
