@@ -219,10 +219,26 @@ describe('mergeIncomingVersion', () => {
       'merged',
     );
     expect(session.store.get('n2')).toMatchObject({ label: 'From device B' });
+    expect((await diskFile()).records['n2']!['label']!.v).toBe('From device B');
     await session.close();
     const saved = await diskFile();
     expect(saved.records['n1']!['label']!.v).toBe('Typed locally');
     expect(saved.records['n2']!['label']!.v).toBe('From device B');
+  });
+
+  it('reports save-failed and keeps the incoming copy when an open map cannot save the merge', async () => {
+    await seedLocal(base(), 'old');
+    const opened = await openMapSession(fs, BOOK, MAP, local);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    const files = await deliver(
+      canonicalStringify(withNode(base(), 'n2', 'From device B', remoteClock)),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(fs, 'writeFile').mockRejectedValue(new Error('disk full'));
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('save-failed');
+    expect(await fs.exists(files[0]!.lfp, 'Books')).toBe(true);
+    expect(store().getEntry(MAP)!.syncedMd5).toBe('old');
+    expect(deps.schedulePush).not.toHaveBeenCalled();
   });
 
   it('waits for a map that is still opening and merges through that session', async () => {

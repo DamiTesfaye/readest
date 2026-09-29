@@ -161,6 +161,28 @@ describe('mindmap push', () => {
     expect(second).toBe(`${mapId}.${await localMd5(mapId)}.json`);
   });
 
+  it('pushes the unsaved edits of an open map after the commit of the upload its push waited for', async () => {
+    vi.useFakeTimers();
+    const mapId = await createMap('Ab');
+    await pusher.pushNow(mapId);
+    const first = uploaded().outgoing!.filename;
+    const opened = await openMapSession(fs, BOOK, mapId, clock);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    opened.session.updateMeta({ title: 'Typed during the upload' });
+    expect(await pusher.pushNow(mapId)).toBe('pending');
+    pending.delete(mapId);
+    await pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
+    await vi.advanceTimersByTimeAsync(REPUSH_DELAY_MS);
+    await pusher.idle();
+    expect(deps.queueUpload).toHaveBeenCalledTimes(2);
+    const pushed = await fs.readFile(
+      `${BOOK}/mindmaps/${mapId}/outgoing/${uploaded(1).outgoing!.filename}`,
+      'Books',
+    );
+    expect(pushed).toContain('Typed during the upload');
+    await opened.session.close();
+  });
+
   it('does not push again after a commit when nothing changed since', async () => {
     vi.useFakeTimers();
     const mapId = await createMap();
