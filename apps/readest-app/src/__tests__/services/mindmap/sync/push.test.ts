@@ -163,6 +163,33 @@ describe('mindmap push', () => {
     expect(await outgoingFiles(mapId)).toEqual([second]);
   });
 
+  it('keeps the copy a fresh upload of the same version needs when an earlier commit arrives late', async () => {
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    const copy = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    expect(await pusher.pushNow(mapId)).toBe('queued');
+    expect(uploaded(1).outgoing!.filename).toBe(copy);
+    await pusher.committed(mapId, [{ logical: copy, lfp: '', byteSize: 1 }]);
+    expect(await outgoingFiles(mapId)).toEqual([copy]);
+    pending.delete(mapId);
+    await pusher.committed(mapId, [{ logical: copy, lfp: '', byteSize: 1 }]);
+    expect(await outgoingFiles(mapId)).toEqual([]);
+  });
+
+  it('skips a push whose version a commit recorded while it was checking', async () => {
+    const mapId = await createMap();
+    let release: (value: boolean) => void = () => {};
+    deps.canPush.mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (release = resolve)),
+    );
+    const result = pusher.pushNow(mapId);
+    store().setSyncedMd5(mapId, await localMd5(mapId));
+    release(true);
+    expect(await result).toBe('current');
+    expect(deps.queueUpload).not.toHaveBeenCalled();
+  });
+
   it('ignores a commit for a file that is not a version of the map', async () => {
     const mapId = await createMap();
     await pusher.committed(mapId, [{ logical: 'other.json', lfp: '', byteSize: 1 }]);

@@ -44,7 +44,10 @@ export interface MindmapPusher {
 const byteLength = (text: string): number => new TextEncoder().encode(text).length;
 
 const clearOutgoing = async (fs: MindmapFs, dir: string, keep: string): Promise<void> => {
-  const items = await fs.readDir(dir, MINDMAP_BASE_DIR).catch(() => []);
+  const items = await fs.readDir(dir, MINDMAP_BASE_DIR).catch((error: unknown) => {
+    console.warn('mindmap: cannot list the outgoing directory', { dir, error });
+    return [];
+  });
   for (const item of items) {
     if (item.path !== keep) await fs.removeFile(`${dir}/${item.path}`, MINDMAP_BASE_DIR);
   }
@@ -75,7 +78,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     if (!read) return 'unreadable';
     const text = canonicalStringify(read.file);
     const md5 = md5Hex(text);
-    if (md5 === entry.syncedMd5) return 'current';
+    if (md5 === useMindmapStore.getState().getEntry(mapId)?.syncedMd5) return 'current';
     const filename = versionFilename(mapId, md5);
     const dir = outgoingDir(entry.bundleDir);
     await deps.fs.createDir(dir, MINDMAP_BASE_DIR, true);
@@ -126,7 +129,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     if (!version || !entry) return;
     useMindmapStore.getState().setSyncedMd5(mapId, version.md5);
     const copy = `${outgoingDir(entry.bundleDir)}/${versionFilename(mapId, version.md5)}`;
-    if (await deps.fs.exists(copy, MINDMAP_BASE_DIR)) {
+    if (!deps.isUploadPending(mapId) && (await deps.fs.exists(copy, MINDMAP_BASE_DIR))) {
       await deps.fs.removeFile(copy, MINDMAP_BASE_DIR);
     }
     const read = await readMapFile(deps.fs, entry.bookHash, mapId);
