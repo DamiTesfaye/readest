@@ -102,6 +102,19 @@ describe('useMindmapActions', () => {
     expect(controller.history.canUndo()).toBe(true);
   });
 
+  it('brings the reset record into view', () => {
+    controller.viewport.set({ width: 800, height: 600 });
+    controller.camera.set({ x: -5000, y: -5000, z: 1 });
+    const { result } = renderHook(() => useMindmapActions());
+    result.current.onResetPosition(MAP, 'quote');
+    const quote = session.store.get('quote') as NodeRecord;
+    const view = controller.camera.viewportBounds(controller.viewport.get());
+    expect(quote.x).toBeGreaterThanOrEqual(view.x);
+    expect(quote.x + quote.w).toBeLessThanOrEqual(view.x + view.w);
+    expect(quote.y).toBeGreaterThanOrEqual(view.y);
+    expect(quote.y + quote.h).toBeLessThanOrEqual(view.y + view.h);
+  });
+
   it('exports the records the reader can see as a JSON Canvas file', async () => {
     const dispatch = vi.spyOn(eventDispatcher, 'dispatch');
     controller.visible.set((record) => record.id !== 'quote');

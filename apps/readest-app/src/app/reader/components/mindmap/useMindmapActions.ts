@@ -20,7 +20,9 @@ export const resetRecordPosition = (mapId: string, recordId: string): void => {
   const controller = getOpenCanvasController(mapId);
   if (!controller) return;
   const point = resetPlacement(controller.store, controller.spatial, recordId);
-  if (point) controller.resetPosition(recordId, point);
+  if (!point) return;
+  controller.resetPosition(recordId, point);
+  controller.ensureVisible(recordId);
 };
 
 export const useMindmapActions = (): MindmapActions => {
