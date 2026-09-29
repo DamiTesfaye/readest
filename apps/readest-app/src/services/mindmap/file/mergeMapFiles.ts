@@ -1,16 +1,19 @@
 import { hlcMax, mergeFields } from '@/libs/crdt';
-import type { FieldsObject, Hlc } from '@/types/replica';
+import type { FieldEnvelope, FieldsObject, Hlc } from '@/types/replica';
 import type { MapFile } from '@/services/mindmap/schema/types';
 
 const FURTHEST_WINS = 'lastSeenProgress';
 
+const progressOf = (envelope: FieldEnvelope | undefined): number | null =>
+  typeof envelope?.v === 'number' && Number.isFinite(envelope.v) ? envelope.v : null;
+
 const mergeMeta = (a: FieldsObject, b: FieldsObject): FieldsObject => {
   const merged = mergeFields(a, b);
-  const left = a[FURTHEST_WINS];
-  const right = b[FURTHEST_WINS];
-  if (!left || !right || typeof left.v !== 'number' || typeof right.v !== 'number') return merged;
-  if (left.v === right.v) return merged;
-  return { ...merged, [FURTHEST_WINS]: left.v > right.v ? left : right };
+  const left = progressOf(a[FURTHEST_WINS]);
+  const right = progressOf(b[FURTHEST_WINS]);
+  if (left === right) return merged;
+  const leftWins = right === null || (left !== null && left > right);
+  return { ...merged, [FURTHEST_WINS]: leftWins ? a[FURTHEST_WINS]! : b[FURTHEST_WINS]! };
 };
 
 export const mergeMapFiles = (a: MapFile, b: MapFile): MapFile => {

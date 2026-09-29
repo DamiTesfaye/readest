@@ -129,3 +129,62 @@ describe('highestHlc', () => {
     );
   });
 });
+
+describe('mergeMapFiles lastSeenProgress', () => {
+  const progressFile = (value: unknown, ms: number, device: string): MapFile =>
+    fileWith({}, { lastSeenProgress: envelope(value, ms, device) });
+
+  const progressOf = (file: MapFile): unknown => file.meta['lastSeenProgress']!.v;
+
+  const same = (x: MapFile, y: MapFile): boolean => canonicalStringify(x) === canonicalStringify(y);
+
+  it('is commutative for every pair of finite numbers and ties', () => {
+    const values = [0, 0.3, 0.3, 0.9, 1];
+    values.forEach((left, i) =>
+      values.forEach((right, j) => {
+        const a = progressFile(left, 1000 + i, `d${i}`);
+        const b = progressFile(right, 1000 + j, `d${j}`);
+        expect(same(mergeMapFiles(a, b), mergeMapFiles(b, a))).toBe(true);
+      }),
+    );
+  });
+
+  it.each([
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['a string', '0.9'],
+    ['null', null],
+  ])('lets a finite value win over %s in either order', (_label, bad) => {
+    const a = progressFile(bad, 2000, 'da');
+    const b = progressFile(0.5, 1000, 'db');
+    expect(progressOf(mergeMapFiles(a, b))).toBe(0.5);
+    expect(progressOf(mergeMapFiles(b, a))).toBe(0.5);
+  });
+
+  it('falls back to the newer clock when neither value is a finite number', () => {
+    const a = progressFile(Number.NaN, 2000, 'da');
+    const b = progressFile(null, 1000, 'db');
+    expect(same(mergeMapFiles(a, b), mergeMapFiles(b, a))).toBe(true);
+    expect(mergeMapFiles(a, b).meta['lastSeenProgress']!.s).toBe('da');
+  });
+
+  it('is associative across three devices when one value parsed from disk is not a number', () => {
+    const text = JSON.stringify({
+      schemaVersion: 1,
+      mapId: 'm1',
+      meta: { lastSeenProgress: envelope(null, 2000, 'db') },
+      records: {},
+    });
+    const b = parseMapFile(text, 'm1')!;
+    const a = progressFile(0.8, 1000, 'da');
+    const c = progressFile(0.5, 3000, 'dc');
+    const orders = [
+      mergeMapFiles(mergeMapFiles(a, b), c),
+      mergeMapFiles(mergeMapFiles(a, c), b),
+      mergeMapFiles(a, mergeMapFiles(b, c)),
+      mergeMapFiles(mergeMapFiles(c, b), a),
+    ];
+    for (const merged of orders) expect(same(merged, orders[0]!)).toBe(true);
+    expect(progressOf(orders[0]!)).toBe(0.8);
+  });
+});
