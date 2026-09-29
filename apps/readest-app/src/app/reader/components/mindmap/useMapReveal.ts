@@ -9,6 +9,7 @@ import {
   type FogRedaction,
   chapterAt,
   computeReveal,
+  readingFloor,
   visibleFilter,
 } from '@/services/mindmap/reveal/visibility';
 import type { MapMeta, MapRecord } from '@/services/mindmap/schema/types';
@@ -73,7 +74,13 @@ export const useMapReveal = ({
   animate,
 }: MapRevealInput): MapReveal => {
   const _ = useTranslation();
-  const progress = useBookProgress(bookKey)?.fraction ?? 0;
+  const bookProgress = useBookProgress(bookKey);
+  const progress = bookProgress?.fraction ?? 0;
+  const location = bookProgress?.location ?? '';
+  const floor = useMemo(
+    () => readingFloor(locator, { fraction: progress, location }),
+    [locator, progress, location],
+  );
   const book = useBookDataStore((state) => state.getBookData(bookKey)?.book ?? null);
   const toc = useBookDataStore((state) => state.getBookData(bookKey)?.bookDoc?.toc ?? null);
   const hiddenRef = useRef<ReadonlySet<string>>(new Set());
@@ -103,8 +110,14 @@ export const useMapReveal = ({
   );
   const state = useMemo(
     () =>
-      computeReveal({ records, spoiler, progress, lastSeenProgress: seenAtOpen, chapterStarts }),
-    [records, spoiler, progress, seenAtOpen, chapterStarts],
+      computeReveal({
+        records,
+        spoiler,
+        progress: floor,
+        lastSeenProgress: seenAtOpen,
+        chapterStarts,
+      }),
+    [records, spoiler, floor, seenAtOpen, chapterStarts],
   );
   const [opening, setOpening] = useState(animate);
   const [ready, setReady] = useState(false);
@@ -139,13 +152,13 @@ export const useMapReveal = ({
       useMindmapViewStore.getState().announce(_('{{count}} new nodes revealed', { count: fresh }));
     }
     const stored = session.meta().lastSeenProgress;
-    if (!session.readOnly && revealsBetween(records, stored, progress)) {
-      session.updateMeta({ lastSeenProgress: progress });
+    if (!session.readOnly && revealsBetween(records, stored, floor)) {
+      session.updateMeta({ lastSeenProgress: floor });
     }
-  }, [ready, opening, state, records, progress, session, _]);
+  }, [ready, opening, state, records, floor, session, _]);
 
   const showChip = meta.source === 'generated' && spoiler !== 'whole';
-  const chapter = chapterAt(chapterStarts, progress);
+  const chapter = chapterAt(chapterStarts, floor);
   useEffect(() => {
     useMindmapViewStore.getState().setReveal(
       showChip

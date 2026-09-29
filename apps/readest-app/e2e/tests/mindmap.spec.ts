@@ -193,6 +193,65 @@ test.describe('Mind map', () => {
     await expect(page.getByTestId('mm-reveal-chip')).toContainText('new');
   });
 
+  test('keeps the next chapter hidden on the last spread of the current one', async ({
+    openBook,
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const reader = await openBook();
+    await reader.revealHeader();
+    await page.getByRole('button', { name: 'Contents' }).click();
+    await page.getByRole('treeitem', { name: /Chapter 2 - The Pool of Tears/ }).click();
+    await expect.poll(() => bookLocation(page)).toMatch(/^epubcfi\(\/6\/10[!,)]/);
+    await page.keyboard.press('Escape');
+    await reader.prevPage();
+    await expect.poll(() => bookLocation(page)).toMatch(/^epubcfi\(\/6\/8[!,)]/);
+    await createGeneratedMap(reader, page);
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 14');
+    await expect(chapterNode(page, 'Chapter 1 - Down the Rabbit Hole')).toHaveCount(1);
+    await expect(chapterNode(page, 'Chapter 2 - The Pool of Tears')).toHaveCount(0);
+  });
+
+  test('keeps a heading inside a file hidden until the reader reaches it', async ({
+    openBook,
+    page,
+  }) => {
+    await page.setViewportSize({ width: 700, height: 900 });
+    const reader = await openBook('src/__tests__/fixtures/data/mindmap-midfile-heading.epub');
+    const probe = () =>
+      page.evaluate(() => {
+        const view = document.querySelector('foliate-view') as unknown as {
+          lastLocation?: { fraction?: number; range?: Range; tocItem?: { label?: string } };
+          book: {
+            sections: Array<{
+              linear: string;
+              size: number;
+              fragments?: Array<{ href: string; size: number }>;
+            }>;
+          };
+        };
+        const sizes = view.book.sections.map((s) => (s.linear !== 'no' && s.size > 0 ? s.size : 0));
+        const total = sizes.reduce((sum, size) => sum + size, 0);
+        const heading = view.book.sections[0]?.fragments?.find((f) => f.href.endsWith('#ch2'));
+        return {
+          ahead: heading ? (view.lastLocation?.fraction ?? 0) >= heading.size / total : false,
+          onScreen: (view.lastLocation?.range?.toString() ?? '').includes('Chapter Two Secret'),
+          toc: view.lastLocation?.tocItem?.label ?? '',
+        };
+      });
+    await expect
+      .poll(async () => {
+        const state = await probe();
+        if (!state.ahead) await reader.nextPage();
+        return state.ahead;
+      })
+      .toBe(true);
+    expect(await probe()).toMatchObject({ onScreen: false, toc: 'Chapter One' });
+    await createGeneratedMap(reader, page);
+    await expect(chapterNode(page, 'Chapter One')).toHaveCount(1);
+    await expect(chapterNode(page, 'Chapter Two Secret')).toHaveCount(0);
+  });
+
   test('returns focus from the new map sheet when it is dismissed', async ({ openBook, page }) => {
     const reader = await openBook();
     await openMindmap(reader, page);

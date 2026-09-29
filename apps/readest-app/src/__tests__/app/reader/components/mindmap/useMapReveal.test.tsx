@@ -172,3 +172,24 @@ describe('useMapReveal', () => {
     );
   });
 });
+
+describe('useMapReveal reading position', () => {
+  it('reveals against the start of the visible range, not the end of the spread', async () => {
+    const locator: BookLocator = {
+      locateToc: () => null,
+      locateCfi: (cfi) =>
+        cfi.startsWith('epubcfi(/6/4') ? { cfi, section: 1, progress: 0.1 } : null,
+    };
+    setBookProgress(BOOK_KEY, {
+      fraction: 0.35,
+      location: 'epubcfi(/6/4!/4/20,/1:0,/3:5)',
+    } as BookProgress);
+    render(false, locator);
+    expect(controller.isShown('seen')).toBe(true);
+    expect(controller.isShown('fresh')).toBe(false);
+    await waitFor(() =>
+      expect(useMindmapViewStore.getState().reveal).toMatchObject({ revealed: 1 }),
+    );
+    expect(session.meta().lastSeenProgress).toBe(0.2);
+  });
+});

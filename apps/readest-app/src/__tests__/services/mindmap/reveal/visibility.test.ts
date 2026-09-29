@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import type { SectionFragment, SectionItem } from '@/libs/document';
+import { createBookLocator } from '@/services/mindmap/generate/anchors';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
 import {
   CLUSTER_SIZE,
   type RevealInput,
   chapterAt,
   computeReveal,
+  readingFloor,
   visibleFilter,
 } from '@/services/mindmap/reveal/visibility';
 import type { MapRecord, NodeRecord } from '@/services/mindmap/schema/types';
@@ -112,5 +115,50 @@ describe('chapterAt', () => {
     expect(chapterAt([0.1, 0.3, 0.6], 0.35)).toBe(2);
     expect(chapterAt([0.1, 0.3, 0.6], 0.05)).toBeNull();
     expect(chapterAt([], 0.5)).toBeNull();
+  });
+});
+
+describe('readingFloor', () => {
+  const section = (id: string, cfi: string, size: number, fragments: SectionFragment[] = []) =>
+    ({
+      id,
+      cfi,
+      size,
+      linear: 'yes',
+      fragments,
+      createDocument: async () => document,
+    }) as SectionItem;
+  const locator = createBookLocator({
+    sections: [
+      section('title.xhtml', 'epubcfi(/6/2)', 1000),
+      section('ch1.xhtml', 'epubcfi(/6/4)', 3000, [
+        { id: 'b', href: 'ch1.xhtml#b', cfi: 'epubcfi(/6/4!/4/10)', size: 1500, linear: 'yes' },
+      ]),
+      section('ch2.xhtml', 'epubcfi(/6/6)', 4000),
+    ],
+    splitTOCHref: (href) => href.split('#'),
+  });
+
+  it('reads the located point at the start of the visible range, not the end of the spread', () => {
+    const lastSpreadOfChapter1 = { fraction: 0.55, location: 'epubcfi(/6/4!/4/20,/1:0,/3:5)' };
+    expect(readingFloor(locator, lastSpreadOfChapter1)).toBe(0.3125);
+  });
+
+  it('stays at the section start until the visible range passes a heading inside the file', () => {
+    expect(readingFloor(locator, { fraction: 0.3, location: 'epubcfi(/6/4!/4/6,/1:0,/1:9)' })).toBe(
+      0.125,
+    );
+  });
+
+  it('reaches the next chapter on its first page', () => {
+    expect(readingFloor(locator, { fraction: 0.6, location: 'epubcfi(/6/6!/4/2,/1:0,/1:9)' })).toBe(
+      0.5,
+    );
+  });
+
+  it('falls back to the fraction without a locator or a location', () => {
+    expect(readingFloor(null, { fraction: 0.4, location: 'epubcfi(/6/4!/4/2)' })).toBe(0.4);
+    expect(readingFloor(locator, { fraction: 0.4, location: '' })).toBe(0.4);
+    expect(readingFloor(locator, null)).toBe(0);
   });
 });

@@ -1,3 +1,4 @@
+import type { BookLocator } from '@/services/mindmap/generate/anchors';
 import type { BoundsRect } from '@/services/mindmap/records/geometry';
 import type { ResolvedSpoiler } from '@/services/mindmap/reveal/adaptive';
 import type { MapRecord, PositionedRecord } from '@/services/mindmap/schema/types';
@@ -43,6 +44,20 @@ export interface RevealState {
 export const chapterAt = (starts: readonly number[], progress: number): number | null => {
   const count = starts.filter((start) => start <= progress).length;
   return count > 0 ? count : null;
+};
+
+export interface ReadingPosition {
+  fraction: number;
+  location: string;
+}
+
+export const readingFloor = (
+  locator: BookLocator | null,
+  position: ReadingPosition | null,
+): number => {
+  if (!position) return 0;
+  const floor = locator && position.location ? locator.locateCfi(position.location) : null;
+  return floor?.progress ?? position.fraction;
 };
 
 export const visibleFilter = (hidden: ReadonlySet<string>): RecordFilter =>
