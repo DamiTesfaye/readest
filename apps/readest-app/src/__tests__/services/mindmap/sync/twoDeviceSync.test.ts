@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { FakeReplicaCloud } from '@/__tests__/helpers/fakeReplicaCloud';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { InMemoryHlcStore } from '@/libs/hlcStore';
+import { hlcPack } from '@/libs/crdt';
 import type { MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
 import type { PullAndApplyDeps } from '@/services/sync/replicaPullAndApply';
 import type { Hlc, ReplicaRow } from '@/types/replica';
@@ -303,6 +304,15 @@ const expectConverged = async (mapId: string, ...group: Device[]): Promise<void>
   for (const device of group) expect(await outgoingFiles(device, mapId)).toEqual([]);
 };
 
+const metaOf = (text: string, key: string): unknown =>
+  (JSON.parse(text) as { meta: Record<string, { v: unknown }> }).meta[key]?.v;
+
+const syncRounds = async (rounds: number, ...group: Device[]): Promise<void> => {
+  for (let round = 0; round < rounds; round++) {
+    for (const device of group) await pull(device);
+  }
+};
+
 const errorToasts = (device: Device) => device.toasts.filter((toast) => toast.type === 'error');
 
 beforeEach(() => {
@@ -474,5 +484,34 @@ describe('mind map sync between two devices', () => {
     expect(await b.fs.exists(b.m.maps.mapFilePath(BOOK, mapId), 'Books')).toBe(false);
     await pull(b);
     expect(await b.fs.readDir(b.m.maps.mapTrashDir(BOOK, mapId), 'Books')).toEqual([]);
+  });
+
+  it('lets a local rename survive after merging a version whose title clock is far in the future', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await createMap(a, 'Base');
+    await push(a, mapId);
+    await pull(b);
+    const farFuture = hlcPack(Date.now() + 365 * 24 * 3600 * 1000, 0, 'dev-a');
+    const current = JSON.parse(await localText(a, mapId));
+    current.meta.title = { v: 'Future title', t: farFuture, s: 'dev-a' };
+    const poisoned = a.m.file.canonicalStringify(current);
+    await a.fs.writeFile(a.m.maps.mapFilePath(BOOK, mapId), 'Books', poisoned);
+    await push(a, mapId);
+    await pull(b);
+    expect(metaOf(await localText(b, mapId), 'title')).toBe('Future title');
+    expect(b.m.replicaSync.getReplicaSync()!.hlc.serialize().physicalMs).toBeLessThan(
+      Date.now() + 24 * 3600 * 1000,
+    );
+    await edit(b, mapId, (s) => s.updateMeta({ title: 'Renamed by the user' }));
+    await push(b, mapId);
+    await syncRounds(3, a, b);
+    await expectConverged(mapId, a, b);
+    expect(metaOf(await localText(a, mapId), 'title')).toBe('Renamed by the user');
+    await edit(a, mapId, (s) => s.updateMeta({ title: 'Renamed again' }));
+    await push(a, mapId);
+    await syncRounds(3, a, b);
+    await expectConverged(mapId, a, b);
+    expect(metaOf(await localText(b, mapId), 'title')).toBe('Renamed again');
   });
 });

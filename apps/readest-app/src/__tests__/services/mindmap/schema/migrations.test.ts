@@ -66,6 +66,14 @@ describe('migrateMapFile', () => {
     expect(migrated['x']).toBe(original['x']);
   });
 
+  it('restamps a migrated field above its far-future clock', () => {
+    const future = '1ffffffffffff-00000002-dx' as Hlc;
+    const original = { ...nodeV1(), label: { v: 'old label', t: future, s: 'dx' } };
+    const migrated = migrateMapFile(fileWith({ n1: original }), clock(), toV2).records['n1']!;
+    expect(migrated['label']).toMatchObject({ v: 'old label!', s: 'device-1' });
+    expect(migrated['label']!.t > future).toBe(true);
+  });
+
   it('does not run a migration again on a migrated record', () => {
     const once = migrateMapFile(fileWith({ n1: nodeV1() }), clock(), toV2);
     expect(migrateMapFile(once, clock(), toV2)).toBe(once);

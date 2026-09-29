@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { HlcGenerator } from '@/libs/crdt';
+import { HlcGenerator, hlcPack } from '@/libs/crdt';
 import { type HlcClock, createMindmapClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { canonicalStringify } from '@/services/mindmap/file/canonicalStringify';
 import { parseMapFile } from '@/services/mindmap/file/parseMapFile';
+import { mergeMapFiles } from '@/services/mindmap/file/mergeMapFiles';
 import { stampDiff, stampMeta } from '@/services/mindmap/file/stampDiff';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
 import { DEFAULT_MAP_META, type MapFile, type MapMeta } from '@/services/mindmap/schema/types';
@@ -124,5 +125,91 @@ describe('stampMeta and createMapFile', () => {
     const next = stampMeta(file, { title: 'Renamed', style: undefined } as Partial<MapMeta>, c);
     expect(next.meta['title']!.v).toBe('Renamed');
     expect(next.meta['style']).toBe(file.meta['style']);
+  });
+});
+
+describe('stamping above a far-future clock of the same field', () => {
+  const future = hlcPack(Date.now() + 365 * 24 * 3600 * 1000, 3, 'device-x');
+  const label = { id: 'n1', field: 'label', from: 'keep me', to: 'mine' };
+
+  const poisonedMeta = (): MapFile => {
+    const file = createMapFile(DEFAULT_MAP_META, 'm1', clock());
+    return { ...file, meta: { ...file.meta, title: { v: 'Future', t: future, s: 'device-x' } } };
+  };
+
+  const poisonedNode = (): MapFile => {
+    const file = withNode(clock());
+    const fields = file.records['n1']!;
+    const poisoned = { ...fields, label: { v: 'Future', t: future, s: 'device-x' } };
+    return { ...file, records: { n1: poisoned } };
+  };
+
+  const renameWith = (file: MapFile, c: HlcClock, title: string): MapFile =>
+    stampMeta(file, { title }, c);
+
+  it('keeps the normal stamp for a meta field whose clock is in the past', () => {
+    const c = clock();
+    const file = createMapFile(DEFAULT_MAP_META, 'm1', c);
+    const next = renameWith(file, c, 'Renamed');
+    expect(next.meta['title']!.t > file.meta['title']!.t).toBe(true);
+    expect(next.meta['title']!.t < future).toBe(true);
+  });
+
+  it('lets a meta rename win a merge against the far-future version', () => {
+    const file = poisonedMeta();
+    const renamed = renameWith(file, clock(), 'Mine');
+    expect(renamed.meta['title']!.t > future).toBe(true);
+    expect(decodeMeta(mergeMapFiles(file, renamed).meta).title).toBe('Mine');
+    expect(decodeMeta(mergeMapFiles(renamed, file).meta).title).toBe('Mine');
+  });
+
+  it('lets a record field edit win a merge against the far-future version', () => {
+    const file = poisonedNode();
+    const edited = stampDiff(file, { added: [], changed: [label], discarded: [] }, clock(), () => ({
+      ...node,
+      label: 'mine',
+    }));
+    expect(edited.records['n1']!['label']!.t > future).toBe(true);
+    expect(mergeMapFiles(file, edited).records['n1']!['label']!.v).toBe('mine');
+  });
+
+  it('stamps a re-added record above its far-future fields', () => {
+    const file = poisonedNode();
+    const readded = stampDiff(
+      file,
+      { added: [{ ...node, label: 'again' }], changed: [], discarded: [] },
+      clock(),
+      () => node,
+    );
+    expect(readded.records['n1']!['label']!.t > future).toBe(true);
+  });
+
+  it('restamps revived content above a far-future content clock', () => {
+    const file = poisonedNode();
+    const revived = stampDiff(
+      file,
+      {
+        added: [],
+        changed: [{ id: 'n1', field: 'deleted', from: { by: 'user' }, to: null }],
+        discarded: [],
+      },
+      clock(),
+      () => node,
+    );
+    expect(revived.records['n1']!['label']).toMatchObject({ v: 'keep me', s: 'device-1' });
+    expect(revived.records['n1']!['label']!.t > future).toBe(true);
+  });
+
+  it('converges when two devices rename above the same far-future clock', () => {
+    const file = poisonedMeta();
+    const deviceA = createMindmapClock(new HlcGenerator('device-a'), 'device-a');
+    const deviceB = createMindmapClock(new HlcGenerator('device-b'), 'device-b');
+    const a = renameWith(file, deviceA, 'From A');
+    const b = renameWith(file, deviceB, 'From B');
+    expect(a.meta['title']!.t).not.toBe(b.meta['title']!.t);
+    const ab = canonicalStringify(mergeMapFiles(a, b));
+    expect(ab).toBe(canonicalStringify(mergeMapFiles(b, a)));
+    expect(decodeMeta(mergeMapFiles(mergeMapFiles(file, a), b).meta).title).toBe('From B');
+    expect(decodeMeta(mergeMapFiles(b, mergeMapFiles(a, file)).meta).title).toBe('From B');
   });
 });

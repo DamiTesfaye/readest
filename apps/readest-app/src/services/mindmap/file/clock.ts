@@ -1,4 +1,4 @@
-import { hlcMax, hlcParse } from '@/libs/crdt';
+import { hlcCompare, hlcMax, hlcPack, hlcParse } from '@/libs/crdt';
 import type { Hlc } from '@/types/replica';
 import type { MapFile } from '@/services/mindmap/schema/types';
 
@@ -12,6 +12,21 @@ export interface HlcClock extends HlcLike {
 }
 
 const MAX_CLOCK_LEAD_MS = 24 * 60 * 60 * 1000;
+const MAX_PHYSICAL_MS = 0xfffffffffffff;
+const MAX_COUNTER = 0xffffffff;
+
+const successorOf = (existing: Hlc, deviceId: string): Hlc | null => {
+  const { physicalMs, counter } = hlcParse(existing);
+  if (counter < MAX_COUNTER) return hlcPack(physicalMs, counter + 1, deviceId);
+  if (physicalMs < MAX_PHYSICAL_MS) return hlcPack(physicalMs + 1, 0, deviceId);
+  return null;
+};
+
+export const stampAbove = (clock: HlcClock, existing: Hlc | undefined): Hlc => {
+  const next = clock.next();
+  if (!existing || hlcCompare(next, existing) > 0) return next;
+  return successorOf(existing, clock.deviceId) ?? next;
+};
 
 export const createMindmapClock = (hlc: HlcLike, deviceId: string): HlcClock => ({
   next: () => hlc.next(),

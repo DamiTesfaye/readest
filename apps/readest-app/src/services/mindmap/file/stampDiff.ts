@@ -1,5 +1,5 @@
 import type { FieldEnvelope, FieldsObject } from '@/types/replica';
-import type { HlcClock } from '@/services/mindmap/file/clock';
+import { type HlcClock, stampAbove } from '@/services/mindmap/file/clock';
 import {
   CONTENT_FIELDS,
   type MapFile,
@@ -15,16 +15,16 @@ import {
 
 export type RecordLookup = (id: string) => MapRecord | undefined;
 
-const stamp = (value: unknown, clock: HlcClock): FieldEnvelope => ({
+const stamp = (value: unknown, clock: HlcClock, current?: FieldEnvelope): FieldEnvelope => ({
   v: value,
-  t: clock.next(),
+  t: stampAbove(clock, current?.t),
   s: clock.deviceId,
 });
 
-const stampRecord = (record: MapRecord, clock: HlcClock): FieldsObject => {
+const stampRecord = (record: MapRecord, clock: HlcClock, current?: FieldsObject): FieldsObject => {
   const fields: FieldsObject = {};
   for (const [key, value] of Object.entries(recordFields(record))) {
-    if (key !== 'id' && value !== undefined) fields[key] = stamp(value, clock);
+    if (key !== 'id' && value !== undefined) fields[key] = stamp(value, clock, current?.[key]);
   }
   return fields;
 };
@@ -39,11 +39,14 @@ export const stampDiff = (
   lookup: RecordLookup,
 ): MapFile => {
   const records: Record<string, FieldsObject> = { ...file.records };
-  for (const record of diff.added) records[record.id] = stampRecord(record, clock);
+  for (const record of diff.added) {
+    records[record.id] = stampRecord(record, clock, records[record.id]);
+  }
   for (const change of diff.changed) {
     const fields = records[change.id];
     if (fields && change.field !== 'id') {
-      records[change.id] = { ...fields, [change.field]: stamp(change.to, clock) };
+      const current = fields[change.field];
+      records[change.id] = { ...fields, [change.field]: stamp(change.to, clock, current) };
     }
   }
   for (const change of diff.changed.filter(isRevival)) {
@@ -52,7 +55,7 @@ export const stampDiff = (
     if (!record || !fields) continue;
     const restamped: FieldsObject = { ...fields };
     for (const field of CONTENT_FIELDS[record.type]) {
-      restamped[field] = stamp(readField(record, field), clock);
+      restamped[field] = stamp(readField(record, field), clock, fields[field]);
     }
     records[change.id] = restamped;
   }
@@ -64,7 +67,7 @@ export const stampDiff = (
 export const stampMeta = (file: MapFile, patch: Partial<MapMeta>, clock: HlcClock): MapFile => {
   const meta: FieldsObject = { ...file.meta };
   for (const [key, value] of Object.entries(patch as Record<string, unknown>)) {
-    if (value !== undefined) meta[key] = stamp(value, clock);
+    if (value !== undefined) meta[key] = stamp(value, clock, file.meta[key]);
   }
   return { ...file, meta };
 };

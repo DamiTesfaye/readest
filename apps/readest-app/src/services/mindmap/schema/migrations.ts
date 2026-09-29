@@ -1,5 +1,5 @@
 import type { FieldsObject } from '@/types/replica';
-import type { HlcClock } from '@/services/mindmap/file/clock';
+import { type HlcClock, stampAbove } from '@/services/mindmap/file/clock';
 import {
   CURRENT_SCHEMA_VERSION,
   type MapFile,
@@ -69,7 +69,7 @@ const migrateRecord = (
   for (const [key, value] of Object.entries({ ...after, version: target })) {
     const unchanged = Object.hasOwn(before, key) && fieldsEqual(before[key], value);
     if (key === 'id' || value === undefined || unchanged) continue;
-    migrated[key] = { v: value, t: clock.next(), s: clock.deviceId };
+    migrated[key] = { v: value, t: stampAbove(clock, fields[key]?.t), s: clock.deviceId };
   }
   return migrated;
 };
