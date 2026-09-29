@@ -152,17 +152,17 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
 
     let unlistenOnCloseWindow: Promise<UnlistenFn>;
     if (isTauriAppPlatform()) {
-      unlistenOnCloseWindow = tauriHandleOnCloseWindow(handleCloseBooks);
+      unlistenOnCloseWindow = tauriHandleOnCloseWindow(closeBooks);
     }
     window.addEventListener('beforeunload', handleCloseBooks);
     eventDispatcher.on('beforereload', handleCloseBooks);
     eventDispatcher.on('close-reader', handleCloseBooks);
-    eventDispatcher.on('quit-app', handleCloseBooks);
+    eventDispatcher.on('quit-app', closeBooks);
     return () => {
       window.removeEventListener('beforeunload', handleCloseBooks);
       eventDispatcher.off('beforereload', handleCloseBooks);
       eventDispatcher.off('close-reader', handleCloseBooks);
-      eventDispatcher.off('quit-app', handleCloseBooks);
+      eventDispatcher.off('quit-app', closeBooks);
       unlistenOnCloseWindow?.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,14 +208,16 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
     navigateBackToLibrary();
   };
 
-  const handleCloseBooks = throttle(async () => {
+  const closeBooks = async () => {
     const settings = useSettingsStore.getState().settings;
     await Promise.all([
       ...bookKeys.map(async (key) => await saveConfigAndCloseBook(key)),
       flushMindmapSync(),
     ]);
     await saveSettings(envConfig, settings);
-  }, 200);
+  };
+
+  const handleCloseBooks = throttle(closeBooks, 200);
 
   const handleCloseBooksToLibrary = async () => {
     handleCloseBooks();
@@ -244,7 +246,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       const openWithFiles = (await parseOpenWithFiles(appService)) || [];
       if (appService?.hasWindow) {
         if (openWithFiles.length > 0) {
-          tauriHandleOnCloseWindow(handleCloseBooks);
+          tauriHandleOnCloseWindow(closeBooks);
           return await tauriHandleClose();
         }
         const currentWindow = getCurrentWindow();
