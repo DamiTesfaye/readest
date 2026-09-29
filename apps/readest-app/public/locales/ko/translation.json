@@ -1910,5 +1910,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "마인드맵을 저장할 수 없습니다",
   "Mind maps": "마인드맵",
-  "Mind maps you make for each book": "책마다 만든 마인드맵"
+  "Mind maps you make for each book": "책마다 만든 마인드맵",
+  "Export raw file": "원본 파일 내보내기",
+  "Could not export the map file": "맵 파일을 내보낼 수 없습니다"
 }

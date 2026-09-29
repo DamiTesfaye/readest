@@ -1910,5 +1910,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "無法儲存心智圖",
   "Mind maps": "心智圖",
-  "Mind maps you make for each book": "你為每本書建立的心智圖"
+  "Mind maps you make for each book": "你為每本書建立的心智圖",
+  "Export raw file": "匯出原始檔案",
+  "Could not export the map file": "無法匯出心智圖檔案"
 }

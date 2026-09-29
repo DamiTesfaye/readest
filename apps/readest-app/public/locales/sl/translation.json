@@ -2015,5 +2015,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Miselnega vzorca ni bilo mogoče shraniti",
   "Mind maps": "Miselni vzorci",
-  "Mind maps you make for each book": "Miselni vzorci, ki jih ustvarite za vsako knjigo"
+  "Mind maps you make for each book": "Miselni vzorci, ki jih ustvarite za vsako knjigo",
+  "Export raw file": "Izvozi izvirno datoteko",
+  "Could not export the map file": "Datoteke zemljevida ni bilo mogoče izvoziti"
 }

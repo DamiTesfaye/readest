@@ -522,6 +522,43 @@ describe('an open map', () => {
     expect(await fs.exists(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR)).toBe(false);
   });
 
+  it('exports the raw file of a map that cannot be read', async () => {
+    const mapId = await createMap('Broken');
+    await fs.writeFile(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR, '{"half written');
+    await fs.removeFile(`${mapFilePath('bookhash', mapId)}.bak`, MINDMAP_BASE_DIR);
+    const saveFile = vi.fn(async () => true);
+    h.appService = { ...memoryAppService(fs), saveFile } as unknown as AppService;
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export raw file' }));
+    await waitFor(() =>
+      expect(saveFile).toHaveBeenCalledWith('Broken.json', '{"half written', {
+        mimeType: 'application/json',
+      }),
+    );
+  });
+
+  it('tells the user when the raw file cannot be exported', async () => {
+    const mapId = await createMap('Gone');
+    await fs.writeFile(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR, 'not json');
+    await fs.writeFile(`${mapFilePath('bookhash', mapId)}.bak`, MINDMAP_BASE_DIR, 'not json');
+    const saveFile = vi.fn(async () => {
+      throw new Error('disk full');
+    });
+    h.appService = { ...memoryAppService(fs), saveFile } as unknown as AppService;
+    const toasts: { type: string }[] = [];
+    const onToast = (event: CustomEvent) => {
+      toasts.push(event.detail as { type: string });
+    };
+    eventDispatcher.on('toast', onToast);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    render(<MindmapView />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export raw file' }));
+    await waitFor(() => expect(toasts.map((t) => t.type)).toEqual(['error']));
+    eventDispatcher.off('toast', onToast);
+  });
+
   it('tells the user when deleting an unreadable map fails', async () => {
     const mapId = await createMap('Stuck');
     await fs.writeFile(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR, 'not json');

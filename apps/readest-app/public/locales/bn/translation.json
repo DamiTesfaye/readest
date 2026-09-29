@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "মাইন্ড ম্যাপ সংরক্ষণ করা যায়নি",
   "Mind maps": "মাইন্ড ম্যাপ",
-  "Mind maps you make for each book": "প্রতিটি বইয়ের জন্য আপনার তৈরি মাইন্ড ম্যাপ"
+  "Mind maps you make for each book": "প্রতিটি বইয়ের জন্য আপনার তৈরি মাইন্ড ম্যাপ",
+  "Export raw file": "মূল ফাইল রপ্তানি করুন",
+  "Could not export the map file": "ম্যাপ ফাইল রপ্তানি করা যায়নি"
 }

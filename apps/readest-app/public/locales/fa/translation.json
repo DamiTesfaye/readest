@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "ذخیره نقشه ذهنی ممکن نشد",
   "Mind maps": "نقشه‌های ذهنی",
-  "Mind maps you make for each book": "نقشه‌های ذهنی که برای هر کتاب می‌سازید"
+  "Mind maps you make for each book": "نقشه‌های ذهنی که برای هر کتاب می‌سازید",
+  "Export raw file": "خروجی گرفتن از فایل خام",
+  "Could not export the map file": "خروجی گرفتن از فایل نقشه ممکن نشد"
 }

@@ -3,7 +3,7 @@ import Spinner from '@/components/Spinner';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import MapSwitcher from './MapSwitcher';
-import { useDeleteMap, useMapList } from './useBookMaps';
+import { useDeleteMap, useExportRawMap, useMapList } from './useBookMaps';
 import type { SessionState } from './useMindmapSession';
 
 interface SessionFallbackProps {
@@ -18,6 +18,8 @@ const SessionFallback: React.FC<SessionFallbackProps> = ({ state, bookKey, bookH
   const { close, showMap, showSheet } = useMindmapViewStore();
   const maps = useMapList(bookHash);
   const deleteMap = useDeleteMap(bookKey, bookHash, mapId, maps);
+  const title = maps.find((entry) => entry.mapId === mapId)?.title ?? '';
+  const exportRaw = useExportRawMap(bookHash, mapId, title);
   const [confirmDelete, setConfirmDelete] = useState(false);
   if (state.status === 'loading') {
     return (
@@ -33,7 +35,7 @@ const SessionFallback: React.FC<SessionFallbackProps> = ({ state, bookKey, bookH
     >
       <MapSwitcher
         mapId={mapId}
-        currentTitle={maps.find((entry) => entry.mapId === mapId)?.title ?? ''}
+        currentTitle={title}
         maps={maps}
         onSwitchMap={(next) => showMap(bookKey, next)}
         onNewMap={() => showSheet(bookKey)}
@@ -47,6 +49,11 @@ const SessionFallback: React.FC<SessionFallbackProps> = ({ state, bookKey, bookH
         <button type='button' className='btn btn-ghost' onClick={close}>
           {_('Close')}
         </button>
+        {state.status === 'unreadable' && (
+          <button type='button' className='btn btn-ghost eink-bordered' onClick={exportRaw}>
+            {_('Export raw file')}
+          </button>
+        )}
         {state.status === 'unreadable' && (
           <button
             type='button'

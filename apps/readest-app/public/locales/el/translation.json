@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Δεν ήταν δυνατή η αποθήκευση του νοητικού χάρτη",
   "Mind maps": "Νοητικοί χάρτες",
-  "Mind maps you make for each book": "Οι νοητικοί χάρτες που δημιουργείτε για κάθε βιβλίο"
+  "Mind maps you make for each book": "Οι νοητικοί χάρτες που δημιουργείτε για κάθε βιβλίο",
+  "Export raw file": "Εξαγωγή αρχικού αρχείου",
+  "Could not export the map file": "Δεν ήταν δυνατή η εξαγωγή του αρχείου του χάρτη"
 }

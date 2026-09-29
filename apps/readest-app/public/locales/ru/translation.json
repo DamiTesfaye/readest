@@ -2015,5 +2015,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Не удалось сохранить интеллект-карту",
   "Mind maps": "Интеллект-карты",
-  "Mind maps you make for each book": "Интеллект-карты, которые вы создаёте для каждой книги"
+  "Mind maps you make for each book": "Интеллект-карты, которые вы создаёте для каждой книги",
+  "Export raw file": "Экспортировать исходный файл",
+  "Could not export the map file": "Не удалось экспортировать файл карты"
 }

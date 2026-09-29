@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "මනස් සිතියම සුරැකීමට නොහැකි විය",
   "Mind maps": "මනස් සිතියම්",
-  "Mind maps you make for each book": "එක් එක් පොත සඳහා ඔබ සාදන මනස් සිතියම්"
+  "Mind maps you make for each book": "එක් එක් පොත සඳහා ඔබ සාදන මනස් සිතියම්",
+  "Export raw file": "මුල් ගොනුව අපනයනය කරන්න",
+  "Could not export the map file": "සිතියම් ගොනුව අපනයනය කිරීමට නොහැකි විය"
 }

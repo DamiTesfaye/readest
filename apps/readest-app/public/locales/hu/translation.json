@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Nem sikerült menteni a gondolattérképet",
   "Mind maps": "Gondolattérképek",
-  "Mind maps you make for each book": "Az egyes könyvekhez készített gondolattérképek"
+  "Mind maps you make for each book": "Az egyes könyvekhez készített gondolattérképek",
+  "Export raw file": "Nyers fájl exportálása",
+  "Could not export the map file": "Nem sikerült exportálni a térképfájlt"
 }

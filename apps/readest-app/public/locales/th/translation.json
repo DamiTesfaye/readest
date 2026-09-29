@@ -1910,5 +1910,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "ไม่สามารถบันทึกแผนผังความคิดได้",
   "Mind maps": "แผนผังความคิด",
-  "Mind maps you make for each book": "แผนผังความคิดที่คุณสร้างสำหรับหนังสือแต่ละเล่ม"
+  "Mind maps you make for each book": "แผนผังความคิดที่คุณสร้างสำหรับหนังสือแต่ละเล่ม",
+  "Export raw file": "ส่งออกไฟล์ต้นฉบับ",
+  "Could not export the map file": "ไม่สามารถส่งออกไฟล์แผนผังได้"
 }

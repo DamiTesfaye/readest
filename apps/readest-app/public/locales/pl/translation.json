@@ -2015,5 +2015,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Nie udało się zapisać mapy myśli",
   "Mind maps": "Mapy myśli",
-  "Mind maps you make for each book": "Mapy myśli tworzone do każdej książki"
+  "Mind maps you make for each book": "Mapy myśli tworzone do każdej książki",
+  "Export raw file": "Eksportuj surowy plik",
+  "Could not export the map file": "Nie udało się wyeksportować pliku mapy"
 }

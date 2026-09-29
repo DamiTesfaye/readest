@@ -1980,5 +1980,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Não foi possível guardar o mapa mental",
   "Mind maps": "Mapas mentais",
-  "Mind maps you make for each book": "Os mapas mentais que cria para cada livro"
+  "Mind maps you make for each book": "Os mapas mentais que cria para cada livro",
+  "Export raw file": "Exportar ficheiro original",
+  "Could not export the map file": "Não foi possível exportar o ficheiro do mapa"
 }

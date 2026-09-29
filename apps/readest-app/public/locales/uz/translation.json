@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Aqliy xaritani saqlab bo‘lmadi",
   "Mind maps": "Aqliy xaritalar",
-  "Mind maps you make for each book": "Har bir kitob uchun yaratgan aqliy xaritalaringiz"
+  "Mind maps you make for each book": "Har bir kitob uchun yaratgan aqliy xaritalaringiz",
+  "Export raw file": "Asl faylni eksport qilish",
+  "Could not export the map file": "Xarita faylini eksport qilib bo‘lmadi"
 }

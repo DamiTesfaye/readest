@@ -1980,5 +1980,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "לא ניתן לשמור את מפת החשיבה",
   "Mind maps": "מפות חשיבה",
-  "Mind maps you make for each book": "מפות החשיבה שנוצרו לכל ספר"
+  "Mind maps you make for each book": "מפות החשיבה שנוצרו לכל ספר",
+  "Export raw file": "ייצוא הקובץ הגולמי",
+  "Could not export the map file": "לא ניתן לייצא את קובץ המפה"
 }

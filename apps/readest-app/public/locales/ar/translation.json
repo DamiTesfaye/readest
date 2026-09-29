@@ -2085,5 +2085,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "تعذّر حفظ الخريطة الذهنية",
   "Mind maps": "الخرائط الذهنية",
-  "Mind maps you make for each book": "الخرائط الذهنية التي تنشئها لكل كتاب"
+  "Mind maps you make for each book": "الخرائط الذهنية التي تنشئها لكل كتاب",
+  "Export raw file": "تصدير الملف الخام",
+  "Could not export the map file": "تعذّر تصدير ملف الخريطة"
 }

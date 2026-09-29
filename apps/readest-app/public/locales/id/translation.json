@@ -1910,5 +1910,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Tidak dapat menyimpan peta pikiran",
   "Mind maps": "Peta pikiran",
-  "Mind maps you make for each book": "Peta pikiran yang Anda buat untuk setiap buku"
+  "Mind maps you make for each book": "Peta pikiran yang Anda buat untuk setiap buku",
+  "Export raw file": "Ekspor file mentah",
+  "Could not export the map file": "Tidak dapat mengekspor file peta"
 }

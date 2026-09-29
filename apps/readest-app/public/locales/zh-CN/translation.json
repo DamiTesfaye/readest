@@ -1910,5 +1910,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "无法保存思维导图",
   "Mind maps": "思维导图",
-  "Mind maps you make for each book": "你为每本书创建的思维导图"
+  "Mind maps you make for each book": "你为每本书创建的思维导图",
+  "Export raw file": "导出原始文件",
+  "Could not export the map file": "无法导出导图文件"
 }

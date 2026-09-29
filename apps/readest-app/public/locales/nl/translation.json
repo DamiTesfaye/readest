@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Kan de mindmap niet opslaan",
   "Mind maps": "Mindmaps",
-  "Mind maps you make for each book": "Mindmaps die je voor elk boek maakt"
+  "Mind maps you make for each book": "Mindmaps die je voor elk boek maakt",
+  "Export raw file": "Onbewerkt bestand exporteren",
+  "Could not export the map file": "Kan het kaartbestand niet exporteren"
 }

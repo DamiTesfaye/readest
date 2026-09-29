@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Die Mindmap konnte nicht gespeichert werden",
   "Mind maps": "Mindmaps",
-  "Mind maps you make for each book": "Mindmaps, die du zu jedem Buch erstellst"
+  "Mind maps you make for each book": "Mindmaps, die du zu jedem Buch erstellst",
+  "Export raw file": "Rohdatei exportieren",
+  "Could not export the map file": "Die Kartendatei konnte nicht exportiert werden"
 }

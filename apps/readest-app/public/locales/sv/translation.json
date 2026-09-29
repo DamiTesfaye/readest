@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Det gick inte att spara tankekartan",
   "Mind maps": "Tankekartor",
-  "Mind maps you make for each book": "Tankekartor som du skapar för varje bok"
+  "Mind maps you make for each book": "Tankekartor som du skapar för varje bok",
+  "Export raw file": "Exportera råfil",
+  "Could not export the map file": "Det gick inte att exportera kartfilen"
 }

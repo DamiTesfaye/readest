@@ -1945,5 +1945,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Zihin haritası kaydedilemedi",
   "Mind maps": "Zihin haritaları",
-  "Mind maps you make for each book": "Her kitap için oluşturduğunuz zihin haritaları"
+  "Mind maps you make for each book": "Her kitap için oluşturduğunuz zihin haritaları",
+  "Export raw file": "Ham dosyayı dışa aktar",
+  "Could not export the map file": "Harita dosyası dışa aktarılamadı"
 }

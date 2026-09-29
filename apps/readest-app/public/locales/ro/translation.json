@@ -1980,5 +1980,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "Harta mentală nu a putut fi salvată",
   "Mind maps": "Hărți mentale",
-  "Mind maps you make for each book": "Hărțile mentale pe care le creezi pentru fiecare carte"
+  "Mind maps you make for each book": "Hărțile mentale pe care le creezi pentru fiecare carte",
+  "Export raw file": "Exportă fișierul brut",
+  "Could not export the map file": "Fișierul hărții nu a putut fi exportat"
 }

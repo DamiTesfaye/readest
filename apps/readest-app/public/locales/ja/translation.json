@@ -1910,5 +1910,7 @@
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
   "Could not save the mind map": "マインドマップを保存できませんでした",
   "Mind maps": "マインドマップ",
-  "Mind maps you make for each book": "本ごとに作成したマインドマップ"
+  "Mind maps you make for each book": "本ごとに作成したマインドマップ",
+  "Export raw file": "元のファイルを書き出す",
+  "Could not export the map file": "マップファイルを書き出せませんでした"
 }

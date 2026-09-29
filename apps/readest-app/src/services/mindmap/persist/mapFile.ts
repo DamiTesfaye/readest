@@ -66,6 +66,15 @@ const readText = async (fs: MindmapFs, path: string): Promise<string | null> => 
   }
 };
 
+export const readRawMapText = async (
+  fs: MindmapFs,
+  bookHash: string,
+  mapId: string,
+): Promise<string | null> => {
+  const path = mapFilePath(bookHash, mapId);
+  return (await readText(fs, path)) ?? (await readText(fs, `${path}.bak`));
+};
+
 export const readMapFile = async (
   fs: MindmapFs,
   bookHash: string,
