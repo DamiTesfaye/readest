@@ -806,6 +806,43 @@ describe('TransferManager', () => {
       { logical: 'webster.mdd', lfp: 'd1/webster.mdd', byteSize: 4000 },
     ];
 
+    const errorToasts = () =>
+      (eventDispatcher.dispatch as Mock).mock.calls.filter(
+        (call) => call[0] === 'toast' && (call[1] as { type?: string })?.type === 'error',
+      );
+
+    test('a background replica transfer that fails logs instead of raising a toast', async () => {
+      const appService = makeAppService();
+      appService['uploadReplicaFile'] = vi.fn().mockRejectedValue(new Error('Network fail'));
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      const id = transferManager.queueReplicaUpload('mindmap', 'm1', 'Map', dictFiles, 'Books', {
+        isBackground: true,
+      })!;
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('failed');
+      expect(errorToasts()).toEqual([]);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('failed'),
+        expect.objectContaining({ kind: 'mindmap', replicaId: 'm1', type: 'upload' }),
+      );
+    });
+
+    test('a foreground replica transfer and a background book delete still raise a toast', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Deleted Book' });
+      const appService = makeAppService();
+      appService['uploadReplicaFile'] = vi.fn().mockRejectedValue(new Error('Network fail'));
+      (appService['deleteBook'] as Mock).mockRejectedValue(new Error('Network fail'));
+      await transferManager.initialize(appService as never, () => [book], vi.fn(), translationFn);
+
+      transferManager.queueReplicaUpload('dictionary', 'd1', 'Webster', dictFiles, 'Dictionaries');
+      transferManager.queueDelete(book, 10, true);
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(errorToasts()).toHaveLength(2);
+    });
+
     test('queueReplicaUpload returns null when not initialized', () => {
       const id = transferManager.queueReplicaUpload(
         'dictionary',

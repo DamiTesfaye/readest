@@ -413,25 +413,7 @@ class TransferManager {
 
         this.scheduleRetry(transfer.id, delay);
       } else {
-        if (errorMessage.includes('Not authenticated')) {
-          eventDispatcher.dispatch('toast', {
-            type: 'error',
-            message: _('Please log in to continue'),
-          });
-        } else if (errorMessage.includes('Insufficient storage quota')) {
-          eventDispatcher.dispatch('toast', {
-            type: 'error',
-            message: _('Insufficient storage quota'),
-          });
-        } else {
-          const errorMessages = getTransferMessages(transfer, _).failure;
-
-          eventDispatcher.dispatch('toast', {
-            type: 'error',
-            message: errorMessages[transfer.type],
-          });
-        }
-
+        this.reportFailure(transfer, errorMessage);
         useTransferStore.getState().setTransferStatus(transfer.id, 'failed', errorMessage);
       }
     } finally {
@@ -443,6 +425,35 @@ class TransferManager {
 
       // Continue processing
       setTimeout(() => this.processQueue(), 100);
+    }
+  }
+
+  private reportFailure(transfer: TransferItem, errorMessage: string): void {
+    if (transfer.kind === 'replica' && transfer.isBackground) {
+      console.warn('background replica transfer failed', {
+        kind: transfer.replicaKind,
+        replicaId: transfer.replicaId,
+        type: transfer.type,
+        error: errorMessage,
+      });
+      return;
+    }
+    const _ = this._!;
+    if (errorMessage.includes('Not authenticated')) {
+      eventDispatcher.dispatch('toast', {
+        type: 'error',
+        message: _('Please log in to continue'),
+      });
+    } else if (errorMessage.includes('Insufficient storage quota')) {
+      eventDispatcher.dispatch('toast', {
+        type: 'error',
+        message: _('Insufficient storage quota'),
+      });
+    } else {
+      eventDispatcher.dispatch('toast', {
+        type: 'error',
+        message: getTransferMessages(transfer, _).failure[transfer.type],
+      });
     }
   }
 

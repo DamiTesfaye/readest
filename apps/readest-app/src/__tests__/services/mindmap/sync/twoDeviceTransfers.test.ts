@@ -406,6 +406,17 @@ describe('mind map sync when an upload fails', () => {
     await pull(b);
     expect(await localText(b, mapId)).toBe(await localText(a, mapId));
   });
+
+  it('does not raise an error toast for a background map upload that fails', async () => {
+    const a = await startDevice('dev-a');
+    await pull(a);
+    const mapId = await createMap(a, 'Blip');
+    a.knobs.uploadFailures = 4;
+    await (await a.m.runtime.getMindmapSync()).pusher.pushNow(mapId);
+    await exhaustRetries(a, 'upload');
+    expect(transfersOf(a).every((t) => t.isBackground)).toBe(true);
+    expect(a.toasts.filter((toast) => toast.type === 'error')).toEqual([]);
+  });
 });
 
 describe('mind map sync when a newer version was seen but not merged', () => {
