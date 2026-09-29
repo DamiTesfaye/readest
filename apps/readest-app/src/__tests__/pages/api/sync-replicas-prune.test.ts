@@ -340,4 +340,26 @@ describe('POST /api/sync/replicas pruning of replaced mindmap versions', () => {
       expect.objectContaining({ kind: 'mindmap', replicaId: MAP }),
     );
   });
+
+  test('a commit with an empty manifest is rejected and never prunes the stored version', async () => {
+    await push(upsert('dev-a'));
+    uploadVersion(versionOf('a'));
+    await push(commit(versionOf('a'), clock('dev-a')));
+    const empty: ReplicaRow = {
+      ...commit(versionOf('a'), clock('dev-a')),
+      manifest_jsonb: { schemaVersion: 1, files: [] },
+    };
+    const response = await push(empty);
+    expect(response.status).toBe(422);
+    const body = (await response.json()) as { code?: string; offendingIndex?: number };
+    expect(body).toMatchObject({ code: 'VALIDATION', offendingIndex: 0 });
+    expect(manifestName()).toBe(versionOf('a'));
+    expect(storedKeys()).toEqual([keyOf(versionOf('a'))]);
+  });
+
+  test('a row without a manifest is still accepted', async () => {
+    const response = await push(upsert('dev-a'));
+    expect(response.status).toBe(200);
+    expect(holder.cloud!.row(USER, 'mindmap', MAP)?.manifest_jsonb).toBeNull();
+  });
 });

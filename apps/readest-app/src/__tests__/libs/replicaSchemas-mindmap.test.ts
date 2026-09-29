@@ -92,6 +92,10 @@ describe('mindmap kind', () => {
     rejectedAsInvalid(row);
   });
 
+  test('rejects a manifest that names no version', () => {
+    rejectedAsInvalid(mapRow({ manifest_jsonb: { schemaVersion: 1, files: [] } }));
+  });
+
   test('leaves other kinds free to use any replica id and filename', () => {
     const row = mapRow({
       kind: 'font',

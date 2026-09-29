@@ -265,6 +265,13 @@ export const validateRow = (row: ReplicaRow): ValidationResult => {
         cause: manifestParse.error,
       };
     }
+    if (spec.isManifestFilename && row.manifest_jsonb.files.length === 0) {
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message: `manifest lists no files for kind ${row.kind}`,
+      };
+    }
     for (const file of row.manifest_jsonb.files) {
       const fnCheck = validateFilename(file.filename);
       if (!fnCheck.ok) {
