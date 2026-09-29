@@ -10,7 +10,12 @@ import {
 } from '@/services/mindmap/persist/mapFile';
 import { saveMap } from '@/services/mindmap/persist/maps';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
-import { type MindmapEntry, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
+import {
+  type MindmapEntry,
+  isLiveMindmap,
+  useMindmapStore,
+  writeLiveMindmap,
+} from '@/services/mindmap/persist/mindmapStore';
 import { whenMapSessionSettled } from '@/services/mindmap/persist/session';
 import { CURRENT_SCHEMA_VERSION, type MapFile } from '@/services/mindmap/schema/types';
 import { decodeMeta } from '@/services/mindmap/schema/validate';
@@ -78,12 +83,15 @@ const discard = async (fs: MindmapFs, path: string): Promise<void> => {
   if (await fs.exists(path, MINDMAP_BASE_DIR)) await fs.removeFile(path, MINDMAP_BASE_DIR);
 };
 
+const GONE: LocalMerge = { outcome: 'unknown-map' };
+
 const mergeIntoSession = async (mapId: string, remote: MapFile): Promise<LocalMerge | null> => {
   const session = await whenMapSessionSettled(mapId);
   if (!session) return null;
+  if (!isLiveMindmap(mapId)) return GONE;
   const result = session.mergeRemote(remote);
   if (result !== 'merged') return { outcome: result };
-  if (!(await session.flush())) return { outcome: 'save-failed' };
+  if (!(await session.flush())) return isLiveMindmap(mapId) ? { outcome: 'save-failed' } : GONE;
   return { outcome: 'merged', text: canonicalStringify(session.file()), file: session.file() };
 };
 
@@ -95,7 +103,8 @@ const mergeOnDisk = async (
   const read = await readMapFile(deps.fs, entry.bookHash, entry.mapId);
   if (!read && (await deps.fs.exists(mapFilePath(entry.bookHash, entry.mapId), MINDMAP_BASE_DIR))) {
     try {
-      await setUnreadableMapAside(deps.fs, entry.bookHash, entry.mapId);
+      const setAside = () => setUnreadableMapAside(deps.fs, entry.bookHash, entry.mapId);
+      if ((await writeLiveMindmap(entry.mapId, setAside)) === null) return GONE;
     } catch (error) {
       console.error('mindmap: could not move an unreadable map aside', {
         mapId: entry.mapId,
@@ -111,11 +120,10 @@ const mergeOnDisk = async (
   observeFileClock(deps.clock(), remote);
   const merged = read ? mergeMapFiles(read.file, remote) : remote;
   try {
-    return {
-      outcome: 'merged',
-      text: await saveMap(deps.fs, entry.bookHash, merged),
-      file: merged,
-    };
+    const text = await writeLiveMindmap(entry.mapId, () =>
+      saveMap(deps.fs, entry.bookHash, merged),
+    );
+    return text === null ? GONE : { outcome: 'merged', text, file: merged };
   } catch (error) {
     console.error('mindmap: failed to save a merged map', error);
     return { outcome: 'save-failed' };
@@ -153,7 +161,7 @@ const mergeIncoming = async (
 ): Promise<MergeOutcome> => {
   const store = useMindmapStore.getState();
   const entry = store.getEntry(mapId);
-  if (!entry) return 'unknown-map';
+  if (!entry || !isLiveMindmap(mapId)) return 'unknown-map';
   const incoming = await readIncoming(deps.fs, mapId, files);
   if (!incoming) return 'missing';
   if (incoming.bytesMd5 !== incoming.md5) {
@@ -175,6 +183,10 @@ const mergeIncoming = async (
   }
   const result =
     (await mergeIntoSession(mapId, remote)) ?? (await mergeClosedMap(deps, entry, remote));
+  if (result.outcome === 'unknown-map') {
+    console.warn('mindmap: discarded a download of a map deleted during its merge', { mapId });
+    await discard(deps.fs, incoming.path);
+  }
   if (!('text' in result)) return result.outcome;
   store.setSyncedMd5(mapId, incoming.md5);
   const current = useMindmapStore.getState().getEntry(mapId);

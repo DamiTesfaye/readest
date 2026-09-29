@@ -21,8 +21,14 @@ import {
   type MindmapEntry,
   __resetMindmapStoreForTests,
   findMindmapByContentId,
+  isLiveMindmap,
   useMindmapStore,
+  writeLiveMindmap,
 } from '@/services/mindmap/persist/mindmapStore';
+import {
+  __resetMindmapTrashForTests,
+  recordTrashedMap,
+} from '@/services/mindmap/persist/mindmapTrash';
 import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 
@@ -56,6 +62,7 @@ const stored = async (fs: MemoryFileSystem): Promise<unknown> =>
 afterEach(() => {
   __resetMapSessionsForTests();
   __resetMindmapStoreForTests();
+  __resetMindmapTrashForTests();
 });
 
 describe('useMindmapStore', () => {
@@ -245,5 +252,74 @@ describe('useMindmapStore', () => {
     store().softDeleteByContentId(mapId);
     await vi.waitFor(() => expect(store().getEntry(mapId)).toBeUndefined());
     expect(await fs.exists(mapFilePath('b1', mapId), 'Books')).toBe(false);
+  });
+});
+
+describe('writeLiveMindmap', () => {
+  const gate = () => {
+    let open!: () => void;
+    const opened = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return { opened, open };
+  };
+
+  it('runs a write for a map that has an entry and is not being deleted', async () => {
+    const fs = new MemoryFileSystem();
+    await store().hydrate(fs);
+    const { mapId } = await store().createMap('b1', DEFAULT_MAP_META, clock());
+    expect(isLiveMindmap(mapId)).toBe(true);
+    expect(await writeLiveMindmap(mapId, async () => 'written')).toBe('written');
+  });
+
+  it('refuses a write for a map without an entry or with a pending tombstone', async () => {
+    const fs = new MemoryFileSystem();
+    await store().hydrate(fs);
+    const write = vi.fn(async () => 'written');
+    expect(await writeLiveMindmap('gone', write)).toBeNull();
+    store().upsertEntry(entry('tombstoned'));
+    await recordTrashedMap(fs, 'b1', 'tombstoned', true);
+    expect(isLiveMindmap('tombstoned')).toBe(false);
+    expect(await writeLiveMindmap('tombstoned', write)).toBeNull();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('refuses a write while the map is moving to the trash', async () => {
+    const fs = new MemoryFileSystem();
+    await store().hydrate(fs);
+    const c = clock();
+    const { mapId } = await store().createMap('b1', DEFAULT_MAP_META, c);
+    const opened = await openMapSession(fs, 'b1', mapId, c);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    const trashing = store().moveToTrash(mapId);
+    expect(store().getEntry(mapId)).toBeDefined();
+    const write = vi.fn(async () => 'written');
+    expect(await writeLiveMindmap(mapId, write)).toBeNull();
+    await trashing;
+    expect(write).not.toHaveBeenCalled();
+    expect(isLiveMindmap(mapId)).toBe(false);
+  });
+
+  it('lets a write that already started finish before the map moves to the trash', async () => {
+    const fs = new MemoryFileSystem();
+    await store().hydrate(fs);
+    const c = clock();
+    const { mapId } = await store().createMap('b1', DEFAULT_MAP_META, c);
+    const late = createMapFile({ ...DEFAULT_MAP_META, title: 'Late' }, mapId, c);
+    const held = gate();
+    const writing = writeLiveMindmap(mapId, async () => {
+      await held.opened;
+      return saveMap(fs, 'b1', late);
+    });
+    const trashing = store().moveToTrash(mapId);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(await fs.exists(mapFilePath('b1', mapId), 'Books')).toBe(true);
+    held.open();
+    await writing;
+    await trashing;
+
+    expect(await fs.exists(mapFilePath('b1', mapId), 'Books')).toBe(false);
+    expect(await loadMindmapIndex(fs, 'b1')).toEqual([]);
+    expect(await fs.exists(`${mapTrashDir('b1', mapId)}/${mapId}.json`, 'Books')).toBe(true);
   });
 });

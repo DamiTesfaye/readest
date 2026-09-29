@@ -1,7 +1,11 @@
 import { canonicalStringify, md5Hex } from '@/services/mindmap/file/canonicalStringify';
 import { MINDMAP_BASE_DIR, readMapFile } from '@/services/mindmap/persist/mapFile';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
-import { type MindmapEntry, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
+import {
+  type MindmapEntry,
+  useMindmapStore,
+  writeLiveMindmap,
+} from '@/services/mindmap/persist/mindmapStore';
 import { getOpenMapSession } from '@/services/mindmap/persist/session';
 import {
   markMindmapVersionKnown,
@@ -83,6 +87,19 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     return unmerged !== undefined;
   };
 
+  const writeOutgoing = async (
+    entry: MindmapEntry,
+    filename: string,
+    text: string,
+  ): Promise<boolean> => {
+    const dir = outgoingDir(entry.bundleDir);
+    await deps.fs.createDir(dir, MINDMAP_BASE_DIR, true);
+    await clearOutgoing(deps.fs, dir, filename);
+    await deps.fs.writeFile(`${dir}/${filename}`, MINDMAP_BASE_DIR, text);
+    await deps.publishRow(entry);
+    return true;
+  };
+
   const push = async (mapId: string): Promise<PushResult> => {
     const entry = useMindmapStore.getState().getEntry(mapId);
     if (!entry) return 'unknown-map';
@@ -100,11 +117,8 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     const md5 = md5Hex(text);
     if (md5 === useMindmapStore.getState().getEntry(mapId)?.syncedMd5) return 'current';
     const filename = versionFilename(mapId, md5);
-    const dir = outgoingDir(entry.bundleDir);
-    await deps.fs.createDir(dir, MINDMAP_BASE_DIR, true);
-    await clearOutgoing(deps.fs, dir, filename);
-    await deps.fs.writeFile(`${dir}/${filename}`, MINDMAP_BASE_DIR, text);
-    await deps.publishRow(entry);
+    const written = await writeLiveMindmap(mapId, () => writeOutgoing(entry, filename, text));
+    if (written === null) return 'unknown-map';
     const queued = await deps.queueUpload({
       ...entry,
       contentId: mapId,

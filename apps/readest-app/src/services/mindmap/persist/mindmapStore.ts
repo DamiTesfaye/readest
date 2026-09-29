@@ -7,7 +7,11 @@ import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { isSafeMindmapId, mapFileDir } from '@/services/mindmap/persist/mapFile';
 import { saveMap, trashMap } from '@/services/mindmap/persist/maps';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
-import { confirmTombstones, recordTrashedMap } from '@/services/mindmap/persist/mindmapTrash';
+import {
+  confirmTombstones,
+  hasPendingTombstone,
+  recordTrashedMap,
+} from '@/services/mindmap/persist/mindmapTrash';
 import { getOpenMapSession } from '@/services/mindmap/persist/session';
 import type { MapFile, MapMeta } from '@/services/mindmap/schema/types';
 
@@ -47,6 +51,8 @@ let hydration: Promise<void> | null = null;
 let persistQueue: Promise<void> = Promise.resolve();
 let removedBeforeHydration = new Set<string>();
 let purgedBeforeHydration = new Set<string>();
+const trashing = new Set<string>();
+const liveWrites = new Map<string, Promise<unknown>>();
 
 const reportError = (error: unknown): void => {
   console.error('mindmap store:', error);
@@ -150,10 +156,16 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
     moveToTrash: async (mapId, bookHash, options) => {
       const owner = get().getEntry(mapId)?.bookHash ?? bookHash;
       if (!owner) return;
-      await getOpenMapSession(mapId)?.discard();
-      await trashMap(requireFs(), owner, mapId);
-      await recordTrashedMap(requireFs(), owner, mapId, options?.tombstone ?? false);
-      if (get().getEntry(mapId)) get().removeEntry(mapId);
+      trashing.add(mapId);
+      try {
+        await getOpenMapSession(mapId)?.discard();
+        await liveWrites.get(mapId);
+        await trashMap(requireFs(), owner, mapId);
+        await recordTrashedMap(requireFs(), owner, mapId, options?.tombstone ?? false);
+        if (get().getEntry(mapId)) get().removeEntry(mapId);
+      } finally {
+        trashing.delete(mapId);
+      }
     },
     removeByBookHash: (bookHash) => {
       if (!get().hydrated) purgedBeforeHydration.add(bookHash);
@@ -179,11 +191,33 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
 export const findMindmapByContentId = (contentId: string): MindmapEntry | undefined =>
   contentId ? useMindmapStore.getState().getEntry(contentId) : undefined;
 
+export const isLiveMindmap = (mapId: string): boolean =>
+  useMindmapStore.getState().getEntry(mapId) !== undefined &&
+  !trashing.has(mapId) &&
+  !hasPendingTombstone(mapId);
+
+export const writeLiveMindmap = <T>(mapId: string, write: () => Promise<T>): Promise<T | null> => {
+  if (!isLiveMindmap(mapId)) return Promise.resolve(null);
+  const run = write();
+  const done = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  const tracked = Promise.all([liveWrites.get(mapId), done]);
+  liveWrites.set(mapId, tracked);
+  void tracked.then(() => {
+    if (liveWrites.get(mapId) === tracked) liveWrites.delete(mapId);
+  });
+  return run;
+};
+
 export const __resetMindmapStoreForTests = (): void => {
   storeFs = null;
   hydration = null;
   persistQueue = Promise.resolve();
   removedBeforeHydration = new Set();
   purgedBeforeHydration = new Set();
+  trashing.clear();
+  liveWrites.clear();
   useMindmapStore.setState({ entries: [], hydrated: false });
 };

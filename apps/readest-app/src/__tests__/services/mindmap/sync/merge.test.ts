@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BaseDir } from '@/types/system';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { HlcGenerator, hlcCompare, hlcPack } from '@/libs/crdt';
 import { canonicalStringify, md5Hex } from '@/services/mindmap/file/canonicalStringify';
@@ -13,6 +14,10 @@ import {
   __resetMindmapStoreForTests,
   useMindmapStore,
 } from '@/services/mindmap/persist/mindmapStore';
+import {
+  __resetMindmapTrashForTests,
+  recordTrashedMap,
+} from '@/services/mindmap/persist/mindmapTrash';
 import { __resetMapSessionsForTests, openMapSession } from '@/services/mindmap/persist/session';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
 import { DEFAULT_MAP_META, type MapFile } from '@/services/mindmap/schema/types';
@@ -86,6 +91,7 @@ afterEach(() => {
   __resetMapSessionsForTests();
   __resetMindmapStoreForTests();
   __resetMindmapManifestsForTests();
+  __resetMindmapTrashForTests();
 });
 
 describe('mergeIncomingVersion', () => {
@@ -352,5 +358,73 @@ describe('mergeIncomingVersion', () => {
     const files = await deliver(canonicalStringify(base()));
     expect(await mergeIncomingVersion(deps, MAP, files)).toBe('unknown-map');
     expect(await fs.exists(mapFilePath(BOOK, MAP), 'Books')).toBe(false);
+  });
+
+  const deleteWhileReadingIncoming = (): void => {
+    const read = fs.readFile.bind(fs);
+    vi.spyOn(fs, 'readFile').mockImplementation(async (path: string, base: BaseDir) => {
+      const content = await read(path, base);
+      if (path.includes('/incoming/')) await store().moveToTrash(MAP, BOOK, { tombstone: true });
+      return content;
+    });
+  };
+
+  it('writes nothing when the map is deleted while its closed-map merge runs', async () => {
+    await seedLocal(base(), 'old');
+    const files = await deliver(
+      canonicalStringify(stampMeta(base(), { title: 'Late' }, remoteClock)),
+    );
+    deleteWhileReadingIncoming();
+
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('unknown-map');
+    expect(await fs.exists(mapFilePath(BOOK, MAP), 'Books')).toBe(false);
+    expect(await loadMindmapIndex(fs, BOOK)).toEqual([]);
+    expect(store().getEntry(MAP)).toBeUndefined();
+    expect(deps.schedulePush).not.toHaveBeenCalled();
+    expect(deps.queueDownload).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when an open map is deleted while its merge runs', async () => {
+    await seedLocal(base(), 'old');
+    const opened = await openMapSession(fs, BOOK, MAP, local);
+    if (opened.status !== 'open') throw new Error('expected an open session');
+    const files = await deliver(
+      canonicalStringify(stampMeta(base(), { title: 'Late' }, remoteClock)),
+    );
+    deleteWhileReadingIncoming();
+
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('unknown-map');
+    await opened.session.close();
+    expect(await fs.exists(mapFilePath(BOOK, MAP), 'Books')).toBe(false);
+    expect(await loadMindmapIndex(fs, BOOK)).toEqual([]);
+  });
+
+  it('discards the incoming copy of a map deleted during the merge', async () => {
+    const seeded = base();
+    await seedLocal(seeded, 'old');
+    const files = await deliver(
+      canonicalStringify(stampMeta(base(), { title: 'Late' }, remoteClock)),
+    );
+    const read = fs.readFile.bind(fs);
+    vi.spyOn(fs, 'readFile').mockImplementation(async (path: string, base: BaseDir) => {
+      const content = await read(path, base);
+      if (path.includes('/incoming/')) store().removeEntry(MAP);
+      return content;
+    });
+
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('unknown-map');
+    expect(await fs.exists(files[0]!.lfp, 'Books')).toBe(false);
+    expect(await fs.exists(mapFilePath(BOOK, MAP), 'Books')).toBe(true);
+    expect(canonicalStringify(await diskFile())).toBe(canonicalStringify(seeded));
+  });
+
+  it('ignores a download for a map whose delete has not reached the server', async () => {
+    await seedLocal(base(), 'old');
+    await recordTrashedMap(fs, BOOK, MAP, true);
+    const files = await deliver(
+      canonicalStringify(stampMeta(base(), { title: 'Late' }, remoteClock)),
+    );
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('unknown-map');
+    expect(store().getEntry(MAP)!.syncedMd5).toBe('old');
   });
 });

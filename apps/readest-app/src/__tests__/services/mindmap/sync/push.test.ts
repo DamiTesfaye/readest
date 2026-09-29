@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BaseDir } from '@/types/system';
 import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { HlcGenerator } from '@/libs/crdt';
 import { canonicalStringify, md5Hex } from '@/services/mindmap/file/canonicalStringify';
@@ -432,5 +433,20 @@ describe('mindmap push', () => {
     await fs.writeFile(`${BOOK}/mindmaps/${mapId}/${mapId}.json`, 'Books', '{');
     await fs.removeFile(`${BOOK}/mindmaps/${mapId}/${mapId}.json.bak`, 'Books');
     expect(await pusher.pushNow(mapId)).toBe('unreadable');
+  });
+
+  it('writes and publishes nothing for a map deleted while its push reads it', async () => {
+    const mapId = await createMap();
+    const read = fs.readFile.bind(fs);
+    vi.spyOn(fs, 'readFile').mockImplementation(async (path: string, base: BaseDir) => {
+      const content = await read(path, base);
+      if (path.endsWith(`${mapId}.json`)) await store().moveToTrash(mapId, BOOK);
+      return content;
+    });
+
+    expect(await pusher.pushNow(mapId)).toBe('unknown-map');
+    expect(deps.publishRow).not.toHaveBeenCalled();
+    expect(deps.queueUpload).not.toHaveBeenCalled();
+    expect(await fs.exists(`${BOOK}/mindmaps/${mapId}`, 'Books')).toBe(false);
   });
 });

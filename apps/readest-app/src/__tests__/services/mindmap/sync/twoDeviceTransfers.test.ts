@@ -46,6 +46,7 @@ interface Knobs {
   uploadFailures: number;
   uploadAttempts: number[];
   downloadFailures: number;
+  incomingReadGate: Promise<void> | null;
 }
 
 const deviceService = (fs: MemoryFileSystem, knobs: Knobs): AppService => {
@@ -55,7 +56,11 @@ const deviceService = (fs: MemoryFileSystem, knobs: Knobs): AppService => {
   };
   return {
     exists: fs.exists.bind(fs),
-    readFile: fs.readFile.bind(fs),
+    readFile: async (path: string, base: BaseDir) => {
+      const content = await fs.readFile(path, base);
+      if (path.includes('/incoming/') && knobs.incomingReadGate) await knobs.incomingReadGate;
+      return content;
+    },
     writeFile: fs.writeFile.bind(fs),
     copyFile: fs.copyFile.bind(fs),
     createDir,
@@ -144,6 +149,8 @@ const loadModules = async () => ({
   transferStore: await import('@/store/transferStore'),
   settings: await import('@/store/settingsStore'),
   store: await import('@/services/mindmap/persist/mindmapStore'),
+  index: await import('@/services/mindmap/persist/mindmapIndex'),
+  deleteMap: await import('@/services/mindmap/sync/deleteMap'),
   sessions: await import('@/services/mindmap/persist/session'),
   maps: await import('@/services/mindmap/persist/mapFile'),
   versions: await import('@/services/mindmap/sync/versions'),
@@ -179,6 +186,7 @@ const startDevice = async (name: string): Promise<Device> => {
     uploadFailures: 0,
     uploadAttempts: [],
     downloadFailures: 0,
+    incomingReadGate: null,
   };
   const service = deviceService(fs, knobs);
   holder.service = service;
@@ -349,6 +357,14 @@ const exhaustRetries = async (device: Device, type: 'upload' | 'download'): Prom
   );
 };
 
+const deferred = () => {
+  let release!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+};
+
 const localVersion = async (device: Device, mapId: string): Promise<string> =>
   `${mapId}.${device.m.file.md5Hex(await localText(device, mapId))}.json`;
 
@@ -478,5 +494,96 @@ describe('mind map sync when a newer version was seen but not merged', () => {
     expect(await localText(a, mapId)).toBe(await localText(b, mapId));
     expect(await localText(a, mapId)).toContain('Added on B');
     expect(serverVersion(mapId)).toBe(await localVersion(a, mapId));
+  });
+});
+
+describe('mind map sync when a map is deleted while its transfers run', () => {
+  it('does not bring a map back when a download merge finishes after the map was deleted', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    await pull(a);
+    await pull(b);
+    const mapId = await createMap(a, 'Racing');
+    await push(a, mapId);
+    const held = deferred();
+    b.knobs.incomingReadGate = held.promise;
+    await b.m.pullAndApply.replicaPullAndApply(pullDeps(b));
+    await vi.waitFor(
+      () => expect(transfersOf(b).some((t) => t.status === 'completed')).toBe(true),
+      { timeout: 5_000, interval: 10 },
+    );
+    await b.m.deleteMap.deleteMindmap(mapId, BOOK);
+    expect(entryOf(b, mapId)).toBeUndefined();
+    b.knobs.incomingReadGate = null;
+    held.release();
+    await vi.waitFor(() => expect(b.handled).toBe(1), { timeout: 5_000, interval: 10 });
+    await settle(b);
+
+    const sync = await b.m.runtime.getMindmapSync();
+    const listed = await b.m.index.loadMindmapIndex(sync.fs, BOOK);
+    expect(listed.map((entry) => entry.mapId)).not.toContain(mapId);
+    expect(await b.fs.exists(b.m.maps.mapFilePath(BOOK, mapId), 'Books')).toBe(false);
+    expect(entryOf(b, mapId)).toBeUndefined();
+    await pull(a);
+    expect(entryOf(a, mapId)).toBeUndefined();
+  });
+
+  it('cancels the waiting download of a map deleted on this device', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    await pull(a);
+    await pull(b);
+    const mapId = await createMap(a, 'Waiting');
+    await push(a, mapId);
+    b.knobs.downloadFailures = 1;
+    await b.m.pullAndApply.replicaPullAndApply(pullDeps(b));
+    await vi.waitFor(
+      () =>
+        expect(
+          transfersOf(b).some(
+            (t) => t.type === 'download' && t.status === 'pending' && t.retryCount === 1,
+          ),
+        ).toBe(true),
+      { timeout: 5_000, interval: 10 },
+    );
+    await b.m.deleteMap.deleteMindmap(mapId, BOOK);
+    await vi.advanceTimersByTimeAsync(RETRIES_EXHAUSTED_MS);
+
+    expect(
+      transfersOf(b)
+        .filter((t) => t.type === 'download')
+        .map((t) => t.status),
+    ).toEqual(['cancelled']);
+    expect(b.handled).toBe(0);
+    expect(await b.fs.exists(b.m.maps.mapFilePath(BOOK, mapId), 'Books')).toBe(false);
+    expect(b.toasts.filter((toast) => toast.type === 'error')).toEqual([]);
+  });
+
+  it('cancels the waiting upload of a map deleted on this device only', async () => {
+    const a = await startDevice('dev-a');
+    await pull(a);
+    const mapId = await createMap(a, 'Unsent');
+    a.knobs.uploadFailures = 1;
+    expect(await (await a.m.runtime.getMindmapSync()).pusher.pushNow(mapId)).toBe('queued');
+    await vi.waitFor(
+      () =>
+        expect(
+          transfersOf(a).some(
+            (t) => t.type === 'upload' && t.status === 'pending' && t.retryCount === 1,
+          ),
+        ).toBe(true),
+      { timeout: 5_000, interval: 10 },
+    );
+    await a.m.deleteMap.deleteMindmapLocally(mapId, BOOK);
+    await vi.advanceTimersByTimeAsync(RETRIES_EXHAUSTED_MS);
+
+    expect(
+      transfersOf(a)
+        .filter((t) => t.type === 'upload')
+        .map((t) => t.status),
+    ).toEqual(['cancelled']);
+    expect(a.knobs.uploadAttempts).toHaveLength(1);
+    expect(serverVersion(mapId)).toBeUndefined();
+    expect(a.toasts.filter((toast) => toast.type === 'error')).toEqual([]);
   });
 });
