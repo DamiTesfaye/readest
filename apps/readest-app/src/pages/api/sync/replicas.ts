@@ -1,8 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseClient } from '@/utils/supabase';
+import { createSupabaseAdminClient, createSupabaseClient } from '@/utils/supabase';
 import { validateUserAndToken } from '@/utils/access';
 import { runMiddleware, corsAllMethods } from '@/utils/cors';
+import { KIND_ALLOWLIST } from '@/libs/replicaSchemas';
+import {
+  type PreparedPrune,
+  type ReplicaFileStore,
+  createReplicaFileStore,
+  prepareReplicaPrune,
+} from '@/libs/replicaPrune';
 import { validatePullBatch, validatePullParams, validatePushBatch } from '@/libs/replicaSyncServer';
 import type { ReplicaRow } from '@/types/replica';
 
@@ -85,7 +92,14 @@ export async function POST(req: NextRequest) {
   }
 
   const merged: ReplicaRow[] = [];
-  for (const row of validation.rows) {
+  let fileStore: ReplicaFileStore | null = null;
+  for (const pushed of validation.rows) {
+    let prune: PreparedPrune | null = null;
+    if (KIND_ALLOWLIST[pushed.kind]?.pruneReplacedFiles) {
+      fileStore ??= createReplicaFileStore(supabase, createSupabaseAdminClient());
+      prune = await prepareReplicaPrune(fileStore, pushed);
+    }
+    const row = prune?.row ?? pushed;
     const { data, error } = await supabase
       .rpc('crdt_merge_replica', {
         p_user_id: row.user_id,
@@ -104,7 +118,10 @@ export async function POST(req: NextRequest) {
       console.error('crdt_merge_replica failed', { row, error });
       return errorResponse(500, 'SERVER', error.message);
     }
-    if (data) merged.push(data);
+    if (data) {
+      merged.push(data);
+      if (prune) await prune.finish(data);
+    }
   }
 
   return NextResponse.json({ rows: merged }, { status: 200 });
