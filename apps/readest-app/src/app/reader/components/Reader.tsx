@@ -17,7 +17,7 @@ import { useDeviceControlStore } from '@/store/deviceStore';
 import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { useScreenBrightness } from '@/app/reader/hooks/useScreenBrightness';
 import { useTransferQueue } from '@/hooks/useTransferQueue';
-import { useReplicaPull } from '@/hooks/useReplicaPull';
+import { READER_REPLICA_KINDS, useReplicaPull } from '@/hooks/useReplicaPull';
 import { eventDispatcher } from '@/utils/event';
 import { interceptWindowOpen } from '@/utils/open';
 import { mountAdditionalFonts } from '@/styles/fonts';
@@ -72,12 +72,12 @@ const Reader: React.FC<{ ids?: string }> = ({ ids }) => {
   useScreenWakeLock(settings.screenWakeLock);
   useScreenBrightness();
   useTransferQueue(libraryLoaded, 5000);
-  // Reader needs dictionaries for word-lookup, fonts for rendering, and
-  // textures for the page background. Mounted here (not in the app-
+  // Reader needs dictionaries for word-lookup, fonts for rendering,
+  // textures for the page background, and the book's mind maps. Mounted here (not in the app-
   // router page wrapper) so the web pages-router entry at
   // `pages/reader/[ids].tsx` also gets the pull. Module-scoped dedup
   // means navigating between library and reader doesn't re-pull.
-  useReplicaPull({ kinds: ['dictionary', 'font', 'texture'] });
+  useReplicaPull({ kinds: READER_REPLICA_KINDS });
 
   useEffect(() => {
     mountAdditionalFonts(document);

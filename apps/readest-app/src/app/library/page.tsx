@@ -107,7 +107,7 @@ import { convertToEpubWithWorker } from '@/services/send/conversion/conversionWo
 import { getClipOptions } from '@/services/send/clipOptions';
 import { invoke } from '@tauri-apps/api/core';
 import useShortcuts from '@/hooks/useShortcuts';
-import { useReplicaPull } from '@/hooks/useReplicaPull';
+import { LIBRARY_REPLICA_KINDS, useReplicaPull } from '@/hooks/useReplicaPull';
 import { useCustomFonts } from '@/hooks/useCustomFonts';
 import DropIndicator from '@/components/DropIndicator';
 import SettingsDialog from '@/components/settings/SettingsDialog';
@@ -179,12 +179,10 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const { isTransferQueueOpen } = useTransferStore();
 
   // Library page pulls user replicas (dictionaries, custom fonts,
-  // background textures, OPDS catalogs, bundled settings). Deferred
+  // background textures, OPDS catalogs, bundled settings, mind maps). Deferred
   // 10s; module-scoped dedup means a later navigation to the reader
   // won't re-pull the same kind.
-  useReplicaPull({
-    kinds: ['dictionary', 'font', 'texture', 'opds_catalog', 'settings'],
-  });
+  useReplicaPull({ kinds: LIBRARY_REPLICA_KINDS });
   // Hydrate the custom-font store from persisted settings so the Font
   // panel sees imported fonts even when opened straight from the
   // library — the replica pull above is auth-gated and the reader's
