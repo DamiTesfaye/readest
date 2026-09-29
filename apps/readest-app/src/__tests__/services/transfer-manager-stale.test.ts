@@ -1,4 +1,13 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+  type MockInstance,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from 'vitest';
 import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
 import { transferManager } from '@/services/transferManager';
 import { clearReplicaAdapters, registerReplicaAdapter } from '@/services/sync/replicaRegistry';
@@ -17,7 +26,7 @@ const uploadReplicaFile = vi.fn(async () => {
 
 const onStaleDownload = vi.fn();
 
-let warn: ReturnType<typeof vi.spyOn<Console, 'warn'>>;
+let warn: MockInstance<Console['warn']>;
 
 const adapterOf = (kind: string, staleWhenMissing: boolean): ReplicaAdapter<unknown> => ({
   kind,
