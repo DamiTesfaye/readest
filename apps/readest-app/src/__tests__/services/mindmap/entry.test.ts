@@ -3,6 +3,7 @@ import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { HlcGenerator } from '@/libs/crdt';
 import {
   type NewMapChoices,
+  __resetMindmapEntryForTests,
   bookMapCount,
   createBookMap,
   currentUserPlan,
@@ -12,7 +13,13 @@ import { createMindmapClock } from '@/services/mindmap/file/clock';
 import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { saveMap } from '@/services/mindmap/persist/maps';
 import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
-import { MINDMAP_BASE_DIR, mapFilePath } from '@/services/mindmap/persist/mapFile';
+import { MINDMAP_BASE_DIR, mapFilePath, mapTrashDir } from '@/services/mindmap/persist/mapFile';
+import {
+  __resetMindmapTrashForTests,
+  listTrashedMaps,
+} from '@/services/mindmap/persist/mindmapTrash';
+import { useSettingsStore } from '@/store/settingsStore';
+import type { SystemSettings } from '@/types/settings';
 import {
   __resetMindmapStoreForTests,
   useMindmapStore,
@@ -40,10 +47,15 @@ beforeEach(() => {
   fs = new MemoryFileSystem();
   access.token = null;
   __resetMindmapStoreForTests();
+  __resetMindmapTrashForTests();
+  __resetMindmapEntryForTests();
+  useSettingsStore.setState({ settings: { syncCategories: {} } as unknown as SystemSettings });
 });
 
 afterEach(() => {
   __resetMindmapStoreForTests();
+  __resetMindmapTrashForTests();
+  __resetMindmapEntryForTests();
 });
 
 describe('resolveMapEntry', () => {
@@ -183,5 +195,57 @@ describe('currentUserPlan', () => {
     expect(await currentUserPlan()).toBe('free');
     access.token = 'token';
     expect(await currentUserPlan()).toBe('plus');
+  });
+});
+
+describe('the map trash when mind map sync is not running', () => {
+  const trashTwoMaps = async (): Promise<{ plain: string; pending: string }> => {
+    await useMindmapStore.getState().hydrate(fs);
+    const hlc = clock();
+    const store = useMindmapStore.getState();
+    const plain = (await store.createMap('bookhash', DEFAULT_MAP_META, hlc)).mapId;
+    const pending = (await store.createMap('bookhash', DEFAULT_MAP_META, hlc)).mapId;
+    await store.moveToTrash(plain);
+    await store.moveToTrash(pending, 'bookhash', { tombstone: true });
+    __resetMindmapStoreForTests();
+    __resetMindmapTrashForTests();
+    return { plain, pending };
+  };
+
+  const trashFiles = async (mapId: string) =>
+    fs.readDir(mapTrashDir('bookhash', mapId), MINDMAP_BASE_DIR);
+
+  it('empties the trash once per session for a signed-out reader, keeping pending deletes', async () => {
+    const { plain, pending } = await trashTwoMaps();
+    await resolveMapEntry(fs, 'bookhash');
+    expect(await trashFiles(plain)).toEqual([]);
+    expect(await trashFiles(pending)).toEqual([]);
+    expect(await listTrashedMaps(fs)).toEqual([
+      { bookHash: 'bookhash', mapId: pending, tombstone: true },
+    ]);
+    const later = (
+      await useMindmapStore.getState().createMap('bookhash', DEFAULT_MAP_META, clock())
+    ).mapId;
+    await useMindmapStore.getState().moveToTrash(later);
+    await resolveMapEntry(fs, 'bookhash');
+    expect(await trashFiles(later)).not.toEqual([]);
+  });
+
+  it('empties the trash when the mind map sync category is off', async () => {
+    access.token = 'token';
+    useSettingsStore.setState({
+      settings: { syncCategories: { mindmap: false } } as unknown as SystemSettings,
+    });
+    const { plain } = await trashTwoMaps();
+    await bookMapCount(fs, 'bookhash');
+    expect(await trashFiles(plain)).toEqual([]);
+  });
+
+  it('leaves the trash to the sync cycle when mind map sync runs', async () => {
+    access.token = 'token';
+    const { plain } = await trashTwoMaps();
+    await resolveMapEntry(fs, 'bookhash');
+    expect(await trashFiles(plain)).not.toEqual([]);
+    expect(await listTrashedMaps(fs)).toHaveLength(2);
   });
 });
