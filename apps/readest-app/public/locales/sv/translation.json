@@ -1949,7 +1949,8 @@
   "Export raw file": "Exportera råfil",
   "Delete from this device": "Ta bort från den här enheten",
   "Tap again to delete from this device": "Tryck igen för att ta bort från den här enheten",
-  "A synced copy returns after the app restarts.": "En synkroniserad kopia kommer tillbaka när appen startas om.",
+  "If this map was synced, its copy returns after the app restarts.": "Om den här kartan synkroniserades kommer dess kopia tillbaka när appen startas om.",
   "Could not export the map file": "Det gick inte att exportera kartfilen",
-  "This map was deleted on another device": "Den här tankekartan togs bort på en annan enhet"
+  "This map was deleted on another device": "Den här tankekartan togs bort på en annan enhet",
+  "Update the app to see mind map changes from your other devices": "Uppdatera appen för att se ändringar i tankekartor från dina andra enheter"
 }

@@ -1949,7 +1949,8 @@
   "Export raw file": "Rohdatei exportieren",
   "Delete from this device": "Von diesem Gerät löschen",
   "Tap again to delete from this device": "Erneut tippen, um von diesem Gerät zu löschen",
-  "A synced copy returns after the app restarts.": "Eine synchronisierte Kopie kehrt nach dem Neustart der App zurück.",
+  "If this map was synced, its copy returns after the app restarts.": "Wenn diese Mindmap synchronisiert wurde, kehrt ihre Kopie nach dem Neustart der App zurück.",
   "Could not export the map file": "Die Kartendatei konnte nicht exportiert werden",
-  "This map was deleted on another device": "Diese Mindmap wurde auf einem anderen Gerät gelöscht"
+  "This map was deleted on another device": "Diese Mindmap wurde auf einem anderen Gerät gelöscht",
+  "Update the app to see mind map changes from your other devices": "Aktualisiere die App, um Mindmap-Änderungen von deinen anderen Geräten zu sehen"
 }

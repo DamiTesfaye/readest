@@ -14,6 +14,7 @@ import {
   registerReplicaUploadHandler,
 } from './replicaTransferIntegration';
 import type { ReplicaAdapter } from './replicaRegistry';
+import { noticeMindmapMerge } from '@/services/mindmap/sync/mergeNotice';
 import { handleMindmapDownload, handleMindmapUpload } from '@/services/mindmap/sync/runtime';
 
 const KNOWN_ADAPTERS: ReplicaAdapter<unknown>[] = [
@@ -70,10 +71,7 @@ export const bootstrapReplicaAdapters = (): void => {
     void useCustomTextureStore.getState().activateTextureByContentId(env, replicaId);
   });
   registerReplicaDownloadHandler(MINDMAP_KIND, async (replicaId, files) => {
-    const outcome = await handleMindmapDownload(replicaId, files);
-    if (outcome !== 'merged') {
-      console.warn('mindmap: a downloaded version was not merged', { mapId: replicaId, outcome });
-    }
+    noticeMindmapMerge(replicaId, await handleMindmapDownload(replicaId, files));
   });
   registerReplicaUploadHandler(MINDMAP_KIND, handleMindmapUpload);
   didBootstrap = true;

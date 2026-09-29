@@ -1914,7 +1914,8 @@
   "Export raw file": "Eksport fail mentah",
   "Delete from this device": "Padam daripada peranti ini",
   "Tap again to delete from this device": "Ketik sekali lagi untuk memadam daripada peranti ini",
-  "A synced copy returns after the app restarts.": "Salinan yang disegerakkan akan kembali selepas aplikasi dimulakan semula.",
+  "If this map was synced, its copy returns after the app restarts.": "Jika peta ini telah disegerakkan, salinannya akan kembali selepas aplikasi dimulakan semula.",
   "Could not export the map file": "Tidak dapat mengeksport fail peta",
-  "This map was deleted on another device": "Peta minda ini telah dipadam pada peranti lain"
+  "This map was deleted on another device": "Peta minda ini telah dipadam pada peranti lain",
+  "Update the app to see mind map changes from your other devices": "Kemas kini aplikasi untuk melihat perubahan peta minda daripada peranti anda yang lain"
 }

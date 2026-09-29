@@ -113,4 +113,29 @@ describe('bootstrapReplicaAdapters', () => {
       outcome: 'local-unreadable',
     });
   });
+
+  test('asks to update the app when a mind map download came from a newer app', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const toasts: unknown[] = [];
+    const onToast = (event: CustomEvent): void => {
+      toasts.push(event.detail);
+    };
+    eventDispatcher.on('toast', onToast);
+    bootstrapReplicaAdapters();
+    startReplicaTransferIntegration({
+      openFile: async (path: string) => new File(['x'], path),
+    } as unknown as AppService);
+    const files = [{ logical: 'm1.v.json', lfp: 'b/m1/incoming/m1.v.json', byteSize: 1 }];
+    mindmapRuntime.handleMindmapDownload.mockResolvedValueOnce('newer-schema');
+    await eventDispatcher.dispatch('replica-transfer-complete', {
+      kind: 'mindmap',
+      replicaId: 'm1',
+      type: 'download',
+      files,
+    });
+    eventDispatcher.off('toast', onToast);
+    expect(toasts).toEqual([
+      { type: 'info', message: 'Update the app to see mind map changes from your other devices' },
+    ]);
+  });
 });

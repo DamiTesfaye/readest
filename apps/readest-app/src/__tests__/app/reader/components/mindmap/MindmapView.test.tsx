@@ -560,7 +560,9 @@ describe('an open map', () => {
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
     render(<MindmapView />);
     expect(await screen.findByText('This map could not be opened')).toBeTruthy();
-    expect(screen.getByText('A synced copy returns after the app restarts.')).toBeTruthy();
+    expect(
+      screen.getByText('If this map was synced, its copy returns after the app restarts.'),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Delete from this device' }));
     expect(await fs.exists(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR)).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete from this device' }));

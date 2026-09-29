@@ -48,7 +48,7 @@ const SessionFallback: React.FC<SessionFallbackProps> = ({ state, bookKey, bookH
         </p>
         {state.status === 'unreadable' && (
           <p className='text-base-content/70 text-[0.85em] leading-relaxed'>
-            {_('A synced copy returns after the app restarts.')}
+            {_('If this map was synced, its copy returns after the app restarts.')}
           </p>
         )}
       </div>

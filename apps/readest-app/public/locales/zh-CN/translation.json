@@ -1914,7 +1914,8 @@
   "Export raw file": "导出原始文件",
   "Delete from this device": "从此设备删除",
   "Tap again to delete from this device": "再次点按以从此设备删除",
-  "A synced copy returns after the app restarts.": "重新启动应用后，已同步的副本会恢复。",
+  "If this map was synced, its copy returns after the app restarts.": "如果此导图已同步，重新启动应用后其副本会恢复。",
   "Could not export the map file": "无法导出导图文件",
-  "This map was deleted on another device": "此思维导图已在另一台设备上删除"
+  "This map was deleted on another device": "此思维导图已在另一台设备上删除",
+  "Update the app to see mind map changes from your other devices": "请更新应用，以查看来自其他设备的思维导图更改"
 }

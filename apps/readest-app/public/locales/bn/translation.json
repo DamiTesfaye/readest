@@ -1949,7 +1949,8 @@
   "Export raw file": "মূল ফাইল রপ্তানি করুন",
   "Delete from this device": "এই ডিভাইস থেকে মুছুন",
   "Tap again to delete from this device": "এই ডিভাইস থেকে মুছতে আবার ট্যাপ করুন",
-  "A synced copy returns after the app restarts.": "অ্যাপ আবার চালু হলে একটি সিঙ্ক করা কপি ফিরে আসবে।",
+  "If this map was synced, its copy returns after the app restarts.": "এই ম্যাপটি সিঙ্ক করা থাকলে, অ্যাপ আবার চালু হলে এর কপি ফিরে আসবে।",
   "Could not export the map file": "ম্যাপ ফাইল রপ্তানি করা যায়নি",
-  "This map was deleted on another device": "এই মাইন্ড ম্যাপটি অন্য একটি ডিভাইসে মুছে ফেলা হয়েছে"
+  "This map was deleted on another device": "এই মাইন্ড ম্যাপটি অন্য একটি ডিভাইসে মুছে ফেলা হয়েছে",
+  "Update the app to see mind map changes from your other devices": "আপনার অন্য ডিভাইসগুলোর মাইন্ড ম্যাপের পরিবর্তন দেখতে অ্যাপটি আপডেট করুন"
 }

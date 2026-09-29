@@ -1914,7 +1914,8 @@
   "Export raw file": "元のファイルを書き出す",
   "Delete from this device": "このデバイスから削除",
   "Tap again to delete from this device": "もう一度タップしてこのデバイスから削除",
-  "A synced copy returns after the app restarts.": "同期済みのコピーはアプリの再起動後に戻ります。",
+  "If this map was synced, its copy returns after the app restarts.": "このマップが同期済みなら、アプリの再起動後にそのコピーが戻ります。",
   "Could not export the map file": "マップファイルを書き出せませんでした",
-  "This map was deleted on another device": "このマインドマップは別のデバイスで削除されました"
+  "This map was deleted on another device": "このマインドマップは別のデバイスで削除されました",
+  "Update the app to see mind map changes from your other devices": "他のデバイスでのマインドマップの変更を見るには、アプリを更新してください"
 }

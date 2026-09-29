@@ -1949,7 +1949,8 @@
   "Export raw file": "Asl faylni eksport qilish",
   "Delete from this device": "Ushbu qurilmadan oʻchirish",
   "Tap again to delete from this device": "Ushbu qurilmadan oʻchirish uchun yana bosing",
-  "A synced copy returns after the app restarts.": "Ilova qayta ishga tushirilgandan soʻng sinxronlangan nusxa qaytadi.",
+  "If this map was synced, its copy returns after the app restarts.": "Agar bu xarita sinxronlangan bo‘lsa, ilova qayta ishga tushirilgandan so‘ng uning nusxasi qaytadi.",
   "Could not export the map file": "Xarita faylini eksport qilib bo‘lmadi",
-  "This map was deleted on another device": "Bu aqliy xarita boshqa qurilmada o‘chirildi"
+  "This map was deleted on another device": "Bu aqliy xarita boshqa qurilmada o‘chirildi",
+  "Update the app to see mind map changes from your other devices": "Boshqa qurilmalaringizdagi aqliy xarita o‘zgarishlarini ko‘rish uchun ilovani yangilang"
 }

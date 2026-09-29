@@ -2089,7 +2089,8 @@
   "Export raw file": "تصدير الملف الخام",
   "Delete from this device": "حذف من هذا الجهاز",
   "Tap again to delete from this device": "انقر مرة أخرى للحذف من هذا الجهاز",
-  "A synced copy returns after the app restarts.": "تعود نسخة متزامنة بعد إعادة تشغيل التطبيق.",
+  "If this map was synced, its copy returns after the app restarts.": "إذا كانت هذه الخريطة متزامنة، فستعود نسختها بعد إعادة تشغيل التطبيق.",
   "Could not export the map file": "تعذّر تصدير ملف الخريطة",
-  "This map was deleted on another device": "حُذفت هذه الخريطة الذهنية على جهاز آخر"
+  "This map was deleted on another device": "حُذفت هذه الخريطة الذهنية على جهاز آخر",
+  "Update the app to see mind map changes from your other devices": "حدّث التطبيق لرؤية تغييرات الخرائط الذهنية من أجهزتك الأخرى"
 }

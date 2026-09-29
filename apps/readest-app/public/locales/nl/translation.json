@@ -1949,7 +1949,8 @@
   "Export raw file": "Onbewerkt bestand exporteren",
   "Delete from this device": "Van dit apparaat verwijderen",
   "Tap again to delete from this device": "Tik nogmaals om van dit apparaat te verwijderen",
-  "A synced copy returns after the app restarts.": "Een gesynchroniseerde kopie komt terug na het herstarten van de app.",
+  "If this map was synced, its copy returns after the app restarts.": "Als deze kaart gesynchroniseerd was, komt de kopie terug na het herstarten van de app.",
   "Could not export the map file": "Kan het kaartbestand niet exporteren",
-  "This map was deleted on another device": "Deze mindmap is op een ander apparaat verwijderd"
+  "This map was deleted on another device": "Deze mindmap is op een ander apparaat verwijderd",
+  "Update the app to see mind map changes from your other devices": "Werk de app bij om mindmapwijzigingen van je andere apparaten te zien"
 }

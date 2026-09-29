@@ -1914,7 +1914,8 @@
   "Export raw file": "Ekspor file mentah",
   "Delete from this device": "Hapus dari perangkat ini",
   "Tap again to delete from this device": "Ketuk lagi untuk menghapus dari perangkat ini",
-  "A synced copy returns after the app restarts.": "Salinan yang tersinkron kembali setelah aplikasi dimulai ulang.",
+  "If this map was synced, its copy returns after the app restarts.": "Jika peta ini pernah disinkronkan, salinannya kembali setelah aplikasi dimulai ulang.",
   "Could not export the map file": "Tidak dapat mengekspor file peta",
-  "This map was deleted on another device": "Peta pikiran ini dihapus di perangkat lain"
+  "This map was deleted on another device": "Peta pikiran ini dihapus di perangkat lain",
+  "Update the app to see mind map changes from your other devices": "Perbarui aplikasi untuk melihat perubahan peta pikiran dari perangkat Anda yang lain"
 }

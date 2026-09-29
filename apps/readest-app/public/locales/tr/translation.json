@@ -1949,7 +1949,8 @@
   "Export raw file": "Ham dosyayı dışa aktar",
   "Delete from this device": "Bu cihazdan sil",
   "Tap again to delete from this device": "Bu cihazdan silmek için tekrar dokunun",
-  "A synced copy returns after the app restarts.": "Eşitlenmiş bir kopya uygulama yeniden başlatıldıktan sonra geri gelir.",
+  "If this map was synced, its copy returns after the app restarts.": "Bu harita eşitlendiyse, kopyası uygulama yeniden başlatıldıktan sonra geri gelir.",
   "Could not export the map file": "Harita dosyası dışa aktarılamadı",
-  "This map was deleted on another device": "Bu zihin haritası başka bir cihazda silindi"
+  "This map was deleted on another device": "Bu zihin haritası başka bir cihazda silindi",
+  "Update the app to see mind map changes from your other devices": "Diğer cihazlarınızdaki zihin haritası değişikliklerini görmek için uygulamayı güncelleyin"
 }

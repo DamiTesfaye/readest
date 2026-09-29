@@ -1984,7 +1984,8 @@
   "Export raw file": "Exportar arquivo bruto",
   "Delete from this device": "Excluir deste dispositivo",
   "Tap again to delete from this device": "Toque novamente para excluir deste dispositivo",
-  "A synced copy returns after the app restarts.": "Uma cópia sincronizada volta depois que o app for reiniciado.",
+  "If this map was synced, its copy returns after the app restarts.": "Se este mapa foi sincronizado, a cópia dele volta depois que o app for reiniciado.",
   "Could not export the map file": "Não foi possível exportar o arquivo do mapa",
-  "This map was deleted on another device": "Este mapa mental foi excluído em outro dispositivo"
+  "This map was deleted on another device": "Este mapa mental foi excluído em outro dispositivo",
+  "Update the app to see mind map changes from your other devices": "Atualize o app para ver as alterações de mapas mentais dos seus outros dispositivos"
 }

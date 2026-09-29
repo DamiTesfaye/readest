@@ -7,9 +7,12 @@ const PLURAL_REFERENCE = '{{count}} new item(s) downloaded from OPDS';
 const LOCAL_DELETE_KEYS = [
   'Delete from this device',
   'Tap again to delete from this device',
-  'A synced copy returns after the app restarts.',
+  'If this map was synced, its copy returns after the app restarts.',
 ];
-const SYNC_NOTICE_KEYS = ['This map was deleted on another device'];
+const SYNC_NOTICE_KEYS = [
+  'This map was deleted on another device',
+  'Update the app to see mind map changes from your other devices',
+];
 
 const catalog = (locale: string): Record<string, string> =>
   JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'translation.json'), 'utf8'));
