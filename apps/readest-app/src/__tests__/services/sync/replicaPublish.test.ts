@@ -166,14 +166,14 @@ describe('publishReplicaDelete', () => {
   test('no-ops when replicaSync is not initialized', async () => {
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(null);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(false);
   });
 
   test('no-ops when user not authenticated', async () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(false);
     expect(ctx.manager.markDirty).not.toHaveBeenCalled();
   });
 
@@ -181,7 +181,7 @@ describe('publishReplicaDelete', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(true);
     expect(ctx.manager.markDirty).toHaveBeenCalledOnce();
     const row = ctx.manager.markDirty.mock.calls[0]![0];
     expect(row.replica_id).toBe('content-hash-abc');
@@ -294,7 +294,7 @@ describe('publishReplica* sync category gate', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(false);
     expect(ctx.manager.markDirty).not.toHaveBeenCalled();
   });
 

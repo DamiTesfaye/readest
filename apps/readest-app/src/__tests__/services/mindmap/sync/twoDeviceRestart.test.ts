@@ -44,6 +44,7 @@ const parentOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
 
 interface Knobs {
   dead: boolean;
+  pushFails: boolean;
   pushGate: Promise<void> | null;
   pushes: number;
 }
@@ -101,7 +102,7 @@ const routeClientFor = (knobs: Knobs) => {
     push: async (rows: ReplicaRow[]): Promise<ReplicaRow[]> => {
       knobs.pushes += 1;
       if (knobs.pushGate) await knobs.pushGate;
-      if (knobs.dead) throw new Error('Network error');
+      if (knobs.dead || knobs.pushFails) throw new Error('Network error');
       const response = await POST(
         new NextRequest('http://localhost/api/sync/replicas', {
           method: 'POST',
@@ -169,7 +170,7 @@ const startDevice = async (name: string, disk?: MemoryFileSystem): Promise<Devic
   vi.resetModules();
   localStorage.clear();
   const fs = disk ?? new MemoryFileSystem();
-  const knobs: Knobs = { dead: false, pushGate: null, pushes: 0 };
+  const knobs: Knobs = { dead: false, pushFails: false, pushGate: null, pushes: 0 };
   const service = deviceService(fs);
   holder.service = service;
   const m = await loadModules();
@@ -272,6 +273,12 @@ const createMap = async (device: Device, title: string): Promise<string> => {
     .getState()
     .createMap(BOOK, { ...device.m.schema.DEFAULT_MAP_META, title }, clockOf(device));
   return file.mapId;
+};
+
+const push = async (device: Device, mapId: string): Promise<string> => {
+  const result = await (await device.m.runtime.getMindmapSync()).pusher.pushNow(mapId);
+  await settle(device);
+  return result;
 };
 
 const localText = async (device: Device, mapId: string): Promise<string> =>
@@ -410,5 +417,84 @@ describe('mind map sync when the manifest of an uploaded version does not reach 
     const b = await startDevice('dev-b');
     await pull(b);
     await expectConverged(mapId, restarted, b);
+  });
+});
+
+describe('mind map sync when the tombstone of a delete does not reach the server', () => {
+  it('keeps a map deleted while mind map sync was off deleted once sync is back on', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await createMap(a, 'Private');
+    await push(a, mapId);
+    await pull(b);
+    expect(entryOf(b, mapId)).toBeDefined();
+    setMindmapSync(a, false);
+    await a.m.deleteMap.deleteMindmap(mapId, BOOK);
+    await settle(a);
+    setMindmapSync(a, true);
+    await pull(a);
+    expect(entryOf(a, mapId)).toBeUndefined();
+    expect(await a.fs.exists(a.m.maps.mapFilePath(BOOK, mapId), 'Books')).toBe(false);
+    await pull(b);
+    expect(entryOf(b, mapId)).toBeUndefined();
+    expect(storedVersions(mapId)).toEqual([]);
+  });
+
+  it('keeps a map deleted just before the app quit deleted after the restart', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    await pull(a);
+    const mapId = await createMap(a, 'Doomed');
+    await push(a, mapId);
+    await pull(b);
+    await a.m.deleteMap.deleteMindmap(mapId, BOOK);
+    expect(entryOf(a, mapId)).toBeUndefined();
+    await a.m.store.useMindmapStore.getState().whenPersisted();
+    quit(a);
+
+    const restarted = await startDevice('dev-a', a.fs);
+    await pull(restarted);
+    expect(entryOf(restarted, mapId)).toBeUndefined();
+    expect(await restarted.fs.exists(restarted.m.maps.mapFilePath(BOOK, mapId), 'Books')).toBe(
+      false,
+    );
+    await pull(b);
+    expect(entryOf(b, mapId)).toBeUndefined();
+  });
+
+  it('keeps the delete pending while the network is down and sends it once it is back', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await createMap(a, 'Offline delete');
+    await push(a, mapId);
+    await pull(b);
+    a.knobs.dead = true;
+    await a.m.deleteMap.deleteMindmap(mapId, BOOK);
+    await expect(pull(a)).rejects.toThrow();
+    a.knobs.dead = false;
+    await pull(a);
+    await pull(a);
+    expect(entryOf(a, mapId)).toBeUndefined();
+    await pull(b);
+    expect(entryOf(b, mapId)).toBeUndefined();
+  });
+
+  it('does not bring the map back from the server while its delete cannot be sent', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await createMap(a, 'Rejected delete');
+    await push(a, mapId);
+    await pull(b);
+    a.knobs.pushFails = true;
+    await a.m.deleteMap.deleteMindmap(mapId, BOOK);
+    await a.m.pullAndApply.replicaPullAndApply(pullDeps(a));
+    await a.m.runtime.finishMindmapPull();
+    expect(entryOf(a, mapId)).toBeUndefined();
+    expect(await a.fs.exists(a.m.maps.mapFilePath(BOOK, mapId), 'Books')).toBe(false);
+    a.knobs.pushFails = false;
+    await pull(a);
+    await pull(b);
+    expect(entryOf(a, mapId)).toBeUndefined();
+    expect(entryOf(b, mapId)).toBeUndefined();
   });
 });

@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { MemoryFileSystem } from '@/__tests__/helpers/memoryFileSystem';
 import { hlcPack } from '@/libs/crdt';
+import {
+  __resetMindmapTrashForTests,
+  confirmTombstones,
+  listTrashedMaps,
+  recordTrashedMap,
+} from '@/services/mindmap/persist/mindmapTrash';
 import {
   latestMindmapManifest,
   __resetMindmapManifestsForTests,
@@ -73,6 +80,19 @@ describe('mindmapAdapter', () => {
 
   test('places a new map in its book mindmaps directory', () => {
     expect(binary.bundleDirFor!(rowOf('map1', 'book1'))).toBe('book1/mindmaps/map1');
+  });
+
+  test('does not bring back a map whose delete has not reached the server yet', async () => {
+    const fs = new MemoryFileSystem();
+    await recordTrashedMap(fs, 'book1', 'map1', true);
+    await recordTrashedMap(fs, 'book1', 'map2', false);
+    __resetMindmapTrashForTests();
+    await listTrashedMaps(fs);
+    expect(binary.bundleDirFor!(rowOf('map1', 'book1'))).toBeNull();
+    expect(binary.bundleDirFor!(rowOf('map2', 'book1'))).toBe('book1/mindmaps/map2');
+    await confirmTombstones(fs, ['map1']);
+    expect(binary.bundleDirFor!(rowOf('map1', 'book1'))).toBe('book1/mindmaps/map1');
+    __resetMindmapTrashForTests();
   });
 
   test('is current only when the manifest names the synced version', () => {

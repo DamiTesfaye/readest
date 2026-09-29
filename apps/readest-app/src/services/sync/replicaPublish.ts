@@ -80,17 +80,17 @@ export const publishReplicaUpsert = async <T>(
  * field write does NOT revive this row; only an explicit
  * reincarnation token does.
  *
- * No-op when replica sync isn't initialized or the user isn't
- * authenticated.
+ * Returns false, and does nothing, when the kind's category is off,
+ * replica sync isn't initialized or the user isn't authenticated.
  */
-export const publishReplicaDelete = async (kind: string, contentId: string): Promise<void> => {
-  if (!isSyncCategoryEnabled(kind)) return;
+export const publishReplicaDelete = async (kind: string, contentId: string): Promise<boolean> => {
+  if (!isSyncCategoryEnabled(kind)) return false;
   const ctx = getReplicaSync();
-  if (!ctx) return;
+  if (!ctx) return false;
   const adapter = getReplicaAdapter(kind);
-  if (!adapter) return;
+  if (!adapter) return false;
   const userId = await getUserID();
-  if (!userId) return;
+  if (!userId) return false;
 
   const tombstoneHlc = ctx.hlc.next();
   const baseRow: ReplicaRow = {
@@ -105,6 +105,7 @@ export const publishReplicaDelete = async (kind: string, contentId: string): Pro
     schema_version: adapter.schemaVersion,
   };
   ctx.manager.markDirty(removeReplica(baseRow, tombstoneHlc));
+  return true;
 };
 
 /**

@@ -7,7 +7,7 @@ import { createMapFile } from '@/services/mindmap/file/createMapFile';
 import { isSafeMindmapId, mapFileDir } from '@/services/mindmap/persist/mapFile';
 import { saveMap, trashMap } from '@/services/mindmap/persist/maps';
 import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
-import { recordTrashedMap } from '@/services/mindmap/persist/mindmapTrash';
+import { confirmTombstones, recordTrashedMap } from '@/services/mindmap/persist/mindmapTrash';
 import { getOpenMapSession } from '@/services/mindmap/persist/session';
 import type { MapFile, MapMeta } from '@/services/mindmap/schema/types';
 
@@ -31,9 +31,13 @@ export interface MindmapStoreState {
   applyRemoteMap(entry: MindmapEntry): void;
   setSyncedMd5(mapId: string, md5: string | null): void;
   softDeleteByContentId(mapId: string): void;
-  moveToTrash(mapId: string, bookHash?: string): Promise<void>;
+  moveToTrash(mapId: string, bookHash?: string, options?: TrashOptions): Promise<void>;
   removeByBookHash(bookHash: string): void;
   createMap(bookHash: string, meta: MapMeta, clock: HlcClock): Promise<MapFile>;
+}
+
+export interface TrashOptions {
+  tombstone: boolean;
 }
 
 export const MINDMAP_STORE_FILENAME = 'mindmap-store.json';
@@ -141,13 +145,14 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
     },
     softDeleteByContentId: (mapId) => {
       get().moveToTrash(mapId).catch(reportError);
+      if (storeFs) confirmTombstones(storeFs, [mapId]).catch(reportError);
     },
-    moveToTrash: async (mapId, bookHash) => {
+    moveToTrash: async (mapId, bookHash, options) => {
       const owner = get().getEntry(mapId)?.bookHash ?? bookHash;
       if (!owner) return;
       await getOpenMapSession(mapId)?.discard();
       await trashMap(requireFs(), owner, mapId);
-      await recordTrashedMap(requireFs(), owner, mapId);
+      await recordTrashedMap(requireFs(), owner, mapId, options?.tombstone ?? false);
       if (get().getEntry(mapId)) get().removeEntry(mapId);
     },
     removeByBookHash: (bookHash) => {

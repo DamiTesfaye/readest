@@ -5,6 +5,7 @@ import { type MindmapFs, mindmapFsFromAppService } from '@/services/mindmap/pers
 import { useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
 import {
   type TrashedMap,
+  confirmTombstones,
   listTrashedMaps,
   sweepTrashedMaps,
 } from '@/services/mindmap/persist/mindmapTrash';
@@ -17,7 +18,7 @@ import { type MindmapPusher, createMindmapPusher } from '@/services/mindmap/sync
 import { incomingDir } from '@/services/mindmap/sync/versions';
 import { MINDMAP_KIND } from '@/services/sync/adapters/mindmap';
 import { queueReplicaBinaryUpload } from '@/services/sync/replicaBinaryUpload';
-import { publishReplicaUpsert } from '@/services/sync/replicaPublish';
+import { publishReplicaDelete, publishReplicaUpsert } from '@/services/sync/replicaPublish';
 import { getReplicaSync } from '@/services/sync/replicaSync';
 import { isSyncCategoryEnabled } from '@/services/sync/syncCategories';
 import { transferManager } from '@/services/transferManager';
@@ -36,6 +37,7 @@ export interface MindmapSync {
 let runtime: Promise<MindmapSync> | null = null;
 let checkedSinceStart = false;
 let trashAtPullStart: TrashedMap[] = [];
+let tombstonesSent: string[] = [];
 
 const isOnline = (): boolean => typeof navigator === 'undefined' || navigator.onLine !== false;
 
@@ -46,16 +48,35 @@ const canPush = async (): Promise<boolean> =>
   transferManager.isReady() &&
   Boolean(await getAccessToken());
 
-const confirmManifest = async (mapId: string): Promise<boolean> => {
+const flushMindmapRows = async (
+  warning: string,
+  detail: Record<string, unknown>,
+): Promise<boolean> => {
   const context = getReplicaSync();
   if (!context) return false;
   try {
     await context.manager.flush();
   } catch (error) {
-    console.warn('mindmap: could not send the manifest of an uploaded version', { mapId, error });
+    console.warn(warning, { ...detail, error });
     return false;
   }
   return context.manager.isKindSupported(MINDMAP_KIND);
+};
+
+const confirmManifest = (mapId: string): Promise<boolean> =>
+  flushMindmapRows('mindmap: could not send the manifest of an uploaded version', { mapId });
+
+const sendPendingTombstones = async (fs: MindmapFs): Promise<string[]> => {
+  const published: string[] = [];
+  for (const map of await listTrashedMaps(fs)) {
+    if (map.tombstone && (await publishReplicaDelete(MINDMAP_KIND, map.mapId)))
+      published.push(map.mapId);
+  }
+  if (published.length === 0) return [];
+  const sent = await flushMindmapRows('mindmap: could not send the delete of a map', {
+    mapIds: published,
+  });
+  return sent ? published : [];
 };
 
 const createRuntime = async (): Promise<MindmapSync> => {
@@ -120,11 +141,14 @@ export const handleMindmapUpload = async (
 export const beginMindmapPull = async (): Promise<void> => {
   const { fs } = await getMindmapSync();
   await useMindmapStore.getState().hydrate(fs);
+  tombstonesSent = await sendPendingTombstones(fs);
   trashAtPullStart = await listTrashedMaps(fs);
 };
 
 export const finishMindmapPull = async (): Promise<void> => {
   const { fs, pusher } = await getMindmapSync();
+  await confirmTombstones(fs, tombstonesSent);
+  tombstonesSent = [];
   await sweepTrashedMaps(fs, trashAtPullStart);
   trashAtPullStart = [];
   const mapIds = checkedSinceStart
@@ -139,4 +163,5 @@ export const __resetMindmapSyncForTests = (): void => {
   runtime = null;
   checkedSinceStart = false;
   trashAtPullStart = [];
+  tombstonesSent = [];
 };

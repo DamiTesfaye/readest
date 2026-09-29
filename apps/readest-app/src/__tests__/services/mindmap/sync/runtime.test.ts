@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   queueReplicaUpload: vi.fn((..._args: unknown[]) => 'upload-1' as string | null),
   queueReplicaDownload: vi.fn((..._args: unknown[]) => 'download-1' as string | null),
   publishReplicaUpsert: vi.fn(async (..._args: unknown[]) => {}),
+  publishReplicaDelete: vi.fn(async (..._args: unknown[]) => true),
   mindmapSupported: true,
   appServiceError: null as Error | null,
   flush: vi.fn(async () => {}),
@@ -32,6 +33,7 @@ vi.mock('@/services/transferManager', () => ({
 vi.mock('@/utils/access', () => ({ getAccessToken: async () => h.token }));
 vi.mock('@/services/sync/replicaPublish', () => ({
   publishReplicaUpsert: h.publishReplicaUpsert,
+  publishReplicaDelete: h.publishReplicaDelete,
 }));
 vi.mock('@/services/sync/replicaSync', async (importOriginal) => {
   const { HlcGenerator } = await import('@/libs/crdt');
@@ -60,6 +62,7 @@ import {
 } from '@/services/mindmap/persist/mindmapStore';
 import {
   __resetMindmapTrashForTests,
+  hasPendingTombstone,
   listTrashedMaps,
 } from '@/services/mindmap/persist/mindmapTrash';
 import { __resetMapSessionsForTests } from '@/services/mindmap/persist/session';
@@ -110,6 +113,7 @@ beforeEach(async () => {
   h.appServiceError = null;
   h.syncContext = true;
   h.flush.mockImplementation(async () => {});
+  h.publishReplicaDelete.mockImplementation(async () => true);
   useSettingsStore.setState({
     settings: { replicaDeviceId: 'dev-a', syncCategories: {} } as SystemSettings,
   });
@@ -292,5 +296,54 @@ describe('mindmap sync runtime', () => {
     await beginMindmapPull();
     await finishMindmapPull();
     expect(h.queueReplicaUpload.mock.calls.map((call) => call[1])).toEqual([mapId]);
+  });
+});
+
+describe('mindmap sync runtime with a delete the server has not seen', () => {
+  const deletedMap = async (): Promise<string> => {
+    const mapId = await createMap('Deleted');
+    await useMindmapStore.getState().moveToTrash(mapId, BOOK, { tombstone: true });
+    return mapId;
+  };
+
+  it('sends the pending delete again at the pull and confirms it once the flush succeeds', async () => {
+    const mapId = await deletedMap();
+    await beginMindmapPull();
+    expect(h.publishReplicaDelete).toHaveBeenCalledWith('mindmap', mapId);
+    expect(h.flush).toHaveBeenCalled();
+    expect(hasPendingTombstone(mapId)).toBe(true);
+    await finishMindmapPull();
+    expect(hasPendingTombstone(mapId)).toBe(false);
+    expect(await listTrashedMaps(fs)).toEqual([]);
+  });
+
+  it('keeps the delete pending when the flush fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    h.flush.mockRejectedValue(new Error('offline'));
+    const mapId = await deletedMap();
+    await beginMindmapPull();
+    await finishMindmapPull();
+    expect(warn).toHaveBeenCalledWith(
+      'mindmap: could not send the delete of a map',
+      expect.objectContaining({ mapIds: [mapId] }),
+    );
+    expect(await listTrashedMaps(fs)).toEqual([{ bookHash: BOOK, mapId, tombstone: true }]);
+  });
+
+  it('keeps the delete pending when the server does not support mind maps', async () => {
+    h.mindmapSupported = false;
+    const mapId = await deletedMap();
+    await beginMindmapPull();
+    await finishMindmapPull();
+    expect(hasPendingTombstone(mapId)).toBe(true);
+  });
+
+  it('keeps the delete pending without flushing when it cannot be published', async () => {
+    h.publishReplicaDelete.mockImplementation(async () => false);
+    const mapId = await deletedMap();
+    await beginMindmapPull();
+    await finishMindmapPull();
+    expect(h.flush).not.toHaveBeenCalled();
+    expect(hasPendingTombstone(mapId)).toBe(true);
   });
 });

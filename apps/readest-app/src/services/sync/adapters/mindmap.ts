@@ -1,4 +1,5 @@
 import { isSafeMindmapId, mapFileDir } from '@/services/mindmap/persist/mapFile';
+import { hasPendingTombstone } from '@/services/mindmap/persist/mindmapTrash';
 import type { MindmapEntry } from '@/services/mindmap/persist/mindmapStore';
 import {
   incomingDir,
@@ -31,7 +32,8 @@ const bookHashOf = (row: ReplicaRow): string | null => {
 
 const bundleDirFor = (row: ReplicaRow): string | null => {
   const bookHash = bookHashOf(row);
-  return bookHash && isSafeMindmapId(row.replica_id) ? mapFileDir(bookHash, row.replica_id) : null;
+  if (!bookHash || !isSafeMindmapId(row.replica_id)) return null;
+  return hasPendingTombstone(row.replica_id) ? null : mapFileDir(bookHash, row.replica_id);
 };
 
 export const mindmapAdapter: ReplicaAdapter<MindmapReplicaRecord> = {

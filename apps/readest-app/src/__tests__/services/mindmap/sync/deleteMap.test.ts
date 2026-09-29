@@ -12,7 +12,10 @@ import {
   __resetMindmapStoreForTests,
   useMindmapStore,
 } from '@/services/mindmap/persist/mindmapStore';
-import { __resetMindmapTrashForTests } from '@/services/mindmap/persist/mindmapTrash';
+import {
+  __resetMindmapTrashForTests,
+  listTrashedMaps,
+} from '@/services/mindmap/persist/mindmapTrash';
 import { __resetMapSessionsForTests } from '@/services/mindmap/persist/session';
 import { DEFAULT_MAP_META } from '@/services/mindmap/schema/types';
 import { deleteMindmap } from '@/services/mindmap/sync/deleteMap';
@@ -43,6 +46,7 @@ describe('deleteMindmap', () => {
     expect(await fs.exists(mapFilePath(BOOK, mapId), 'Books')).toBe(false);
     expect(useMindmapStore.getState().getEntry(mapId)).toBeUndefined();
     expect(publishReplicaDelete).toHaveBeenCalledWith('mindmap', mapId);
+    expect(await listTrashedMaps(fs)).toEqual([{ bookHash: BOOK, mapId, tombstone: true }]);
   });
 
   it('publishes no tombstone when the local delete fails', async () => {
