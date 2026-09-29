@@ -41,7 +41,12 @@ const input = (overrides: Partial<RevealInput> = {}): RevealInput => ({
   spoiler: 'grow',
   progress: 0.5,
   lastSeenProgress: 0.4,
-  chapterStarts: [0, 0.25, 0.5, 0.75],
+  chapterStarts: [
+    { start: 0, number: 1 },
+    { start: 0.25, number: 2 },
+    { start: 0.5, number: 3 },
+    { start: 0.75, number: 4 },
+  ],
   ...overrides,
 });
 
@@ -112,8 +117,13 @@ describe('computeReveal', () => {
 
 describe('chapterAt', () => {
   it('numbers the chapter the reader is in, from one', () => {
-    expect(chapterAt([0.1, 0.3, 0.6], 0.35)).toBe(2);
-    expect(chapterAt([0.1, 0.3, 0.6], 0.05)).toBeNull();
+    const chapters = [
+      { start: 0.1, number: 1 },
+      { start: 0.3, number: 2 },
+      { start: 0.6, number: 3 },
+    ];
+    expect(chapterAt(chapters, 0.35)).toBe(2);
+    expect(chapterAt(chapters, 0.05)).toBeNull();
     expect(chapterAt([], 0.5)).toBeNull();
   });
 });

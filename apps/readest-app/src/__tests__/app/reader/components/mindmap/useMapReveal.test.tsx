@@ -131,7 +131,7 @@ describe('useMapReveal', () => {
     await waitFor(() => expect(useMindmapViewStore.getState().reveal).toBeNull());
   });
 
-  it('numbers chapters by leaf TOC entries, skipping part containers', async () => {
+  it('numbers chapters by their labels, skipping part containers', async () => {
     const progressByHref: Record<string, number> = {
       part1: 0.0,
       p1c1: 0.1,
@@ -166,7 +166,11 @@ describe('useMapReveal', () => {
     };
     setBookProgress(BOOK_KEY, { fraction: 0.6 } as BookProgress);
     const { result } = render(false, locator);
-    expect(result.current.chapterStarts).toEqual([0.1, 0.2, 0.6]);
+    expect(result.current.chapterStarts).toEqual([
+      { start: 0.1, number: 1 },
+      { start: 0.2, number: 2 },
+      { start: 0.6, number: 3 },
+    ]);
     await waitFor(() =>
       expect(useMindmapViewStore.getState().reveal).toMatchObject({ chapter: 3 }),
     );

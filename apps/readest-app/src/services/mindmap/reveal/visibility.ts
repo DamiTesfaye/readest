@@ -1,6 +1,7 @@
 import type { BookLocator } from '@/services/mindmap/generate/anchors';
 import type { BoundsRect } from '@/services/mindmap/records/geometry';
 import type { ResolvedSpoiler } from '@/services/mindmap/reveal/adaptive';
+import type { ChapterStart } from '@/services/mindmap/reveal/chapters';
 import type { MapRecord, PositionedRecord } from '@/services/mindmap/schema/types';
 import { snapToGrid } from '@/services/mindmap/snap/snap';
 import {
@@ -29,7 +30,7 @@ export interface RevealInput {
   spoiler: ResolvedSpoiler;
   progress: number;
   lastSeenProgress: number;
-  chapterStarts: readonly number[];
+  chapterStarts: readonly ChapterStart[];
 }
 
 export interface RevealState {
@@ -41,10 +42,11 @@ export interface RevealState {
   newIds: string[];
 }
 
-export const chapterAt = (starts: readonly number[], progress: number): number | null => {
-  const count = starts.filter((start) => start <= progress).length;
-  return count > 0 ? count : null;
-};
+export const chapterAt = (chapters: readonly ChapterStart[], progress: number): number | null =>
+  chapters.reduce<number | null>(
+    (current, chapter) => (chapter.start <= progress ? chapter.number : current),
+    null,
+  );
 
 export interface ReadingPosition {
   fraction: number;

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { TOCItem } from '@/libs/document';
 import type { BookLocator } from '@/services/mindmap/generate/anchors';
 import type { MapSession } from '@/services/mindmap/persist/session';
 import { resolveAdaptive } from '@/services/mindmap/reveal/adaptive';
+import {
+  type ChapterStart,
+  chapterStarts as tocChapterStarts,
+} from '@/services/mindmap/reveal/chapters';
 import {
   type FogCluster,
   type FogRedaction,
@@ -32,7 +35,7 @@ export interface MapRevealInput {
 
 export interface MapReveal {
   ready: boolean;
-  chapterStarts: readonly number[];
+  chapterStarts: readonly ChapterStart[];
   clusters: FogCluster[];
   redacted: FogRedaction[];
 }
@@ -42,22 +45,6 @@ const BOX_FIELDS: ReadonlySet<string> = new Set(['x', 'y', 'w', 'h']);
 
 const sameMembers = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
   a.size === b.size && [...a].every((id) => b.has(id));
-
-const leafChapterStarts = (toc: readonly TOCItem[], locator: BookLocator): number[] => {
-  const starts: number[] = [];
-  const walk = (items: readonly TOCItem[]): void => {
-    for (const item of items) {
-      if (item.subitems && item.subitems.length > 0) {
-        walk(item.subitems);
-        continue;
-      }
-      const start = locator.locateToc(item)?.progress;
-      if (start !== undefined) starts.push(start);
-    }
-  };
-  walk(toc);
-  return [...new Set(starts)].sort((a, b) => a - b);
-};
 
 const revealsBetween = (records: readonly MapRecord[], from: number, to: number): boolean =>
   records.some(
@@ -105,7 +92,7 @@ export const useMapReveal = ({
     progress,
   });
   const chapterStarts = useMemo(
-    () => (locator && toc ? leafChapterStarts(toc, locator) : []),
+    () => (locator && toc ? tocChapterStarts(toc, locator) : []),
     [locator, toc],
   );
   const state = useMemo(

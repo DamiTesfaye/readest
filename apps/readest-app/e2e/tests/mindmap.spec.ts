@@ -191,6 +191,7 @@ test.describe('Mind map', () => {
     await expect(chapterNode(page, 'Chapter 6 - Pig and Pepper')).toHaveCount(1);
     await expect(chapterNode(page, 'Chapter 12 - Alice’s Evidence')).toHaveCount(0);
     await expect(page.getByTestId('mm-reveal-chip')).toContainText('new');
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('Revealed to ch. 6');
   });
 
   test('keeps the next chapter hidden on the last spread of the current one', async ({

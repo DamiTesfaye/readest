@@ -108,8 +108,9 @@ describe('quote captions', () => {
   };
 
   const caption = (starts: readonly number[]) => {
+    const chapters = starts.map((start, index) => ({ start, number: index + 1 }));
     render(
-      <ChapterStartsContext.Provider value={starts}>
+      <ChapterStartsContext.Provider value={chapters}>
         <RecordView
           record={quote}
           mapStyle='sticker'
