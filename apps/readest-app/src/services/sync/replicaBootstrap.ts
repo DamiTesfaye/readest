@@ -70,7 +70,10 @@ export const bootstrapReplicaAdapters = (): void => {
     void useCustomTextureStore.getState().activateTextureByContentId(env, replicaId);
   });
   registerReplicaDownloadHandler(MINDMAP_KIND, async (replicaId, files) => {
-    await handleMindmapDownload(replicaId, files);
+    const outcome = await handleMindmapDownload(replicaId, files);
+    if (outcome !== 'merged') {
+      console.warn('mindmap: a downloaded version was not merged', { mapId: replicaId, outcome });
+    }
   });
   registerReplicaUploadHandler(MINDMAP_KIND, handleMindmapUpload);
   didBootstrap = true;

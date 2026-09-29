@@ -13,7 +13,7 @@ vi.mock('@/store/customTextureStore', () => ({
 }));
 
 const mindmapRuntime = vi.hoisted(() => ({
-  handleMindmapDownload: vi.fn(async () => 'merged'),
+  handleMindmapDownload: vi.fn(async (): Promise<string> => 'merged'),
   handleMindmapUpload: vi.fn(async () => {}),
 }));
 
@@ -49,6 +49,7 @@ vi.mock('@/services/sync/replicaPublish', () => ({
 }));
 
 afterEach(() => {
+  vi.restoreAllMocks();
   clearReplicaAdapters();
   __resetBootstrapForTests();
   __resetReplicaTransferIntegrationForTests();
@@ -93,5 +94,23 @@ describe('bootstrapReplicaAdapters', () => {
     });
     expect(mindmapRuntime.handleMindmapDownload).toHaveBeenCalledWith('m1', files);
     expect(mindmapRuntime.handleMindmapUpload).toHaveBeenCalledWith('m1', files);
+  });
+
+  test('warns about a mind map download that did not merge, and only then', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    bootstrapReplicaAdapters();
+    startReplicaTransferIntegration({
+      openFile: async (path: string) => new File(['x'], path),
+    } as unknown as AppService);
+    const files = [{ logical: 'm1.v.json', lfp: 'b/m1/incoming/m1.v.json', byteSize: 1 }];
+    const download = { kind: 'mindmap', replicaId: 'm1', type: 'download', files };
+    await eventDispatcher.dispatch('replica-transfer-complete', download);
+    expect(warn).not.toHaveBeenCalled();
+    mindmapRuntime.handleMindmapDownload.mockResolvedValueOnce('local-unreadable');
+    await eventDispatcher.dispatch('replica-transfer-complete', download);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('mindmap'), {
+      mapId: 'm1',
+      outcome: 'local-unreadable',
+    });
   });
 });
