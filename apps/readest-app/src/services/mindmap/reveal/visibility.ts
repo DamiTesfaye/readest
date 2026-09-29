@@ -80,7 +80,7 @@ const clustersOf = (hidden: readonly PositionedRecord[]): FogCluster[] => {
       count: members.length,
       ...CLUSTER_SIZE,
       x: snapToGrid(box.x + box.w / 2 - CLUSTER_SIZE.w / 2),
-      y: snapToGrid(box.y + box.h / 2 - CLUSTER_SIZE.h / 2),
+      y: snapToGrid(box.y),
     };
   });
 };

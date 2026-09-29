@@ -90,7 +90,7 @@ describe('computeReveal', () => {
     const loose = state.clusters[0]!;
     expect(loose).toMatchObject({ ...CLUSTER_SIZE });
     expect(loose.x % 16).toBe(0);
-    expect(loose.y % 16).toBe(0);
+    expect(loose.y).toBe(160);
     expect(state.redacted).toEqual([]);
   });
 

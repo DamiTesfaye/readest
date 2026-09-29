@@ -176,6 +176,23 @@ test.describe('Mind map', () => {
     await expect(chapterNode(page, 'Chapter 12 - Alice’s Evidence')).toHaveCount(0);
   });
 
+  test('shows the fog cluster next to what is revealed after the first fill', async ({
+    openBook,
+    page,
+  }) => {
+    const reader = await openBook();
+    const canvas = await createGeneratedMap(reader, page);
+    const cluster = page.getByTestId('mm-fog-cluster');
+    await expect(cluster).toContainText('Keep reading to reveal');
+    await expect
+      .poll(async () => {
+        const view = (await canvas.boundingBox())!;
+        const fog = (await cluster.boundingBox())!;
+        return fog.y >= view.y && fog.y + fog.height <= view.y + view.height;
+      })
+      .toBe(true);
+  });
+
   test('grow mode reveals new nodes after advancing a chapter', async ({ openBook, page }) => {
     const reader = await openBook();
     await createGeneratedMap(reader, page);
