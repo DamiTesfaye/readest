@@ -23,8 +23,8 @@ export interface ResolvedMapMode {
 export const FINISHED_PROGRESS = 0.99;
 
 const TERM_SEPARATOR = /\s*(?:[,;/|&]|--)\s*/;
-const FICTION_TERM = /\b(?<!non-?)fiction\b|\bnovels?\b/;
-const NON_FICTION_TERM = /\bnon-?fiction\b/;
+const FICTION_TERM = /\b(?<!non[-\s]?)fiction\b|\bnovels?\b/;
+const NON_FICTION_TERM = /\bnon[-\s]?fiction\b/;
 const NON_FICTION_SUBJECTS: ReadonlySet<string> = new Set([
   'history',
   'biography',
@@ -50,6 +50,40 @@ const NON_FICTION_SUBJECTS: ReadonlySet<string> = new Set([
   'social science',
   'mathematics',
   'technology',
+  'engineering',
+  'computers',
+  'computer science',
+  'programming',
+  'cooking',
+  'cookbooks',
+  'art',
+  'architecture',
+  'design',
+  'photography',
+  'performing arts',
+  'music',
+  'law',
+  'medical',
+  'medicine',
+  'nature',
+  'gardening',
+  'pets',
+  'sports',
+  'recreation',
+  'fitness',
+  'language arts',
+  'linguistics',
+  'literary criticism',
+  'family',
+  'relationships',
+  'parenting',
+  'crafts',
+  'hobbies',
+  'antiques',
+  'collectibles',
+  'foreign language study',
+  'study aids',
+  'transportation',
 ]);
 
 const subjectTerms = (subject: BookMetadata['subject']): string[] =>

@@ -26,6 +26,31 @@ describe('genreOf', () => {
     expect(genreOf('Juvenile Nonfiction; Animals')).toBe('non-fiction');
   });
 
+  it('recognises the common non-fiction subject headings', () => {
+    const subjects = [
+      'Computers / Programming / General',
+      'Cooking',
+      'Art',
+      'Law',
+      'Medical',
+      'Nature',
+      'Language Arts & Disciplines',
+      'Literary Criticism',
+      'Non Fiction',
+      'Sports & Recreation',
+      'Music',
+      'Family & Relationships',
+      'Technology & Engineering',
+      'Health & Fitness',
+    ];
+    expect(subjects.filter((subject) => genreOf(subject) !== 'non-fiction')).toEqual([]);
+  });
+
+  it('keeps novels about those subjects fiction', () => {
+    expect(genreOf(['Fiction / Sports', 'Music'])).toBe('fiction');
+    expect(genreOf('Cooking -- Fiction')).toBe('fiction');
+  });
+
   it('counts unknown, empty and non-English subjects as fiction', () => {
     expect(genreOf(undefined)).toBe('fiction');
     expect(genreOf([])).toBe('fiction');
