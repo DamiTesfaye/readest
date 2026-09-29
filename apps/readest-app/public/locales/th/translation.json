@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (จาก {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "ไม่สามารถบันทึกแผนผังความคิดได้"
+  "Could not save the mind map": "ไม่สามารถบันทึกแผนผังความคิดได้",
+  "Mind maps": "แผนผังความคิด",
+  "Mind maps you make for each book": "แผนผังความคิดที่คุณสร้างสำหรับหนังสือแต่ละเล่ม"
 }

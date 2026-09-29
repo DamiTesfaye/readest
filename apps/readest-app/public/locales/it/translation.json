@@ -1978,5 +1978,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (da {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Impossibile salvare la mappa mentale"
+  "Could not save the mind map": "Impossibile salvare la mappa mentale",
+  "Mind maps": "Mappe mentali",
+  "Mind maps you make for each book": "Le mappe mentali che crei per ogni libro"
 }

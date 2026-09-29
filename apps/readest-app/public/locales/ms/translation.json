@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (daripada {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Tidak dapat menyimpan peta minda"
+  "Could not save the mind map": "Tidak dapat menyimpan peta minda",
+  "Mind maps": "Peta minda",
+  "Mind maps you make for each book": "Peta minda yang anda buat untuk setiap buku"
 }

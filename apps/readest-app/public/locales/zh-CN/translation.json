@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}}（来自 {{source}}）",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "无法保存思维导图"
+  "Could not save the mind map": "无法保存思维导图",
+  "Mind maps": "思维导图",
+  "Mind maps you make for each book": "你为每本书创建的思维导图"
 }

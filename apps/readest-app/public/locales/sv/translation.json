@@ -1943,5 +1943,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (från {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Det gick inte att spara tankekartan"
+  "Could not save the mind map": "Det gick inte att spara tankekartan",
+  "Mind maps": "Tankekartor",
+  "Mind maps you make for each book": "Tankekartor som du skapar för varje bok"
 }

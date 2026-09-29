@@ -2013,5 +2013,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (od {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Miselnega vzorca ni bilo mogoče shraniti"
+  "Could not save the mind map": "Miselnega vzorca ni bilo mogoče shraniti",
+  "Mind maps": "Miselni vzorci",
+  "Mind maps you make for each book": "Miselni vzorci, ki jih ustvarite za vsako knjigo"
 }

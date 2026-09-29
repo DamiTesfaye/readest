@@ -1943,5 +1943,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (από {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Δεν ήταν δυνατή η αποθήκευση του νοητικού χάρτη"
+  "Could not save the mind map": "Δεν ήταν δυνατή η αποθήκευση του νοητικού χάρτη",
+  "Mind maps": "Νοητικοί χάρτες",
+  "Mind maps you make for each book": "Οι νοητικοί χάρτες που δημιουργείτε για κάθε βιβλίο"
 }

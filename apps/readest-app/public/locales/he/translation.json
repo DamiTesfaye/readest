@@ -1978,5 +1978,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (מאת {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "לא ניתן לשמור את מפת החשיבה"
+  "Could not save the mind map": "לא ניתן לשמור את מפת החשיבה",
+  "Mind maps": "מפות חשיבה",
+  "Mind maps you make for each book": "מפות החשיבה שנוצרו לכל ספר"
 }

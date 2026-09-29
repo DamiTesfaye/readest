@@ -1943,5 +1943,7 @@
   "{{relation}} (from {{source}})": "{{relation}} ({{source}} felől)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Nem sikerült menteni a gondolattérképet"
+  "Could not save the mind map": "Nem sikerült menteni a gondolattérképet",
+  "Mind maps": "Gondolattérképek",
+  "Mind maps you make for each book": "Az egyes könyvekhez készített gondolattérképek"
 }

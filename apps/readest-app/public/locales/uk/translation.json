@@ -2013,5 +2013,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (від {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Не вдалося зберегти інтелект-карту"
+  "Could not save the mind map": "Не вдалося зберегти інтелект-карту",
+  "Mind maps": "Інтелект-карти",
+  "Mind maps you make for each book": "Інтелект-карти, які ви створюєте для кожної книги"
 }

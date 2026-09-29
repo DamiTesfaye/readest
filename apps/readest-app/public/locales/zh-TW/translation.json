@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}}（來自 {{source}}）",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "無法儲存心智圖"
+  "Could not save the mind map": "無法儲存心智圖",
+  "Mind maps": "心智圖",
+  "Mind maps you make for each book": "你為每本書建立的心智圖"
 }

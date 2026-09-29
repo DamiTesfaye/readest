@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}}（{{source}} から）",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "マインドマップを保存できませんでした"
+  "Could not save the mind map": "マインドマップを保存できませんでした",
+  "Mind maps": "マインドマップ",
+  "Mind maps you make for each book": "本ごとに作成したマインドマップ"
 }

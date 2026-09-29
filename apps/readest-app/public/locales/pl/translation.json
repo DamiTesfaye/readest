@@ -2013,5 +2013,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (od {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Nie udało się zapisać mapy myśli"
+  "Could not save the mind map": "Nie udało się zapisać mapy myśli",
+  "Mind maps": "Mapy myśli",
+  "Mind maps you make for each book": "Mapy myśli tworzone do każdej książki"
 }

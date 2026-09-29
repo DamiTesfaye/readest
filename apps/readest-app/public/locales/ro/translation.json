@@ -1978,5 +1978,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (de la {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Harta mentală nu a putut fi salvată"
+  "Could not save the mind map": "Harta mentală nu a putut fi salvată",
+  "Mind maps": "Hărți mentale",
+  "Mind maps you make for each book": "Hărțile mentale pe care le creezi pentru fiecare carte"
 }

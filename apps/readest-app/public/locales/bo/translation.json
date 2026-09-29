@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}} ({{source}} ནས།)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "བསམ་བློའི་ས་བཀྲ་ཉར་ཚགས་བྱེད་མ་ཐུབ།"
+  "Could not save the mind map": "བསམ་བློའི་ས་བཀྲ་ཉར་ཚགས་བྱེད་མ་ཐུབ།",
+  "Mind maps": "བསམ་བློའི་ས་བཀྲ།",
+  "Mind maps you make for each book": "དཔེ་དེབ་རེ་རེར་ཁྱེད་ཀྱིས་བཟོས་པའི་བསམ་བློའི་ས་བཀྲ།"
 }

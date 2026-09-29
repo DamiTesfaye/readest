@@ -1943,5 +1943,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (von {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Die Mindmap konnte nicht gespeichert werden"
+  "Could not save the mind map": "Die Mindmap konnte nicht gespeichert werden",
+  "Mind maps": "Mindmaps",
+  "Mind maps you make for each book": "Mindmaps, die du zu jedem Buch erstellst"
 }

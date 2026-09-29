@@ -185,7 +185,8 @@ export type SyncCategory =
   | 'opds_catalog'
   | 'settings'
   | 'credentials'
-  | 'stats';
+  | 'stats'
+  | 'mindmap';
 
 export const SYNC_CATEGORIES: readonly SyncCategory[] = [
   'book',
@@ -197,6 +198,7 @@ export const SYNC_CATEGORIES: readonly SyncCategory[] = [
   'opds_catalog',
   'settings',
   'stats',
+  'mindmap',
   'credentials',
 ] as const;
 

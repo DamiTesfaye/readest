@@ -1943,5 +1943,7 @@
   "{{relation}} (from {{source}})": "{{relation}} ({{source}} से)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "माइंड मैप सहेजा नहीं जा सका"
+  "Could not save the mind map": "माइंड मैप सहेजा नहीं जा सका",
+  "Mind maps": "माइंड मैप",
+  "Mind maps you make for each book": "हर किताब के लिए आपके बनाए माइंड मैप"
 }

@@ -1943,5 +1943,7 @@
   "{{relation}} (from {{source}})": "{{relation}} ({{source}} இலிருந்து)",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "மன வரைபடத்தைச் சேமிக்க முடியவில்லை"
+  "Could not save the mind map": "மன வரைபடத்தைச் சேமிக்க முடியவில்லை",
+  "Mind maps": "மன வரைபடங்கள்",
+  "Mind maps you make for each book": "ஒவ்வொரு புத்தகத்திற்கும் நீங்கள் உருவாக்கும் மன வரைபடங்கள்"
 }

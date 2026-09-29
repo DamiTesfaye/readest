@@ -2083,5 +2083,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (من {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "تعذّر حفظ الخريطة الذهنية"
+  "Could not save the mind map": "تعذّر حفظ الخريطة الذهنية",
+  "Mind maps": "الخرائط الذهنية",
+  "Mind maps you make for each book": "الخرائط الذهنية التي تنشئها لكل كتاب"
 }

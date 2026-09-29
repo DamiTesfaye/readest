@@ -1908,5 +1908,7 @@
   "{{relation}} (from {{source}})": "{{relation}} (từ {{source}})",
   "{{revealed}} of {{total}}": "__STRING_NOT_TRANSLATED__",
   "{{tool}} tool": "__STRING_NOT_TRANSLATED__",
-  "Could not save the mind map": "Không thể lưu sơ đồ tư duy"
+  "Could not save the mind map": "Không thể lưu sơ đồ tư duy",
+  "Mind maps": "Sơ đồ tư duy",
+  "Mind maps you make for each book": "Sơ đồ tư duy bạn tạo cho từng cuốn sách"
 }
