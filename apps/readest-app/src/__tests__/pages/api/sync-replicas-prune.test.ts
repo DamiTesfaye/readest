@@ -4,12 +4,31 @@ import { FakeReplicaCloud } from '@/__tests__/helpers/fakeReplicaCloud';
 import { hlcPack } from '@/libs/crdt';
 import type { Hlc, ReplicaRow } from '@/types/replica';
 
-const holder = vi.hoisted(() => ({ cloud: null as FakeReplicaCloud | null }));
+type RpcParams = Record<string, unknown>;
 
-vi.mock('@/utils/supabase', () => ({
-  createSupabaseClient: () => holder.cloud!.client(),
-  createSupabaseAdminClient: () => holder.cloud!.client(),
+const holder = vi.hoisted(() => ({
+  cloud: null as FakeReplicaCloud | null,
+  beforeRpc: null as ((params: Record<string, unknown>) => Promise<void>) | null,
+  afterRpc: null as ((params: Record<string, unknown>) => Promise<void>) | null,
 }));
+
+vi.mock('@/utils/supabase', () => {
+  const hookedClient = () => {
+    const client = holder.cloud!.client();
+    return {
+      from: client.from,
+      rpc: (name: 'crdt_merge_replica', params: Record<string, unknown>) => ({
+        single: async () => {
+          await holder.beforeRpc?.(params);
+          const result = await client.rpc(name, params).single();
+          await holder.afterRpc?.(params);
+          return result;
+        },
+      }),
+    };
+  };
+  return { createSupabaseClient: hookedClient, createSupabaseAdminClient: hookedClient };
+});
 
 vi.mock('@/utils/access', () => ({
   validateUserAndToken: async () => ({ user: { id: 'u1' }, token: 'token' }),
@@ -103,8 +122,21 @@ const storedKeys = (kind = 'mindmap', replicaId = MAP): string[] =>
 const manifestName = (kind = 'mindmap', replicaId = MAP): string | undefined =>
   holder.cloud!.row(USER, kind, replicaId)?.manifest_jsonb?.files[0]?.filename;
 
+const filenameIn = (params: RpcParams): string | undefined =>
+  (params['p_manifest_jsonb'] as ReplicaRow['manifest_jsonb'])?.files[0]?.filename;
+
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 beforeEach(() => {
   holder.cloud = new FakeReplicaCloud();
+  holder.beforeRpc = null;
+  holder.afterRpc = null;
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -258,5 +290,54 @@ describe('POST /api/sync/replicas pruning of replaced mindmap versions', () => {
     expect(response.status).toBe(200);
     expect(manifestName()).toBe(versionOf('b'));
     expect(storedKeys()).toEqual([keyOf(versionOf('a')), keyOf(versionOf('b'))]);
+  });
+
+  test('a prune never deletes the version a concurrent request just made the manifest', async () => {
+    await push(upsert('dev-a'));
+    uploadVersion(versionOf('a'));
+    await push(commit(versionOf('a'), clock('dev-a')));
+    uploadVersion(versionOf('b'));
+    const commitB = commit(versionOf('b'), clock('dev-b'));
+    const recommitA = commit(versionOf('a'), clock('dev-a', 1_000));
+    const bMerged = deferred();
+    const aMerged = deferred();
+    holder.beforeRpc = async (params) => {
+      if (filenameIn(params) === versionOf('a')) await bMerged.promise;
+    };
+    holder.afterRpc = async (params) => {
+      if (filenameIn(params) === versionOf('a')) aMerged.resolve();
+      if (filenameIn(params) !== versionOf('b')) return;
+      bMerged.resolve();
+      await aMerged.promise;
+    };
+
+    const [responseB, responseA] = await Promise.all([push(commitB), push(recommitA)]);
+
+    expect(responseB.status).toBe(200);
+    expect(responseA.status).toBe(200);
+    expect(manifestName()).toBe(versionOf('a'));
+    expect(holder.cloud!.download(USER, `Readest/Replicas/mindmap/${MAP}/${versionOf('a')}`)).toBe(
+      'body',
+    );
+    expect(storedKeys()).toEqual([keyOf(versionOf('a'))]);
+  });
+
+  test('a prune that cannot re-read the row deletes nothing and warns', async () => {
+    await push(upsert('dev-a'));
+    uploadVersion(versionOf('a'));
+    await push(commit(versionOf('a'), clock('dev-a')));
+    uploadVersion(versionOf('b'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    holder.afterRpc = async () => {
+      holder.cloud!.failReads = true;
+    };
+    const response = await push(commit(versionOf('b'), clock('dev-a')));
+    expect(response.status).toBe(200);
+    expect(manifestName()).toBe(versionOf('b'));
+    expect(storedKeys()).toEqual([keyOf(versionOf('a')), keyOf(versionOf('b'))]);
+    expect(warn).toHaveBeenCalledWith(
+      'replica prune skipped: could not re-read the row',
+      expect.objectContaining({ kind: 'mindmap', replicaId: MAP }),
+    );
   });
 });

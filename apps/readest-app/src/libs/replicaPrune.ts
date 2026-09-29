@@ -9,8 +9,13 @@ export interface StoredReplicaFile {
   file_key: string;
 }
 
+export type StoredReplicaState = Pick<
+  ReplicaRow,
+  'manifest_jsonb' | 'deleted_at_ts' | 'reincarnation' | 'updated_at_ts'
+>;
+
 export interface ReplicaFileStore {
-  priorManifest(row: ReplicaRow): Promise<Manifest | null>;
+  readRow(row: ReplicaRow): Promise<StoredReplicaState | null>;
   listFiles(row: ReplicaRow): Promise<StoredReplicaFile[]>;
   deleteFiles(files: StoredReplicaFile[]): Promise<void>;
 }
@@ -57,22 +62,47 @@ const logFailure = (row: ReplicaRow, error: unknown): void => {
   console.error('replica prune failed', { kind: row.kind, replicaId: row.replica_id, error });
 };
 
+const rereadRow = async (store: ReplicaFileStore, row: ReplicaRow): Promise<ReplicaRow | null> => {
+  const context = { kind: row.kind, replicaId: row.replica_id };
+  try {
+    const current = await store.readRow(row);
+    if (current) return { ...row, ...current };
+    console.warn('replica prune skipped: could not re-read the row', context);
+  } catch (error) {
+    console.warn('replica prune skipped: could not re-read the row', { ...context, error });
+  }
+  return null;
+};
+
+const pruneAgainstCurrentRow = async (
+  store: ReplicaFileStore,
+  row: ReplicaRow,
+  prior: Manifest | null,
+  stored: StoredReplicaFile[],
+): Promise<void> => {
+  const current = await rereadRow(store, row);
+  if (!current) return;
+  const doomed = filesToPrune(current, prior, row.manifest_jsonb, stored);
+  if (doomed.length === 0) return;
+  try {
+    await store.deleteFiles(doomed);
+  } catch (error) {
+    logFailure(row, error);
+  }
+};
+
 export const prepareReplicaPrune = async (
   store: ReplicaFileStore,
   row: ReplicaRow,
 ): Promise<PreparedPrune> => {
   try {
-    const [prior, stored] = await Promise.all([store.priorManifest(row), store.listFiles(row)]);
+    const [priorRow, stored] = await Promise.all([store.readRow(row), store.listFiles(row)]);
+    const prior = priorRow?.manifest_jsonb ?? null;
     return {
       row: committableRow(row, stored),
       finish: async (winner) => {
-        const doomed = filesToPrune(winner, prior, row.manifest_jsonb, stored);
-        if (doomed.length === 0) return;
-        try {
-          await store.deleteFiles(doomed);
-        } catch (error) {
-          logFailure(row, error);
-        }
+        if (filesToPrune(winner, prior, row.manifest_jsonb, stored).length === 0) return;
+        await pruneAgainstCurrentRow(store, row, prior, stored);
       },
     };
   } catch (error) {
@@ -85,16 +115,16 @@ export const createReplicaFileStore = (
   replicas: SupabaseClient,
   files: SupabaseClient,
 ): ReplicaFileStore => ({
-  priorManifest: async (row) => {
+  readRow: async (row) => {
     const { data, error } = await replicas
       .from('replicas')
-      .select('manifest_jsonb')
+      .select('manifest_jsonb, deleted_at_ts, reincarnation, updated_at_ts')
       .eq('user_id', row.user_id)
       .eq('kind', row.kind)
       .eq('replica_id', row.replica_id)
-      .maybeSingle<{ manifest_jsonb: Manifest | null }>();
-    if (error) throw new Error(`read prior manifest failed: ${error.message}`);
-    return data?.manifest_jsonb ?? null;
+      .maybeSingle<StoredReplicaState>();
+    if (error) throw new Error(`read replica row failed: ${error.message}`);
+    return data;
   },
   listFiles: async (row) => {
     const { data, error } = await files
