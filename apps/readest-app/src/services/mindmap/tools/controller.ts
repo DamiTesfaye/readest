@@ -231,6 +231,14 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
   };
 
   const unsubscribeVisible = visible.subscribe(pruneHidden);
+  let measured = viewport.get();
+  const unsubscribeViewport = viewport.subscribe(() => {
+    const next = viewport.get();
+    if (measured.width > 0 && measured.height > 0) {
+      camera.panBy((next.width - measured.width) / 2, (next.height - measured.height) / 2);
+    }
+    measured = next;
+  });
   const unsubscribeStore = store.listen((_diff, source) => {
     if (source !== 'local') pruneHidden();
   });
@@ -515,6 +523,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     dispose: () => {
       pointerCancel();
       unsubscribeVisible();
+      unsubscribeViewport();
       unsubscribeStore();
       history.dispose();
       spatial.dispose();

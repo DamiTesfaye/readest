@@ -193,6 +193,30 @@ test.describe('Mind map', () => {
       .toBe(true);
   });
 
+  test('keeps the fitted nodes in view when a full-screen map is docked', async ({
+    openBook,
+    page,
+  }) => {
+    const reader = await openBook();
+    await reader.revealHeader();
+    await page.getByRole('button', { name: 'Contents' }).click();
+    await page.getByRole('treeitem', { name: /Chapter 6 - Pig and Pepper/ }).click();
+    await expect.poll(() => bookLocation(page)).toMatch(/^epubcfi\(\/6\/18[!,)]/);
+    await page.keyboard.press('Escape');
+    const canvas = await createGeneratedMap(reader, page);
+    const node = chapterNode(page, 'Chapter 6 - Pig and Pepper');
+    await expect(node).toBeVisible();
+    await page.getByRole('button', { name: 'Dock beside book' }).click();
+    await expect(page.getByTestId('mm-view')).toHaveAttribute('data-layout', 'docked');
+    await expect
+      .poll(async () => {
+        const view = (await canvas.boundingBox())!;
+        const box = await node.boundingBox();
+        return !!box && box.x >= view.x && box.x + box.width <= view.x + view.width;
+      })
+      .toBe(true);
+  });
+
   test('grow mode reveals new nodes after advancing a chapter', async ({ openBook, page }) => {
     const reader = await openBook();
     await createGeneratedMap(reader, page);

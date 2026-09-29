@@ -434,3 +434,24 @@ describe('gesture signal', () => {
     expect(seen).toEqual([true, false, true, false]);
   });
 });
+
+describe('viewport resize', () => {
+  it('keeps the world point at the centre of the view when the canvas is resized', () => {
+    const { controller } = setupController([node('a', 0, 0)]);
+    controller.viewport.set({ width: 1280, height: 720 });
+    controller.camera.set({ x: 100, y: 50, z: 2 });
+    const centre = controller.camera.screenToPage({ x: 640, y: 360 });
+    controller.viewport.set({ width: 512, height: 600 });
+    expect(controller.camera.screenToPage({ x: 256, y: 300 })).toEqual(centre);
+  });
+
+  it('leaves the camera alone for the first measurement', () => {
+    const controller = createCanvasController({
+      store: createMapStore([node('a', 0, 0)]),
+      camera: { x: 100, y: 50, z: 1 },
+    });
+    controller.viewport.set({ width: 1280, height: 720 });
+    expect(controller.camera.get()).toEqual({ x: 100, y: 50, z: 1 });
+    controller.dispose();
+  });
+});
