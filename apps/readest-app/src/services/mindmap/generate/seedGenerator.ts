@@ -19,7 +19,7 @@ const chapterNodes = (toc: readonly TOCItem[], locator: BookLocator): GenNode[] 
           type: 'node',
           genKey,
           kind: 'chapter',
-          label: item.label,
+          label: item.sourceLabel ?? item.label,
           color: 'sky',
           anchor,
           revealAt: anchor?.progress ?? null,

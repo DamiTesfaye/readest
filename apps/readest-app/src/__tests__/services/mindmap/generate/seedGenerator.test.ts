@@ -155,3 +155,14 @@ describe('seedGenerator.isGone', () => {
     expect(isGone('toc:ch1.xhtml', input([]))).toBe(true);
   });
 });
+
+describe('seedGenerator labels', () => {
+  it('labels chapters from the book, not the per-device converted label', async () => {
+    const converted = {
+      ...item('ch1.xhtml', '第一章 開始'),
+      sourceLabel: '第一章 开始',
+    } as TOCItem;
+    const [chapter] = nodes(await run([converted]));
+    expect(chapter!.label).toBe('第一章 开始');
+  });
+});
