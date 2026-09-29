@@ -85,8 +85,13 @@ const createRuntime = async (): Promise<MindmapSync> => {
 };
 
 export const getMindmapSync = (): Promise<MindmapSync> => {
-  runtime ??= createRuntime();
-  return runtime;
+  if (runtime) return runtime;
+  const created = createRuntime();
+  runtime = created;
+  created.catch(() => {
+    if (runtime === created) runtime = null;
+  });
+  return created;
 };
 
 export const handleMindmapDownload = async (

@@ -9,10 +9,16 @@ const h = vi.hoisted(() => ({
   queueReplicaDownload: vi.fn((..._args: unknown[]) => 'download-1' as string | null),
   publishReplicaUpsert: vi.fn(async (..._args: unknown[]) => {}),
   mindmapSupported: true,
+  appServiceError: null as Error | null,
 }));
 
 vi.mock('@/services/environment', () => ({
-  default: { getAppService: async () => h.service },
+  default: {
+    getAppService: async () => {
+      if (h.appServiceError) throw h.appServiceError;
+      return h.service;
+    },
+  },
 }));
 vi.mock('@/services/transferManager', () => ({
   transferManager: {
@@ -96,6 +102,7 @@ beforeEach(async () => {
   h.service = serviceOver(fs);
   h.token = 'token';
   h.mindmapSupported = true;
+  h.appServiceError = null;
   useSettingsStore.setState({
     settings: { replicaDeviceId: 'dev-a', syncCategories: {} } as SystemSettings,
   });
@@ -155,6 +162,14 @@ describe('mindmap sync runtime', () => {
     expect(await (await getMindmapSync()).pusher.pushNow(mapId)).toBe('skipped');
     expect(h.queueReplicaUpload).not.toHaveBeenCalled();
     expect(await fs.readDir(`${mapFileDir(BOOK, mapId)}/outgoing`, 'Books')).toEqual([]);
+  });
+
+  it('retries creating the runtime after a failed attempt', async () => {
+    __resetMindmapSyncForTests();
+    h.appServiceError = new Error('not ready');
+    await expect(getMindmapSync()).rejects.toThrow('not ready');
+    h.appServiceError = null;
+    await expect(getMindmapSync()).resolves.toMatchObject({ service: h.service });
   });
 
   it('sees an upload of the map that is still queued as pending', async () => {
