@@ -418,6 +418,27 @@ describe('mind map sync when the manifest of an uploaded version does not reach 
     await pull(b);
     await expectConverged(mapId, restarted, b);
   });
+
+  it('pushes a version whose upload finished while sync was off once sync is back on in the same session', async () => {
+    const a = await startDevice('dev-a');
+    await pull(a);
+    const mapId = await createMap(a, 'Toggled');
+    const sync = await a.m.runtime.getMindmapSync();
+    a.m.transfers.transferManager.pauseQueue();
+    expect(await sync.pusher.pushNow(mapId)).toBe('queued');
+    setMindmapSync(a, false);
+    a.m.transfers.transferManager.resumeQueue();
+    await drain(a);
+    await a.m.replicaSync.getReplicaSync()!.manager.flush();
+    expect(holder.cloud!.row(USER, 'mindmap', mapId)?.manifest_jsonb ?? null).toBeNull();
+    expect(sync.pusher.unpushed()).toEqual([mapId]);
+
+    setMindmapSync(a, true);
+    await pull(a);
+    const b = await startDevice('dev-b');
+    await pull(b);
+    await expectConverged(mapId, a, b);
+  });
 });
 
 describe('mind map sync when the tombstone of a delete does not reach the server', () => {

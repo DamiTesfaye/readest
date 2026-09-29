@@ -281,6 +281,8 @@ describe('mindmap sync runtime', () => {
     await finishMindmapPull();
     expect(await listTrashedMaps(fs)).toEqual([]);
     expect(h.queueReplicaUpload.mock.calls.map((call) => call[1])).toEqual([kept]);
+    const [, , , files] = h.queueReplicaUpload.mock.calls[0]!;
+    await handleMindmapUpload(kept, files as never);
     await beginMindmapPull();
     await finishMindmapPull();
     expect(h.queueReplicaUpload).toHaveBeenCalledOnce();

@@ -43,7 +43,7 @@ export interface MindmapPusher {
   dispose(): void;
 }
 
-const UNPUSHED_RESULTS: readonly PushResult[] = ['skipped', 'not-queued', 'save-failed'];
+const SETTLED_RESULTS: readonly PushResult[] = ['current', 'unreadable', 'unknown-map'];
 
 const byteLength = (text: string): number => new TextEncoder().encode(text).length;
 
@@ -110,8 +110,8 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
         return 'not-queued';
       })
       .then((result) => {
-        if (UNPUSHED_RESULTS.includes(result)) unpushed.add(mapId);
-        else unpushed.delete(mapId);
+        if (SETTLED_RESULTS.includes(result)) unpushed.delete(mapId);
+        else unpushed.add(mapId);
         return result;
       });
     chains.set(mapId, next);
@@ -160,6 +160,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     const changed = read !== null && md5Hex(canonicalStringify(read.file)) !== version.md5;
     const wasWaiting = waiting.delete(mapId);
     if (changed || wasWaiting) schedule(mapId, REPUSH_DELAY_MS);
+    else if (!needed) unpushed.delete(mapId);
   };
 
   const committed = (mapId: string, files: ReplicaTransferFile[]): Promise<void> => {

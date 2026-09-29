@@ -241,6 +241,9 @@ describe('mindmap push', () => {
     await pusher.idle();
     expect(deps.queueUpload).toHaveBeenCalledTimes(2);
     expect(uploaded(1).outgoing!.filename).toBe(copy);
+    expect(pusher.unpushed()).toEqual([mapId]);
+    pending.delete(mapId);
+    await pusher.committed(mapId, [{ logical: copy, lfp: '', byteSize: 1 }]);
     expect(pusher.unpushed()).toEqual([]);
   });
 
@@ -335,14 +338,34 @@ describe('mindmap push', () => {
     );
   });
 
-  it('remembers maps it could not push until a later push succeeds', async () => {
+  it('remembers maps it could not push until the server has their version', async () => {
     deps.canPush.mockResolvedValue(false);
     const mapId = await createMap();
     await pusher.pushNow(mapId);
     expect(pusher.unpushed()).toEqual([mapId]);
     deps.canPush.mockResolvedValue(true);
-    await pusher.pushNow(mapId);
+    expect(await pusher.pushNow(mapId)).toBe('queued');
+    expect(pusher.unpushed()).toEqual([mapId]);
+    expect(await pusher.pushNow(mapId)).toBe('pending');
+    expect(pusher.unpushed()).toEqual([mapId]);
+    pending.delete(mapId);
+    await pusher.committed(mapId, [
+      { logical: uploaded().outgoing!.filename, lfp: '', byteSize: 1 },
+    ]);
+    expect(pusher.unpushed()).toEqual([mapId]);
+    await pusher.flushAll();
     expect(pusher.unpushed()).toEqual([]);
+  });
+
+  it('keeps a map unpushed when its version is committed while a newer push is on its way', async () => {
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    const first = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    await rename(mapId, 'Renamed');
+    await pusher.pushNow(mapId);
+    await pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
+    expect(pusher.unpushed()).toEqual([mapId]);
   });
 
   it('reports a map it does not know and a map whose file cannot be read', async () => {
