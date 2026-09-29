@@ -127,6 +127,7 @@ const loadModules = async () => ({
   store: await import('@/services/mindmap/persist/mindmapStore'),
   sessions: await import('@/services/mindmap/persist/session'),
   maps: await import('@/services/mindmap/persist/mapFile'),
+  versions: await import('@/services/mindmap/sync/versions'),
   clockSource: await import('@/services/mindmap/persist/clockSource'),
   runtime: await import('@/services/mindmap/sync/runtime'),
   deleteMap: await import('@/services/mindmap/sync/deleteMap'),
@@ -283,6 +284,12 @@ const serverVersion = (mapId: string): string | undefined =>
 
 const storedVersions = (mapId: string) => holder.cloud!.fileRows('mindmap', mapId);
 
+const outgoingFiles = async (device: Device, mapId: string): Promise<string[]> => {
+  const dir = device.m.versions.outgoingDir(device.m.maps.mapFileDir(BOOK, mapId));
+  const items = await device.fs.readDir(dir, 'Books').catch(() => []);
+  return items.map((item) => item.path);
+};
+
 const expectConverged = async (mapId: string, ...group: Device[]): Promise<void> => {
   const texts = await Promise.all(group.map((device) => localText(device, mapId)));
   expect(new Set(texts).size).toBe(1);
@@ -293,6 +300,7 @@ const expectConverged = async (mapId: string, ...group: Device[]): Promise<void>
     `${USER}/${cloudPath('mindmap', mapId, `${mapId}.${md5}.json`)}`,
   ]);
   expect(storedVersions(mapId)[0]!.file_size).toBe(byteLength(texts[0]!));
+  for (const device of group) expect(await outgoingFiles(device, mapId)).toEqual([]);
 };
 
 const errorToasts = (device: Device) => device.toasts.filter((toast) => toast.type === 'error');
