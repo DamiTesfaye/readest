@@ -284,3 +284,19 @@ describe('reconcile duplicates from two devices', () => {
     expect(diff).toEqual(EMPTY);
   });
 });
+
+describe('reconcile links to records the reader deleted', () => {
+  it('never revives a generated link onto an end the reader deleted', () => {
+    const existing: MapRecord[] = [
+      generatedNode('c', 'toc:a', { label: 'A' }),
+      generatedNode('q', 'note:n1', { label: 'Q', kind: 'quote', deleted: { by: 'user' } }),
+      generatedLink('l', 'link:note:n1', 'c', 'q', { deleted: { by: 'gen' } }),
+    ];
+    const diff = run(existing, [
+      chapter('toc:a', 'A'),
+      { ...chapter('note:n1', 'Q'), kind: 'quote' },
+      link('link:note:n1', 'toc:a', 'note:n1'),
+    ]);
+    expect(diff.changed.filter((change) => change.id === 'l')).toEqual([]);
+  });
+});

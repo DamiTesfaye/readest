@@ -79,6 +79,9 @@ export const reconcile = (
   const fresh = unique.filter((record) => !canonical.has(record.genKey));
   for (const record of fresh) ids.set(record.genKey, deps.createId());
   const idOf = (genKey: string): string | undefined => ids.get(genKey);
+  const deletedByUser = (genKey: string): boolean => canonical.get(genKey)?.deleted?.by === 'user';
+  const linksToUserDeleted = (record: GenRecord): boolean =>
+    record.type === 'link' && (deletedByUser(record.fromGenKey) || deletedByUser(record.toGenKey));
 
   for (const record of unique) {
     const current = canonical.get(record.genKey);
@@ -86,6 +89,7 @@ export const reconcile = (
     const fields = generatedFields(record, idOf);
     if (!fields) continue;
     const revive = current.deleted !== null;
+    if (revive && linksToUserDeleted(record)) continue;
     for (const [field, to] of Object.entries(fields)) {
       if (revive || !current.touched.includes(field)) set(current, field, to);
     }
@@ -122,12 +126,7 @@ export const reconcile = (
     }
     const fromId = idOf(record.fromGenKey);
     const toId = idOf(record.toGenKey);
-    if (!fromId || !toId) continue;
-    if (
-      canonical.get(record.fromGenKey)?.deleted?.by === 'user' ||
-      canonical.get(record.toGenKey)?.deleted?.by === 'user'
-    )
-      continue;
+    if (!fromId || !toId || linksToUserDeleted(record)) continue;
     added.push({
       ...createLinkRecord({ id, index: nextIndex(), fromId, toId, label: record.label }),
       ...origin,
