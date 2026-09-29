@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
 import { transferManager } from '@/services/transferManager';
 import { clearReplicaAdapters, registerReplicaAdapter } from '@/services/sync/replicaRegistry';
@@ -11,7 +11,13 @@ const downloadReplicaFile = vi.fn(async () => {
   throw new Error(STORAGE_FILE_NOT_FOUND_ERROR);
 });
 
+const uploadReplicaFile = vi.fn(async () => {
+  throw new Error(STORAGE_FILE_NOT_FOUND_ERROR);
+});
+
 const onStaleDownload = vi.fn();
+
+let warn: ReturnType<typeof vi.spyOn<Console, 'warn'>>;
 
 const adapterOf = (kind: string, staleWhenMissing: boolean): ReplicaAdapter<unknown> => ({
   kind,
@@ -26,7 +32,7 @@ const adapterOf = (kind: string, staleWhenMissing: boolean): ReplicaAdapter<unkn
 const FILES = [{ logical: 'map1.v2.json', lfp: 'b/incoming/map1.v2.json', byteSize: 3 }];
 
 beforeAll(async () => {
-  const appService = { downloadReplicaFile } as unknown as AppService;
+  const appService = { downloadReplicaFile, uploadReplicaFile } as unknown as AppService;
   await transferManager.initialize(
     appService,
     () => [],
@@ -41,9 +47,14 @@ beforeEach(() => {
   registerReplicaAdapter(adapterOf('font', false));
   useTransferStore.setState({ transfers: {} });
   downloadReplicaFile.mockClear();
+  uploadReplicaFile.mockClear();
   onStaleDownload.mockClear();
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('replica downloads whose file is gone', () => {
@@ -56,6 +67,10 @@ describe('replica downloads whose file is gone', () => {
     expect(downloadReplicaFile).toHaveBeenCalledOnce();
     expect(toast).not.toHaveBeenCalledWith('toast', expect.anything());
     expect(onStaleDownload).toHaveBeenCalledExactlyOnceWith('map1', ['map1.v2.json']);
+    expect(warn).toHaveBeenCalledWith('replica download is stale', {
+      kind: 'mindmap',
+      replicaId: 'map1',
+    });
   });
 
   test('are retried for every other kind', async () => {
@@ -66,6 +81,22 @@ describe('replica downloads whose file is gone', () => {
       expect(useTransferStore.getState().transfers[id!]?.status).toBe('failed');
       expect(downloadReplicaFile.mock.calls.length).toBeGreaterThan(1);
       expect(onStaleDownload).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('leave an upload that fails with the same error to retry and fail as usual', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const id = transferManager.queueReplicaUpload('mindmap', 'map1', 'Map', FILES, 'Books', {
+        isBackground: true,
+      });
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(useTransferStore.getState().transfers[id!]?.status).toBe('failed');
+      expect(uploadReplicaFile.mock.calls.length).toBeGreaterThan(1);
+      expect(onStaleDownload).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalledWith('replica download is stale', expect.anything());
     } finally {
       vi.useRealTimers();
     }
