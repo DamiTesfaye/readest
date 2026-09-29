@@ -9,6 +9,10 @@ import {
   __resetMindmapStoreForTests,
   useMindmapStore,
 } from '@/services/mindmap/persist/mindmapStore';
+import {
+  __resetMindmapTrashForTests,
+  listTrashedMaps,
+} from '@/services/mindmap/persist/mindmapTrash';
 import { __resetMapSessionsForTests, getOpenMapSession } from '@/services/mindmap/persist/session';
 import { createNodeRecord } from '@/services/mindmap/records/defaults';
 import { DEFAULT_MAP_META, type MapSource } from '@/services/mindmap/schema/types';
@@ -38,6 +42,7 @@ const h = vi.hoisted(() => ({
   safeAreaInsets: null as { top: number; right: number; bottom: number; left: number } | null,
   systemUIVisible: false,
   statusBarHeight: 24,
+  publishReplicaDelete: vi.fn(async (..._args: unknown[]) => true),
 }));
 
 vi.mock('@/components/Dialog', () => ({
@@ -65,7 +70,7 @@ vi.mock('@/utils/access', () => ({
   getAccessToken: async () => null,
   getUserProfilePlan: () => 'free',
 }));
-vi.mock('@/services/sync/replicaPublish', () => ({ publishReplicaDelete: async () => {} }));
+vi.mock('@/services/sync/replicaPublish', () => ({ publishReplicaDelete: h.publishReplicaDelete }));
 vi.mock('@/store/bookDataStore', () => {
   const state = {
     getBookData: () => ({
@@ -172,6 +177,8 @@ beforeEach(() => {
     removeEventListener: () => undefined,
   })) as unknown as typeof window.matchMedia;
   __resetMindmapStoreForTests();
+  __resetMindmapTrashForTests();
+  h.publishReplicaDelete.mockClear();
   useMindmapViewStore.setState({ layout: 'fullscreen', dockWidth: '40%' });
   useMindmapViewStore.getState().close();
 });
@@ -443,6 +450,7 @@ describe('an open map', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Tap again to delete this map' }));
     await waitFor(() => expect(useMindmapViewStore.getState().mapId).toBeNull());
     expect(useMindmapStore.getState().getEntry(mapId)).toBeUndefined();
+    expect(h.publishReplicaDelete).toHaveBeenCalledWith('mindmap', mapId);
   });
 
   it('registers its controller for the open map, StrictMode safe, until it closes', async () => {
@@ -508,18 +516,21 @@ describe('an open map', () => {
     expect(sheet.closest('.z-\\[120\\]')).not.toBeNull();
   });
 
-  it('offers deletion when the map file cannot be read', async () => {
+  it('offers to delete a map whose file cannot be read from this device only', async () => {
     const mapId = await createMap('Broken');
     await fs.writeFile(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR, 'not json');
     await fs.writeFile(`${mapFilePath('bookhash', mapId)}.bak`, MINDMAP_BASE_DIR, 'not json');
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
     render(<MindmapView />);
     expect(await screen.findByText('This map could not be opened')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete map' }));
+    expect(screen.getByText('A synced copy returns after the app restarts.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete from this device' }));
     expect(await fs.exists(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR)).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete this map' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete from this device' }));
     await waitFor(() => expect(useMindmapViewStore.getState().mapId).toBeNull());
     expect(await fs.exists(mapFilePath('bookhash', mapId), MINDMAP_BASE_DIR)).toBe(false);
+    expect(h.publishReplicaDelete).not.toHaveBeenCalled();
+    expect(await listTrashedMaps(fs)).toEqual([{ bookHash: 'bookhash', mapId, tombstone: false }]);
   });
 
   it('exports the raw file of a map that cannot be read', async () => {
@@ -571,8 +582,8 @@ describe('an open map', () => {
     const copy = vi.spyOn(fs, 'copyFile').mockRejectedValue(new Error('locked'));
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
     render(<MindmapView />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete map' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete this map' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete from this device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to delete from this device' }));
     await waitFor(() => expect(toasts.map((t) => t.type)).toEqual(['error']));
     eventDispatcher.off('toast', onToast);
     copy.mockRestore();

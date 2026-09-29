@@ -1982,5 +1982,8 @@
   "Mind maps": "Mappe mentali",
   "Mind maps you make for each book": "Le mappe mentali che crei per ogni libro",
   "Export raw file": "Esporta file grezzo",
+  "Delete from this device": "Elimina da questo dispositivo",
+  "Tap again to delete from this device": "Tocca di nuovo per eliminare da questo dispositivo",
+  "A synced copy returns after the app restarts.": "Una copia sincronizzata torna al riavvio dell’app.",
   "Could not export the map file": "Impossibile esportare il file della mappa"
 }

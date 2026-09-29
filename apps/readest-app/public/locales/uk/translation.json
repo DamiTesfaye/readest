@@ -2017,5 +2017,8 @@
   "Mind maps": "Інтелект-карти",
   "Mind maps you make for each book": "Інтелект-карти, які ви створюєте для кожної книги",
   "Export raw file": "Експортувати вихідний файл",
+  "Delete from this device": "Видалити з цього пристрою",
+  "Tap again to delete from this device": "Торкніться ще раз, щоб видалити з цього пристрою",
+  "A synced copy returns after the app restarts.": "Синхронізована копія повернеться після перезапуску застосунку.",
   "Could not export the map file": "Не вдалося експортувати файл карти"
 }

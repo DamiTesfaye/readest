@@ -1947,5 +1947,8 @@
   "Mind maps": "माइंड मैप",
   "Mind maps you make for each book": "हर किताब के लिए आपके बनाए माइंड मैप",
   "Export raw file": "मूल फ़ाइल निर्यात करें",
+  "Delete from this device": "इस डिवाइस से हटाएँ",
+  "Tap again to delete from this device": "इस डिवाइस से हटाने के लिए फिर से टैप करें",
+  "A synced copy returns after the app restarts.": "ऐप फिर से शुरू होने पर एक सिंक की गई प्रति वापस आ जाती है।",
   "Could not export the map file": "मैप फ़ाइल निर्यात नहीं की जा सकी"
 }

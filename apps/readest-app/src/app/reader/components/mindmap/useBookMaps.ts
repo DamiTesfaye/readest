@@ -8,7 +8,7 @@ import {
   listenMindmapIndex,
   loadMindmapIndex,
 } from '@/services/mindmap/persist/mindmapIndex';
-import { deleteMindmap } from '@/services/mindmap/sync/deleteMap';
+import { deleteMindmap, deleteMindmapLocally } from '@/services/mindmap/sync/deleteMap';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { eventDispatcher } from '@/utils/event';
 import { makeSafeFilename } from '@/utils/misc';
@@ -33,17 +33,23 @@ export const useMapList = (bookHash: string): MindmapIndexEntry[] => {
   return maps;
 };
 
+export interface DeleteMapOptions {
+  localOnly: boolean;
+}
+
 export const useDeleteMap = (
   bookKey: string,
   bookHash: string,
   mapId: string,
   maps: MindmapIndexEntry[],
+  options: DeleteMapOptions = { localOnly: false },
 ): (() => Promise<void>) => {
   const _ = useTranslation();
   const { showMap, close } = useMindmapViewStore();
+  const remove = options.localOnly ? deleteMindmapLocally : deleteMindmap;
   return async () => {
     try {
-      await deleteMindmap(mapId, bookHash);
+      await remove(mapId, bookHash);
       const next = maps.find((entry) => entry.mapId !== mapId);
       if (next) showMap(bookKey, next.mapId);
       else close();

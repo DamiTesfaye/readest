@@ -1947,5 +1947,8 @@
   "Mind maps": "மன வரைபடங்கள்",
   "Mind maps you make for each book": "ஒவ்வொரு புத்தகத்திற்கும் நீங்கள் உருவாக்கும் மன வரைபடங்கள்",
   "Export raw file": "மூலக் கோப்பை ஏற்றுமதி செய்",
+  "Delete from this device": "இந்தச் சாதனத்திலிருந்து நீக்கவும்",
+  "Tap again to delete from this device": "இந்தச் சாதனத்திலிருந்து நீக்க மீண்டும் தட்டவும்",
+  "A synced copy returns after the app restarts.": "பயன்பாடு மீண்டும் தொடங்கிய பிறகு ஒத்திசைக்கப்பட்ட நகல் திரும்ப வரும்.",
   "Could not export the map file": "வரைபடக் கோப்பை ஏற்றுமதி செய்ய முடியவில்லை"
 }

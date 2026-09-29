@@ -1947,5 +1947,8 @@
   "Mind maps": "نقشه‌های ذهنی",
   "Mind maps you make for each book": "نقشه‌های ذهنی که برای هر کتاب می‌سازید",
   "Export raw file": "خروجی گرفتن از فایل خام",
+  "Delete from this device": "حذف از این دستگاه",
+  "Tap again to delete from this device": "برای حذف از این دستگاه دوباره ضربه بزنید",
+  "A synced copy returns after the app restarts.": "یک نسخهٔ همگام‌شده پس از راه‌اندازی دوبارهٔ برنامه برمی‌گردد.",
   "Could not export the map file": "خروجی گرفتن از فایل نقشه ممکن نشد"
 }

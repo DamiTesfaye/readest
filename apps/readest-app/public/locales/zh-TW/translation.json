@@ -1912,5 +1912,8 @@
   "Mind maps": "心智圖",
   "Mind maps you make for each book": "你為每本書建立的心智圖",
   "Export raw file": "匯出原始檔案",
+  "Delete from this device": "從此裝置刪除",
+  "Tap again to delete from this device": "再次點按以從此裝置刪除",
+  "A synced copy returns after the app restarts.": "重新啟動應用程式後，已同步的副本會恢復。",
   "Could not export the map file": "無法匯出心智圖檔案"
 }

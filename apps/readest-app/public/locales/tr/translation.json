@@ -1947,5 +1947,8 @@
   "Mind maps": "Zihin haritaları",
   "Mind maps you make for each book": "Her kitap için oluşturduğunuz zihin haritaları",
   "Export raw file": "Ham dosyayı dışa aktar",
+  "Delete from this device": "Bu cihazdan sil",
+  "Tap again to delete from this device": "Bu cihazdan silmek için tekrar dokunun",
+  "A synced copy returns after the app restarts.": "Eşitlenmiş bir kopya uygulama yeniden başlatıldıktan sonra geri gelir.",
   "Could not export the map file": "Harita dosyası dışa aktarılamadı"
 }

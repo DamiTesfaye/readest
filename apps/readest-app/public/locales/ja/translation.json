@@ -1912,5 +1912,8 @@
   "Mind maps": "マインドマップ",
   "Mind maps you make for each book": "本ごとに作成したマインドマップ",
   "Export raw file": "元のファイルを書き出す",
+  "Delete from this device": "このデバイスから削除",
+  "Tap again to delete from this device": "もう一度タップしてこのデバイスから削除",
+  "A synced copy returns after the app restarts.": "同期済みのコピーはアプリの再起動後に戻ります。",
   "Could not export the map file": "マップファイルを書き出せませんでした"
 }

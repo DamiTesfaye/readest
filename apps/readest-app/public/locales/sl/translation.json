@@ -2017,5 +2017,8 @@
   "Mind maps": "Miselni vzorci",
   "Mind maps you make for each book": "Miselni vzorci, ki jih ustvarite za vsako knjigo",
   "Export raw file": "Izvozi izvirno datoteko",
+  "Delete from this device": "Izbriši s te naprave",
+  "Tap again to delete from this device": "Tapnite znova za brisanje s te naprave",
+  "A synced copy returns after the app restarts.": "Sinhronizirana kopija se vrne po ponovnem zagonu aplikacije.",
   "Could not export the map file": "Datoteke zemljevida ni bilo mogoče izvoziti"
 }

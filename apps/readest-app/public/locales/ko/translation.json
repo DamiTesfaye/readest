@@ -1912,5 +1912,8 @@
   "Mind maps": "마인드맵",
   "Mind maps you make for each book": "책마다 만든 마인드맵",
   "Export raw file": "원본 파일 내보내기",
+  "Delete from this device": "이 기기에서 삭제",
+  "Tap again to delete from this device": "이 기기에서 삭제하려면 다시 탭하세요",
+  "A synced copy returns after the app restarts.": "동기화된 사본은 앱을 다시 시작하면 돌아옵니다.",
   "Could not export the map file": "맵 파일을 내보낼 수 없습니다"
 }

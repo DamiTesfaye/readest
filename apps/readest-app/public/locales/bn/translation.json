@@ -1947,5 +1947,8 @@
   "Mind maps": "মাইন্ড ম্যাপ",
   "Mind maps you make for each book": "প্রতিটি বইয়ের জন্য আপনার তৈরি মাইন্ড ম্যাপ",
   "Export raw file": "মূল ফাইল রপ্তানি করুন",
+  "Delete from this device": "এই ডিভাইস থেকে মুছুন",
+  "Tap again to delete from this device": "এই ডিভাইস থেকে মুছতে আবার ট্যাপ করুন",
+  "A synced copy returns after the app restarts.": "অ্যাপ আবার চালু হলে একটি সিঙ্ক করা কপি ফিরে আসবে।",
   "Could not export the map file": "ম্যাপ ফাইল রপ্তানি করা যায়নি"
 }

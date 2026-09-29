@@ -1912,5 +1912,8 @@
   "Mind maps": "Sơ đồ tư duy",
   "Mind maps you make for each book": "Sơ đồ tư duy bạn tạo cho từng cuốn sách",
   "Export raw file": "Xuất tệp gốc",
+  "Delete from this device": "Xóa khỏi thiết bị này",
+  "Tap again to delete from this device": "Chạm lần nữa để xóa khỏi thiết bị này",
+  "A synced copy returns after the app restarts.": "Bản sao đã đồng bộ sẽ trở lại sau khi khởi động lại ứng dụng.",
   "Could not export the map file": "Không thể xuất tệp sơ đồ"
 }

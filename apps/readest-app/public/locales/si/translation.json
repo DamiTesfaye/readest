@@ -1947,5 +1947,8 @@
   "Mind maps": "මනස් සිතියම්",
   "Mind maps you make for each book": "එක් එක් පොත සඳහා ඔබ සාදන මනස් සිතියම්",
   "Export raw file": "මුල් ගොනුව අපනයනය කරන්න",
+  "Delete from this device": "මෙම උපාංගයෙන් මකන්න",
+  "Tap again to delete from this device": "මෙම උපාංගයෙන් මැකීමට නැවත තට්ටු කරන්න",
+  "A synced copy returns after the app restarts.": "යෙදුම නැවත ආරම්භ කළ පසු සමමුහුර්ත කළ පිටපතක් නැවත පැමිණේ.",
   "Could not export the map file": "සිතියම් ගොනුව අපනයනය කිරීමට නොහැකි විය"
 }

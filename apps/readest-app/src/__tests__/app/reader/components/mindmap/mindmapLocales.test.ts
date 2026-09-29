@@ -4,6 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 const LOCALES_DIR = path.join(process.cwd(), 'public/locales');
 const PLURAL_REFERENCE = '{{count}} new item(s) downloaded from OPDS';
+const LOCAL_DELETE_KEYS = [
+  'Delete from this device',
+  'Tap again to delete from this device',
+  'A synced copy returns after the app restarts.',
+];
 
 const catalog = (locale: string): Record<string, string> =>
   JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'translation.json'), 'utf8'));
@@ -26,6 +31,13 @@ describe('mind map locale strings', () => {
     });
 
     if (locale === 'en') continue;
+    it(`translates the local-only delete of an unreadable map in ${locale}`, () => {
+      const entries = catalog(locale);
+      for (const key of LOCAL_DELETE_KEYS) {
+        expect(entries[key]).toBeTruthy();
+        expect(entries[key]).not.toBe('__STRING_NOT_TRANSLATED__');
+      }
+    });
     it(`translates the incoming link description in ${locale}`, () => {
       const value = catalog(locale)['{{relation}} (from {{source}})'] ?? '';
       expect(value).toContain('{{relation}}');

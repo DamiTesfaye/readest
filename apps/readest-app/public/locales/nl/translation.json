@@ -1947,5 +1947,8 @@
   "Mind maps": "Mindmaps",
   "Mind maps you make for each book": "Mindmaps die je voor elk boek maakt",
   "Export raw file": "Onbewerkt bestand exporteren",
+  "Delete from this device": "Van dit apparaat verwijderen",
+  "Tap again to delete from this device": "Tik nogmaals om van dit apparaat te verwijderen",
+  "A synced copy returns after the app restarts.": "Een gesynchroniseerde kopie komt terug na het herstarten van de app.",
   "Could not export the map file": "Kan het kaartbestand niet exporteren"
 }

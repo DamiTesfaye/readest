@@ -498,3 +498,42 @@ describe('mind map sync when the tombstone of a delete does not reach the server
     expect(entryOf(b, mapId)).toBeUndefined();
   });
 });
+
+describe('mind map sync when a map that cannot be read is deleted from one device', () => {
+  it('keeps the healthy copy elsewhere and restores a readable copy after a restart', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await createMap(a, 'Healthy on A');
+    await push(a, mapId);
+    await pull(b);
+    const mainPath = b.m.maps.mapFilePath(BOOK, mapId);
+    await b.fs.writeFile(mainPath, 'Books', '{not json');
+    await b.fs.writeFile(`${mainPath}.bak`, 'Books', '{not json either');
+    const sync = await b.m.runtime.getMindmapSync();
+    const broken = await b.m.sessions.openMapSession(sync.fs, BOOK, mapId, clockOf(b));
+    expect(broken.status).toBe('unreadable');
+
+    await b.m.deleteMap.deleteMindmapLocally(mapId, BOOK);
+    await settle(b);
+    expect(entryOf(b, mapId)).toBeUndefined();
+    await pull(a);
+    await pull(a);
+    expect(entryOf(a, mapId)).toBeDefined();
+    expect(storedVersions(mapId)).not.toEqual([]);
+    await b.m.store.useMindmapStore.getState().whenPersisted();
+    quit(b);
+
+    const restarted = await startDevice('dev-b', b.fs);
+    await pull(restarted);
+    await pull(restarted);
+    const reopened = await restarted.m.sessions.openMapSession(
+      (await restarted.m.runtime.getMindmapSync()).fs,
+      BOOK,
+      mapId,
+      clockOf(restarted),
+    );
+    expect(reopened.status).toBe('open');
+    if (reopened.status === 'open') await reopened.session.close();
+    await expectConverged(mapId, a, restarted);
+  });
+});

@@ -6,3 +6,6 @@ export const deleteMindmap = async (mapId: string, bookHash: string): Promise<vo
   await useMindmapStore.getState().moveToTrash(mapId, bookHash, { tombstone: true });
   await publishReplicaDelete(MINDMAP_KIND, mapId);
 };
+
+export const deleteMindmapLocally = (mapId: string, bookHash: string): Promise<void> =>
+  useMindmapStore.getState().moveToTrash(mapId, bookHash, { tombstone: false });

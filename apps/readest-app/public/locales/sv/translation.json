@@ -1947,5 +1947,8 @@
   "Mind maps": "Tankekartor",
   "Mind maps you make for each book": "Tankekartor som du skapar för varje bok",
   "Export raw file": "Exportera råfil",
+  "Delete from this device": "Ta bort från den här enheten",
+  "Tap again to delete from this device": "Tryck igen för att ta bort från den här enheten",
+  "A synced copy returns after the app restarts.": "En synkroniserad kopia kommer tillbaka när appen startas om.",
   "Could not export the map file": "Det gick inte att exportera kartfilen"
 }

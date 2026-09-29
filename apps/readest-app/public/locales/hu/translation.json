@@ -1947,5 +1947,8 @@
   "Mind maps": "Gondolattérképek",
   "Mind maps you make for each book": "Az egyes könyvekhez készített gondolattérképek",
   "Export raw file": "Nyers fájl exportálása",
+  "Delete from this device": "Törlés erről az eszközről",
+  "Tap again to delete from this device": "Koppintson újra a törléshez erről az eszközről",
+  "A synced copy returns after the app restarts.": "Egy szinkronizált másolat az alkalmazás újraindítása után visszatér.",
   "Could not export the map file": "Nem sikerült exportálni a térképfájlt"
 }

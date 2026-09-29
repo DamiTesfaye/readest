@@ -2087,5 +2087,8 @@
   "Mind maps": "الخرائط الذهنية",
   "Mind maps you make for each book": "الخرائط الذهنية التي تنشئها لكل كتاب",
   "Export raw file": "تصدير الملف الخام",
+  "Delete from this device": "حذف من هذا الجهاز",
+  "Tap again to delete from this device": "انقر مرة أخرى للحذف من هذا الجهاز",
+  "A synced copy returns after the app restarts.": "تعود نسخة متزامنة بعد إعادة تشغيل التطبيق.",
   "Could not export the map file": "تعذّر تصدير ملف الخريطة"
 }

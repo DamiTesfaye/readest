@@ -1947,5 +1947,8 @@
   "Mind maps": "Aqliy xaritalar",
   "Mind maps you make for each book": "Har bir kitob uchun yaratgan aqliy xaritalaringiz",
   "Export raw file": "Asl faylni eksport qilish",
+  "Delete from this device": "Ushbu qurilmadan oʻchirish",
+  "Tap again to delete from this device": "Ushbu qurilmadan oʻchirish uchun yana bosing",
+  "A synced copy returns after the app restarts.": "Ilova qayta ishga tushirilgandan soʻng sinxronlangan nusxa qaytadi.",
   "Could not export the map file": "Xarita faylini eksport qilib bo‘lmadi"
 }

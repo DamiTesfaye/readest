@@ -1912,5 +1912,8 @@
   "Mind maps": "Peta pikiran",
   "Mind maps you make for each book": "Peta pikiran yang Anda buat untuk setiap buku",
   "Export raw file": "Ekspor file mentah",
+  "Delete from this device": "Hapus dari perangkat ini",
+  "Tap again to delete from this device": "Ketuk lagi untuk menghapus dari perangkat ini",
+  "A synced copy returns after the app restarts.": "Salinan yang tersinkron kembali setelah aplikasi dimulai ulang.",
   "Could not export the map file": "Tidak dapat mengekspor file peta"
 }

@@ -1912,5 +1912,8 @@
   "Mind maps": "བསམ་བློའི་ས་བཀྲ།",
   "Mind maps you make for each book": "དཔེ་དེབ་རེ་རེར་ཁྱེད་ཀྱིས་བཟོས་པའི་བསམ་བློའི་ས་བཀྲ།",
   "Export raw file": "ཡིག་ཆ་རང་བཞིན་ཕྱིར་འདྲེན།",
+  "Delete from this device": "སྒྲིག་ཆས་འདི་ནས་བསུབ་པ།",
+  "Tap again to delete from this device": "སྒྲིག་ཆས་འདི་ནས་བསུབ་པར་ཡང་བསྐྱར་མནན།",
+  "A synced copy returns after the app restarts.": "མཉེན་ཆས་བསྐྱར་སློང་བྱས་རྗེས་སྐད་མཉམ་བྱས་པའི་འདྲ་བཤུས་ཕྱིར་ཡོང་།",
   "Could not export the map file": "ས་བཀྲའི་ཡིག་ཆ་ཕྱིར་འདྲེན་བྱེད་མ་ཐུབ།"
 }
