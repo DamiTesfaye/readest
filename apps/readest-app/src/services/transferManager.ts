@@ -27,6 +27,7 @@ class TransferManager {
   private appService: AppService | null = null;
   private isProcessing = false;
   private abortControllers: Map<string, AbortController> = new Map();
+  private retryNotBefore: Map<string, number> = new Map();
   private isInitialized = false;
   private getLibrary: (() => Book[]) | null = null;
   private updateBook: ((book: Book) => Promise<void>) | null = null;
@@ -236,6 +237,7 @@ class TransferManager {
 
   retryTransfer(transferId: string): void {
     const store = useTransferStore.getState();
+    this.retryNotBefore.delete(transferId);
     store.retryTransfer(transferId);
     this.persistQueue();
     this.processQueue();
@@ -245,6 +247,7 @@ class TransferManager {
     const store = useTransferStore.getState();
     const failed = store.getFailedTransfers();
     failed.forEach((transfer) => {
+      this.retryNotBefore.delete(transfer.id);
       store.retryTransfer(transfer.id);
     });
     this.persistQueue();
@@ -279,12 +282,28 @@ class TransferManager {
     }
   }
 
+  private readyPendingTransfers(): TransferItem[] {
+    const now = Date.now();
+    return useTransferStore
+      .getState()
+      .getPendingTransfers()
+      .filter((transfer) => (this.retryNotBefore.get(transfer.id) ?? 0) <= now);
+  }
+
+  private scheduleRetry(transferId: string, delay: number): void {
+    this.retryNotBefore.set(transferId, Date.now() + delay);
+    setTimeout(() => {
+      this.retryNotBefore.delete(transferId);
+      this.processQueue();
+    }, delay);
+  }
+
   private async _processQueueInternal(): Promise<void> {
     const store = useTransferStore.getState();
 
     if (store.isQueuePaused) return;
 
-    const pending = store.getPendingTransfers();
+    const pending = this.readyPendingTransfers();
     const activeCount = store.getActiveTransfers().length;
     const maxConcurrent = store.maxConcurrent;
 
@@ -303,7 +322,7 @@ class TransferManager {
 
     // Check if more items to process
     const newStore = useTransferStore.getState();
-    if (newStore.getPendingTransfers().length > 0 && !newStore.isQueuePaused) {
+    if (this.readyPendingTransfers().length > 0 && !newStore.isQueuePaused) {
       setTimeout(() => this.processQueue(), 100);
     }
   }
@@ -384,9 +403,7 @@ class TransferManager {
           `Retry ${currentTransfer.retryCount + 1}/${currentTransfer.maxRetries}`,
         );
 
-        setTimeout(() => {
-          this.processQueue();
-        }, delay);
+        this.scheduleRetry(transfer.id, delay);
       } else {
         if (errorMessage.includes('Not authenticated')) {
           eventDispatcher.dispatch('toast', {

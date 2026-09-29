@@ -660,6 +660,59 @@ describe('TransferManager', () => {
       expect(transfer!.retryCount).toBeGreaterThanOrEqual(1);
     });
 
+    test('spaces the retries of a failed transfer by the doubling backoff', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Backoff Book' });
+      const appService = makeAppService();
+      const attempts: number[] = [];
+      (appService['uploadBook'] as Mock).mockImplementation(async () => {
+        attempts.push(Date.now());
+        throw new Error('Network fail');
+      });
+
+      await transferManager.initialize(
+        appService as never,
+        () => [book],
+        vi.fn().mockResolvedValue(undefined),
+        translationFn,
+      );
+
+      const id = transferManager.queueUpload(book)!;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(attempts).toHaveLength(1);
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('pending');
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('failed');
+      expect(attempts).toHaveLength(4);
+      const gaps = attempts.slice(1).map((at, index) => at - attempts[index]!);
+      [2000, 4000, 8000].forEach((delay, index) => {
+        expect(gaps[index]).toBeGreaterThanOrEqual(delay);
+        expect(gaps[index]).toBeLessThan(delay + 500);
+      });
+    });
+
+    test('runs a transfer waiting for its retry at once when the user retries it', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Manual Retry Book' });
+      const appService = makeAppService();
+      (appService['uploadBook'] as Mock).mockRejectedValueOnce(new Error('Network fail'));
+
+      await transferManager.initialize(
+        appService as never,
+        () => [book],
+        vi.fn().mockResolvedValue(undefined),
+        translationFn,
+      );
+
+      const id = transferManager.queueUpload(book)!;
+      await vi.advanceTimersByTimeAsync(500);
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('pending');
+      transferManager.retryTransfer(id);
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(appService['uploadBook']).toHaveBeenCalledTimes(2);
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('completed');
+    });
+
     test('paused queue does not process transfers', async () => {
       const book = makeBook({ hash: 'h1', title: 'Paused Book' });
       const appService = makeAppService();
@@ -692,7 +745,7 @@ describe('TransferManager', () => {
       );
 
       transferManager.queueUpload(book);
-      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(20000);
 
       // After all retries exhausted, error toast should be dispatched
       expect(eventDispatcher.dispatch).toHaveBeenCalledWith(

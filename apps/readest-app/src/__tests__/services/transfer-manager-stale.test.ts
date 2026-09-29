@@ -54,10 +54,14 @@ describe('replica downloads whose file is gone', () => {
   });
 
   test('are retried for every other kind', async () => {
-    const id = transferManager.queueReplicaDownload('font', 'font1', 'Font', FILES, 'Books');
-    await vi.waitFor(() =>
-      expect(useTransferStore.getState().transfers[id!]?.status).toBe('failed'),
-    );
-    expect(downloadReplicaFile.mock.calls.length).toBeGreaterThan(1);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const id = transferManager.queueReplicaDownload('font', 'font1', 'Font', FILES, 'Books');
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(useTransferStore.getState().transfers[id!]?.status).toBe('failed');
+      expect(downloadReplicaFile.mock.calls.length).toBeGreaterThan(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
