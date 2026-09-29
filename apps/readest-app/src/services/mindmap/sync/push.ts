@@ -138,7 +138,8 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     if (!version || !entry) return;
     useMindmapStore.getState().setSyncedMd5(mapId, version.md5);
     const copy = `${outgoingDir(entry.bundleDir)}/${versionFilename(mapId, version.md5)}`;
-    if (!deps.isUploadPending(mapId) && (await deps.fs.exists(copy, MINDMAP_BASE_DIR))) {
+    const needed = chains.has(mapId) || deps.isUploadPending(mapId);
+    if (!needed && (await deps.fs.exists(copy, MINDMAP_BASE_DIR))) {
       await deps.fs.removeFile(copy, MINDMAP_BASE_DIR);
     }
     const read = await readMapFile(deps.fs, entry.bookHash, mapId);

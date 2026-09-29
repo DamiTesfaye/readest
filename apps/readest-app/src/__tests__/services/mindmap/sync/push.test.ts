@@ -177,6 +177,24 @@ describe('mindmap push', () => {
     expect(await outgoingFiles(mapId)).toEqual([]);
   });
 
+  it('keeps the copy a running push is about to upload when an earlier commit of it arrives', async () => {
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    const copy = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    let release: () => void = () => {};
+    deps.publishRow.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (release = resolve)),
+    );
+    const result = pusher.pushNow(mapId);
+    await vi.waitFor(() => expect(deps.publishRow).toHaveBeenCalledTimes(2));
+    await pusher.committed(mapId, [{ logical: copy, lfp: '', byteSize: 1 }]);
+    release();
+    expect(await result).toBe('queued');
+    expect(uploaded(1).outgoing!.filename).toBe(copy);
+    expect(await outgoingFiles(mapId)).toEqual([copy]);
+  });
+
   it('skips a push whose version a commit recorded while it was checking', async () => {
     const mapId = await createMap();
     let release: (value: boolean) => void = () => {};
