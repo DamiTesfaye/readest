@@ -15,9 +15,10 @@ interface ReplicaTransferCompleteDetail {
   filenames?: string[];
 }
 
-type DownloadHandler = (replicaId: string) => void;
+type TransferHandler = (replicaId: string, files: ReplicaTransferFile[]) => void | Promise<void>;
 
-const downloadHandlers = new Map<string, DownloadHandler>();
+const downloadHandlers = new Map<string, TransferHandler>();
+const uploadHandlers = new Map<string, TransferHandler>();
 
 /**
  * Per-kind download-completion handler. Called when binary downloads
@@ -28,11 +29,18 @@ const downloadHandlers = new Map<string, DownloadHandler>();
  * Calling twice with the same kind throws — defensive against doubly-
  * imported store modules during dev hot-reload.
  */
-export const registerReplicaDownloadHandler = (kind: string, handler: DownloadHandler): void => {
+export const registerReplicaDownloadHandler = (kind: string, handler: TransferHandler): void => {
   if (downloadHandlers.has(kind)) {
     throw new Error(`Replica download handler for kind="${kind}" is already registered`);
   }
   downloadHandlers.set(kind, handler);
+};
+
+export const registerReplicaUploadHandler = (kind: string, handler: TransferHandler): void => {
+  if (uploadHandlers.has(kind)) {
+    throw new Error(`Replica upload handler for kind="${kind}" is already registered`);
+  }
+  uploadHandlers.set(kind, handler);
 };
 
 let started = false;
@@ -62,19 +70,20 @@ const handleReplicaUpload = async (detail: ReplicaTransferCompleteDetail): Promi
       manifestFiles,
       detail.reincarnation,
     );
+    await uploadHandlers.get(detail.kind)?.(detail.replicaId, detail.files);
   } catch (err) {
     console.warn('replica-transfer-complete upload handler failed', err);
   }
 };
 
-const handleReplicaDownload = (detail: ReplicaTransferCompleteDetail): void => {
+const handleReplicaDownload = async (detail: ReplicaTransferCompleteDetail): Promise<void> => {
   // Per-kind handler clears the `unavailable` placeholder flag now that
   // binaries are on disk. Stores register at boot via
   // registerReplicaDownloadHandler.
   const handler = downloadHandlers.get(detail.kind);
   if (!handler) return;
   try {
-    handler(detail.replicaId);
+    await handler(detail.replicaId, detail.files ?? []);
   } catch (err) {
     console.warn('replica-transfer-complete download handler failed', err);
   }
@@ -88,7 +97,7 @@ const handleReplicaTransferComplete = async (event: CustomEvent): Promise<void> 
   if (detail.type === 'upload') {
     await handleReplicaUpload(detail);
   } else if (detail.type === 'download') {
-    handleReplicaDownload(detail);
+    await handleReplicaDownload(detail);
   }
   // 'delete' is fire-and-forget; no follow-up needed.
 };
@@ -119,4 +128,5 @@ export const __resetReplicaTransferIntegrationForTests = (): void => {
   started = false;
   appServiceRef = null;
   downloadHandlers.clear();
+  uploadHandlers.clear();
 };

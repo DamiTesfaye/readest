@@ -7,6 +7,7 @@ export interface BinaryCapability<T> {
   isCurrent?(record: T, manifestFiles: readonly ManifestFile[]): boolean;
   downloadPath?(filename: string, bundleDir: string): string;
   bundleDirFor?(row: ReplicaRow): string | null;
+  staleWhenMissing?: boolean;
 }
 
 export interface LifecycleHooks<T> {

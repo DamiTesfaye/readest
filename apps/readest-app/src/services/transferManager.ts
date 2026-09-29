@@ -5,9 +5,17 @@ import { TranslationFunc } from '@/hooks/useTranslation';
 import { ProgressHandler, ProgressPayload } from '@/utils/transfer';
 import { eventDispatcher } from '@/utils/event';
 import { getTransferMessages } from './transferMessages';
+import { getReplicaAdapter } from './sync/replicaRegistry';
 
 const TRANSFER_QUEUE_KEY = 'readest_transfer_queue';
 const RETRY_DELAY_BASE_MS = 2000;
+const MISSING_FILE_ERROR = 'File not found';
+
+const isStaleReplicaDownload = (transfer: TransferItem, errorMessage: string): boolean =>
+  transfer.kind === 'replica' &&
+  transfer.type === 'download' &&
+  errorMessage === MISSING_FILE_ERROR &&
+  getReplicaAdapter(transfer.replicaKind ?? '')?.binary?.staleWhenMissing === true;
 
 interface PersistedQueueData {
   transfers: Record<string, TransferItem>;
@@ -355,6 +363,14 @@ class TransferManager {
       }
 
       const errorMessage = error instanceof Error ? error.message : _('Unknown error');
+      if (isStaleReplicaDownload(transfer, errorMessage)) {
+        console.warn('replica download is stale', {
+          kind: transfer.replicaKind,
+          replicaId: transfer.replicaId,
+        });
+        useTransferStore.getState().removeTransfer(transfer.id);
+        return;
+      }
       const currentStore = useTransferStore.getState();
       const currentTransfer = currentStore.transfers[transfer.id];
 
