@@ -338,4 +338,21 @@ test.describe('Mind map', () => {
     await expect(canvas).toBeHidden();
     await expect(page.locator('[inert]')).toHaveCount(0);
   });
+
+  test('deletes the open map without a save error', async ({ openBook, page }) => {
+    const reader = await openBook();
+    const canvas = await createBlankMap(reader, page);
+    const box = (await canvas.boundingBox())!;
+    await placeNode(page, box.x + 300, box.y + 240, 'Elizabeth');
+    await page.getByRole('button', { name: 'Map options' }).click();
+    await page.getByRole('menuitem', { name: 'Delete map' }).click();
+    await page.getByRole('menuitem', { name: 'Tap again to delete this map' }).click();
+    await expect(canvas).toBeHidden();
+    const seen = new Set<string>();
+    for (let i = 0; i < 20; i += 1) {
+      for (const text of await page.locator('.toast').allInnerTexts()) seen.add(text);
+      await page.waitForTimeout(100);
+    }
+    expect([...seen]).not.toContain('Could not save the mind map');
+  });
 });

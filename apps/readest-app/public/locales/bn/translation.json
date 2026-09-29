@@ -1950,5 +1950,6 @@
   "Delete from this device": "এই ডিভাইস থেকে মুছুন",
   "Tap again to delete from this device": "এই ডিভাইস থেকে মুছতে আবার ট্যাপ করুন",
   "A synced copy returns after the app restarts.": "অ্যাপ আবার চালু হলে একটি সিঙ্ক করা কপি ফিরে আসবে।",
-  "Could not export the map file": "ম্যাপ ফাইল রপ্তানি করা যায়নি"
+  "Could not export the map file": "ম্যাপ ফাইল রপ্তানি করা যায়নি",
+  "This map was deleted on another device": "এই মাইন্ড ম্যাপটি অন্য একটি ডিভাইসে মুছে ফেলা হয়েছে"
 }

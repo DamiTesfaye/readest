@@ -2020,5 +2020,6 @@
   "Delete from this device": "Izbriši s te naprave",
   "Tap again to delete from this device": "Tapnite znova za brisanje s te naprave",
   "A synced copy returns after the app restarts.": "Sinhronizirana kopija se vrne po ponovnem zagonu aplikacije.",
-  "Could not export the map file": "Datoteke zemljevida ni bilo mogoče izvoziti"
+  "Could not export the map file": "Datoteke zemljevida ni bilo mogoče izvoziti",
+  "This map was deleted on another device": "Ta miselni vzorec je bil izbrisan v drugi napravi"
 }

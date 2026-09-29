@@ -1915,5 +1915,6 @@
   "Delete from this device": "ลบออกจากอุปกรณ์นี้",
   "Tap again to delete from this device": "แตะอีกครั้งเพื่อลบออกจากอุปกรณ์นี้",
   "A synced copy returns after the app restarts.": "สำเนาที่ซิงค์ไว้จะกลับมาหลังจากเริ่มแอปใหม่",
-  "Could not export the map file": "ไม่สามารถส่งออกไฟล์แผนผังได้"
+  "Could not export the map file": "ไม่สามารถส่งออกไฟล์แผนผังได้",
+  "This map was deleted on another device": "แผนผังความคิดนี้ถูกลบในอุปกรณ์อื่นแล้ว"
 }

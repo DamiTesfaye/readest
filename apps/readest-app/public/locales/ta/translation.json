@@ -1950,5 +1950,6 @@
   "Delete from this device": "இந்தச் சாதனத்திலிருந்து நீக்கவும்",
   "Tap again to delete from this device": "இந்தச் சாதனத்திலிருந்து நீக்க மீண்டும் தட்டவும்",
   "A synced copy returns after the app restarts.": "பயன்பாடு மீண்டும் தொடங்கிய பிறகு ஒத்திசைக்கப்பட்ட நகல் திரும்ப வரும்.",
-  "Could not export the map file": "வரைபடக் கோப்பை ஏற்றுமதி செய்ய முடியவில்லை"
+  "Could not export the map file": "வரைபடக் கோப்பை ஏற்றுமதி செய்ய முடியவில்லை",
+  "This map was deleted on another device": "இந்த மன வரைபடம் மற்றொரு சாதனத்தில் நீக்கப்பட்டது"
 }

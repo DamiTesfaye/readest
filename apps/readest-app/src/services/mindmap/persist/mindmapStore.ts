@@ -53,6 +53,7 @@ let removedBeforeHydration = new Set<string>();
 let purgedBeforeHydration = new Set<string>();
 const trashing = new Set<string>();
 const liveWrites = new Map<string, Promise<unknown>>();
+const remoteDeleteListeners = new Set<(mapId: string) => void>();
 
 const reportError = (error: unknown): void => {
   console.error('mindmap store:', error);
@@ -73,6 +74,16 @@ const isMindmapEntry = (value: unknown): value is MindmapEntry => {
     typeof entry['bundleDir'] === 'string' &&
     (md5 === null || typeof md5 === 'string')
   );
+};
+
+const notifyRemoteDelete = (mapId: string): void => {
+  for (const listener of [...remoteDeleteListeners]) {
+    try {
+      listener(mapId);
+    } catch (error) {
+      reportError(error);
+    }
+  }
 };
 
 const persist = (entries: MindmapEntry[]): void => {
@@ -150,7 +161,13 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
       );
     },
     softDeleteByContentId: (mapId) => {
-      get().moveToTrash(mapId).catch(reportError);
+      const shown = get().getEntry(mapId) !== undefined && !trashing.has(mapId);
+      get()
+        .moveToTrash(mapId)
+        .then(() => {
+          if (shown) notifyRemoteDelete(mapId);
+        })
+        .catch(reportError);
       if (storeFs) confirmTombstones(storeFs, [mapId]).catch(reportError);
     },
     moveToTrash: async (mapId, bookHash, options) => {
@@ -190,6 +207,13 @@ export const useMindmapStore = create<MindmapStoreState>((set, get) => {
 
 export const findMindmapByContentId = (contentId: string): MindmapEntry | undefined =>
   contentId ? useMindmapStore.getState().getEntry(contentId) : undefined;
+
+export const listenRemoteMindmapDelete = (listener: (mapId: string) => void): (() => void) => {
+  remoteDeleteListeners.add(listener);
+  return () => {
+    remoteDeleteListeners.delete(listener);
+  };
+};
 
 export const isLiveMindmap = (mapId: string): boolean =>
   useMindmapStore.getState().getEntry(mapId) !== undefined &&

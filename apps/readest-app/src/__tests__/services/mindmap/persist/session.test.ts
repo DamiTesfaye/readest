@@ -553,6 +553,18 @@ describe('openMapSession', () => {
     expect(getOpenMapSession(MAP)).toBeUndefined();
     expect(await session.flush()).toBe(false);
   });
+
+  it('closes a discarded session without reporting a failed save', async () => {
+    const fs = new MemoryFileSystem();
+    await seed(fs);
+    const session = await open(fs);
+    session.store.put([createNodeRecord({ id: 'n1', index: 'a0' })]);
+    await session.discard();
+    session.updateMeta({ title: 'After the delete' });
+    expect(await session.close()).toBe(true);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fs.writesTo(MAIN)).toBe(0);
+  });
 });
 
 describe('whenMapSessionSettled', () => {

@@ -1950,5 +1950,6 @@
   "Delete from this device": "Törlés erről az eszközről",
   "Tap again to delete from this device": "Koppintson újra a törléshez erről az eszközről",
   "A synced copy returns after the app restarts.": "Egy szinkronizált másolat az alkalmazás újraindítása után visszatér.",
-  "Could not export the map file": "Nem sikerült exportálni a térképfájlt"
+  "Could not export the map file": "Nem sikerült exportálni a térképfájlt",
+  "This map was deleted on another device": "Ezt a gondolattérképet egy másik eszközön törölték"
 }

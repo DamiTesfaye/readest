@@ -1950,5 +1950,6 @@
   "Delete from this device": "حذف از این دستگاه",
   "Tap again to delete from this device": "برای حذف از این دستگاه دوباره ضربه بزنید",
   "A synced copy returns after the app restarts.": "یک نسخهٔ همگام‌شده پس از راه‌اندازی دوبارهٔ برنامه برمی‌گردد.",
-  "Could not export the map file": "خروجی گرفتن از فایل نقشه ممکن نشد"
+  "Could not export the map file": "خروجی گرفتن از فایل نقشه ممکن نشد",
+  "This map was deleted on another device": "این نقشهٔ ذهنی در دستگاه دیگری حذف شد"
 }

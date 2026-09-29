@@ -1985,5 +1985,6 @@
   "Delete from this device": "Șterge de pe acest dispozitiv",
   "Tap again to delete from this device": "Atinge din nou pentru a șterge de pe acest dispozitiv",
   "A synced copy returns after the app restarts.": "O copie sincronizată revine după repornirea aplicației.",
-  "Could not export the map file": "Fișierul hărții nu a putut fi exportat"
+  "Could not export the map file": "Fișierul hărții nu a putut fi exportat",
+  "This map was deleted on another device": "Această hartă mentală a fost ștearsă pe alt dispozitiv"
 }

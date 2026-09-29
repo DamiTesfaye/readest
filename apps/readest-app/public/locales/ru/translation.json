@@ -2020,5 +2020,6 @@
   "Delete from this device": "Удалить с этого устройства",
   "Tap again to delete from this device": "Нажмите ещё раз, чтобы удалить с этого устройства",
   "A synced copy returns after the app restarts.": "Синхронизированная копия вернётся после перезапуска приложения.",
-  "Could not export the map file": "Не удалось экспортировать файл карты"
+  "Could not export the map file": "Не удалось экспортировать файл карты",
+  "This map was deleted on another device": "Эта интеллект-карта удалена на другом устройстве"
 }

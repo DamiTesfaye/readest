@@ -1985,5 +1985,6 @@
   "Delete from this device": "Elimina da questo dispositivo",
   "Tap again to delete from this device": "Tocca di nuovo per eliminare da questo dispositivo",
   "A synced copy returns after the app restarts.": "Una copia sincronizzata torna al riavvio dell’app.",
-  "Could not export the map file": "Impossibile esportare il file della mappa"
+  "Could not export the map file": "Impossibile esportare il file della mappa",
+  "This map was deleted on another device": "Questa mappa mentale è stata eliminata su un altro dispositivo"
 }

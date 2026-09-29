@@ -453,6 +453,43 @@ describe('an open map', () => {
     expect(h.publishReplicaDelete).toHaveBeenCalledWith('mindmap', mapId);
   });
 
+  it('reports no save error and no remote delete after deleting the open map', async () => {
+    const mapId = await createMap('Doomed');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    const messages: string[] = [];
+    const onToast = (event: CustomEvent): void => {
+      messages.push((event.detail as { message: string }).message);
+    };
+    eventDispatcher.on('toast', onToast);
+    render(<MindmapView />);
+    await openCanvas();
+    fireEvent.click(screen.getByRole('button', { name: 'Map options' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete map' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Tap again to delete this map' }));
+    await waitFor(() => expect(useMindmapViewStore.getState().mapId).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    eventDispatcher.off('toast', onToast);
+    expect(messages).toEqual([]);
+  });
+
+  it('switches to the next map when another device deletes the open one', async () => {
+    const next = await createMap('Next');
+    const mapId = await createMap('Deleted elsewhere');
+    useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);
+    const messages: string[] = [];
+    const onToast = (event: CustomEvent): void => {
+      messages.push((event.detail as { message: string }).message);
+    };
+    eventDispatcher.on('toast', onToast);
+    render(<MindmapView />);
+    await openCanvas();
+    act(() => useMindmapStore.getState().softDeleteByContentId(mapId));
+    await waitFor(() => expect(useMindmapViewStore.getState().mapId).toBe(next));
+    await waitFor(() => expect(getOpenMapSession(next)).toBeDefined());
+    eventDispatcher.off('toast', onToast);
+    expect(messages).toEqual(['This map was deleted on another device']);
+  });
+
   it('registers its controller for the open map, StrictMode safe, until it closes', async () => {
     const mapId = await createMap('Registered');
     useMindmapViewStore.getState().showMap(BOOK_KEY, mapId);

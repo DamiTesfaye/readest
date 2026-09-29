@@ -1950,5 +1950,6 @@
   "Delete from this device": "Ushbu qurilmadan oʻchirish",
   "Tap again to delete from this device": "Ushbu qurilmadan oʻchirish uchun yana bosing",
   "A synced copy returns after the app restarts.": "Ilova qayta ishga tushirilgandan soʻng sinxronlangan nusxa qaytadi.",
-  "Could not export the map file": "Xarita faylini eksport qilib bo‘lmadi"
+  "Could not export the map file": "Xarita faylini eksport qilib bo‘lmadi",
+  "This map was deleted on another device": "Bu aqliy xarita boshqa qurilmada o‘chirildi"
 }

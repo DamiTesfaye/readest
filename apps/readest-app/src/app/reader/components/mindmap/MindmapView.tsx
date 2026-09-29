@@ -25,7 +25,7 @@ import MindmapCanvas from './MindmapCanvas';
 import NewMapSheet from './NewMapSheet';
 import SessionFallback from './SessionFallback';
 import TopBar from './TopBar';
-import { useDeleteMap, useMapList } from './useBookMaps';
+import { useDeleteMap, useMapList, useRemoteMapDelete } from './useBookMaps';
 import { useBookLocator, useMapReconcile } from './useMapReconcile';
 import { useMapReveal } from './useMapReveal';
 import { useMediaQuery } from './useMediaQuery';
@@ -262,6 +262,7 @@ const MindmapView: React.FC<MindmapViewProps> = ({ onExport, onResetPosition }) 
     if (bookKey && !bookKeys.includes(bookKey)) close();
   }, [bookKey, bookKeys, close]);
   const session = useMindmapSession(mapId ? bookHash : null, mapId);
+  useRemoteMapDelete(bookKey, bookHash, mapId);
   const canDock = useMediaQuery(DOCK_MEDIA_QUERY);
   const docked = layout === 'docked' && canDock;
   const sectionRef = useRef<HTMLElement>(null);

@@ -1950,5 +1950,6 @@
   "Delete from this device": "Van dit apparaat verwijderen",
   "Tap again to delete from this device": "Tik nogmaals om van dit apparaat te verwijderen",
   "A synced copy returns after the app restarts.": "Een gesynchroniseerde kopie komt terug na het herstarten van de app.",
-  "Could not export the map file": "Kan het kaartbestand niet exporteren"
+  "Could not export the map file": "Kan het kaartbestand niet exporteren",
+  "This map was deleted on another device": "Deze mindmap is op een ander apparaat verwijderd"
 }

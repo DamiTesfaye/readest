@@ -9,6 +9,7 @@ const LOCAL_DELETE_KEYS = [
   'Tap again to delete from this device',
   'A synced copy returns after the app restarts.',
 ];
+const SYNC_NOTICE_KEYS = ['This map was deleted on another device'];
 
 const catalog = (locale: string): Record<string, string> =>
   JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'translation.json'), 'utf8'));
@@ -34,6 +35,13 @@ describe('mind map locale strings', () => {
     it(`translates the local-only delete of an unreadable map in ${locale}`, () => {
       const entries = catalog(locale);
       for (const key of LOCAL_DELETE_KEYS) {
+        expect(entries[key]).toBeTruthy();
+        expect(entries[key]).not.toBe('__STRING_NOT_TRANSLATED__');
+      }
+    });
+    it(`translates the mind map sync notices in ${locale}`, () => {
+      const entries = catalog(locale);
+      for (const key of SYNC_NOTICE_KEYS) {
         expect(entries[key]).toBeTruthy();
         expect(entries[key]).not.toBe('__STRING_NOT_TRANSLATED__');
       }

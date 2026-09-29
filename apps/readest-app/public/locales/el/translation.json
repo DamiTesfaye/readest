@@ -1950,5 +1950,6 @@
   "Delete from this device": "Διαγραφή από αυτή τη συσκευή",
   "Tap again to delete from this device": "Πατήστε ξανά για διαγραφή από αυτή τη συσκευή",
   "A synced copy returns after the app restarts.": "Ένα συγχρονισμένο αντίγραφο επιστρέφει μετά την επανεκκίνηση της εφαρμογής.",
-  "Could not export the map file": "Δεν ήταν δυνατή η εξαγωγή του αρχείου του χάρτη"
+  "Could not export the map file": "Δεν ήταν δυνατή η εξαγωγή του αρχείου του χάρτη",
+  "This map was deleted on another device": "Αυτός ο νοητικός χάρτης διαγράφηκε σε άλλη συσκευή"
 }

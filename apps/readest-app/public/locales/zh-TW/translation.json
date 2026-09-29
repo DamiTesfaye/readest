@@ -1915,5 +1915,6 @@
   "Delete from this device": "從此裝置刪除",
   "Tap again to delete from this device": "再次點按以從此裝置刪除",
   "A synced copy returns after the app restarts.": "重新啟動應用程式後，已同步的副本會恢復。",
-  "Could not export the map file": "無法匯出心智圖檔案"
+  "Could not export the map file": "無法匯出心智圖檔案",
+  "This map was deleted on another device": "此心智圖已在另一部裝置上刪除"
 }

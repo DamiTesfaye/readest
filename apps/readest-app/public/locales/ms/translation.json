@@ -1915,5 +1915,6 @@
   "Delete from this device": "Padam daripada peranti ini",
   "Tap again to delete from this device": "Ketik sekali lagi untuk memadam daripada peranti ini",
   "A synced copy returns after the app restarts.": "Salinan yang disegerakkan akan kembali selepas aplikasi dimulakan semula.",
-  "Could not export the map file": "Tidak dapat mengeksport fail peta"
+  "Could not export the map file": "Tidak dapat mengeksport fail peta",
+  "This map was deleted on another device": "Peta minda ini telah dipadam pada peranti lain"
 }

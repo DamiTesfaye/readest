@@ -267,7 +267,7 @@ const loadSession = async (
       autosave.stop();
       const saved = await autosave.flush();
       release();
-      return saved;
+      return saved || discarded;
     },
     discard: async () => {
       discarded = true;

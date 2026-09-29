@@ -1950,5 +1950,6 @@
   "Delete from this device": "Von diesem Gerät löschen",
   "Tap again to delete from this device": "Erneut tippen, um von diesem Gerät zu löschen",
   "A synced copy returns after the app restarts.": "Eine synchronisierte Kopie kehrt nach dem Neustart der App zurück.",
-  "Could not export the map file": "Die Kartendatei konnte nicht exportiert werden"
+  "Could not export the map file": "Die Kartendatei konnte nicht exportiert werden",
+  "This map was deleted on another device": "Diese Mindmap wurde auf einem anderen Gerät gelöscht"
 }

@@ -8,6 +8,10 @@ import {
   listenMindmapIndex,
   loadMindmapIndex,
 } from '@/services/mindmap/persist/mindmapIndex';
+import {
+  listenRemoteMindmapDelete,
+  useMindmapStore,
+} from '@/services/mindmap/persist/mindmapStore';
 import { deleteMindmap, deleteMindmapLocally } from '@/services/mindmap/sync/deleteMap';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { eventDispatcher } from '@/utils/event';
@@ -61,6 +65,31 @@ export const useDeleteMap = (
       });
     }
   };
+};
+
+export const useRemoteMapDelete = (
+  bookKey: string | null,
+  bookHash: string | null,
+  mapId: string | null,
+): void => {
+  const _ = useTranslation();
+  const { showMap, close } = useMindmapViewStore();
+  useEffect(() => {
+    if (!bookKey || !bookHash || !mapId) return;
+    return listenRemoteMindmapDelete((deleted) => {
+      if (deleted !== mapId) return;
+      eventDispatcher.dispatch('toast', {
+        type: 'info',
+        message: _('This map was deleted on another device'),
+      });
+      const next = useMindmapStore
+        .getState()
+        .entriesForBook(bookHash)
+        .find((entry) => entry.mapId !== mapId);
+      if (next) showMap(bookKey, next.mapId);
+      else close();
+    });
+  }, [bookKey, bookHash, mapId, showMap, close, _]);
 };
 
 export const useExportRawMap = (

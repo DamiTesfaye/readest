@@ -1915,5 +1915,6 @@
   "Delete from this device": "Xóa khỏi thiết bị này",
   "Tap again to delete from this device": "Chạm lần nữa để xóa khỏi thiết bị này",
   "A synced copy returns after the app restarts.": "Bản sao đã đồng bộ sẽ trở lại sau khi khởi động lại ứng dụng.",
-  "Could not export the map file": "Không thể xuất tệp sơ đồ"
+  "Could not export the map file": "Không thể xuất tệp sơ đồ",
+  "This map was deleted on another device": "Sơ đồ tư duy này đã bị xóa trên thiết bị khác"
 }

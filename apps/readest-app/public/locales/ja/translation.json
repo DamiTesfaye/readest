@@ -1915,5 +1915,6 @@
   "Delete from this device": "このデバイスから削除",
   "Tap again to delete from this device": "もう一度タップしてこのデバイスから削除",
   "A synced copy returns after the app restarts.": "同期済みのコピーはアプリの再起動後に戻ります。",
-  "Could not export the map file": "マップファイルを書き出せませんでした"
+  "Could not export the map file": "マップファイルを書き出せませんでした",
+  "This map was deleted on another device": "このマインドマップは別のデバイスで削除されました"
 }
