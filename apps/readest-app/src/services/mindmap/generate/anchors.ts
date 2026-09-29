@@ -36,6 +36,15 @@ const fragmentPoints = (
   return points;
 };
 
+const pageOfDest = (href: string): number | undefined => {
+  try {
+    const dest: unknown = JSON.parse(href);
+    return Array.isArray(dest) && typeof dest[0] === 'number' ? dest[0] : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const compareCfi = (a: string, b: string): number => {
   try {
     return CFI.compare(a, b);
@@ -96,7 +105,7 @@ export const createBookLocator = (book: LocatableBook): BookLocator => {
 
   return {
     locateToc: (item) => {
-      const point = locateHref(item.href) ?? sectionStart(item.index);
+      const point = locateHref(item.href) ?? sectionStart(item.index ?? pageOfDest(item.href));
       return point ? toAnchor(point) : null;
     },
     locateCfi: (cfi) => {

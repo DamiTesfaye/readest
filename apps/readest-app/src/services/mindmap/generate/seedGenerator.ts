@@ -65,7 +65,7 @@ const quoteRecords = (
       label: note.text?.trim() || note.note.trim(),
       color: 'paper',
       anchor,
-      revealAt: anchor?.progress ?? null,
+      revealAt: anchor?.progress ?? 1,
       parentGenKey: chapter?.genKey ?? null,
     };
     if (!chapter) return [quote];

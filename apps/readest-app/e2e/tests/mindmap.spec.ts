@@ -217,6 +217,16 @@ test.describe('Mind map', () => {
       .toBe(true);
   });
 
+  test('places a PDF outline entry whose destination is a page number', async ({
+    openBook,
+    page,
+  }) => {
+    const reader = await openBook('src/__tests__/fixtures/data/sample-paper.pdf');
+    await createGeneratedMap(reader, page);
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('1 of 1');
+    await expect(chapterNode(page, 'ABSTRACT')).toHaveCount(1);
+  });
+
   test('grow mode reveals new nodes after advancing a chapter', async ({ openBook, page }) => {
     const reader = await openBook();
     await createGeneratedMap(reader, page);

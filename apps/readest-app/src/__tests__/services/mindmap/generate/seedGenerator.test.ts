@@ -166,3 +166,11 @@ describe('seedGenerator labels', () => {
     expect(chapter!.label).toBe('第一章 开始');
   });
 });
+
+describe('seedGenerator quotes the book cannot place', () => {
+  it('reveals a highlight with a stale position only at the end, never at once', async () => {
+    const stale = note({ id: 'stale', cfi: 'epubcfi(/6/999!/4/2/1:0)' });
+    const [quote] = nodes(await run([], [stale]));
+    expect(quote).toMatchObject({ genKey: 'note:stale', anchor: null, revealAt: 1 });
+  });
+});

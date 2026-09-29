@@ -110,3 +110,15 @@ describe('resolveJumpTarget', () => {
     expect(resolveJumpTarget(anchor, 1, () => false)).toBeNull();
   });
 });
+
+describe('createBookLocator for PDF outlines', () => {
+  it('places an outline entry whose destination is a page number', () => {
+    const pages = [0, 1, 2].map((index) => section(String(index), '', 100));
+    const pdf = createBookLocator({
+      sections: pages,
+      splitTOCHref: () => Promise.resolve([null, null]) as unknown as Array<string | number>,
+    });
+    const entry = { id: 1, label: 'Abstract', href: '[2,{"name":"XYZ"},0,792,null]' } as TOCItem;
+    expect(pdf.locateToc(entry)).toMatchObject({ section: 2 });
+  });
+});
