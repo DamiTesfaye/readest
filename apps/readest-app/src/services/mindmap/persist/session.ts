@@ -67,6 +67,8 @@ const openingSessions = new Map<string, Promise<unknown>>();
 
 export const getOpenMapSession = (mapId: string): MapSession | undefined => openSessions.get(mapId);
 
+export const listOpenMapSessions = (): MapSession[] => [...openSessions.values()];
+
 export const isMapSessionOpening = (mapId: string): boolean => openingSessions.has(mapId);
 
 export const whenMapSessionSettled = async (mapId: string): Promise<MapSession | undefined> => {

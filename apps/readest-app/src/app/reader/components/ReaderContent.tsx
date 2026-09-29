@@ -39,6 +39,7 @@ import SideBar from './sidebar/SideBar';
 import Notebook from './notebook/Notebook';
 import MindmapView from './mindmap/MindmapView';
 import { useMindmapActions } from './mindmap/useMindmapActions';
+import { flushMindmapSync } from '@/services/mindmap/sync/lifecycle';
 import BooksGrid from './BooksGrid';
 import SettingsDialog from '@/components/settings/SettingsDialog';
 
@@ -209,7 +210,10 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
 
   const handleCloseBooks = throttle(async () => {
     const settings = useSettingsStore.getState().settings;
-    await Promise.all(bookKeys.map(async (key) => await saveConfigAndCloseBook(key)));
+    await Promise.all([
+      ...bookKeys.map(async (key) => await saveConfigAndCloseBook(key)),
+      flushMindmapSync(),
+    ]);
     await saveSettings(envConfig, settings);
   }, 200);
 

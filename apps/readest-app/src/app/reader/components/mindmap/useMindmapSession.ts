@@ -4,6 +4,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getMindmapClock } from '@/services/mindmap/persist/clockSource';
 import { mindmapFsFromAppService } from '@/services/mindmap/persist/mindmapFs';
 import { type MapSession, openMapSession } from '@/services/mindmap/persist/session';
+import { pushMindmap, watchMindmapSession } from '@/services/mindmap/sync/lifecycle';
 import { useSettingsStore } from '@/store/settingsStore';
 import { eventDispatcher } from '@/utils/event';
 
@@ -50,8 +51,10 @@ export const useMindmapSession = (bookHash: string | null, mapId: string | null)
     const opening = ready.then(() =>
       openMapSession(fs, bookHash, mapId, getMindmapClock(deviceId), { hooks: { onError } }),
     );
+    let unwatch: (() => void) | null = null;
     opening
       .then((result) => {
+        if (result.status === 'open') unwatch = watchMindmapSession(result.session, mapId);
         if (!cancelled)
           setState(result.status === 'open' ? { status: 'open', session: result.session } : result);
       })
@@ -63,7 +66,11 @@ export const useMindmapSession = (bookHash: string | null, mapId: string | null)
       cancelled = true;
       const closed = opening
         .then(async (result) => {
-          if (result.status === 'open' && !(await result.session.close())) toastSaveError();
+          if (result.status !== 'open') return;
+          const saved = await result.session.close();
+          unwatch?.();
+          if (!saved) toastSaveError();
+          else await pushMindmap(mapId);
         })
         .catch(reportError)
         .finally(() => {
