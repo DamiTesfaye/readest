@@ -216,6 +216,38 @@ describe('POST /api/sync/replicas pruning of replaced mindmap versions', () => {
     );
   });
 
+  test('a failed row delete never leaves a files row whose object is missing', async () => {
+    await push(upsert('dev-a'));
+    uploadVersion(versionOf('a'));
+    await push(commit(versionOf('a'), clock('dev-a')));
+    uploadVersion(versionOf('b'));
+    holder.cloud!.failDeletes = true;
+    await push(commit(versionOf('b'), clock('dev-a')));
+    expect(holder.cloud!.rowsWithoutObject()).toEqual([]);
+    holder.cloud!.failDeletes = false;
+    await push(commit(versionOf('a'), clock('dev-b', 5_000)));
+    expect(holder.cloud!.download(USER, `Readest/Replicas/mindmap/${MAP}/${manifestName()}`)).toBe(
+      'body',
+    );
+  });
+
+  test('a failed object delete leaves an orphan object and never a resurrectable version', async () => {
+    await push(upsert('dev-a'));
+    uploadVersion(versionOf('a'));
+    await push(commit(versionOf('a'), clock('dev-a')));
+    uploadVersion(versionOf('b'));
+    holder.cloud!.failObjectDeletes = true;
+    const response = await push(commit(versionOf('b'), clock('dev-a')));
+    expect(response.status).toBe(200);
+    expect(console.error).toHaveBeenCalledWith(
+      'replica prune failed',
+      expect.objectContaining({ kind: 'mindmap', replicaId: MAP }),
+    );
+    expect(holder.cloud!.rowsWithoutObject()).toEqual([]);
+    await push(commit(versionOf('a'), clock('dev-b', 5_000)));
+    expect(manifestName()).toBe(versionOf('b'));
+  });
+
   test('a failed read of the prior manifest commits the row without pruning', async () => {
     await push(upsert('dev-a'));
     uploadVersion(versionOf('a'));

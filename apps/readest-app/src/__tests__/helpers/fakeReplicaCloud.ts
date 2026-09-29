@@ -113,6 +113,7 @@ export class FakeReplicaCloud {
   files: FakeFileRow[] = [];
   objects = new Map<string, string>();
   failDeletes = false;
+  failObjectDeletes = false;
   failReads = false;
   private nextFileId = 1;
 
@@ -210,7 +211,12 @@ export class FakeReplicaCloud {
   }
 
   deleteObject(fileKey: string): void {
+    if (this.failObjectDeletes) throw new Error('object delete failed');
     this.objects.delete(fileKey);
+  }
+
+  rowsWithoutObject(): FakeFileRow[] {
+    return this.files.filter((row) => !this.objects.has(row.file_key));
   }
 
   fileRows(kind: string, replicaId: string): FakeFileRow[] {

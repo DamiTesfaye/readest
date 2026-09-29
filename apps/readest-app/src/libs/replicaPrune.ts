@@ -107,7 +107,6 @@ export const createReplicaFileStore = (
     return (data ?? []) as StoredReplicaFile[];
   },
   deleteFiles: async (doomed) => {
-    for (const file of doomed) await deleteObject(file.file_key);
     const { error } = await files
       .from('files')
       .delete()
@@ -116,5 +115,6 @@ export const createReplicaFileStore = (
         doomed.map((file) => file.id),
       );
     if (error) throw new Error(`delete replica files failed: ${error.message}`);
+    for (const file of doomed) await deleteObject(file.file_key);
   },
 });
