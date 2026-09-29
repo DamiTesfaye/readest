@@ -2,7 +2,9 @@ import { isSafeMindmapId, mapFileDir } from '@/services/mindmap/persist/mapFile'
 import { hasPendingTombstone } from '@/services/mindmap/persist/mindmapTrash';
 import type { MindmapEntry } from '@/services/mindmap/persist/mindmapStore';
 import {
+  forgetStaleMindmapVersions,
   incomingDir,
+  isStaleMindmapVersion,
   noteMindmapManifest,
   outgoingDir,
   parseVersionFilename,
@@ -81,6 +83,7 @@ export const mindmapAdapter: ReplicaAdapter<MindmapReplicaRecord> = {
         });
         return true;
       }
+      if (isStaleMindmapVersion(file.filename)) return true;
       noteMindmapManifest(record.mapId, file);
       return (
         record.syncedMd5 !== null &&
@@ -90,5 +93,6 @@ export const mindmapAdapter: ReplicaAdapter<MindmapReplicaRecord> = {
     downloadPath: (filename, bundleDir) => `${incomingDir(bundleDir)}/${filename}`,
     bundleDirFor,
     staleWhenMissing: true,
+    onStaleDownload: forgetStaleMindmapVersions,
   },
 };

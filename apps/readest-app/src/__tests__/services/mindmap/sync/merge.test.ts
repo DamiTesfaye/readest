@@ -20,6 +20,7 @@ import { type MindmapMergeDeps, mergeIncomingVersion } from '@/services/mindmap/
 import {
   __resetMindmapManifestsForTests,
   noteMindmapManifest,
+  unmergedMindmapVersion,
   versionFilename,
 } from '@/services/mindmap/sync/versions';
 import type { ReplicaTransferFile } from '@/store/transferStore';
@@ -323,6 +324,28 @@ describe('mergeIncomingVersion', () => {
     });
     await mergeIncomingVersion(deps, MAP, await deliver(text));
     expect(deps.queueDownload).not.toHaveBeenCalled();
+  });
+
+  it('remembers a merged version so a push after it is not held back by it', async () => {
+    await seedLocal(relabel(base(), 'n1', 'Local label', local));
+    const text = canonicalStringify(withNode(base(), 'n2', 'From device B', remoteClock));
+    const files = await deliver(text);
+    noteMindmapManifest(MAP, { filename: files[0]!.logical, byteSize: 5, partialMd5: 'x' });
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('merged');
+    store().setSyncedMd5(MAP, 'f'.repeat(32));
+    expect(unmergedMindmapVersion(MAP, 'f'.repeat(32))).toBeUndefined();
+  });
+
+  it('keeps a version whose merge failed unmerged so the next push fetches it again', async () => {
+    await seedLocal(base(), 'old');
+    const files = await deliver(
+      canonicalStringify(withNode(base(), 'n2', 'From device B', remoteClock)),
+    );
+    noteMindmapManifest(MAP, { filename: files[0]!.logical, byteSize: 5, partialMd5: 'x' });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(fs, 'writeFile').mockRejectedValue(new Error('disk full'));
+    expect(await mergeIncomingVersion(deps, MAP, files)).toBe('save-failed');
+    expect(unmergedMindmapVersion(MAP, 'old')?.filename).toBe(files[0]!.logical);
   });
 
   it('ignores a download for a map this device no longer has', async () => {

@@ -19,6 +19,12 @@ import {
   REPUSH_DELAY_MS,
   createMindmapPusher,
 } from '@/services/mindmap/sync/push';
+import {
+  __resetMindmapManifestsForTests,
+  markMindmapVersionKnown,
+  noteMindmapManifest,
+  versionFilename,
+} from '@/services/mindmap/sync/versions';
 import type { MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
 
 const BOOK = 'book1';
@@ -27,11 +33,13 @@ const clock = createMindmapClock(new HlcGenerator('dev-a'), 'dev-a');
 let fs: MemoryFileSystem;
 let pusher: MindmapPusher;
 let pending: Set<string>;
+let downloading: Set<string>;
 let deps: {
   canPush: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
   publishRow: ReturnType<typeof vi.fn<MindmapPushDeps['publishRow']>>;
   queueUpload: ReturnType<typeof vi.fn<(record: MindmapReplicaRecord) => Promise<string | null>>>;
   confirmManifest: ReturnType<typeof vi.fn<MindmapPushDeps['confirmManifest']>>;
+  queueDownload: ReturnType<typeof vi.fn<MindmapPushDeps['queueDownload']>>;
 };
 
 const store = () => useMindmapStore.getState();
@@ -64,6 +72,7 @@ beforeEach(async () => {
   fs = new MemoryFileSystem();
   await store().hydrate(fs);
   pending = new Set();
+  downloading = new Set();
   deps = {
     canPush: vi.fn(async () => true),
     publishRow: vi.fn(async () => {}),
@@ -72,11 +81,13 @@ beforeEach(async () => {
       return `upload-${record.mapId}`;
     }),
     confirmManifest: vi.fn(async () => true),
+    queueDownload: vi.fn(),
   };
   pusher = createMindmapPusher({
     fs,
     ...deps,
     isUploadPending: (mapId) => pending.has(mapId),
+    isDownloadPending: (mapId) => downloading.has(mapId),
   });
 });
 
@@ -85,6 +96,7 @@ afterEach(() => {
   vi.useRealTimers();
   __resetMapSessionsForTests();
   __resetMindmapStoreForTests();
+  __resetMindmapManifestsForTests();
 });
 
 describe('mindmap push', () => {
@@ -366,6 +378,52 @@ describe('mindmap push', () => {
     await pusher.pushNow(mapId);
     await pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
     expect(pusher.unpushed()).toEqual([mapId]);
+  });
+
+  it('waits for a download of the map before pushing over the server version', async () => {
+    const mapId = await createMap();
+    downloading.add(mapId);
+    expect(await pusher.pushNow(mapId)).toBe('deferred');
+    expect(deps.queueUpload).not.toHaveBeenCalled();
+    expect(deps.queueDownload).not.toHaveBeenCalled();
+    expect(pusher.unpushed()).toEqual([mapId]);
+  });
+
+  it('downloads a server version it has seen but not merged before pushing over it', async () => {
+    const mapId = await createMap();
+    const seen = { filename: versionFilename(mapId, 'f'.repeat(32)), byteSize: 3, partialMd5: 'p' };
+    noteMindmapManifest(mapId, seen);
+    expect(await pusher.pushNow(mapId)).toBe('deferred');
+    expect(deps.queueDownload).toHaveBeenCalledWith(store().getEntry(mapId), seen);
+    expect(deps.queueUpload).not.toHaveBeenCalled();
+    expect(pusher.unpushed()).toEqual([mapId]);
+  });
+
+  it('pushes over a server version it has merged or pushed itself', async () => {
+    const mapId = await createMap();
+    const seen = { filename: versionFilename(mapId, 'f'.repeat(32)), byteSize: 3, partialMd5: 'p' };
+    noteMindmapManifest(mapId, seen);
+    markMindmapVersionKnown(seen.filename);
+    expect(await pusher.pushNow(mapId)).toBe('queued');
+    expect(deps.queueDownload).not.toHaveBeenCalled();
+  });
+
+  it('remembers a version it pushed so a later push is not held back by it', async () => {
+    const mapId = await createMap();
+    await pusher.pushNow(mapId);
+    const first = uploaded().outgoing!.filename;
+    pending.delete(mapId);
+    await pusher.committed(mapId, [{ logical: first, lfp: '', byteSize: 1 }]);
+    noteMindmapManifest(mapId, { filename: first, byteSize: 1, partialMd5: 'p' });
+    await rename(mapId, 'Renamed');
+    expect(await pusher.pushNow(mapId)).toBe('queued');
+    pending.delete(mapId);
+    await pusher.committed(mapId, [
+      { logical: uploaded(1).outgoing!.filename, lfp: '', byteSize: 1 },
+    ]);
+    await rename(mapId, 'Renamed again');
+    expect(await pusher.pushNow(mapId)).toBe('queued');
+    expect(deps.queueDownload).not.toHaveBeenCalled();
   });
 
   it('reports a map it does not know and a map whose file cannot be read', async () => {

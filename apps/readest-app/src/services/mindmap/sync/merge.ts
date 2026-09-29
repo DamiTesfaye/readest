@@ -16,9 +16,9 @@ import { CURRENT_SCHEMA_VERSION, type MapFile } from '@/services/mindmap/schema/
 import { decodeMeta } from '@/services/mindmap/schema/validate';
 import {
   type MapVersion,
-  latestMindmapManifest,
+  markMindmapVersionKnown,
   parseVersionFilename,
-  versionFilename,
+  unmergedMindmapVersion,
 } from '@/services/mindmap/sync/versions';
 import type { ReplicaTransferFile } from '@/store/transferStore';
 import type { ManifestFile } from '@/types/replica';
@@ -132,15 +132,21 @@ const mergeClosedMap = async (
   return (await mergeIntoSession(entry.mapId, onDisk.file)) ?? onDisk;
 };
 
-const queueNewerVersion = (deps: MindmapMergeDeps, mapId: string, merged: string): void => {
+const SETTLED_OUTCOMES: readonly MergeOutcome[] = [
+  'merged',
+  'corrupt',
+  'unparseable',
+  'newer-schema',
+  'read-only',
+];
+
+const queueNewerVersion = (deps: MindmapMergeDeps, mapId: string): void => {
   const entry = useMindmapStore.getState().getEntry(mapId);
-  const latest = latestMindmapManifest(mapId);
-  if (!entry || !latest || latest.filename === merged) return;
-  if (entry.syncedMd5 && latest.filename === versionFilename(mapId, entry.syncedMd5)) return;
-  deps.queueDownload(entry, latest);
+  const latest = entry ? unmergedMindmapVersion(mapId, entry.syncedMd5) : undefined;
+  if (entry && latest) deps.queueDownload(entry, latest);
 };
 
-export const mergeIncomingVersion = async (
+const mergeIncoming = async (
   deps: MindmapMergeDeps,
   mapId: string,
   files: ReplicaTransferFile[],
@@ -176,6 +182,18 @@ export const mergeIncomingVersion = async (
   if (current && current.name !== title) store.upsertEntry({ ...current, name: title });
   await discard(deps.fs, incoming.path);
   if (md5Hex(result.text) !== incoming.md5) deps.schedulePush(mapId);
-  queueNewerVersion(deps, mapId, versionFilename(mapId, incoming.md5));
   return 'merged';
+};
+
+export const mergeIncomingVersion = async (
+  deps: MindmapMergeDeps,
+  mapId: string,
+  files: ReplicaTransferFile[],
+): Promise<MergeOutcome> => {
+  const outcome = await mergeIncoming(deps, mapId, files);
+  if (SETTLED_OUTCOMES.includes(outcome)) {
+    for (const file of files) markMindmapVersionKnown(file.logical);
+  }
+  if (outcome === 'merged') queueNewerVersion(deps, mapId);
+  return outcome;
 };

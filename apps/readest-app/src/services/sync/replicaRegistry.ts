@@ -8,6 +8,7 @@ export interface BinaryCapability<T> {
   downloadPath?(filename: string, bundleDir: string): string;
   bundleDirFor?(row: ReplicaRow): string | null;
   staleWhenMissing?: boolean;
+  onStaleDownload?(replicaId: string, filenames: string[]): void;
 }
 
 export interface LifecycleHooks<T> {

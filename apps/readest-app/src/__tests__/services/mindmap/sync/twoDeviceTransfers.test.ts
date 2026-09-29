@@ -275,6 +275,58 @@ const createMap = async (device: Device, title: string): Promise<string> => {
   return file.mapId;
 };
 
+const openMap = async (device: Device, mapId: string) => {
+  const sync = await device.m.runtime.getMindmapSync();
+  const opened = await device.m.sessions.openMapSession(sync.fs, BOOK, mapId, clockOf(device));
+  if (opened.status !== 'open') throw new Error('expected an open session');
+  return opened.session;
+};
+
+const edit = async (
+  device: Device,
+  mapId: string,
+  change: (session: Awaited<ReturnType<typeof openMap>>) => void,
+): Promise<void> => {
+  const session = await openMap(device, mapId);
+  change(session);
+  await session.close();
+};
+
+const push = async (device: Device, mapId: string): Promise<string> => {
+  const result = await (await device.m.runtime.getMindmapSync()).pusher.pushNow(mapId);
+  await settle(device);
+  return result;
+};
+
+const serverText = (mapId: string): string | undefined => {
+  const filename = serverVersion(mapId);
+  return filename
+    ? holder.cloud.objects.get(`${USER}/${cloudPath('mindmap', mapId, filename)}`)
+    : undefined;
+};
+
+const nodeFromB = {
+  id: 'n-b',
+  type: 'node',
+  version: 1,
+  parentId: null,
+  index: 'a0',
+  origin: 'user',
+  genKey: null,
+  touched: [],
+  anchor: null,
+  revealAt: null,
+  deleted: null,
+  x: 0,
+  y: 0,
+  w: 160,
+  h: 64,
+  label: 'Added on B',
+  kind: 'idea',
+  color: 'terracotta',
+  icon: '',
+} as const;
+
 const localText = async (device: Device, mapId: string): Promise<string> =>
   device.fs.readFile(device.m.maps.mapFilePath(BOOK, mapId), 'Books');
 
@@ -353,5 +405,67 @@ describe('mind map sync when an upload fails', () => {
     const b = await startDevice('dev-b');
     await pull(b);
     expect(await localText(b, mapId)).toBe(await localText(a, mapId));
+  });
+});
+
+describe('mind map sync when a newer version was seen but not merged', () => {
+  const sharedMapEditedOnB = async (a: Device, b: Device): Promise<string> => {
+    await pull(a);
+    const mapId = await createMap(a, 'Shared');
+    await push(a, mapId);
+    await pull(b);
+    await edit(b, mapId, (session) => session.store.put([{ ...nodeFromB }] as never));
+    await push(b, mapId);
+    expect(serverText(mapId)).toContain('Added on B');
+    return mapId;
+  };
+
+  it('merges the version it could not download before pushing over it', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await sharedMapEditedOnB(a, b);
+    await edit(a, mapId, (session) => session.updateMeta({ title: 'Edited on A' }));
+    a.knobs.downloadFailures = 4;
+    await a.m.pullAndApply.replicaPullAndApply(pullDeps(a));
+    await exhaustRetries(a, 'download');
+    expect(a.m.versions.latestMindmapManifest(mapId)?.filename).toBe(serverVersion(mapId));
+
+    expect(await push(a, mapId)).toBe('deferred');
+    expect(serverText(mapId)).toContain('Edited on A');
+    expect(serverText(mapId)).toContain('Added on B');
+    const c = await startDevice('dev-c');
+    await pull(c);
+    expect(await localText(c, mapId)).toContain('Added on B');
+    expect(await localText(c, mapId)).toContain('Edited on A');
+  });
+
+  it('does not let a manifest naming a missing file block its pushes', async () => {
+    const a = await startDevice('dev-a');
+    const b = await startDevice('dev-b');
+    const mapId = await sharedMapEditedOnB(a, b);
+    holder.cloud.objects.delete(`${USER}/${cloudPath('mindmap', mapId, serverVersion(mapId)!)}`);
+    await edit(a, mapId, (session) => session.updateMeta({ title: 'Edited on A' }));
+    a.m.transfers.transferManager.pauseQueue();
+    await a.m.pullAndApply.replicaPullAndApply(pullDeps(a));
+    const sync = await a.m.runtime.getMindmapSync();
+    expect(await sync.pusher.pushNow(mapId)).toBe('deferred');
+    a.m.transfers.transferManager.resumeQueue();
+    await drain(a);
+    expect(transfersOf(a).filter((t) => t.type === 'download')).toEqual([]);
+    expect(a.m.versions.latestMindmapManifest(mapId)).toBeUndefined();
+
+    a.m.transfers.transferManager.pauseQueue();
+    await a.m.pullAndApply.replicaPullAndApply(pullDeps(a));
+    await a.m.runtime.finishMindmapPull();
+    a.m.transfers.transferManager.resumeQueue();
+    await settle(a);
+    expect(serverVersion(mapId)).toBe(await localVersion(a, mapId));
+    expect(serverText(mapId)).toContain('Edited on A');
+
+    await pull(b);
+    await pull(a);
+    expect(await localText(a, mapId)).toBe(await localText(b, mapId));
+    expect(await localText(a, mapId)).toContain('Added on B');
+    expect(serverVersion(mapId)).toBe(await localVersion(a, mapId));
   });
 });

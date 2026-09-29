@@ -2,7 +2,7 @@ import environmentConfig from '@/services/environment';
 import { getMindmapClock } from '@/services/mindmap/persist/clockSource';
 import { MINDMAP_BASE_DIR } from '@/services/mindmap/persist/mapFile';
 import { type MindmapFs, mindmapFsFromAppService } from '@/services/mindmap/persist/mindmapFs';
-import { useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
+import { type MindmapEntry, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
 import {
   type TrashedMap,
   confirmTombstones,
@@ -24,6 +24,7 @@ import { isSyncCategoryEnabled } from '@/services/sync/syncCategories';
 import { transferManager } from '@/services/transferManager';
 import { useSettingsStore } from '@/store/settingsStore';
 import { type ReplicaTransferFile, useTransferStore } from '@/store/transferStore';
+import type { ManifestFile } from '@/types/replica';
 import type { AppService } from '@/types/system';
 import { getAccessToken } from '@/utils/access';
 
@@ -79,41 +80,50 @@ const sendPendingTombstones = async (fs: MindmapFs): Promise<string[]> => {
   return sent ? published : [];
 };
 
+const isTransferPending = (mapId: string, type: 'upload' | 'download'): boolean =>
+  useTransferStore.getState().getReplicaTransfer(MINDMAP_KIND, mapId, type) !== undefined;
+
+const versionDownloader =
+  (fs: MindmapFs) =>
+  (entry: MindmapEntry, file: ManifestFile): void => {
+    const dir = incomingDir(entry.bundleDir);
+    void fs
+      .createDir(dir, MINDMAP_BASE_DIR, true)
+      .then(() =>
+        transferManager.queueReplicaDownload(
+          MINDMAP_KIND,
+          entry.mapId,
+          entry.name,
+          [{ logical: file.filename, lfp: `${dir}/${file.filename}`, byteSize: file.byteSize }],
+          MINDMAP_BASE_DIR,
+          { isBackground: true },
+        ),
+      )
+      .catch((error: unknown) => {
+        console.warn('mindmap: could not queue the newer version', { mapId: entry.mapId, error });
+      });
+  };
+
 const createRuntime = async (): Promise<MindmapSync> => {
   const service = await environmentConfig.getAppService();
   const fs = mindmapFsFromAppService(service);
+  const queueDownload = versionDownloader(fs);
   const pusher = createMindmapPusher({
     fs,
     canPush,
     publishRow: (entry) => publishReplicaUpsert(MINDMAP_KIND, entry, entry.mapId),
     queueUpload: (record) =>
       queueReplicaBinaryUpload(MINDMAP_KIND, record, service, { isBackground: true }),
-    isUploadPending: (mapId) =>
-      useTransferStore.getState().getReplicaTransfer(MINDMAP_KIND, mapId, 'upload') !== undefined,
+    isUploadPending: (mapId) => isTransferPending(mapId, 'upload'),
+    isDownloadPending: (mapId) => isTransferPending(mapId, 'download'),
+    queueDownload,
     confirmManifest,
   });
   const merge: MindmapMergeDeps = {
     fs,
     clock: () => getMindmapClock(useSettingsStore.getState().settings?.replicaDeviceId ?? ''),
     schedulePush: (mapId) => pusher.schedule(mapId),
-    queueDownload: (entry, file) => {
-      const dir = incomingDir(entry.bundleDir);
-      void fs
-        .createDir(dir, MINDMAP_BASE_DIR, true)
-        .then(() =>
-          transferManager.queueReplicaDownload(
-            MINDMAP_KIND,
-            entry.mapId,
-            entry.name,
-            [{ logical: file.filename, lfp: `${dir}/${file.filename}`, byteSize: file.byteSize }],
-            MINDMAP_BASE_DIR,
-            { isBackground: true },
-          ),
-        )
-        .catch((error: unknown) => {
-          console.warn('mindmap: could not queue the newer version', { mapId: entry.mapId, error });
-        });
-    },
+    queueDownload,
   };
   return { service, fs, pusher, merge };
 };

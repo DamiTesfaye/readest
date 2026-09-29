@@ -4,12 +4,15 @@ import type { MindmapFs } from '@/services/mindmap/persist/mindmapFs';
 import { type MindmapEntry, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
 import { getOpenMapSession } from '@/services/mindmap/persist/session';
 import {
+  markMindmapVersionKnown,
   outgoingDir,
   parseVersionFilename,
+  unmergedMindmapVersion,
   versionFilename,
 } from '@/services/mindmap/sync/versions';
 import type { MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
 import type { ReplicaTransferFile } from '@/store/transferStore';
+import type { ManifestFile } from '@/types/replica';
 
 export const PUSH_DEBOUNCE_MS = 30_000;
 export const REPUSH_DELAY_MS = 1_000;
@@ -19,6 +22,7 @@ export type PushResult =
   | 'not-queued'
   | 'current'
   | 'pending'
+  | 'deferred'
   | 'skipped'
   | 'save-failed'
   | 'unreadable'
@@ -30,6 +34,8 @@ export interface MindmapPushDeps {
   publishRow(entry: MindmapEntry): Promise<void>;
   queueUpload(record: MindmapReplicaRecord): Promise<string | null>;
   isUploadPending(mapId: string): boolean;
+  isDownloadPending(mapId: string): boolean;
+  queueDownload(entry: MindmapEntry, file: ManifestFile): void;
   confirmManifest(mapId: string): Promise<boolean>;
 }
 
@@ -70,6 +76,13 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     timers.delete(mapId);
   };
 
+  const awaitsMerge = (entry: MindmapEntry): boolean => {
+    if (deps.isDownloadPending(entry.mapId)) return true;
+    const unmerged = unmergedMindmapVersion(entry.mapId, entry.syncedMd5);
+    if (unmerged) deps.queueDownload(entry, unmerged);
+    return unmerged !== undefined;
+  };
+
   const push = async (mapId: string): Promise<PushResult> => {
     const entry = useMindmapStore.getState().getEntry(mapId);
     if (!entry) return 'unknown-map';
@@ -78,6 +91,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
       return 'pending';
     }
     if (!(await deps.canPush())) return 'skipped';
+    if (awaitsMerge(entry)) return 'deferred';
     const session = getOpenMapSession(mapId);
     if (session && !(await session.flush())) return 'save-failed';
     const read = await readMapFile(deps.fs, entry.bookHash, mapId);
@@ -151,6 +165,7 @@ export const createMindmapPusher = (deps: MindmapPushDeps): MindmapPusher => {
     const entry = useMindmapStore.getState().getEntry(mapId);
     if (!entry) return;
     useMindmapStore.getState().setSyncedMd5(mapId, version.md5);
+    markMindmapVersionKnown(versionFilename(mapId, version.md5));
     const copy = `${outgoingDir(entry.bundleDir)}/${versionFilename(mapId, version.md5)}`;
     const needed = chains.has(mapId) || deps.isUploadPending(mapId);
     if (!needed && (await deps.fs.exists(copy, MINDMAP_BASE_DIR))) {

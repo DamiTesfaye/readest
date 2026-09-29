@@ -10,6 +10,8 @@ const downloadReplicaFile = vi.fn(async () => {
   throw new Error('File not found');
 });
 
+const onStaleDownload = vi.fn();
+
 const adapterOf = (kind: string, staleWhenMissing: boolean): ReplicaAdapter<unknown> => ({
   kind,
   schemaVersion: 1,
@@ -17,7 +19,7 @@ const adapterOf = (kind: string, staleWhenMissing: boolean): ReplicaAdapter<unkn
   unpack: () => ({}),
   computeId: async () => '',
   unpackRow: () => ({}),
-  binary: { localBaseDir: 'Books', enumerateFiles: () => [], staleWhenMissing },
+  binary: { localBaseDir: 'Books', enumerateFiles: () => [], staleWhenMissing, onStaleDownload },
 });
 
 const FILES = [{ logical: 'map1.v2.json', lfp: 'b/incoming/map1.v2.json', byteSize: 3 }];
@@ -38,6 +40,7 @@ beforeEach(() => {
   registerReplicaAdapter(adapterOf('font', false));
   useTransferStore.setState({ transfers: {} });
   downloadReplicaFile.mockClear();
+  onStaleDownload.mockClear();
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -51,6 +54,7 @@ describe('replica downloads whose file is gone', () => {
     await vi.waitFor(() => expect(useTransferStore.getState().transfers[id!]).toBeUndefined());
     expect(downloadReplicaFile).toHaveBeenCalledOnce();
     expect(toast).not.toHaveBeenCalledWith('toast', expect.anything());
+    expect(onStaleDownload).toHaveBeenCalledExactlyOnceWith('map1', ['map1.v2.json']);
   });
 
   test('are retried for every other kind', async () => {
@@ -60,6 +64,7 @@ describe('replica downloads whose file is gone', () => {
       await vi.advanceTimersByTimeAsync(20_000);
       expect(useTransferStore.getState().transfers[id!]?.status).toBe('failed');
       expect(downloadReplicaFile.mock.calls.length).toBeGreaterThan(1);
+      expect(onStaleDownload).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

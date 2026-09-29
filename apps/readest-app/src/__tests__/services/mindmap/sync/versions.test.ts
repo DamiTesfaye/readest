@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import {
   __resetMindmapManifestsForTests,
+  forgetStaleMindmapVersions,
   incomingDir,
+  isStaleMindmapVersion,
   latestMindmapManifest,
+  markMindmapVersionKnown,
   noteMindmapManifest,
   outgoingDir,
   parseVersionFilename,
+  unmergedMindmapVersion,
   versionFilename,
 } from '@/services/mindmap/sync/versions';
 
@@ -41,5 +45,28 @@ describe('mindmap version names', () => {
     expect(latestMindmapManifest('map1')).toBeUndefined();
     noteMindmapManifest('map1', file);
     expect(latestMindmapManifest('map1')).toEqual(file);
+  });
+
+  test('name the seen version as unmerged until it is synced or known', () => {
+    const file = { filename: `map1.${MD5}.json`, byteSize: 9, partialMd5: 'x' };
+    expect(unmergedMindmapVersion('map1', null)).toBeUndefined();
+    noteMindmapManifest('map1', file);
+    expect(unmergedMindmapVersion('map1', null)).toEqual(file);
+    expect(unmergedMindmapVersion('map1', MD5)).toBeUndefined();
+    markMindmapVersionKnown(file.filename);
+    expect(unmergedMindmapVersion('map1', null)).toBeUndefined();
+  });
+
+  test('forget a seen version whose download was stale, but not a newer one', () => {
+    const stale = { filename: `map1.${MD5}.json`, byteSize: 9, partialMd5: 'x' };
+    const newer = { filename: `map1.${'f'.repeat(32)}.json`, byteSize: 9, partialMd5: 'y' };
+    noteMindmapManifest('map1', newer);
+    forgetStaleMindmapVersions('map1', [stale.filename]);
+    expect(latestMindmapManifest('map1')).toEqual(newer);
+    noteMindmapManifest('map1', stale);
+    forgetStaleMindmapVersions('map1', [stale.filename]);
+    expect(latestMindmapManifest('map1')).toBeUndefined();
+    expect(isStaleMindmapVersion(stale.filename)).toBe(true);
+    expect(isStaleMindmapVersion(newer.filename)).toBe(false);
   });
 });

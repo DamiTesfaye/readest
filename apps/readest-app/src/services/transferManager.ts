@@ -17,6 +17,18 @@ const isStaleReplicaDownload = (transfer: TransferItem, errorMessage: string): b
   errorMessage === MISSING_FILE_ERROR &&
   getReplicaAdapter(transfer.replicaKind ?? '')?.binary?.staleWhenMissing === true;
 
+const dropStaleReplicaDownload = (transfer: TransferItem): void => {
+  console.warn('replica download is stale', {
+    kind: transfer.replicaKind,
+    replicaId: transfer.replicaId,
+  });
+  useTransferStore.getState().removeTransfer(transfer.id);
+  getReplicaAdapter(transfer.replicaKind ?? '')?.binary?.onStaleDownload?.(
+    transfer.replicaId ?? '',
+    (transfer.replicaFiles ?? []).map((file) => file.logical),
+  );
+};
+
 interface PersistedQueueData {
   transfers: Record<string, TransferItem>;
   isQueuePaused: boolean;
@@ -383,11 +395,7 @@ class TransferManager {
 
       const errorMessage = error instanceof Error ? error.message : _('Unknown error');
       if (isStaleReplicaDownload(transfer, errorMessage)) {
-        console.warn('replica download is stale', {
-          kind: transfer.replicaKind,
-          replicaId: transfer.replicaId,
-        });
-        useTransferStore.getState().removeTransfer(transfer.id);
+        dropStaleReplicaDownload(transfer);
         return;
       }
       const currentStore = useTransferStore.getState();
