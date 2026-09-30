@@ -121,6 +121,7 @@ export const useMapReveal = ({
       controller.visible.set(visibleFilter(hidden));
       applied.current = { controller, hidden };
     }
+    controller.fog.set([...state.clusters, ...state.redacted]);
     setReady(true);
   }, [controller, state, opening]);
 
@@ -136,6 +137,7 @@ export const useMapReveal = ({
     const fresh = state.newIds.filter((id) => !announced.current.has(id));
     announced.current = new Set([...announced.current, ...fresh]);
     if (fresh.length > 0) {
+      controller?.revealInView(fresh, animate);
       useMindmapViewStore
         .getState()
         .announce(_('{{count}} new nodes revealed', { count: fresh.length }));
@@ -144,7 +146,7 @@ export const useMapReveal = ({
     if (!session.readOnly && revealsBetween(records, stored, floor)) {
       session.updateMeta({ lastSeenProgress: floor });
     }
-  }, [ready, opening, state, records, floor, session, _]);
+  }, [ready, opening, state, records, floor, session, controller, animate, _]);
 
   const showChip = meta.source === 'generated' && spoiler !== 'whole' && state.total > 0;
   const chapter = chapterAt(chapterStarts, floor);

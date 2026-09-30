@@ -8,7 +8,7 @@ import {
 } from '@/services/mindmap/camera/camera';
 import { type History, createHistory } from '@/services/mindmap/history/history';
 import { createLinkRecord, createNodeRecord } from '@/services/mindmap/records/defaults';
-import type { Point } from '@/services/mindmap/records/geometry';
+import type { BoundsRect, Point } from '@/services/mindmap/records/geometry';
 import type {
   MapCamera,
   NodeKind,
@@ -87,6 +87,7 @@ export interface CanvasController {
   readonly hover: Atom<string | null>;
   readonly viewport: Atom<Viewport>;
   readonly visible: Atom<RecordFilter>;
+  readonly fog: Atom<readonly BoundsRect[]>;
   readonly gesture: Atom<boolean>;
   isShown(id: string): boolean;
   setTool(tool: ToolId): void;
@@ -116,6 +117,7 @@ export interface CanvasController {
   commitEdit(id: string, text: string): void;
   zoomBy(factor: number): void;
   fitView(animate: boolean): void;
+  revealInView(ids: readonly string[], animate: boolean): void;
   dispose(): void;
 }
 
@@ -125,6 +127,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
   const history = createHistory(store);
   const camera = createCamera(options.camera);
   const visible = createAtom<RecordFilter>(SHOW_ALL);
+  const fog = createAtom<readonly BoundsRect[]>([]);
   const spatial = createSpatialIndex(store, visible.get);
   const tool = createAtom<ToolId>('select');
   const selection = createAtom<readonly string[]>([]);
@@ -325,6 +328,7 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
     hover,
     viewport,
     visible,
+    fog,
     gesture: gestureAtom,
     isShown: shown,
     setTool,
@@ -510,15 +514,37 @@ export const createCanvasController = (options: CanvasControllerOptions): Canvas
       camera.zoomAt({ x: view.width / 2, y: view.height / 2 }, factor);
     },
     fitView: (animate) => {
-      const bounds = unionBounds(
-        store
+      const bounds = unionBounds([
+        ...store
           .all()
           .filter(isLive)
           .filter(isPositioned)
           .filter((record) => shown(record.id))
           .map(recordBounds),
-      );
+        ...fog.get(),
+      ]);
       animateCamera(camera, camera.fitTarget(bounds, viewport.get()), animate);
+    },
+    revealInView: (ids, animate) => {
+      const view = viewport.get();
+      if (view.width <= 0 || view.height <= 0) return;
+      const revealed = unionBounds(
+        ids
+          .map((id) => store.get(id))
+          .filter(isLive)
+          .filter(isPositioned)
+          .map(recordBounds),
+      );
+      if (!revealed) return;
+      const current = camera.viewportBounds(view);
+      const inside =
+        revealed.x >= current.x &&
+        revealed.y >= current.y &&
+        revealed.x + revealed.w <= current.x + current.w &&
+        revealed.y + revealed.h <= current.y + current.h;
+      if (inside) return;
+      const target = unionBounds([current, revealed])!;
+      animateCamera(camera, camera.fitTarget(target, view), animate);
     },
     dispose: () => {
       pointerCancel();

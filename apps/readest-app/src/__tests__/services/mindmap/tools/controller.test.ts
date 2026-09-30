@@ -455,3 +455,39 @@ describe('viewport resize', () => {
     controller.dispose();
   });
 });
+
+describe('framing fogged and newly revealed records', () => {
+  const hideHidden = (record: MapRecord): boolean => !record.id.startsWith('hidden');
+
+  it('fits the fog placeholders when nothing is shown yet', () => {
+    const { controller } = setupController([node('hidden', 0, 0)]);
+    controller.visible.set(hideHidden);
+    controller.fog.set([{ x: 1000, y: 1000, w: 256, h: 64 }]);
+    controller.fitView(false);
+    expect(controller.camera.get()).toEqual({ x: 500 - 1128, y: 400 - 1032, z: 1 });
+  });
+
+  it('fits shown records together with the fog below them', () => {
+    const { controller } = setupController([node('a', 0, 0), node('hidden', 0, 2000)]);
+    controller.visible.set(hideHidden);
+    controller.fog.set([{ x: 0, y: 2000, w: 160, h: 64 }]);
+    controller.fitView(false);
+    expect(controller.camera.get().z).toBeCloseTo((800 - 96) / 2064, 9);
+  });
+
+  it('widens the view to take in revealed records that are off screen', () => {
+    const { controller } = setupController([node('a', 0, 0), node('b', 0, 1200)]);
+    controller.camera.set({ x: 100, y: 100, z: 1 });
+    controller.revealInView(['b'], false);
+    const view = controller.camera.viewportBounds({ width: 1000, height: 800 });
+    expect(view.y).toBeLessThanOrEqual(0);
+    expect(view.y + view.h).toBeGreaterThanOrEqual(1264);
+  });
+
+  it('leaves the camera alone when the revealed records are already in view', () => {
+    const { controller } = setupController([node('a', 0, 0), node('b', 200, 200)]);
+    controller.camera.set({ x: 100, y: 100, z: 1 });
+    controller.revealInView(['b'], false);
+    expect(controller.camera.get()).toEqual({ x: 100, y: 100, z: 1 });
+  });
+});

@@ -235,3 +235,21 @@ describe('useMapReveal announcements', () => {
     expect(useMindmapViewStore.getState().reveal).toBeNull();
   });
 });
+
+describe('useMapReveal framing', () => {
+  it('hands the fog placeholders to the canvas so fit view includes them', async () => {
+    render(false);
+    await waitFor(() => expect(controller.fog.get()).toHaveLength(1));
+  });
+
+  it('brings freshly revealed records into view when the map opens', async () => {
+    controller.viewport.set({ width: 1000, height: 800 });
+    controller.camera.set({ x: -5000, y: -5000, z: 1 });
+    render(false);
+    await waitFor(() => {
+      const view = controller.camera.viewportBounds({ width: 1000, height: 800 });
+      expect(view.x).toBeLessThanOrEqual(0);
+      expect(view.y).toBeLessThanOrEqual(0);
+    });
+  });
+});
