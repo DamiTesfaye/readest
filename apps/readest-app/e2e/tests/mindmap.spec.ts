@@ -171,7 +171,7 @@ test.describe('Mind map', () => {
   }) => {
     const reader = await openBook();
     await createGeneratedMap(reader, page);
-    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 14');
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 12');
     await expect(page.getByTestId('mm-fog-cluster')).toContainText('Keep reading to reveal');
     await expect(chapterNode(page, 'Chapter 12 - Alice’s Evidence')).toHaveCount(0);
   });
@@ -230,7 +230,7 @@ test.describe('Mind map', () => {
   test('grow mode reveals new nodes after advancing a chapter', async ({ openBook, page }) => {
     const reader = await openBook();
     await createGeneratedMap(reader, page);
-    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 14');
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 12');
     await expect(chapterNode(page, 'Chapter 6 - Pig and Pepper')).toHaveCount(0);
     await page.getByRole('button', { name: /^Back to page/ }).click();
     await reader.revealHeader();
@@ -259,7 +259,7 @@ test.describe('Mind map', () => {
     await reader.prevPage();
     await expect.poll(() => bookLocation(page)).toMatch(/^epubcfi\(\/6\/8[!,)]/);
     await createGeneratedMap(reader, page);
-    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 14');
+    await expect(page.getByTestId('mm-reveal-chip')).toContainText('of 12');
     await expect(chapterNode(page, 'Chapter 1 - Down the Rabbit Hole')).toHaveCount(1);
     await expect(chapterNode(page, 'Chapter 2 - The Pool of Tears')).toHaveCount(0);
   });
