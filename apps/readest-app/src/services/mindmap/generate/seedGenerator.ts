@@ -5,13 +5,50 @@ import type { BookNote } from '@/types/book';
 
 const QUOTE_TYPES: ReadonlySet<BookNote['type']> = new Set(['annotation', 'excerpt']);
 const NOTE_KEY = /^(?:link:)?note:(.+)$/;
+const MATTER_LABELS: ReadonlySet<string> = new Set([
+  'cover',
+  'title',
+  'title page',
+  'half title',
+  'copyright',
+  'copyright page',
+  'contents',
+  'table of contents',
+  'dedication',
+  'epigraph',
+  'frontispiece',
+  'imprint',
+  'colophon',
+  'about',
+  'about this book',
+  'about this ebook',
+  'about the author',
+  'about the authors',
+  'about the publisher',
+  'acknowledgments',
+  'acknowledgements',
+  'also by',
+  'praise',
+  'license',
+  'licence',
+]);
+
+const normalizeLabel = (label: string): string =>
+  label
+    .trim()
+    .toLowerCase()
+    .replace(/[\s.:]+$/u, '')
+    .replace(/\s+/gu, ' ');
+
+const isMatter = (item: TOCItem): boolean =>
+  !item.subitems?.length && MATTER_LABELS.has(normalizeLabel(item.sourceLabel ?? item.label));
 
 const chapterNodes = (toc: readonly TOCItem[], locator: BookLocator): GenNode[] => {
   const nodes: GenNode[] = [];
   const seen = new Set<string>();
   const walk = (items: readonly TOCItem[], parentGenKey: string | null): void => {
     for (const item of items) {
-      const genKey = item.href ? `toc:${item.href}` : null;
+      const genKey = item.href && !isMatter(item) ? `toc:${item.href}` : null;
       if (genKey && !seen.has(genKey)) {
         seen.add(genKey);
         const anchor = locator.locateToc(item);

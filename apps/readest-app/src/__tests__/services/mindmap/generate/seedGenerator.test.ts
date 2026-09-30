@@ -174,3 +174,38 @@ describe('seedGenerator quotes the book cannot place', () => {
     expect(quote).toMatchObject({ genKey: 'note:stale', anchor: null, revealAt: 1 });
   });
 });
+
+describe('seedGenerator front and back matter', () => {
+  const generate = (entries: TOCItem[]) =>
+    seedGenerator.generate({
+      book: {} as Book,
+      toc: entries,
+      annotations: [],
+      intent: 'study',
+      locator,
+    });
+
+  it('skips title, about and other non-chapter entries', async () => {
+    const records = await generate([
+      item('title.xhtml', 'Title'),
+      item('about.xhtml', 'About'),
+      item('toc.xhtml', 'Table of Contents'),
+      item('ch2.xhtml', 'Chapter Two'),
+      item('copy.xhtml', '  copyright page. '),
+      item('author.xhtml', 'About the Author'),
+    ]);
+    expect(records.map((record) => (record as GenNode).label)).toEqual(['Chapter Two']);
+  });
+
+  it('keeps a matter-like entry that holds chapters of its own', async () => {
+    const records = await generate([
+      item('part1.xhtml', 'Contents', [item('ch2.xhtml', 'Chapter Two')]),
+    ]);
+    expect(records.map((record) => (record as GenNode).label)).toEqual(['Contents', 'Chapter Two']);
+  });
+
+  it('keeps chapters whose titles only contain a matter word', async () => {
+    const records = await generate([item('ch2.xhtml', 'All About Eve')]);
+    expect(records).toHaveLength(1);
+  });
+});
