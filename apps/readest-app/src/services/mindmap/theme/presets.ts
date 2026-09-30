@@ -155,6 +155,11 @@ const presetStroke = (mode: MindmapMode, preset: PresetColor): string => {
   return preset === 'ink' ? THEME_STROKE : STROKE_TOKENS[mode][preset];
 };
 
+const presetMark = (mode: MindmapMode, preset: PresetColor): string =>
+  mode === 'dark' && preset !== 'paper'
+    ? presetStroke(mode, preset)
+    : PRESET_TOKENS[mode][preset].fill;
+
 export const mindmapCssVars = (mode: MindmapMode): Record<string, string> => {
   const vars: Record<string, string> = {
     ...modeSurfaces(mode),
@@ -169,6 +174,7 @@ export const mindmapCssVars = (mode: MindmapMode): Record<string, string> => {
     vars[`--mm-${preset}-text`] = tokens.text;
     vars[`--mm-${preset}-rim`] = tokens.rim;
     vars[`--mm-${preset}-stroke`] = presetStroke(mode, preset);
+    vars[`--mm-${preset}-mark`] = presetMark(mode, preset);
   }
   return vars;
 };

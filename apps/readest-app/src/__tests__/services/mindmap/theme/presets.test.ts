@@ -122,3 +122,24 @@ describe('mindmap presets', () => {
     expect(all).not.toMatch(/invert|filter/);
   });
 });
+
+describe('sticker node initials', () => {
+  for (const theme of themes) {
+    for (const scheme of ['light', 'dark'] as const) {
+      const palette = theme.colors[scheme];
+      const resolve = (value: string): string =>
+        value
+          .replace('oklch(var(--b3))', palette['base-300'])
+          .replace('oklch(var(--bc))', palette['base-content']);
+      it(`every initial meets 3:1 on its disc in ${theme.name} ${scheme}`, () => {
+        const vars = mindmapCssVars(scheme);
+        for (const preset of PRESET_COLORS) {
+          const mark = vars[`--mm-${preset}-mark`];
+          expect(mark, preset).toBeDefined();
+          const disc = resolve(vars[`--mm-${preset}-rim`]!);
+          expect(contrastRatio(resolve(mark!), disc), preset).toBeGreaterThanOrEqual(UI_AA);
+        }
+      });
+    }
+  }
+});

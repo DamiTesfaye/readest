@@ -46,6 +46,7 @@ describe('RecordView', () => {
     );
     expect(element.innerHTML).toContain('var(--mm-plum-fill)');
     expect(element.innerHTML).toContain('var(--mm-plum-rim)');
+    expect(element.innerHTML).toContain('var(--mm-plum-mark)');
     expect(element.textContent).toContain('E');
   });
 

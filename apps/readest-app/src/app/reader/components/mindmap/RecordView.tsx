@@ -31,7 +31,7 @@ interface RecordViewProps {
   onPopped?: (id: string) => void;
 }
 
-const token = (color: PresetColor, part: 'fill' | 'text' | 'rim' | 'stroke'): string =>
+const token = (color: PresetColor, part: 'fill' | 'text' | 'rim' | 'stroke' | 'mark'): string =>
   `var(--mm-${color}-${part})`;
 
 export const stickyTilt = (id: string): number => {
@@ -118,7 +118,7 @@ const NodeBody: React.FC<{ record: NodeRecord; mapStyle: MapStyle }> = ({ record
       <span
         aria-hidden='true'
         className='flex aspect-square h-[70%] shrink-0 items-center justify-center rounded-full text-xs'
-        style={{ background: token(record.color, 'rim'), color: token(record.color, 'fill') }}
+        style={{ background: token(record.color, 'rim'), color: token(record.color, 'mark') }}
       >
         {initial}
       </span>
