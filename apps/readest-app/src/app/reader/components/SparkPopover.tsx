@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import ToolbarPopover from '@/components/ToolbarPopover';
+import SparkTileArt from '@/components/sparkrive/SparkTileArt';
 import { useMindmapViewStore } from '@/store/mindmapViewStore';
 import { eventDispatcher } from '@/utils/event';
 
@@ -19,6 +20,7 @@ const ITEM_CLASS = 'flex flex-col items-center gap-1.5 px-1 pb-1 pt-2';
 const TITLE_CLASS =
   'popover-action-label text-base-content whitespace-nowrap text-sm leading-tight';
 const SUBTITLE_CLASS = 'popover-label text-base-content/60 text-xxs leading-tight';
+const OPEN_STAGGER_MS = 150;
 
 const SparkPopover: React.FC<SparkPopoverProps> = ({
   bookKey,
@@ -28,6 +30,27 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
   onToggleTTS,
 }) => {
   const _ = useTranslation();
+  const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) setHoveredIcon(null);
+  }, [isOpen]);
+
+  const hoverHandlers = (icon: string) => ({
+    onPointerEnter: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch') setHoveredIcon(icon);
+    },
+    onPointerLeave: () => setHoveredIcon(null),
+  });
+
+  const renderArt = (icon: string, imgClassName: string, index: number) => (
+    <SparkTileArt
+      icon={icon}
+      imgClassName={imgClassName}
+      hovered={hoveredIcon === icon}
+      openDelayMs={index * OPEN_STAGGER_MS}
+    />
+  );
 
   const handleComingSoon = () => {
     eventDispatcher.dispatch('toast', { type: 'info', message: _('Coming soon') });
@@ -93,14 +116,16 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
       onClose={onClose}
     >
       <div className='grid grid-cols-3 gap-x-3 gap-y-3 px-4 pb-4 pt-3'>
-        {simpleItems.map((item) => (
-          <button key={item.icon} type='button' className={ITEM_CLASS} onClick={item.onClick}>
+        {simpleItems.map((item, index) => (
+          <button
+            key={item.icon}
+            type='button'
+            className={ITEM_CLASS}
+            onClick={item.onClick}
+            {...hoverHandlers(item.icon)}
+          >
             <span className='flex h-20 items-center justify-center'>
-              <img
-                src={`/images/spark/${item.icon}.svg`}
-                alt=''
-                className={`${item.iconClass} w-auto object-contain`}
-              />
+              {renderArt(item.icon, item.iconClass, index)}
             </span>
             <span className='flex flex-col items-center gap-0.5'>
               <span className={TITLE_CLASS}>{item.title}</span>
@@ -112,9 +137,10 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
           type='button'
           className={`${ITEM_CLASS} col-start-2 row-start-2`}
           onClick={handleComingSoon}
+          {...hoverHandlers('discuss')}
         >
           <span className='flex h-20 items-center justify-center'>
-            <img src='/images/spark/discuss.svg' alt='' className='h-14 w-auto object-contain' />
+            {renderArt('discuss', 'h-14', simpleItems.length)}
           </span>
           <span className='flex flex-col items-center'>
             <span className={TITLE_CLASS}>{_('Discuss')}</span>
@@ -129,9 +155,10 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
           type='button'
           className={`${ITEM_CLASS} col-start-3 row-start-2`}
           onClick={handleComingSoon}
+          {...hoverHandlers('gallery')}
         >
           <span className='flex h-20 items-center justify-center'>
-            <img src='/images/spark/gallery.svg' alt='' className='h-12 w-auto object-contain' />
+            {renderArt('gallery', 'h-12', simpleItems.length + 1)}
           </span>
           <span className='flex flex-col items-center gap-0.5'>
             <span className={TITLE_CLASS}>{_('Gallery')}</span>
