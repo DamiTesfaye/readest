@@ -5,9 +5,9 @@ import { PiPlus } from 'react-icons/pi';
 import { Theme } from '@/styles/themes';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
+import ThemeSceneArt from '@/components/themescene/ThemeSceneArt';
+import { useSceneMotion } from '@/components/themescene/useSceneMotion';
 import { SectionTitle } from '../primitives';
-
-const CARD_ASSETS = '/images/theme-cards';
 
 interface ThemeColorSelectorProps {
   themes: Theme[];
@@ -32,6 +32,37 @@ const PillRadio = ({ selected, animKey }: { selected: boolean; animKey?: number 
     {selected && <span className='h-2 w-2 rounded-full bg-current' />}
   </span>
 );
+
+type SceneCardButtonProps = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick' | 'onKeyDown'
+> & {
+  onPick: () => void;
+  art: (active: boolean) => React.ReactNode;
+};
+
+const SceneCardButton = ({ onPick, art, children, ...rest }: SceneCardButtonProps) => {
+  const motion = useSceneMotion();
+  const pick = () => {
+    motion.onSelect();
+    onPick();
+  };
+  return (
+    <button
+      tabIndex={0}
+      {...rest}
+      {...motion.handlers}
+      onClick={pick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') pick();
+        e.stopPropagation();
+      }}
+    >
+      {art(motion.active)}
+      {children}
+    </button>
+  );
+};
 
 const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
   themes,
@@ -70,16 +101,16 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
     const { name, label, scene, isCustomizale } = theme;
     const selected = themeColor === name;
     return (
-      <button
+      <SceneCardButton
         key={name}
-        tabIndex={0}
-        onClick={() => onThemeColorChange(name)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            onThemeColorChange(name);
-          }
-          e.stopPropagation();
-        }}
+        onPick={() => onThemeColorChange(name)}
+        art={(active) =>
+          scene ? (
+            <ThemeSceneArt themeName={name} active={active} imgClassName='block h-auto w-full' />
+          ) : (
+            <span className='flex min-h-[6rem] w-full items-center justify-center p-4' />
+          )
+        }
         aria-pressed={selected}
         // Masonry item: no fixed height — artwork sets the natural aspect so
         // differently-scaled scenes stagger. Selection reads via a 2px
@@ -91,11 +122,6 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
         )}
         style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
       >
-        {scene ? (
-          <img src={`${CARD_ASSETS}/${name}.svg`} alt='' className='block h-auto w-full' />
-        ) : (
-          <span className='flex min-h-[6rem] w-full items-center justify-center p-4' />
-        )}
         <span
           className='absolute right-2 top-2 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold backdrop-blur-sm'
           style={{ backgroundColor: cardBg(theme), color: cardFg(theme) }}
@@ -123,7 +149,7 @@ const ThemeColorSelector: React.FC<ThemeColorSelectorProps> = ({
             <CgColorPicker size={iconSize16} />
           </span>
         )}
-      </button>
+      </SceneCardButton>
     );
   };
 
