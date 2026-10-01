@@ -13,7 +13,6 @@ import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { BookSearchConfig, BookSearchMatch, BookSearchResult } from '@/types/book';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
-import { useCaretLookX } from '@/hooks/useCaretLookX';
 import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { debounce } from '@/utils/debounce';
 import { isCJKStr } from '@/utils/lang';
@@ -53,8 +52,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   const queuedSearchTerm = useRef('');
   const inputRef = useRef<HTMLInputElement>(null);
   const inputFocusedRef = useRef(false);
-  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [successfulSearchTerm, setSuccessfulSearchTerm] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isPupLoaded, setIsPupLoaded] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   const bookHash = useMemo(() => bookKey.split('-')[0]!, [bookKey]);
@@ -176,8 +176,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   const iconSize20 = useResponsiveSize(20);
   const isEink = !!viewSettings?.isEink;
   const animationsEnabled = resolveUIAnimationsEnabled(settings);
-  const isEngaged = isInputFocused || searchTerm.length > 0;
-  const { lookX, isTyping } = useCaretLookX(inputRef);
+  const showPup = !isEink && animationsEnabled;
+  const isPupDrawn = showPup && isPupLoaded;
+  const hasResults = successfulSearchTerm !== null && successfulSearchTerm === searchTerm;
 
   useEffect(() => {
     handleSearchTermChange(searchTerm);
@@ -254,6 +255,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
       // Reset progress at start of search
       setSearchProgress(bookKey, 0);
       setSearchStatus(bookKey, 'searching');
+      setSuccessfulSearchTerm(null);
       setSearchError(bookKey, null);
 
       const { section } = progress;
@@ -285,6 +287,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
                 setSearchResults(bookKey, [...results]);
                 setSearchProgress(bookKey, 1);
                 if (results.length > 0) {
+                  setSuccessfulSearchTerm(term);
                   addToHistory(term);
                   await saveSearchCache(term, searchConfig, results);
                 }
@@ -344,6 +347,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   );
 
   const resetSearch = useCallback(() => {
+    setSuccessfulSearchTerm(null);
     setSearchResults(bookKey, []);
     view?.clearSearch();
   }, [bookKey, view, setSearchResults]);
@@ -364,17 +368,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   return (
     <div className='relative flex flex-col gap-3 p-2'>
       <div className='flex items-end gap-2'>
-        <div className={clsx('relative flex-1', isEink ? 'h-9' : 'aspect-[675/445]')}>
-          {!isEink && animationsEnabled && (
-            <SearchBarRive engaged={isEngaged} lookX={lookX} isTyping={isTyping} />
+        <div className={clsx('relative flex-1', showPup ? 'aspect-[602/280]' : 'h-9')}>
+          {showPup && (
+            <SearchBarRive
+              hasResults={hasResults}
+              isEmpty={searchTerm.length === 0}
+              onLoadedChange={setIsPupLoaded}
+            />
           )}
 
           <div
             className={clsx(
-              'absolute flex items-center',
-              isEink
-                ? 'eink-bordered inset-0 rounded-full'
-                : 'left-[13%] right-[13%] top-[39%] h-[28%]',
+              'absolute flex items-center rounded-full',
+              isEink && 'eink-bordered inset-0',
+              !isEink &&
+                isPupDrawn &&
+                'focus-within:ring-base-content/30 bottom-0 left-[1.66%] h-[42.86%] w-[89.37%] focus-within:ring-2',
+              !isEink &&
+                !isPupDrawn &&
+                clsx(
+                  'inset-x-0 bottom-0 border-2 border-[#353535] bg-white',
+                  showPup ? 'h-[43%]' : 'h-full',
+                ),
             )}
           >
             <input
@@ -385,11 +400,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
               onChange={handleInputChange}
               onFocus={() => {
                 inputFocusedRef.current = true;
-                setIsInputFocused(true);
               }}
               onBlur={() => {
                 inputFocusedRef.current = false;
-                setIsInputFocused(false);
               }}
               placeholder={
                 searchMode === 'regex'
@@ -399,7 +412,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
                     : _('Search...')
               }
               className={clsx(
-                'search-input w-full bg-transparent px-4 font-sans text-sm font-light focus:outline-none',
+                'search-input w-full bg-transparent font-sans text-sm font-light focus:outline-none',
+                isPupDrawn ? 'h-full pl-[9%] pr-[24%] pt-[4%]' : 'px-4',
                 isEink ? '' : 'text-neutral-800 placeholder:text-neutral-400',
               )}
             />
@@ -407,7 +421,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
             {searchTerm && (
               <button
                 onClick={handleClearInput}
-                className='absolute end-2 flex h-6 w-6 items-center justify-center bg-transparent'
+                className={clsx(
+                  'absolute flex h-6 w-6 items-center justify-center bg-transparent',
+                  isPupDrawn ? 'end-[11%]' : 'end-2',
+                )}
                 aria-label={_('Clear search')}
               >
                 <IoMdCloseCircle

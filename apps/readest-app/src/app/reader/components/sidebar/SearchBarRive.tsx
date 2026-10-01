@@ -4,40 +4,39 @@ import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import type { Rive as RiveInstance, StateMachineInput } from '@rive-app/canvas';
 
-const RIVE_SRC = '/rive/searchbar.riv';
+const RIVE_SRC = '/rive/christmas-searchbox.riv';
 const RIVE_WASM_SRC = '/rive/rive.wasm';
 const RIVE_WASM_FALLBACK_SRC = '/rive/rive_fallback.wasm';
+const ARTBOARD = 'pup claude work  2';
 const STATE_MACHINE = 'State Machine 1';
 const HOVER_INPUT = 'searchHover';
-const LOOK_X_INPUT = 'lookX';
-const IS_TYPING_INPUT = 'isTyping';
+const TAP_INPUT = 'tap';
+const PRESSED_INPUT = 'pressed';
+const EMPTY_INPUT = 'empty';
+export const YAY_DURATION_MS = 2800;
 
 let runtimeConfigured = false;
 
 interface SearchBarRiveProps {
-  engaged: boolean;
-  lookX?: number;
-  isTyping?: boolean;
+  hasResults: boolean;
+  isEmpty?: boolean;
   className?: string;
+  onLoadedChange?: (loaded: boolean) => void;
 }
 
 const SearchBarRive: React.FC<SearchBarRiveProps> = ({
-  engaged,
-  lookX = 0,
-  isTyping = false,
+  hasResults,
+  isEmpty = true,
   className,
+  onLoadedChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const riveRef = useRef<RiveInstance | null>(null);
   const hoverInputRef = useRef<StateMachineInput | null>(null);
-  const lookXInputRef = useRef<StateMachineInput | null>(null);
-  const isTypingInputRef = useRef<StateMachineInput | null>(null);
-  const engagedRef = useRef(engaged);
-  const lookRef = useRef({ lookX, isTyping });
+  const tapInputRef = useRef<StateMachineInput | null>(null);
+  const pressedInputRef = useRef<StateMachineInput | null>(null);
+  const emptyInputRef = useRef<StateMachineInput | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-
-  engagedRef.current = engaged;
-  lookRef.current = { lookX, isTyping };
 
   useEffect(() => {
     let disposed = false;
@@ -59,20 +58,19 @@ const SearchBarRive: React.FC<SearchBarRiveProps> = ({
       const rive = new Rive({
         canvas,
         buffer,
+        artboard: ARTBOARD,
         autoplay: true,
         stateMachines: STATE_MACHINE,
-        layout: new Layout({ fit: Fit.Fill, alignment: Alignment.Center }),
+        layout: new Layout({ fit: Fit.Contain, alignment: Alignment.BottomCenter }),
         onLoad: () => {
           if (disposed) return;
           rive.resizeDrawingSurfaceToCanvas();
           const inputs = rive.stateMachineInputs(STATE_MACHINE) ?? [];
           const findInput = (name: string) => inputs.find((i) => i.name === name) ?? null;
           hoverInputRef.current = findInput(HOVER_INPUT);
-          lookXInputRef.current = findInput(LOOK_X_INPUT);
-          isTypingInputRef.current = findInput(IS_TYPING_INPUT);
-          if (hoverInputRef.current) hoverInputRef.current.value = engagedRef.current;
-          if (lookXInputRef.current) lookXInputRef.current.value = lookRef.current.lookX;
-          if (isTypingInputRef.current) isTypingInputRef.current.value = lookRef.current.isTyping;
+          tapInputRef.current = findInput(TAP_INPUT);
+          pressedInputRef.current = findInput(PRESSED_INPUT);
+          emptyInputRef.current = findInput(EMPTY_INPUT);
           setIsLoaded(true);
         },
       });
@@ -86,24 +84,34 @@ const SearchBarRive: React.FC<SearchBarRiveProps> = ({
     return () => {
       disposed = true;
       hoverInputRef.current = null;
-      lookXInputRef.current = null;
-      isTypingInputRef.current = null;
+      tapInputRef.current = null;
+      pressedInputRef.current = null;
+      emptyInputRef.current = null;
       riveRef.current?.cleanup();
       riveRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (hoverInputRef.current) hoverInputRef.current.value = engaged;
-  }, [engaged]);
+    if (!isLoaded) return;
+    onLoadedChange?.(true);
+    return () => onLoadedChange?.(false);
+  }, [isLoaded, onLoadedChange]);
 
   useEffect(() => {
-    if (lookXInputRef.current) lookXInputRef.current.value = lookX;
-  }, [lookX]);
+    const hover = hoverInputRef.current;
+    if (!isLoaded || !hover) return;
+    hover.value = hasResults;
+    if (!hasResults) return;
+    const timer = setTimeout(() => {
+      hover.value = false;
+    }, YAY_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [hasResults, isLoaded]);
 
   useEffect(() => {
-    if (isTypingInputRef.current) isTypingInputRef.current.value = isTyping;
-  }, [isTyping]);
+    if (isLoaded && emptyInputRef.current) emptyInputRef.current.value = isEmpty;
+  }, [isEmpty, isLoaded]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -115,16 +123,36 @@ const SearchBarRive: React.FC<SearchBarRiveProps> = ({
     return () => observer.disconnect();
   }, [isLoaded]);
 
+  const setPressed = (pressed: boolean) => {
+    if (pressedInputRef.current) pressedInputRef.current.value = pressed;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    tapInputRef.current?.fire();
+    setPressed(true);
+  };
+
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden='true'
+    <div
       className={clsx(
-        'pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-200',
+        'pointer-events-none absolute inset-x-0 bottom-0 aspect-[602/390] transition-opacity duration-200',
         isLoaded ? 'opacity-100' : 'opacity-0',
         className,
       )}
-    />
+    >
+      <canvas ref={canvasRef} aria-hidden='true' className='absolute inset-0 h-full w-full' />
+      {isLoaded && (
+        <div
+          data-testid='search-pup-hit-area'
+          aria-hidden='true'
+          onPointerDown={handlePointerDown}
+          onPointerUp={() => setPressed(false)}
+          onPointerCancel={() => setPressed(false)}
+          className='pointer-events-auto absolute z-10 left-[57%] top-[29%] h-[40%] w-[26%] cursor-pointer touch-none'
+        />
+      )}
+    </div>
   );
 };
 

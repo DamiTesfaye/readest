@@ -5,10 +5,19 @@ import type { SystemSettings } from '@/types/settings';
 
 let mockSettings: Partial<SystemSettings> = {};
 let mockIsEink = false;
+let mockPupLoaded = false;
 
-vi.mock('@/app/reader/components/sidebar/SearchBarRive', () => ({
-  default: () => <div data-testid='rive-canvas' />,
-}));
+vi.mock('@/app/reader/components/sidebar/SearchBarRive', async () => {
+  const { useEffect } = await import('react');
+  return {
+    default: ({ onLoadedChange }: { onLoadedChange: (loaded: boolean) => void }) => {
+      useEffect(() => {
+        onLoadedChange(mockPupLoaded);
+      }, [onLoadedChange]);
+      return <div data-testid='rive-canvas' />;
+    },
+  };
+});
 
 vi.mock('@/app/reader/components/sidebar/SearchFilter', () => ({
   default: () => null,
@@ -67,10 +76,6 @@ vi.mock('@/hooks/useResponsiveSize', () => ({
   useResponsiveSize: (size: number) => size,
 }));
 
-vi.mock('@/hooks/useCaretLookX', () => ({
-  useCaretLookX: () => ({ lookX: 0, isTyping: false }),
-}));
-
 vi.mock('@/utils/toolbarIcons', () => ({
   getToolbarIconSrc: () => '',
 }));
@@ -83,6 +88,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   mockSettings = {};
   mockIsEink = false;
+  mockPupLoaded = false;
 });
 
 describe('SearchBar Rive gate', () => {
@@ -109,5 +115,45 @@ describe('SearchBar Rive gate', () => {
     mockIsEink = true;
     renderSearchBar();
     expect(screen.queryByTestId('rive-canvas')).toBeNull();
+  });
+});
+
+describe('SearchBar pill', () => {
+  const pill = () => screen.getByRole('textbox').parentElement!;
+
+  it('draws a plain CSS pill while the pup has not loaded', () => {
+    mockSettings = { uiAnimationsEnabled: true };
+    renderSearchBar();
+    expect(pill().className).toContain('bg-white');
+    expect(pill().className).toContain('border-[#353535]');
+  });
+
+  it('draws a plain CSS pill when there is no pup', () => {
+    mockSettings = { uiAnimationsEnabled: false };
+    renderSearchBar();
+    expect(pill().className).toContain('bg-white');
+    expect(pill().className).toContain('h-full');
+  });
+
+  it('keeps the e-ink border when there is no pup', () => {
+    mockSettings = { uiAnimationsEnabled: true };
+    mockIsEink = true;
+    renderSearchBar();
+    expect(pill().className).toContain('eink-bordered');
+  });
+
+  it('draws nothing of its own once the pup is loaded and overlays the input on the pill in the file', () => {
+    mockSettings = { uiAnimationsEnabled: true };
+    mockPupLoaded = true;
+    renderSearchBar();
+    const classes = pill().className;
+    expect(classes).not.toContain('bg-white');
+    expect(classes).not.toContain('border-');
+    expect(classes).toContain('rounded-full');
+    expect(classes).toContain('focus-within:ring-2');
+    expect(classes).toContain('left-[1.66%]');
+    expect(classes).toContain('w-[89.37%]');
+    expect(classes).toContain('h-[42.86%]');
+    expect(screen.getByRole('textbox').className).toContain('bg-transparent');
   });
 });
