@@ -172,7 +172,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
                   />
                 </span>
               </span>
-              <span className={CAPTION_CLASS}>{_('Text in motion')}</span>
+              <span className={CAPTION_CLASS}>{_('Moving Pictures')}</span>
             </button>
           </div>
         </div>

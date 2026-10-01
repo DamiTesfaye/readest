@@ -56,7 +56,7 @@ describe('MorePopover', () => {
     expect(screen.getByRole('button', { name: 'Annotations' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bookmarks & Notes' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reading Ruler' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Text in motion' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Moving Pictures' })).toBeTruthy();
   });
 
   it('separates the title from the sections with a divider', () => {

@@ -72,7 +72,7 @@ export const useMotionRive = (
     };
 
     load().catch((error) => {
-      console.warn(`Text in motion animation unavailable (${RIVE_SRC}):`, error);
+      console.warn(`Moving Pictures animation unavailable (${RIVE_SRC}):`, error);
     });
 
     return () => {

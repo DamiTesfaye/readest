@@ -60,7 +60,7 @@ const popover = (overrides: Partial<React.ComponentProps<typeof MorePopover>> = 
   />
 );
 
-const tile = () => screen.getByRole('button', { name: 'Text in motion' });
+const tile = () => screen.getByRole('button', { name: 'Moving Pictures' });
 
 beforeEach(() => {
   riveMock.instances.length = 0;
@@ -80,15 +80,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('MorePopover Text in motion tile', () => {
+describe('MorePopover Moving Pictures tile', () => {
   it('sits right of Reading Ruler in Reading Tools with the art, the label and the beta tag', () => {
     render(popover());
     const row = screen.getByText('Reading Tools').nextElementSibling as HTMLElement;
     const buttons = Array.from(row.querySelectorAll('button'));
-    expect(buttons.map((b) => b.textContent)).toEqual(['Reading Ruler', 'Text in motion']);
+    expect(buttons.map((b) => b.textContent)).toEqual(['Reading Ruler', 'Moving Pictures']);
     expect(tile().querySelector('img[src="/images/toolbar/moving-pictures.svg"]')).toBeTruthy();
     expect(tile().querySelector('img[src="/images/toolbar/beta-tag.svg"]')).toBeTruthy();
-    expect(screen.getByText('Text in motion').className).toContain('popover-action-label');
+    expect(screen.getByText('Moving Pictures').className).toContain('popover-action-label');
   });
 
   it('loads and plays the animation when the popover opens, not before', async () => {
