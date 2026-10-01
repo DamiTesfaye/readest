@@ -10,7 +10,7 @@ type RiveRuntime = typeof import('@rive-app/canvas');
 
 let runtimePromise: Promise<RiveRuntime> | null = null;
 
-const loadRuntime = (): Promise<RiveRuntime> => {
+export const loadRuntime = (): Promise<RiveRuntime> => {
   runtimePromise ??= import('@rive-app/canvas').then(
     (runtime) => {
       runtime.RuntimeLoader.setWasmUrl(RIVE_WASM_SRC);
