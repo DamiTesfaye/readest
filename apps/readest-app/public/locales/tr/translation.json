@@ -1952,5 +1952,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Bu harita eşitlendiyse, kopyası uygulama yeniden başlatıldıktan sonra geri gelir.",
   "Could not export the map file": "Harita dosyası dışa aktarılamadı",
   "This map was deleted on another device": "Bu zihin haritası başka bir cihazda silindi",
-  "Update the app to see mind map changes from your other devices": "Diğer cihazlarınızdaki zihin haritası değişikliklerini görmek için uygulamayı güncelleyin"
+  "Update the app to see mind map changes from your other devices": "Diğer cihazlarınızdaki zihin haritası değişikliklerini görmek için uygulamayı güncelleyin",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

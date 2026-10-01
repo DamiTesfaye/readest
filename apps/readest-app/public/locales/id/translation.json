@@ -1917,5 +1917,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Jika peta ini pernah disinkronkan, salinannya kembali setelah aplikasi dimulai ulang.",
   "Could not export the map file": "Tidak dapat mengekspor file peta",
   "This map was deleted on another device": "Peta pikiran ini dihapus di perangkat lain",
-  "Update the app to see mind map changes from your other devices": "Perbarui aplikasi untuk melihat perubahan peta pikiran dari perangkat Anda yang lain"
+  "Update the app to see mind map changes from your other devices": "Perbarui aplikasi untuk melihat perubahan peta pikiran dari perangkat Anda yang lain",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

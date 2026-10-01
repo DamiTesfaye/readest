@@ -2022,5 +2022,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Если эта карта была синхронизирована, её копия вернётся после перезапуска приложения.",
   "Could not export the map file": "Не удалось экспортировать файл карты",
   "This map was deleted on another device": "Эта интеллект-карта удалена на другом устройстве",
-  "Update the app to see mind map changes from your other devices": "Обновите приложение, чтобы видеть изменения интеллект-карт с других устройств"
+  "Update the app to see mind map changes from your other devices": "Обновите приложение, чтобы видеть изменения интеллект-карт с других устройств",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

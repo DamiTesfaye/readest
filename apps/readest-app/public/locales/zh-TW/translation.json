@@ -1917,5 +1917,6 @@
   "If this map was synced, its copy returns after the app restarts.": "如果此圖已同步，重新啟動應用程式後其副本會恢復。",
   "Could not export the map file": "無法匯出心智圖檔案",
   "This map was deleted on another device": "此心智圖已在另一部裝置上刪除",
-  "Update the app to see mind map changes from your other devices": "請更新應用程式，以查看來自其他裝置的心智圖變更"
+  "Update the app to see mind map changes from your other devices": "請更新應用程式，以查看來自其他裝置的心智圖變更",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

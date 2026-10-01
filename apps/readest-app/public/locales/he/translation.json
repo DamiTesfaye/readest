@@ -1987,5 +1987,6 @@
   "If this map was synced, its copy returns after the app restarts.": "אם המפה הזו סונכרנה, העותק שלה יחזור לאחר הפעלה מחדש של האפליקציה.",
   "Could not export the map file": "לא ניתן לייצא את קובץ המפה",
   "This map was deleted on another device": "מפת החשיבה הזו נמחקה במכשיר אחר",
-  "Update the app to see mind map changes from your other devices": "עדכנו את האפליקציה כדי לראות שינויים במפות חשיבה מהמכשירים האחרים שלכם"
+  "Update the app to see mind map changes from your other devices": "עדכנו את האפליקציה כדי לראות שינויים במפות חשיבה מהמכשירים האחרים שלכם",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

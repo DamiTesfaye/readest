@@ -2022,5 +2022,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Jeśli ta mapa była zsynchronizowana, jej kopia wróci po ponownym uruchomieniu aplikacji.",
   "Could not export the map file": "Nie udało się wyeksportować pliku mapy",
   "This map was deleted on another device": "Ta mapa myśli została usunięta na innym urządzeniu",
-  "Update the app to see mind map changes from your other devices": "Zaktualizuj aplikację, aby zobaczyć zmiany w mapach myśli z innych urządzeń"
+  "Update the app to see mind map changes from your other devices": "Zaktualizuj aplikację, aby zobaczyć zmiany w mapach myśli z innych urządzeń",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

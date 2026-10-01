@@ -1952,5 +1952,6 @@
   "If this map was synced, its copy returns after the app restarts.": "இந்த வரைபடம் ஒத்திசைக்கப்பட்டிருந்தால், பயன்பாடு மீண்டும் தொடங்கிய பிறகு அதன் நகல் திரும்ப வரும்.",
   "Could not export the map file": "வரைபடக் கோப்பை ஏற்றுமதி செய்ய முடியவில்லை",
   "This map was deleted on another device": "இந்த மன வரைபடம் மற்றொரு சாதனத்தில் நீக்கப்பட்டது",
-  "Update the app to see mind map changes from your other devices": "உங்கள் பிற சாதனங்களில் செய்த மன வரைபட மாற்றங்களைப் பார்க்க பயன்பாட்டைப் புதுப்பிக்கவும்"
+  "Update the app to see mind map changes from your other devices": "உங்கள் பிற சாதனங்களில் செய்த மன வரைபட மாற்றங்களைப் பார்க்க பயன்பாட்டைப் புதுப்பிக்கவும்",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

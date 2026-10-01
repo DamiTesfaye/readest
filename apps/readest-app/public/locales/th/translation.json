@@ -1917,5 +1917,6 @@
   "If this map was synced, its copy returns after the app restarts.": "หากแผนผังนี้เคยซิงค์ไว้ สำเนาของแผนผังจะกลับมาหลังจากเริ่มแอปใหม่",
   "Could not export the map file": "ไม่สามารถส่งออกไฟล์แผนผังได้",
   "This map was deleted on another device": "แผนผังความคิดนี้ถูกลบในอุปกรณ์อื่นแล้ว",
-  "Update the app to see mind map changes from your other devices": "อัปเดตแอปเพื่อดูการเปลี่ยนแปลงแผนผังความคิดจากอุปกรณ์อื่นของคุณ"
+  "Update the app to see mind map changes from your other devices": "อัปเดตแอปเพื่อดูการเปลี่ยนแปลงแผนผังความคิดจากอุปกรณ์อื่นของคุณ",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

@@ -1917,5 +1917,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Nếu sơ đồ này đã được đồng bộ, bản sao của nó sẽ trở lại sau khi khởi động lại ứng dụng.",
   "Could not export the map file": "Không thể xuất tệp sơ đồ",
   "This map was deleted on another device": "Sơ đồ tư duy này đã bị xóa trên thiết bị khác",
-  "Update the app to see mind map changes from your other devices": "Cập nhật ứng dụng để xem các thay đổi sơ đồ tư duy từ những thiết bị khác của bạn"
+  "Update the app to see mind map changes from your other devices": "Cập nhật ứng dụng để xem các thay đổi sơ đồ tư duy từ những thiết bị khác của bạn",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

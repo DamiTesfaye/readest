@@ -1952,5 +1952,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Αν αυτός ο χάρτης είχε συγχρονιστεί, το αντίγραφό του επιστρέφει μετά την επανεκκίνηση της εφαρμογής.",
   "Could not export the map file": "Δεν ήταν δυνατή η εξαγωγή του αρχείου του χάρτη",
   "This map was deleted on another device": "Αυτός ο νοητικός χάρτης διαγράφηκε σε άλλη συσκευή",
-  "Update the app to see mind map changes from your other devices": "Ενημερώστε την εφαρμογή για να δείτε τις αλλαγές στους νοητικούς χάρτες από τις άλλες συσκευές σας"
+  "Update the app to see mind map changes from your other devices": "Ενημερώστε την εφαρμογή για να δείτε τις αλλαγές στους νοητικούς χάρτες από τις άλλες συσκευές σας",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

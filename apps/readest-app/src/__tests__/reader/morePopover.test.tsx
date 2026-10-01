@@ -14,6 +14,7 @@ vi.mock('@/store/readerStore', () => ({
   useReaderStore: () => ({ getViewSettings: () => ({ readingRulerEnabled }) }),
 }));
 vi.mock('@/helpers/settings', () => ({ saveViewSettings }));
+vi.mock('@/components/motionrive/TextInMotionArt', () => ({ default: () => <span /> }));
 vi.mock('@/components/ToolbarPopover', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
     isOpen ? <div>{children}</div> : null,
@@ -55,6 +56,7 @@ describe('MorePopover', () => {
     expect(screen.getByRole('button', { name: 'Annotations' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bookmarks & Notes' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reading Ruler' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Text in motion' })).toBeTruthy();
   });
 
   it('separates the title from the sections with a divider', () => {

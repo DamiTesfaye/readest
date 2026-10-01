@@ -2022,5 +2022,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Če je bil ta miselni vzorec sinhroniziran, se njegova kopija vrne po ponovnem zagonu aplikacije.",
   "Could not export the map file": "Datoteke zemljevida ni bilo mogoče izvoziti",
   "This map was deleted on another device": "Ta miselni vzorec je bil izbrisan v drugi napravi",
-  "Update the app to see mind map changes from your other devices": "Posodobite aplikacijo, da boste videli spremembe miselnih vzorcev z drugih naprav"
+  "Update the app to see mind map changes from your other devices": "Posodobite aplikacijo, da boste videli spremembe miselnih vzorcev z drugih naprav",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

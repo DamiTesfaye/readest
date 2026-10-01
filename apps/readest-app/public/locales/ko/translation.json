@@ -1917,5 +1917,6 @@
   "If this map was synced, its copy returns after the app restarts.": "이 맵이 동기화되어 있었다면 앱을 다시 시작한 뒤 사본이 돌아옵니다.",
   "Could not export the map file": "맵 파일을 내보낼 수 없습니다",
   "This map was deleted on another device": "이 마인드맵은 다른 기기에서 삭제되었습니다",
-  "Update the app to see mind map changes from your other devices": "다른 기기의 마인드맵 변경 사항을 보려면 앱을 업데이트하세요"
+  "Update the app to see mind map changes from your other devices": "다른 기기의 마인드맵 변경 사항을 보려면 앱을 업데이트하세요",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

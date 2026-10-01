@@ -1917,5 +1917,6 @@
   "If this map was synced, its copy returns after the app restarts.": "ས་བཀྲ་འདི་སྐད་མཉམ་བྱས་ཡོད་ན། མཉེན་ཆས་བསྐྱར་སློང་བྱས་རྗེས་དེའི་འདྲ་བཤུས་ཕྱིར་ཡོང་།",
   "Could not export the map file": "ས་བཀྲའི་ཡིག་ཆ་ཕྱིར་འདྲེན་བྱེད་མ་ཐུབ།",
   "This map was deleted on another device": "བསམ་བློའི་ས་བཀྲ་འདི་སྒྲིག་ཆས་གཞན་ཞིག་ནས་བསུབས་ཟིན།",
-  "Update the app to see mind map changes from your other devices": "ཁྱེད་ཀྱི་སྒྲིག་ཆས་གཞན་གྱི་བསམ་བློའི་ས་བཀྲའི་འགྱུར་བ་མཐོང་ཆེད་མཉེན་ཆས་གསར་སྒྱུར་གནང་།"
+  "Update the app to see mind map changes from your other devices": "ཁྱེད་ཀྱི་སྒྲིག་ཆས་གཞན་གྱི་བསམ་བློའི་ས་བཀྲའི་འགྱུར་བ་མཐོང་ཆེད་མཉེན་ཆས་གསར་སྒྱུར་གནང་།",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

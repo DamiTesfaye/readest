@@ -1987,5 +1987,6 @@
   "If this map was synced, its copy returns after the app restarts.": "Si este mapa estaba sincronizado, su copia vuelve al reiniciar la aplicación.",
   "Could not export the map file": "No se pudo exportar el archivo del mapa",
   "This map was deleted on another device": "Este mapa mental se eliminó en otro dispositivo",
-  "Update the app to see mind map changes from your other devices": "Actualiza la aplicación para ver los cambios de mapas mentales de tus otros dispositivos"
+  "Update the app to see mind map changes from your other devices": "Actualiza la aplicación para ver los cambios de mapas mentales de tus otros dispositivos",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

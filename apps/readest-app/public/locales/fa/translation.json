@@ -1952,5 +1952,6 @@
   "If this map was synced, its copy returns after the app restarts.": "اگر این نقشه همگام شده باشد، نسخهٔ آن پس از راه‌اندازی دوبارهٔ برنامه برمی‌گردد.",
   "Could not export the map file": "خروجی گرفتن از فایل نقشه ممکن نشد",
   "This map was deleted on another device": "این نقشهٔ ذهنی در دستگاه دیگری حذف شد",
-  "Update the app to see mind map changes from your other devices": "برای دیدن تغییرات نقشه‌های ذهنی از دستگاه‌های دیگرتان، برنامه را به‌روز کنید"
+  "Update the app to see mind map changes from your other devices": "برای دیدن تغییرات نقشه‌های ذهنی از دستگاه‌های دیگرتان، برنامه را به‌روز کنید",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }

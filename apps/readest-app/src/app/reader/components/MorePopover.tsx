@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useEnv } from '@/context/EnvContext';
 import { useReaderStore } from '@/store/readerStore';
@@ -7,6 +7,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { saveViewSettings } from '@/helpers/settings';
 import ToolbarPopover from '@/components/ToolbarPopover';
 import PopoverTitleBar from '@/components/PopoverTitleBar';
+import TextInMotionArt from '@/components/motionrive/TextInMotionArt';
+import { eventDispatcher } from '@/utils/event';
 import { getThemeFontsTriggerSrc, getToolbarIconSrc } from '@/utils/toolbarIcons';
 import type { Rect } from '@/utils/sel';
 
@@ -42,10 +44,21 @@ const MorePopover: React.FC<MorePopoverProps> = ({
   const { themeColor, isDarkMode } = useThemeStore();
   const { getViewSettings } = useReaderStore();
 
+  const [motionHovered, setMotionHovered] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) setMotionHovered(false);
+  }, [isOpen]);
+
   const readingRulerEnabled = getViewSettings(bookKey)?.readingRulerEnabled ?? false;
 
   const handleToggleReadingRuler = () => {
     saveViewSettings(envConfig, bookKey, 'readingRulerEnabled', !readingRulerEnabled, false, false);
+    onClose();
+  };
+
+  const handleComingSoon = () => {
+    eventDispatcher.dispatch('toast', { type: 'info', message: _('Coming soon') });
     onClose();
   };
 
@@ -135,6 +148,31 @@ const MorePopover: React.FC<MorePopoverProps> = ({
                 </span>
               </span>
               <span className={CAPTION_CLASS}>{_('Reading Ruler')}</span>
+            </button>
+            <button
+              type='button'
+              className={ITEM_CLASS}
+              onClick={handleComingSoon}
+              onPointerEnter={(e) => {
+                if (e.pointerType !== 'touch') setMotionHovered(true);
+              }}
+              onPointerLeave={() => setMotionHovered(false)}
+            >
+              <span className='flex h-8 items-center justify-center'>
+                <span className='relative'>
+                  <TextInMotionArt
+                    themeName={themeColor}
+                    isDarkMode={isDarkMode}
+                    hovered={motionHovered}
+                  />
+                  <img
+                    src='/images/toolbar/beta-tag.svg'
+                    alt=''
+                    className='absolute left-full top-0 ml-1 h-[7px] w-[19px] max-w-none'
+                  />
+                </span>
+              </span>
+              <span className={CAPTION_CLASS}>{_('Text in motion')}</span>
             </button>
           </div>
         </div>

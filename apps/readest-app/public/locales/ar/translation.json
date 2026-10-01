@@ -2092,5 +2092,6 @@
   "If this map was synced, its copy returns after the app restarts.": "إذا كانت هذه الخريطة متزامنة، فستعود نسختها بعد إعادة تشغيل التطبيق.",
   "Could not export the map file": "تعذّر تصدير ملف الخريطة",
   "This map was deleted on another device": "حُذفت هذه الخريطة الذهنية على جهاز آخر",
-  "Update the app to see mind map changes from your other devices": "حدّث التطبيق لرؤية تغييرات الخرائط الذهنية من أجهزتك الأخرى"
+  "Update the app to see mind map changes from your other devices": "حدّث التطبيق لرؤية تغييرات الخرائط الذهنية من أجهزتك الأخرى",
+  "Text in motion": "__STRING_NOT_TRANSLATED__"
 }
