@@ -139,7 +139,7 @@ const ControlRow: React.FC<ControlRowProps> = ({ bookKey }) => {
           )}
         >
           <img
-            src={`${TOGGLE_ASSETS}/sun.svg`}
+            src={`${TOGGLE_ASSETS}/sun-textured.svg`}
             alt=''
             className={clsx(
               'absolute inset-0 h-full w-full transition-opacity delay-150 duration-200',
