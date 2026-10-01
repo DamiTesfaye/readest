@@ -229,7 +229,7 @@ export const themes = [
   },
   {
     name: 'cherry-bloom',
-    label: _('Cherry Bloom'),
+    label: _('Cherry Blossom'),
     colors: {
       light: generateLightPalette({ fg: '#46262a', bg: '#f9ecec', primary: '#b64d62' }),
       dark: generateDarkPalette({ fg: '#f5e6e2', bg: '#382125', primary: '#e59aa4' }),

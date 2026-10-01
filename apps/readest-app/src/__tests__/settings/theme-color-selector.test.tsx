@@ -39,7 +39,7 @@ describe('ThemeColorSelector masonry cards', () => {
       /Starry Night/,
       /Forest Pond/,
       /Ocean Wave/,
-      /Cherry Bloom/,
+      /Cherry Blossom/,
     ]) {
       expect(screen.getByRole('button', { name })).toBeTruthy();
     }

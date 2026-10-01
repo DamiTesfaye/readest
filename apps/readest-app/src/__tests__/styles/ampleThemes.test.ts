@@ -25,7 +25,7 @@ describe('AmpleRead theme list', () => {
     expect(labels['paper']).toBe('Neue Paper');
     expect(labels['forest-pond']).toBe('Forest Pond');
     expect(labels['ocean-wave']).toBe('Ocean Wave');
-    expect(labels['cherry-bloom']).toBe('Cherry Bloom');
+    expect(labels['cherry-bloom']).toBe('Cherry Blossom');
   });
 
   it('default is first (fallback anchor) and the only hidden theme', () => {
