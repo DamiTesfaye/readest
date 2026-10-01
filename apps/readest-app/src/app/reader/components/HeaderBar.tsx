@@ -29,6 +29,7 @@ import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/Booknotes
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
 import SparkPopover from './SparkPopover';
+import AmpleCloudIcon from './AmpleCloudIcon';
 import { getToolbarSidePanelPlacement, getToolbarStackedPanelPlacement } from '@/utils/popover';
 import type { Rect } from '@/utils/sel';
 import { eventDispatcher } from '@/utils/event';
@@ -367,10 +368,10 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
                 className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
                 onClick={handleToggleSpark}
               >
-                <img
-                  src={getToolbarIconSrc('amply', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-5 w-auto object-contain'
+                <AmpleCloudIcon
+                  themeName={themeColor}
+                  isDarkMode={isDarkMode}
+                  visible={isHeaderVisible}
                 />
               </button>
             </div>
