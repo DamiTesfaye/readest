@@ -70,7 +70,13 @@ const stubMedia = ({ hover = true, reducedMotion = false } = {}) => {
 };
 
 const popoverWith = (isOpen: boolean) => (
-  <SparkPopover isOpen={isOpen} anchorEl={document.body} onClose={vi.fn()} onToggleTTS={vi.fn()} />
+  <SparkPopover
+    bookKey='book-1'
+    isOpen={isOpen}
+    anchorEl={document.body}
+    onClose={vi.fn()}
+    onToggleTTS={vi.fn()}
+  />
 );
 const popover = popoverWith(true);
 
