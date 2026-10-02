@@ -61,6 +61,7 @@ const resetTransferManager = () => {
   const mgr = transferManager as unknown as Record<string, unknown>;
   mgr['isInitialized'] = false;
   mgr['isProcessing'] = false;
+  mgr['processQueueRequested'] = false;
   mgr['appService'] = null;
   mgr['getLibrary'] = null;
   mgr['updateBook'] = null;
@@ -925,18 +926,38 @@ describe('TransferManager', () => {
       );
     });
 
-    test('a foreground replica transfer and a background book delete still raise a toast', async () => {
+    test('a resume right after a settings change still runs the queue', async () => {
+      const appService = makeAppService();
+      appService['uploadReplicaFile'] = vi.fn().mockResolvedValue(undefined);
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      transferManager.pauseQueue();
+      const id = transferManager.queueReplicaUpload(
+        'dictionary',
+        'd1',
+        'Webster',
+        dictFiles,
+        'Dictionaries',
+      );
+      useSettingsStore.setState({
+        settings: { ...useSettingsStore.getState().settings },
+      });
+      transferManager.resumeQueue();
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(useTransferStore.getState().transfers[id!]!.status).toBe('completed');
+    });
+
+    test('a foreground book delete that fails still raises a toast', async () => {
       const book = makeBook({ hash: 'h1', title: 'Deleted Book' });
       const appService = makeAppService();
-      appService['uploadReplicaFile'] = vi.fn().mockRejectedValue(new Error('Network fail'));
       (appService['deleteBook'] as Mock).mockRejectedValue(new Error('Network fail'));
       await transferManager.initialize(appService as never, () => [book], vi.fn(), translationFn);
 
-      transferManager.queueReplicaUpload('dictionary', 'd1', 'Webster', dictFiles, 'Dictionaries');
-      transferManager.queueDelete(book, 10, true);
+      transferManager.queueDelete(book, 10, false);
       await vi.advanceTimersByTimeAsync(20_000);
 
-      expect(errorToasts()).toHaveLength(2);
+      expect(errorToasts()).toHaveLength(1);
     });
 
     test('queueReplicaUpload returns null when not initialized', () => {

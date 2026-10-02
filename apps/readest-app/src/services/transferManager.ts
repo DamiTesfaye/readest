@@ -52,6 +52,7 @@ class TransferManager {
   private static instance: TransferManager;
   private appService: AppService | null = null;
   private isProcessing = false;
+  private processQueueRequested = false;
   private abortControllers: Map<string, AbortController> = new Map();
   private retryNotBefore: Map<string, number> = new Map();
   private isInitialized = false;
@@ -385,12 +386,18 @@ class TransferManager {
   }
 
   private async processQueue(): Promise<void> {
-    if (this.isProcessing) return;
+    if (this.isProcessing) {
+      this.processQueueRequested = true;
+      return;
+    }
 
     this.isProcessing = true;
 
     try {
-      await this._processQueueInternal();
+      do {
+        this.processQueueRequested = false;
+        await this._processQueueInternal();
+      } while (this.processQueueRequested);
     } finally {
       this.isProcessing = false;
     }
