@@ -5,6 +5,8 @@ import { EPUB } from 'foliate-js/epub.js';
 import { SectionProgress } from 'foliate-js/progress.js';
 import { DocumentLoader } from '@/libs/document';
 
+type WeightedBook = { sections: { linear?: string; size: number }[] };
+
 const AMPLEREAD_PREFIX = 'ampleread: https://ampleread.app/vocab#';
 
 const CONTAINER = `<?xml version="1.0" encoding="utf-8"?>
@@ -67,10 +69,10 @@ const makeBook = async (paddings: number[], weights: Weights) => {
     sha1: async () => '',
   });
   await book.init();
-  return { book, files };
+  return { book: book as unknown as WeightedBook, files };
 };
 
-const totalPages = (book: { sections: { linear?: string; size: number }[] }) =>
+const totalPages = (book: WeightedBook) =>
   new SectionProgress(book.sections, 1500, 1600).getProgress(0, 0, 0).location.total;
 
 describe('declared reading weight', () => {
