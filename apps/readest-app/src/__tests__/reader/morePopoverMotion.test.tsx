@@ -69,6 +69,13 @@ beforeEach(() => {
   isDarkMode = false;
   dispatch.mockReset();
   vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal(
     'fetch',
     vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })),
   );

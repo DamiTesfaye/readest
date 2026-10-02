@@ -84,6 +84,17 @@ export const useMotionRive = (
   }, [canvasRef]);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isLoaded) return;
+    const observer = new ResizeObserver(() => {
+      riveRef.current?.resizeDrawingSurfaceToCanvas();
+      riveRef.current?.drawFrame();
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [canvasRef, isLoaded]);
+
+  useEffect(() => {
     if (riveRef.current && isLoaded) applyPalette(riveRef.current, colored);
   }, [colored, isLoaded]);
 

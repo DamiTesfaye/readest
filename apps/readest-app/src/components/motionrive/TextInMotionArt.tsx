@@ -27,8 +27,8 @@ const MotionCanvas: React.FC<TextInMotionArtProps & { src: string }> = ({
   });
 
   return (
-    <span className='relative inline-flex'>
-      <img src={src} alt='' className={clsx(ART_CLASS, isLoaded && 'invisible')} />
+    <span className='relative inline-flex aspect-[45/31] h-8'>
+      <img src={src} alt='' className={clsx('h-full w-full', isLoaded && 'invisible')} />
       <canvas
         ref={canvasRef}
         aria-hidden='true'

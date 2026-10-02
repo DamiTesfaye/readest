@@ -13,12 +13,15 @@ const riveMock = vi.hoisted(() => {
     options: Record<string, unknown>;
     play: ReturnType<typeof vi.fn>;
     cleanup: ReturnType<typeof vi.fn>;
+    resizeDrawingSurfaceToCanvas: ReturnType<typeof vi.fn>;
+    drawFrame: ReturnType<typeof vi.fn>;
   }> = [];
   class Rive {
     options: Record<string, unknown>;
     play = vi.fn();
     cleanup = vi.fn();
     resizeDrawingSurfaceToCanvas = vi.fn();
+    drawFrame = vi.fn();
     viewModelInstance = {
       boolean: (name: string) => (name === 'hover' ? hover : null),
       color: (name: string) => colors[name] ?? null,
@@ -42,6 +45,22 @@ vi.mock('@rive-app/canvas', () => ({
 
 import TextInMotionArt from '@/components/motionrive/TextInMotionArt';
 
+const resizeObservers: Array<{ callback: () => void; target: Element | null }> = [];
+
+class ResizeObserverStub {
+  entry: { callback: () => void; target: Element | null };
+  constructor(callback: () => void) {
+    this.entry = { callback, target: null };
+    resizeObservers.push(this.entry);
+  }
+  observe(target: Element) {
+    this.entry.target = target;
+  }
+  disconnect() {
+    this.entry.target = null;
+  }
+}
+
 const renderArt = (props: Partial<React.ComponentProps<typeof TextInMotionArt>> = {}) =>
   render(<TextInMotionArt themeName='default' isDarkMode={false} hovered={false} {...props} />);
 
@@ -60,6 +79,8 @@ const expectPalette = (ball: number[], marks: number[]) => {
 
 beforeEach(() => {
   riveMock.instances.length = 0;
+  resizeObservers.length = 0;
+  vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   riveMock.hover.value = false;
   for (const color of Object.values(riveMock.colors)) color.rgb.mockClear();
   vi.stubGlobal(
@@ -184,6 +205,25 @@ describe('TextInMotionArt', () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       '/images/toolbar/moving-pictures.svg',
+    );
+  });
+
+  it('resizes and redraws the drawing surface when the canvas size changes after load', async () => {
+    renderArt();
+    const rive = await loadedInstance();
+    const canvas = screen.getByTestId('text-in-motion-canvas');
+    const observer = resizeObservers.find((entry) => entry.target === canvas);
+    expect(observer).toBeDefined();
+    rive.resizeDrawingSurfaceToCanvas.mockClear();
+    act(() => observer!.callback());
+    expect(rive.resizeDrawingSurfaceToCanvas).toHaveBeenCalledTimes(1);
+    expect(rive.drawFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it('sizes the canvas box from the art aspect so it is never zero wide before the svg decodes', () => {
+    renderArt();
+    expect(screen.getByTestId('text-in-motion-canvas').parentElement?.className).toContain(
+      'aspect-[45/31]',
     );
   });
 });
