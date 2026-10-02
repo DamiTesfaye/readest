@@ -1,8 +1,9 @@
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ReadingRuler from '@/app/reader/components/ReadingRuler';
 import { BookFormat, ViewSettings } from '@/types/book';
 import { eventDispatcher } from '@/utils/event';
+import { dispatchTouchInterceptors } from '@/app/reader/hooks/useTouchInterceptor';
 
 const saveViewSettings = vi.fn();
 
@@ -48,42 +49,38 @@ const makeLineRects = (count: number, pitch: number, height: number): RulerTestR
     height,
   }));
 
-// A relocate range whose client rects are three vertical text columns (tall thin
-// strips) in iframe-content coordinates. No frameElement -> rects map straight to
-// overlay coordinates. Columns are listed right-to-left (reading order for
-// vertical-rl), but the builder derives order from geometry + the rtl flag.
-const makeVerticalColumnsRange = (): {
-  getClientRects: () => RulerTestRect[];
-  startContainer: object;
-} => {
-  const columnRects: RulerTestRect[] = [
-    { top: 50, bottom: 950, left: 760, right: 776, width: 16, height: 900 }, // rightmost column
-    { top: 50, bottom: 950, left: 400, right: 416, width: 16, height: 900 }, // middle column
-    { top: 50, bottom: 950, left: 40, right: 56, width: 16, height: 900 }, // leftmost column
-  ];
-  return {
-    startContainer: { ownerDocument: { defaultView: {} } },
-    getClientRects: () => columnRects,
-  };
+const textRects = new Map<Node, RulerTestRect[]>();
+
+const makeTextBody = (rects: RulerTestRect[]): HTMLElement => {
+  const body = document.createElement('div');
+  for (const r of rects) {
+    const text = document.createTextNode('line');
+    textRects.set(text, [r]);
+    body.appendChild(text);
+  }
+  return body;
 };
 
-// A single visible section whose iframe is offset by `frameTop` along the scroll
-// axis (negative = scrolled down). `buildScrolledLineBoxes` walks these contents.
+const makeTextRange = (rects: RulerTestRect[]): Range => {
+  const range = document.createRange();
+  range.selectNodeContents(makeTextBody(rects));
+  return range;
+};
+
+const makeVerticalColumnsRange = (): Range =>
+  makeTextRange([
+    { top: 50, bottom: 950, left: 760, right: 776, width: 16, height: 900 },
+    { top: 50, bottom: 950, left: 400, right: 416, width: 16, height: 900 },
+    { top: 50, bottom: 950, left: 40, right: 56, width: 16, height: 900 },
+  ]);
+
 const makeScrolledContents = (
   frameTop: number,
   lineRects: RulerTestRect[],
 ): Array<{ doc: unknown }> => {
-  const doc: {
-    body: object;
-    createRange: () => unknown;
-    defaultView: { frameElement: { getBoundingClientRect: () => DOMRect } };
-  } = {
-    body: {},
-    createRange: () => ({
-      startContainer: { ownerDocument: doc },
-      selectNodeContents: () => {},
-      getClientRects: () => lineRects,
-    }),
+  const doc = {
+    body: makeTextBody(lineRects),
+    createRange: () => document.createRange(),
     defaultView: {
       frameElement: {
         getBoundingClientRect: () =>
@@ -127,6 +124,10 @@ describe('ReadingRuler', () => {
     vi.clearAllMocks();
     mockProgress = null;
     mockContents = [];
+    textRects.clear();
+    Range.prototype.getClientRects = function (this: Range) {
+      return (textRects.get(this.startContainer) ?? []) as unknown as DOMRectList;
+    };
 
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
       configurable: true,
@@ -153,6 +154,7 @@ describe('ReadingRuler', () => {
 
   afterEach(() => {
     cleanup();
+    Reflect.deleteProperty(Range.prototype, 'getClientRects');
   });
 
   it('keeps the ruler body pass-through and exposes dedicated drag handles', () => {
@@ -434,5 +436,132 @@ describe('ReadingRuler', () => {
     await waitFor(() => {
       expect(rulerTop()).toBeGreaterThan(before);
     });
+  });
+
+  it('advances from the lines the band covers even when the band is capped', async () => {
+    const lineRects = [
+      { top: 0, bottom: 120, left: 50, right: 750, width: 700, height: 120 },
+      ...makeLineRects(8, 50, 40).map((r) => ({ ...r, top: r.top + 130, bottom: r.bottom + 130 })),
+    ];
+    mockProgress = { range: makeTextRange(lineRects), pageinfo: { current: 0 } };
+
+    const { container } = render(
+      <ReadingRuler
+        bookKey='book-1'
+        isVertical={false}
+        rtl={false}
+        lines={2}
+        position={2}
+        opacity={0.5}
+        color='transparent'
+        bookFormat='EPUB'
+        viewSettings={viewSettings}
+        gridInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      />,
+    );
+    const rulerTop = () =>
+      parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.top);
+
+    await waitFor(() => expect(rulerTop()).toBeCloseTo(8.5, 5));
+
+    eventDispatcher.dispatchSync('reading-ruler-move', { bookKey: 'book-1', direction: 'forward' });
+
+    await waitFor(() => expect(rulerTop()).toBeCloseTo(22.5, 5));
+  });
+
+  it('measures the page again when a tap moves the ruler', async () => {
+    const linesFrom = (top: number, pitch: number) =>
+      makeLineRects(10, pitch, 40).map((r) => ({ ...r, top: r.top + top, bottom: r.bottom + top }));
+    mockProgress = { range: makeTextRange(linesFrom(100, 50)), pageinfo: { current: 0 } };
+
+    const { container } = render(
+      <ReadingRuler
+        bookKey='book-1'
+        isVertical={false}
+        rtl={false}
+        lines={1}
+        position={12}
+        opacity={0.5}
+        color='transparent'
+        bookFormat='EPUB'
+        viewSettings={viewSettings}
+        gridInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      />,
+    );
+    const rulerTop = () =>
+      parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.top);
+    await waitFor(() => expect(rulerTop()).toBeCloseTo(12, 5));
+
+    mockProgress.range = makeTextRange(linesFrom(100, 80));
+    eventDispatcher.dispatchSync('reading-ruler-move', { bookKey: 'book-1', direction: 'forward' });
+
+    await waitFor(() => expect(rulerTop()).toBeCloseTo(20, 5));
+  });
+
+  it('keeps the finger offset when dragging the ruler by touch', () => {
+    const { container } = render(
+      <ReadingRuler
+        bookKey='book-1'
+        isVertical={false}
+        rtl={false}
+        lines={2}
+        position={33}
+        opacity={0.5}
+        color='transparent'
+        bookFormat='EPUB'
+        viewSettings={viewSettings}
+        gridInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      />,
+    );
+    const touchAt = (phase: 'start' | 'move' | 'end', screenY: number) =>
+      dispatchTouchInterceptors('book-1', {
+        phase,
+        touch: { screenX: 400, screenY },
+        touchStart: { screenX: 400, screenY: 350 },
+        deltaX: 0,
+        deltaY: screenY - 350,
+        deltaT: 0,
+      });
+
+    act(() => {
+      touchAt('start', 350);
+      touchAt('move', 362);
+    });
+
+    expect(parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.top)).toBeCloseTo(
+      34.2,
+      5,
+    );
+    touchAt('end', 362);
+  });
+
+  it('turns the ruler off from its phone-only close button', () => {
+    const { getByRole } = render(
+      <ReadingRuler
+        bookKey='book-1'
+        isVertical={false}
+        rtl={false}
+        lines={2}
+        position={33}
+        opacity={0.5}
+        color='transparent'
+        bookFormat='EPUB'
+        viewSettings={viewSettings}
+        gridInsets={{ top: 24, right: 0, bottom: 0, left: 0 }}
+      />,
+    );
+
+    const closeButton = getByRole('button', { name: 'Close' });
+    expect(closeButton.className).toContain('sm:hidden');
+    fireEvent.click(closeButton);
+
+    expect(saveViewSettings).toHaveBeenCalledWith(
+      {},
+      'book-1',
+      'readingRulerEnabled',
+      false,
+      false,
+      false,
+    );
   });
 });
