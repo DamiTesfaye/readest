@@ -16,7 +16,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => null,
 }));
-vi.mock('@/context/EnvContext', () => ({ useEnv: () => ({ envConfig: {}, appService: {} }) }));
+vi.mock('@/context/EnvContext', () => ({
+  useEnv: () => ({ envConfig: {}, appService: { hasWindow: true } }),
+}));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/services/environment', () => ({
   default: {},
@@ -78,6 +80,10 @@ vi.mock('@/app/reader/hooks/useBooksManager', () => ({
 }));
 vi.mock('@/app/reader/hooks/useBookShortcuts', () => ({ default: () => {} }));
 vi.mock('@/hooks/useGamepad', () => ({ useGamepad: () => {} }));
+vi.mock('@/hooks/useAndroidGamepadConnection', () => ({
+  useAndroidGamepadConnection: () => false,
+}));
+vi.mock('@/components/localsend/LocalSendManager', () => ({ default: Empty }));
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (key: string) => key }));
 vi.mock('@/helpers/openWith', () => ({ parseOpenWithFiles: vi.fn() }));
 vi.mock('@/utils/nav', () => ({

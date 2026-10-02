@@ -28,7 +28,10 @@ vi.mock('@/components/ToolbarPopover', () => ({
 }));
 
 vi.mock('@/context/EnvContext', () => ({
-  useEnv: () => ({ envConfig: {}, appService: { isMobile: true } }),
+  useEnv: () => ({
+    envConfig: {},
+    appService: { isMobile: true, deleteDir: vi.fn(async () => {}) },
+  }),
 }));
 
 vi.mock('@/store/settingsStore', () => ({

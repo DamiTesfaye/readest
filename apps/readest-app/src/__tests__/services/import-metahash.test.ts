@@ -661,11 +661,10 @@ describe('importBook PDF filename-aware dedup', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
+    trackWrites(fs);
   });
 
   it('imports PDFs with identical metadata but different filenames as separate books', async () => {

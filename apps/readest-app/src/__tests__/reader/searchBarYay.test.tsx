@@ -46,6 +46,7 @@ vi.mock('@/context/EnvContext', () => ({
       exists: async () => false,
       createDir: vi.fn(),
       writeFile: vi.fn(),
+      deleteDir: vi.fn(async () => {}),
     },
   }),
 }));
@@ -63,12 +64,33 @@ vi.mock('@/store/bookDataStore', () => ({
   }),
 }));
 
-const view = {
-  search: async ({ query }: { query: string }) =>
+vi.mock('@/services/librarySearchService', () => ({
+  createLibrarySearchSession: () => ({ close: async () => {} }),
+  resolveSearchResultCfis: async (_session: unknown, _book: unknown, locators: unknown[]) =>
+    locators.map((_, i) => ({ cfi: `cfi-${i}` })),
+  searchLibraryBooks: (_appService: unknown, _books: unknown, query: string) =>
     (async function* () {
-      for (let i = 0; i < (searchMock.hits[query] ?? 0); i++) {
-        yield { cfi: `cfi-${i}`, excerpt: { pre: '', match: query, post: '' } };
+      const count = searchMock.hits[query] ?? 0;
+      if (count > 0) {
+        yield {
+          type: 'result',
+          result: {
+            index: 0,
+            label: 'Chapter',
+            subitems: Array.from({ length: count }, (_, i) => ({
+              locator: { section: 0, start: i, end: i + 1 },
+              excerpt: { pre: '', match: query, post: '' },
+            })),
+          },
+        };
       }
+      yield { type: 'book-completed' };
+    })(),
+}));
+
+const view = {
+  search: () =>
+    (async function* () {
       yield 'done';
     })(),
   clearSearch: vi.fn(),

@@ -141,9 +141,16 @@ const makePaginatedContent = (
       },
     },
   };
+  const text = { nodeType: 3, nodeValue: 'x', ownerDocument: doc };
   const range = {
-    startContainer: { ownerDocument: doc },
+    startContainer: text,
+    endContainer: text,
+    commonAncestorContainer: text,
+    startOffset: 0,
+    endOffset: 1,
     selectNodeContents: () => {},
+    setStart: () => {},
+    setEnd: () => {},
     getClientRects: () => lineRects,
   };
   return { doc, range };
@@ -571,21 +578,37 @@ describe('ReadingRuler', () => {
     // The anchored text's line: at 300 before the reflow, at 600 after.
     const anchorRect = { top: 300, bottom: 340, left: 50, right: 750, width: 700, height: 40 };
     const doc: Record<string, unknown> = {};
-    const anchorRange = {
-      startContainer: { nodeType: 3, length: 20, ownerDocument: doc },
-      startOffset: 0,
-      setStart: () => {},
-      setEnd: () => {},
-      getClientRects: () => [anchorRect],
+    const rectsByNode = new Map<object, () => RulerTestRect[]>();
+    const makeTextRange = (getRects: () => RulerTestRect[]) => {
+      const text = { nodeType: 3, nodeValue: 'x', length: 1, ownerDocument: doc };
+      rectsByNode.set(text, getRects);
+      return {
+        startContainer: text,
+        endContainer: text,
+        commonAncestorContainer: text,
+        startOffset: 0,
+        endOffset: 1,
+        setStart: () => {},
+        setEnd: () => {},
+        getClientRects: getRects,
+      };
     };
+    const anchorRange = makeTextRange(() => [anchorRect]);
     Object.assign(doc, {
       defaultView: {},
       caretRangeFromPoint: () => anchorRange,
+      createRange: () => {
+        let node: object | null = null;
+        return {
+          setStart: (start: object) => {
+            node = start;
+          },
+          setEnd: () => {},
+          getClientRects: () => (node ? (rectsByNode.get(node)?.() ?? []) : []),
+        };
+      },
     });
-    const makeRange = (rects: RulerTestRect[]) => ({
-      startContainer: { ownerDocument: doc },
-      getClientRects: () => rects,
-    });
+    const makeRange = (rects: RulerTestRect[]) => makeTextRange(() => rects);
 
     mockProgress = {
       range: makeRange(makeLineRects(9, 100, 40)),

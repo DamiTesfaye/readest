@@ -23,9 +23,10 @@ vi.mock('@/context/EnvContext', () => ({
   useEnv: () => ({ envConfig: { env: 'test' }, appService: { isBookAvailable, hasWindow: false } }),
 }));
 vi.mock('@/store/libraryStore', () => ({ useLibraryStore: () => ({ updateBook }) }));
-vi.mock('@/store/settingsStore', () => ({
-  useSettingsStore: () => ({ settings: { openBookInNewWindow: false } }),
-}));
+vi.mock('@/store/settingsStore', () => {
+  const state = { settings: { openBookInNewWindow: false } };
+  return { useSettingsStore: Object.assign(() => state, { getState: () => state }) };
+});
 vi.mock('@/utils/nav', () => ({ navigateToReader, showReaderWindow }));
 vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch } }));
 
@@ -74,7 +75,7 @@ describe('useOpenBook', () => {
       await openBook(managedBook);
       vi.runAllTimers();
     });
-    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [managedBook.hash]);
+    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [managedBook.hash], undefined);
     expect(dispatch).not.toHaveBeenCalled();
   });
 
@@ -99,7 +100,7 @@ describe('useOpenBook', () => {
     });
     expect(handleBookDownload).toHaveBeenCalledWith(book, { queued: false });
     expect(book.downloadedAt).toBeNull();
-    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [book.hash]);
+    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [book.hash], undefined);
     expect(dispatch).not.toHaveBeenCalled();
   });
 
@@ -112,6 +113,6 @@ describe('useOpenBook', () => {
       vi.runAllTimers();
     });
     expect(handleBookDownload).not.toHaveBeenCalled();
-    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [book.hash]);
+    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [book.hash], undefined);
   });
 });
