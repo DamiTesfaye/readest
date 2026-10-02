@@ -2,7 +2,10 @@ import React from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { saveViewSettings } = vi.hoisted(() => ({ saveViewSettings: vi.fn() }));
+const { saveViewSettings, getHomeRowVariant } = vi.hoisted(() => ({
+  saveViewSettings: vi.fn(),
+  getHomeRowVariant: vi.fn(),
+}));
 let readingRulerEnabled = false;
 
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
@@ -14,6 +17,7 @@ vi.mock('@/store/readerStore', () => ({
   useReaderStore: () => ({ getViewSettings: () => ({ readingRulerEnabled }) }),
 }));
 vi.mock('@/helpers/settings', () => ({ saveViewSettings }));
+vi.mock('@/utils/homeRowVariant', () => ({ getHomeRowVariant, getAppSessionSeed: () => 99 }));
 vi.mock('@/components/motionrive/TextInMotionArt', () => ({ default: () => <span /> }));
 vi.mock('@/components/ToolbarPopover', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
@@ -40,6 +44,8 @@ const renderPopover = (overrides: Partial<React.ComponentProps<typeof MorePopove
 
 beforeEach(() => {
   saveViewSettings.mockReset();
+  getHomeRowVariant.mockReset();
+  getHomeRowVariant.mockReturnValue({ subtitle: 'Head back home', icon: 'go-home' });
   readingRulerEnabled = false;
 });
 
@@ -226,12 +232,24 @@ describe('MorePopover', () => {
     );
   });
 
-  it('renders the home card with prompt, hint and house icon', () => {
+  it('renders the home card with prompt, derived hint and house icon', () => {
+    getHomeRowVariant.mockReturnValue({ subtitle: 'Make tracks for home', icon: 'go-home' });
     renderPopover();
     const card = screen.getByRole('button', { name: /Done reading for now\?/ });
     expect(screen.getByText('Done reading for now?').className).toContain('popover-action-label');
-    expect(screen.getByText('Head back to your homepage').className).toContain('popover-label');
+    expect(screen.getByText('Make tracks for home').className).toContain('popover-label');
     expect(card.querySelector('img')?.getAttribute('src')).toBe('/images/toolbar/go-home.svg');
+    expect(getHomeRowVariant).toHaveBeenCalledWith(
+      expect.objectContaining({ bookKey: 'book-1', sessionSeed: 99, now: expect.any(Date) }),
+    );
+  });
+
+  it('shows the space base when the home card returns to base', () => {
+    getHomeRowVariant.mockReturnValue({ subtitle: 'Return to base', icon: 'space-base' });
+    renderPopover();
+    const card = screen.getByRole('button', { name: /Done reading for now\?/ });
+    expect(screen.getByText('Return to base').className).toContain('popover-label');
+    expect(card.querySelector('img')?.getAttribute('src')).toBe('/images/toolbar/space-base.svg');
   });
 
   it('goes home and closes from the home card', () => {

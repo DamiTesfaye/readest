@@ -9,6 +9,7 @@ import ToolbarPopover from '@/components/ToolbarPopover';
 import PopoverTitleBar from '@/components/PopoverTitleBar';
 import TextInMotionArt from '@/components/motionrive/TextInMotionArt';
 import { eventDispatcher } from '@/utils/event';
+import { getAppSessionSeed, getHomeRowVariant } from '@/utils/homeRowVariant';
 import { getThemeFontsTriggerSrc, getToolbarIconSrc } from '@/utils/toolbarIcons';
 import type { Rect } from '@/utils/sel';
 
@@ -51,6 +52,11 @@ const MorePopover: React.FC<MorePopoverProps> = ({
   }, [isOpen]);
 
   const readingRulerEnabled = getViewSettings(bookKey)?.readingRulerEnabled ?? false;
+  const homeRow = getHomeRowVariant({
+    now: new Date(),
+    bookKey,
+    sessionSeed: getAppSessionSeed(),
+  });
 
   const handleToggleReadingRuler = () => {
     saveViewSettings(envConfig, bookKey, 'readingRulerEnabled', !readingRulerEnabled, false, false);
@@ -183,12 +189,10 @@ const MorePopover: React.FC<MorePopoverProps> = ({
         >
           <span className='flex flex-col gap-0.5'>
             <span className={CAPTION_CLASS}>{_('Done reading for now?')}</span>
-            <span className='popover-label text-base-content/60'>
-              {_('Head back to your homepage')}
-            </span>
+            <span className='popover-label text-base-content/60'>{_(homeRow.subtitle)}</span>
           </span>
           <img
-            src={getToolbarIconSrc('go-home', themeColor, isDarkMode)}
+            src={getToolbarIconSrc(homeRow.icon, themeColor, isDarkMode)}
             alt=''
             className='h-6 w-auto object-contain'
           />
