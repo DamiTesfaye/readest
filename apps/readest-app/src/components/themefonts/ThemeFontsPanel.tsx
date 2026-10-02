@@ -29,7 +29,6 @@ const ThemeFontsPanel: React.FC<ThemeFontsPanelProps> = ({ bookKey }) => {
             className='eink-bordered bg-base-300 hover:bg-base-content/10 text-base-content flex w-2/3 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-black [font-family:"Avenir_Next_LT_Pro"]'
             onClick={() => setExpanded(true)}
           >
-            <img src='/images/theme-fonts/brush.svg' alt='' className='h-4 w-4' />
             {_('Customize')}
           </button>
         </div>

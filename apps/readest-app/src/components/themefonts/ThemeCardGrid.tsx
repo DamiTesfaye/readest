@@ -45,7 +45,7 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, selected, onSelect }) => {
         Aa
       </span>
       <span
-        className='relative mt-1 max-w-full truncate px-1 text-[10px] font-medium'
+        className='relative mt-1 max-w-full whitespace-normal break-words px-1 text-center text-[10px] font-medium leading-tight'
         style={{ color: textColor }}
       >
         {_(theme.label)}
