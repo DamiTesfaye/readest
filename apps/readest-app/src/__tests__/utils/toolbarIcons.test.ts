@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getToolbarIconColor,
   getToolbarIconSrc,
   getThemeFontsTriggerSrc,
   isColoredIconTheme,
@@ -55,5 +56,13 @@ describe('getChromeColor', () => {
 
   it('returns null for unknown and custom themes', () => {
     expect(getChromeColor('my-custom-theme', false)).toBeNull();
+  });
+});
+
+describe('getToolbarIconColor', () => {
+  it('matches the fill of the colored and muted toolbar icon files', () => {
+    expect(getToolbarIconColor('paper', false)).toBe('#000000');
+    expect(getToolbarIconColor('paper', true)).toBe('#D9D9D9');
+    expect(getToolbarIconColor('sepia', false)).toBe('#D9D9D9');
   });
 });

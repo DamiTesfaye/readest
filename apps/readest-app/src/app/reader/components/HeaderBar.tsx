@@ -28,13 +28,16 @@ import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
+import MoreMenuButton from './MoreMenuButton';
+import PinnedMoreMenuButton from './PinnedMoreMenuButton';
 import SparkPopover from './SparkPopover';
 import AmpleCloudIcon from './AmpleCloudIcon';
 import { getToolbarSidePanelPlacement, getToolbarStackedPanelPlacement } from '@/utils/popover';
 import type { Rect } from '@/utils/sel';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
-import { getToolbarIconSrc } from '@/utils/toolbarIcons';
+import { getToolbarIconColor, getToolbarIconSrc } from '@/utils/toolbarIcons';
+import { saveViewSettings } from '@/helpers/settings';
 
 const THEME_FONTS_WIDTH = 300;
 
@@ -62,14 +65,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   onDropdownOpenChange,
 }) => {
   const _ = useTranslation();
-  const { appService } = useEnv();
+  const { envConfig, appService } = useEnv();
   const headerRef = useRef<HTMLDivElement>(null);
+  const headerRootRef = useRef<HTMLDivElement>(null);
   const { isTrafficLightVisible } = useTrafficLight(headerRef);
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
   const { bookKeys, hoveredBookKey } = useReaderStore();
   const { isDarkMode, themeColor, systemUIVisible, statusBarHeight } = useThemeStore();
   const { isSideBarVisible, getIsSideBarVisible } = useSidebarStore();
-  const { getView, getViewState, setHoveredBookKey } = useReaderStore();
+  const { getView, getViewState, getViewSettings, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
   const bookData = getBookData(bookKey);
   const bookConfig = getConfig(bookKey);
@@ -222,6 +226,11 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(next);
   };
 
+  const isReadingRulerActive = !!getViewSettings(bookKey)?.readingRulerEnabled;
+  const handleCloseReadingRuler = () => {
+    saveViewSettings(envConfig, bookKey, 'readingRulerEnabled', false, false, false);
+  };
+
   const handleCloseMore = () => {
     setIsMoreOpen(false);
     handleToggleDropdown(false);
@@ -274,6 +283,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <div
+      ref={headerRootRef}
       className={clsx(
         'left-0 top-0 w-full',
         isHeaderVisible && 'bg-base-100',
@@ -416,19 +426,14 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
         <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2 sm:bg-transparent'>
           <div className='hidden items-center gap-x-3 sm:flex'>
-            <button
+            <MoreMenuButton
               ref={moreAnchorRef}
-              title={_('More')}
-              aria-expanded={isMoreOpen}
-              className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-              onClick={handleToggleMore}
-            >
-              <img
-                src={getToolbarIconSrc('more-menu', themeColor, isDarkMode)}
-                alt=''
-                className='h-4 w-auto object-contain'
-              />
-            </button>
+              isReadingRulerActive={isReadingRulerActive}
+              isMoreOpen={isMoreOpen}
+              iconColor={getToolbarIconColor(themeColor, isDarkMode)}
+              onToggleMore={handleToggleMore}
+              onCloseReadingRuler={handleCloseReadingRuler}
+            />
           </div>
           <MorePopover
             bookKey={bookKey}
@@ -524,6 +529,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           />
         </div>
       </div>
+      <PinnedMoreMenuButton
+        containerRef={headerRootRef}
+        anchorRef={moreAnchorRef}
+        isHeaderVisible={isHeaderVisible}
+        isReadingRulerActive={isReadingRulerActive}
+        iconColor={getToolbarIconColor(themeColor, isDarkMode)}
+        onToggleMore={handleToggleMore}
+        onCloseReadingRuler={handleCloseReadingRuler}
+      />
     </div>
   );
 };

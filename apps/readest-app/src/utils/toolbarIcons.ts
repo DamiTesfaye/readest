@@ -1,4 +1,6 @@
 const COLORED_ICON_THEMES = new Set(['paper', 'default']);
+const COLORED_ICON_FILL = '#000000';
+const MUTED_ICON_FILL = '#D9D9D9';
 
 export const isColoredIconTheme = (themeName: string, isDarkMode: boolean): boolean => {
   return !isDarkMode && COLORED_ICON_THEMES.has(themeName);
@@ -8,6 +10,10 @@ export const getToolbarIconSrc = (icon: string, themeName: string, isDarkMode: b
   return isColoredIconTheme(themeName, isDarkMode)
     ? `/images/toolbar/${icon}.svg`
     : `/images/toolbar/${icon}-muted.svg`;
+};
+
+export const getToolbarIconColor = (themeName: string, isDarkMode: boolean): string => {
+  return isColoredIconTheme(themeName, isDarkMode) ? COLORED_ICON_FILL : MUTED_ICON_FILL;
 };
 
 export const getSelectionIconSrc = (icon: string, isDarkMode: boolean): string => {
