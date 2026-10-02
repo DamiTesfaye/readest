@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEnv } from '@/context/EnvContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -24,7 +24,6 @@ interface ViewMenuProps {
 const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
   const _ = useTranslation();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { envConfig } = useEnv();
   const { settings } = useSettingsStore();
 
@@ -36,7 +35,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
     groupBy,
     sortBy,
     isAscending,
-    sortBy2,
+    thenSortBy,
+    isThenAscending,
     primaryEffective,
     primaryIsImplicit,
     secondaryEffective,
@@ -44,7 +44,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
     handleSetGroupBy,
     handleSetSortBy,
     handleSetSortAscending,
-    handleSetSortBy2,
+    handleSetThenSortBy,
+    handleSetThenSortAscending,
   } = useLibrarySortControls();
 
   const viewOptions = [
@@ -62,6 +63,8 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
     { label: _('Books'), value: LibraryGroupByType.None },
     { label: _('Groups'), value: LibraryGroupByType.Group },
     { label: _('Series'), value: LibraryGroupByType.Series },
+    { label: _('Tags'), value: LibraryGroupByType.Tag },
+    { label: _('Subjects'), value: LibraryGroupByType.Subject },
   ];
 
   const sortByOptions = [
@@ -73,9 +76,10 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
     { label: _('Date Added'), value: LibrarySortByType.Created },
     { label: _('Date Published'), value: LibrarySortByType.Published },
     { label: _('Progress Read'), value: LibrarySortByType.Progress },
+    { label: _('Time Remaining'), value: LibrarySortByType.TimeRemaining },
   ];
 
-  const sortBy2Options: { label: string; value: LibrarySecondarySortByType }[] = [
+  const thenSortByOptions: { label: string; value: LibrarySecondarySortByType }[] = [
     { label: _('None'), value: 'none' },
     ...sortByOptions,
   ];
@@ -88,7 +92,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
   const handleSetViewMode = async (value: LibraryViewModeType) => {
     await saveSysSettings(envConfig, 'libraryViewMode', value);
 
-    const params = new URLSearchParams(searchParams?.toString());
+    const params = new URLSearchParams(window.location.search);
     params.set('view', value);
     navigateToLibrary(router, `${params.toString()}`);
   };
@@ -96,7 +100,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
   const handleToggleCropCovers = async (value: LibraryCoverFitType) => {
     await saveSysSettings(envConfig, 'libraryCoverFit', value);
 
-    const params = new URLSearchParams(searchParams?.toString());
+    const params = new URLSearchParams(window.location.search);
     params.set('cover', value);
     navigateToLibrary(router, `${params.toString()}`);
   };
@@ -129,7 +133,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
         <MenuItem
           key={option.value}
           label={option.label}
-          buttonClass='h-8'
+          buttonClass='min-h-8 !py-1'
           toggled={viewMode === option.value}
           onClick={() => handleSetViewMode(option.value as LibraryViewModeType)}
           transient
@@ -138,10 +142,15 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
 
       {/* Columns */}
       <hr aria-hidden='true' className='border-base-200 my-1' />
-      <MenuItem label={_('Columns')} buttonClass='h-8' labelClass='text-sm sm:text-xs' disabled />
+      <MenuItem
+        label={_('Columns')}
+        buttonClass='min-h-8 !py-1'
+        labelClass='text-sm sm:text-xs'
+        disabled
+      />
       <MenuItem
         label={_('Auto')}
-        buttonClass='h-10'
+        buttonClass='min-h-10 !py-2'
         toggled={autoColumns}
         disabled={viewMode === 'list'}
         siblings={
@@ -163,7 +172,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       <hr aria-hidden='true' className='border-base-200 my-1' />
       <MenuItem
         label={_('Book Covers')}
-        buttonClass='h-8'
+        buttonClass='min-h-8 !py-1'
         labelClass='text-sm sm:text-xs'
         disabled
       />
@@ -171,7 +180,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
         <MenuItem
           key={option.value}
           label={option.label}
-          buttonClass='h-8'
+          buttonClass='min-h-8 !py-1'
           toggled={coverFit === option.value}
           onClick={() => handleToggleCropCovers(option.value as LibraryCoverFitType)}
           transient
@@ -182,7 +191,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       <hr aria-hidden='true' className='border-base-200 my-1' />
       <MenuItem
         label={_('Show currently reading')}
-        buttonClass='h-8'
+        buttonClass='min-h-8 !py-1'
         toggled={settings.libraryRecentShelfEnabled}
         onClick={handleToggleRecentShelf}
         transient
@@ -196,7 +205,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
             <MenuItem
               key={option.value}
               label={option.label}
-              buttonClass='h-8'
+              buttonClass='min-h-8 !py-1'
               toggled={groupBy === option.value}
               onClick={() => handleSetGroupBy(option.value as LibraryGroupByType)}
               transient
@@ -216,7 +225,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
               <MenuItem
                 key={option.value}
                 label={isImplicit ? `${option.label} (${_('Auto')})` : option.label}
-                buttonClass='h-8'
+                buttonClass='min-h-8 !py-1'
                 toggled={toggled}
                 onClick={() => handleSetSortBy(option.value as LibrarySortByType)}
                 transient
@@ -228,7 +237,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
             <MenuItem
               key={option.value.toString()}
               label={option.label}
-              buttonClass='h-8'
+              buttonClass='min-h-8 !py-1'
               toggled={isAscending === option.value}
               onClick={() => handleSetSortAscending(option.value)}
               transient
@@ -241,20 +250,35 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       <hr aria-hidden='true' className='border-base-200 my-1' />
       <MenuItem label={_('Then by...')} detailsOpen={false} buttonClass='py-[4px]'>
         <ul className='ms-0 flex flex-col ps-0 before:hidden'>
-          {sortBy2Options.map((option) => {
+          {thenSortByOptions.map((option) => {
             const isImplicit = secondaryIsImplicit && option.value === secondaryEffective;
-            const isExplicit = sortBy2 === option.value;
+            const isExplicit = thenSortBy === option.value;
             return (
               <MenuItem
                 key={option.value}
                 label={isImplicit ? `${option.label} (${_('Auto')})` : option.label}
-                buttonClass='h-8'
+                buttonClass='min-h-8 !py-1'
                 toggled={isExplicit || isImplicit}
-                onClick={() => handleSetSortBy2(option.value)}
+                onClick={() => handleSetThenSortBy(option.value)}
                 transient
               />
             );
           })}
+          {secondaryEffective !== 'none' && (
+            <>
+              <hr aria-hidden='true' className='border-base-200 my-1' />
+              {sortingOptions.map((option) => (
+                <MenuItem
+                  key={option.value.toString()}
+                  label={option.label}
+                  buttonClass='min-h-8 !py-1'
+                  toggled={isThenAscending === option.value}
+                  onClick={() => handleSetThenSortAscending(option.value)}
+                  transient
+                />
+              ))}
+            </>
+          )}
         </ul>
       </MenuItem>
     </Menu>

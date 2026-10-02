@@ -83,6 +83,11 @@ const DEFAULT_SHORTCUTS = {
     description: _('Toggle Paragraph Mode'),
     section: 'General',
   },
+  onToggleAutoScroll: {
+    keys: ['shift+a'],
+    description: _('Toggle Auto Scroll'),
+    section: 'General',
+  },
   onStartRSVP: {
     keys: ['shift+v'],
     description: _('Speed Reading Mode'),
@@ -253,6 +258,16 @@ const DEFAULT_SHORTCUTS = {
   onGoHalfPageUp: {
     keys: ['shift+ArrowUp', 'u'],
     description: _('Scroll Half Page Up'),
+    section: 'Navigation',
+  },
+  onGoBookStart: {
+    keys: ['Home'],
+    description: _('Start of Book'),
+    section: 'Navigation',
+  },
+  onGoBookEnd: {
+    keys: ['End'],
+    description: _('End of Book'),
     section: 'Navigation',
   },
   onGoBack: {

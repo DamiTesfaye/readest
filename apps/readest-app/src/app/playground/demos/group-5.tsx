@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ColorInput from '@/components/settings/color/ColorInput';
+import ColorInput from '@/components/settings/theme/ColorInput';
 import SettingsRow from '@/components/settings/primitives/SettingsRow';
 import TextEditor from '@/components/TextEditor';
 import type { Book } from '@/types/book';
@@ -152,7 +152,7 @@ export const demos: DemoEntry[] = [
   },
   {
     name: 'ColorInput',
-    sourcePath: 'components/settings/color/ColorInput.tsx',
+    sourcePath: 'components/settings/theme/ColorInput.tsx',
     status: 'used',
     node: <ColorInput label='Highlight color' value='#8B5E3C' onChange={() => {}} />,
   },

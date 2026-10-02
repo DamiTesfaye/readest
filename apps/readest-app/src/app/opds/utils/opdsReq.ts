@@ -8,10 +8,10 @@ import {
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { READEST_OPDS_USER_AGENT } from '@/services/constants';
 import {
-  OPDSCustomHeaders,
-  normalizeOPDSCustomHeaders,
-  serializeOPDSCustomHeaders,
-} from './customHeaders';
+  CustomHeaders,
+  normalizeCustomHeaders,
+  serializeCustomHeaders,
+} from '@/utils/customHeaders';
 
 const OPDS_PROXY_URL = `${getAPIBaseUrl()}/opds/proxy`;
 const NODE_OPDS_PROXY_URL = `${getNodeAPIBaseUrl()}/opds/proxy`;
@@ -66,7 +66,7 @@ export const getProxiedURL = (
   url: string,
   auth: string = '',
   stream = false,
-  customHeaders: OPDSCustomHeaders = {},
+  customHeaders: CustomHeaders = {},
 ): string => {
   if (url.startsWith('http')) {
     const { url: cleanUrl } = extractCredentialsFromURL(url);
@@ -76,7 +76,7 @@ export const getProxiedURL = (
     if (auth) {
       params.append('auth', auth);
     }
-    const serializedHeaders = serializeOPDSCustomHeaders(customHeaders);
+    const serializedHeaders = serializeCustomHeaders(customHeaders);
     if (serializedHeaders) {
       params.append('headers', serializedHeaders);
     }
@@ -205,7 +205,7 @@ export const probeAuth = async (
   username?: string,
   password?: string,
   useProxy = false,
-  customHeaders: OPDSCustomHeaders = {},
+  customHeaders: CustomHeaders = {},
 ): Promise<string | null> => {
   const {
     url: cleanUrl,
@@ -215,7 +215,7 @@ export const probeAuth = async (
 
   const finalUsername = username || urlUsername;
   const finalPassword = password || urlPassword;
-  const normalizedCustomHeaders = normalizeOPDSCustomHeaders(customHeaders);
+  const normalizedCustomHeaders = normalizeCustomHeaders(customHeaders);
 
   // No credentials provided, can't generate auth header
   if (!finalUsername || !finalPassword) {
@@ -319,7 +319,7 @@ export const fetchWithAuth = async (
   password?: string,
   useProxy = false,
   options: RequestInit = {},
-  customHeaders: OPDSCustomHeaders = {},
+  customHeaders: CustomHeaders = {},
 ): Promise<Response> => {
   const {
     url: cleanUrl,
@@ -329,7 +329,7 @@ export const fetchWithAuth = async (
 
   const finalUsername = username || urlUsername;
   const finalPassword = password || urlPassword;
-  const normalizedCustomHeaders = normalizeOPDSCustomHeaders(customHeaders);
+  const normalizedCustomHeaders = normalizeCustomHeaders(customHeaders);
 
   // Send Basic auth preemptively when credentials are available. Servers that
   // allow anonymous access (e.g. Calibre-Web) return 200 without a challenge,
@@ -342,11 +342,14 @@ export const fetchWithAuth = async (
   const fetchURL = useProxy
     ? getProxiedURL(cleanUrl, preemptiveAuth || '', false, normalizedCustomHeaders)
     : cleanUrl;
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     'User-Agent': READEST_OPDS_USER_AGENT,
     Accept: 'application/atom+xml, application/xml, text/xml, */*',
     ...(!useProxy ? normalizedCustomHeaders : {}),
     ...(options.headers as Record<string, string>),
+  };
+  const headers: Record<string, string> = {
+    ...baseHeaders,
     ...(preemptiveAuth && !useProxy ? { Authorization: preemptiveAuth } : {}),
   };
 
@@ -357,6 +360,24 @@ export const fetchWithAuth = async (
     headers,
     danger: { acceptInvalidCerts: true, acceptInvalidHostnames: true },
   });
+
+  // Calibre in 'digest' (or 'auto' over http) mode rejects a Basic
+  // Authorization header outright with 400 "Unsupported authentication
+  // method" instead of returning a 401 challenge, so the preemptive Basic
+  // header would dead-end the request. Re-issue it without credentials to
+  // surface the WWW-Authenticate challenge and let the retry below negotiate
+  // the scheme the server actually wants.
+  if (res.status === 400 && preemptiveAuth) {
+    res = await fetch(
+      useProxy ? getProxiedURL(cleanUrl, '', false, normalizedCustomHeaders) : fetchURL,
+      {
+        ...options,
+        method: options.method || 'GET',
+        headers: baseHeaders,
+        danger: { acceptInvalidCerts: true, acceptInvalidHostnames: true },
+      },
+    );
+  }
 
   // Handle authentication if needed
   if (!res.ok && (res.status === 401 || res.status === 403) && finalUsername && finalPassword) {

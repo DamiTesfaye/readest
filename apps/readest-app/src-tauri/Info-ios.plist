@@ -4,6 +4,8 @@
   <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Readest uses the local network to discover nearby devices and transfer books with LocalSend.</string>
     <key>CFBundleLocalizations</key>
     <array>
       <string>en</string>
@@ -43,6 +45,13 @@
     </array>
     <key>LSSupportsOpeningDocumentsInPlace</key>
     <true/>
+    <!-- Add-only Photos access. Readest never reads the library, but the
+         WebView's "Add to Photos" image callout and the share sheet's
+         "Save Image" activity both write through PHPhotoLibrary in-process;
+         without this key TCC terminates the app on the first attempt (#5397)
+         and iOS hides "Save Image" from the share sheet entirely. -->
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Readest needs access to save images from your books to your photo library.</string>
     <key>CFBundleURLTypes</key>
     <array>
       <dict>
@@ -65,6 +74,49 @@
           <string>com.googleusercontent.apps.209390247301-ctpmep68ppfa56r1b8tr35e4qi4p60kq</string>
         </array>
       </dict>
+      <!-- OneDrive OAuth redirect. The ASWebAuthenticationSession matches on
+           this scheme; mirrors the onedrive-oauth filter in
+           AndroidManifest.xml and the deep-link.mobile scheme in
+           tauri.conf.json. -->
+      <dict>
+        <key>CFBundleURLName</key>
+        <string>com.bilingify.readest.onedrive-oauth</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>readest-onedrive</string>
+        </array>
+      </dict>
     </array>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+      <key>UIApplicationSupportsMultipleScenes</key>
+      <true/>
+      <key>UISceneConfigurations</key>
+      <dict>
+        <key>CPTemplateApplicationSceneSessionRoleApplication</key>
+        <array>
+          <dict>
+            <key>UISceneClassName</key>
+            <string>CPTemplateApplicationScene</string>
+            <key>UISceneConfigurationName</key>
+            <string>CarPlay</string>
+            <key>UISceneDelegateClassName</key>
+            <string>$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate</string>
+          </dict>
+        </array>
+      </dict>
+    </dict>
+    <key>NSUbiquitousContainers</key>
+    <dict>
+      <key>iCloud.com.bilingify.readest</key>
+      <dict>
+        <key>NSUbiquitousContainerIsDocumentScopePublic</key>
+        <true/>
+        <key>NSUbiquitousContainerName</key>
+        <string>Readest</string>
+        <key>NSUbiquitousContainerSupportedFolderLevels</key>
+        <string>Any</string>
+      </dict>
+    </dict>
   </dict>
 </plist>

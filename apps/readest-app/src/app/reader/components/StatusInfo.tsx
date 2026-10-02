@@ -10,6 +10,7 @@ interface StatusInfoProps {
   use24Hour?: boolean;
   isVertical?: boolean;
   isEink?: boolean;
+  className?: string;
 }
 
 const StatusInfo: React.FC<StatusInfoProps> = ({
@@ -19,6 +20,7 @@ const StatusInfo: React.FC<StatusInfoProps> = ({
   showBatteryPercentage,
   isVertical,
   isEink,
+  className,
 }) => {
   const formattedTime = useCurrentTime(showTime, use24Hour);
   const batteryLevel = useCurrentBatteryStatus(showBattery);
@@ -30,6 +32,7 @@ const StatusInfo: React.FC<StatusInfoProps> = ({
       className={clsx(
         'status-bar flex shrink-0 items-center gap-2 whitespace-nowrap tabular-nums',
         isVertical ? 'my-auto' : 'flex-row',
+        className,
       )}
     >
       {showTime && <span>{formattedTime}</span>}
@@ -69,9 +72,13 @@ const StatusInfo: React.FC<StatusInfoProps> = ({
           {showBatteryPercentage && batteryLevel !== null && (
             <span
               className={clsx(
-                'absolute text-[8px] font-medium leading-none invert',
+                'battery-percentage absolute text-[8px] font-medium leading-none',
+                // The fill behind the number is currentColor at 30% opacity --
+                // a mid tone in any theme, which themed text reads against. In
+                // eink the fill is opaque base-content, so the number is
+                // knocked out of it in the page color instead.
+                isEink ? 'text-base-100' : 'text-base-content',
                 isVertical && '[writing-mode:horizontal-tb]',
-                isEink ? 'text-black mix-blend-difference' : 'text-base-300 mix-blend-luminosity',
               )}
               style={{ left: '11px', transform: 'translateX(-50%)' }}
             >

@@ -181,6 +181,31 @@ describe('transformStylesheet', () => {
       const result = transformStylesheet(css, VW, VH, VERTICAL);
       expect(result).toContain('var(--monospace, monospace)');
     });
+
+    // Regression test for #5277: a stylesheet can be handed to this transform
+    // more than once. Rewriting the generic families again turned them into
+    // `var(--var(--serif, serif), serif)`, which the CSS parser drops - the
+    // book's font-family declarations vanished and the reader's own font
+    // showed through instead.
+    describe('idempotence', () => {
+      const cases = [
+        ['.text { font-family: serif; }', 'var(--serif, serif)'],
+        ['.text { font-family: sans-serif; }', 'var(--sans-serif, sans-serif)'],
+        ['.code { font-family: monospace; }', 'var(--monospace, monospace)'],
+        ['.text { font-family: "FZSongTi", serif; }', 'var(--serif, serif)'],
+        ['.text { font-family: Helvetica, sans-serif; }', 'var(--sans-serif, sans-serif)'],
+      ] as const;
+
+      cases.forEach(([css, expected]) => {
+        it(`keeps ${css} stable across repeated transforms`, () => {
+          const once = transformStylesheet(css, VW, VH, VERTICAL);
+          const twice = transformStylesheet(once, VW, VH, VERTICAL);
+          expect(once).toContain(expected);
+          expect(twice).toBe(once);
+          expect(twice).not.toContain('var(--var(');
+        });
+      });
+    });
   });
 
   describe('color black to var(--theme-fg-color)', () => {
@@ -205,6 +230,26 @@ describe('transformStylesheet', () => {
     it('replaces color: rgb(0, 0, 0)', () => {
       const css = '.text { color: rgb(0, 0, 0); }';
       const result = transformStylesheet(css, VW, VH, VERTICAL);
+      expect(result).toContain('color: var(--theme-fg-color)');
+    });
+  });
+
+  describe('fixed-layout documents', () => {
+    it('leaves authored colors alone so the page renders as authored (#5649)', () => {
+      const css = '.text { color: #000000; } .named { color: black; }';
+      const result = transformStylesheet(css, VW, VH, VERTICAL, true);
+      expect(result).toBe(css);
+    });
+
+    it('leaves authored font sizes and viewport units alone', () => {
+      const css = '.text { font-size: 24px; width: 50vw; }';
+      const result = transformStylesheet(css, VW, VH, VERTICAL, true);
+      expect(result).toBe(css);
+    });
+
+    it('still transforms reflowable stylesheets', () => {
+      const css = '.text { color: #000000; }';
+      const result = transformStylesheet(css, VW, VH, VERTICAL, false);
       expect(result).toContain('color: var(--theme-fg-color)');
     });
   });

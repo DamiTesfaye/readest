@@ -17,7 +17,7 @@ import {
 import { getOSPlatform } from '@/utils/misc';
 import { getMaxInlineSize } from '@/utils/config';
 import { useCustomFontStore } from '@/store/customFontStore';
-import BackgroundSwatchRow from '@/components/settings/color/BackgroundSwatchRow';
+import BackgroundSwatchRow from '@/components/settings/theme/BackgroundSwatchRow';
 import FontSelector from './FontSelector';
 import SelectField from './SelectField';
 import {

@@ -38,6 +38,7 @@ const renderGridItem = () =>
       isSelectMode={false}
       bookSelected={false}
       transferProgress={null}
+      showTimeRemaining={false}
       handleBookUpload={vi.fn()}
       handleBookDownload={vi.fn()}
       showBookDetailsModal={vi.fn()}

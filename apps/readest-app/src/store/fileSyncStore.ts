@@ -47,6 +47,14 @@ interface FileSyncState {
   byKind: Partial<Record<FileSyncBackendKind, ProviderSyncProgress>>;
   /** The backend currently holding the library-sync lock, or null when free. */
   activeKind: FileSyncBackendKind | null;
+  /**
+   * Last terminal sync error per backend, surviving `endSync` so health
+   * surfaces (the SettingsMenu sync row, the chooser row status) can show
+   * "Sync failed" after the run finished. Cleared (set to null) by the
+   * next successful run. Process-local like the rest of this store — the
+   * durable "last synced" timestamp lives in the provider settings slice.
+   */
+  lastErrorByKind: Partial<Record<FileSyncBackendKind, string | null>>;
 
   /**
    * Acquire the library-sync mutex for `kind` and mark it syncing. Returns
@@ -54,13 +62,26 @@ interface FileSyncState {
    * already holds the lock. Callers MUST honour a `false` return and not sync.
    */
   beginSync: (kind: FileSyncBackendKind, initialLabel: string) => boolean;
+  /**
+   * Hand the library-sync lock from the current backend to the next one WITHOUT
+   * releasing it. A multi-backend sync pass (#5062) must stay exclusive end to
+   * end — releasing between backends would let the debounced auto-sync start a
+   * second reconcile of the same local library. Marks the previous backend idle
+   * and the new one syncing, so each provider row renders its own progress.
+   *
+   * Only valid while this caller holds the lock (i.e. after a `true` from
+   * {@link beginSync}); it is a no-op when the lock is free.
+   */
+  switchSync: (kind: FileSyncBackendKind, label: string) => void;
   updateProgress: (kind: FileSyncBackendKind, label: string, detail?: string | null) => void;
   endSync: (kind: FileSyncBackendKind) => void;
+  setLastError: (kind: FileSyncBackendKind, message: string | null) => void;
 }
 
 export const useFileSyncStore = create<FileSyncState>((set, get) => ({
   byKind: {},
   activeKind: null,
+  lastErrorByKind: {},
 
   beginSync: (kind, initialLabel) => {
     // Global mutex: only one backend's library sync at a time, since they all
@@ -81,6 +102,25 @@ export const useFileSyncStore = create<FileSyncState>((set, get) => ({
     return true;
   },
 
+  switchSync: (kind, label) =>
+    set((s) => {
+      if (s.activeKind === null) return s;
+      const previous = s.activeKind;
+      return {
+        activeKind: kind,
+        byKind: {
+          ...s.byKind,
+          ...(previous !== kind ? { [previous]: IDLE } : {}),
+          [kind]: {
+            isSyncing: true,
+            progressLabel: label,
+            progressDetail: null,
+            startedAt: Date.now(),
+          },
+        },
+      };
+    }),
+
   updateProgress: (kind, label, detail = null) =>
     set((s) => ({
       byKind: {
@@ -98,6 +138,11 @@ export const useFileSyncStore = create<FileSyncState>((set, get) => ({
     set((s) => ({
       activeKind: s.activeKind === kind ? null : s.activeKind,
       byKind: { ...s.byKind, [kind]: IDLE },
+    })),
+
+  setLastError: (kind, message) =>
+    set((s) => ({
+      lastErrorByKind: { ...s.lastErrorByKind, [kind]: message },
     })),
 }));
 

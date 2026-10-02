@@ -52,10 +52,9 @@ import {
   mediaDownloadUrl,
   mediaUpdateUrl,
   metadataUrl,
-  reparentUrl,
+  multipartUploadUrl,
   resumableCreateUrl,
   resumableUpdateUrl,
-  simpleUploadUrl,
 } from './driveRest';
 
 /** Token source for Drive requests, supplied by the OAuth/token layer. */
@@ -82,6 +81,7 @@ const DRIVE_ROOT_ID = 'root';
 
 const HTTP_GET = 'GET';
 const HTTP_POST = 'POST';
+const HTTP_PUT = 'PUT';
 const HTTP_PATCH = 'PATCH';
 const HTTP_DELETE = 'DELETE';
 
@@ -100,6 +100,11 @@ const UPLOAD_CONTENT_TYPE_HEADER = 'X-Upload-Content-Type';
 const JSON_CONTENT_TYPE = 'application/json';
 const DEFAULT_TEXT_CONTENT_TYPE = 'application/json';
 const DEFAULT_BINARY_CONTENT_TYPE = 'application/octet-stream';
+
+/** Part separator for multipart creates; unusual enough to never appear in a payload. */
+const MULTIPART_BOUNDARY = 'readest-gdrive-multipart-3f9a2c17';
+/** Drive caps `uploadType=multipart` at 5 MB; larger creates go resumable. */
+const MULTIPART_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Backoff: up to this many retries on a transient (429/5xx) response. */
 const MAX_BACKOFF_RETRIES = 4;
@@ -254,6 +259,41 @@ const parseRetryAfterMs = (header: string | null): number | undefined => {
 
 const defaultSleep: SleepFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Dev-only request diagnostics: one `[gdrive] op …` line per provider call
+ * (with the sync-layer's logical path) and one `[gdrive] #n …` line per HTTP
+ * attempt (with the decoded Drive request purpose), so a sync run's request
+ * budget can be attributed line-by-line from the console.
+ */
+const LOG_DRIVE_REQUESTS = process.env['NODE_ENV'] === 'development';
+let driveRequestSeq = 0;
+
+const logDriveOp = (op: string, detail: string): void => {
+  if (LOG_DRIVE_REQUESTS) console.log(`[gdrive] op ${op} ${detail}`);
+};
+
+/** Decode a Drive REST URL into a short human-readable purpose. */
+const describeDriveRequest = (url: string, method: string): string => {
+  try {
+    const u = new URL(url);
+    const q = u.searchParams.get('q');
+    if (q !== null) {
+      const name = /name = '([^']*)'/.exec(q)?.[1];
+      const parent = /'([^']*)' in parents/.exec(q)?.[1];
+      return name ? `lookup '${name}' in ${parent}` : `list children of ${parent}`;
+    }
+    const id = /\/files\/([^/?]+)/.exec(u.pathname)?.[1];
+    if (u.searchParams.get('alt') === 'media') return `download ${id}`;
+    if (u.pathname.includes('/upload/')) return id ? `upload(overwrite) ${id}` : 'upload(create)';
+    if (method === HTTP_DELETE) return `delete ${id}`;
+    if (id) return `stat ${id}`;
+    if (method === HTTP_POST) return 'create folder';
+    return u.pathname;
+  } catch {
+    return url;
+  }
+};
+
 class DriveProviderImpl {
   readonly rootPath = '/';
 
@@ -282,16 +322,19 @@ class DriveProviderImpl {
   ) {}
 
   async readText(path: string): Promise<string | null> {
+    logDriveOp('readText', path);
     const res = await this.getMedia(path);
     return res ? res.text() : null;
   }
 
   async readBinary(path: string): Promise<ArrayBuffer | null> {
+    logDriveOp('readBinary', path);
     const res = await this.getMedia(path);
     return res ? res.arrayBuffer() : null;
   }
 
   async head(path: string): Promise<FileHead | null> {
+    logDriveOp('head', path);
     const file = await this.statFresh(path, (id) => metadataUrl(id), 'stat');
     if (file === null) return null;
     return {
@@ -301,6 +344,7 @@ class DriveProviderImpl {
   }
 
   async list(path: string): Promise<FileEntry[]> {
+    logDriveOp('list', path);
     const folderId = await this.resolveFolderSegments(splitSegments(path), false);
     // Absent folder -> empty listing (Drive has no path, so a missing parent is
     // simply "no children"). Matches what the engine's discovery expects.
@@ -338,10 +382,28 @@ class DriveProviderImpl {
     body: ArrayBuffer,
     contentType: string = DEFAULT_BINARY_CONTENT_TYPE,
   ): Promise<void> {
+    logDriveOp('write', path);
     const segments = splitSegments(path);
     const name = segments.pop();
     if (name === undefined)
       throw new DriveHttpError(0, undefined, `Drive upload failed: empty path`);
+
+    // Fast path: a write to a path whose id is already cached PATCHes it in
+    // place with no lookup. The engine's steady state re-writes paths whose
+    // ids the preceding pull cached (config.json, library.json), so the
+    // per-PUT files.list was pure overhead. A stale id (deleted remotely)
+    // 404s: evict and fall through to the full resolve.
+    const cachedId = this.idCache.get(path);
+    if (cachedId !== undefined) {
+      try {
+        await this.uploadMedia(mediaUpdateUrl(cachedId), body, contentType, path);
+        return;
+      } catch (e) {
+        if (!(e instanceof DriveHttpError) || e.status !== HTTP_NOT_FOUND) throw e;
+        this.evict(path);
+      }
+    }
+
     // Auto-create the containing chain as a backup; the engine usually calls
     // ensureDir first, but a write must still materialise its parents.
     const folderId = await this.resolveFolderSegments(segments, true);
@@ -357,18 +419,23 @@ class DriveProviderImpl {
     if (existingId !== null) {
       // Overwrite in place, preserving the file id (and any links) rather than
       // orphaning it and creating a duplicate name.
-      await this.uploadMedia(mediaUpdateUrl(existingId), HTTP_PATCH, body, contentType, path);
+      await this.uploadMedia(mediaUpdateUrl(existingId), body, contentType, path);
       this.idCache.set(path, existingId);
     } else {
-      // `uploadType=media` carries no metadata, so create-then-name: POST the
-      // bytes to root, then PATCH name + reparent under the resolved folder.
-      const created = await this.uploadMedia(simpleUploadUrl(), HTTP_POST, body, contentType, path);
-      await this.nameAndReparent(created.id, name, folderId, path);
+      // Metadata (name + parent) and bytes MUST travel in one atomic request.
+      // The old create-then-name pair (an unnamed POST that Drive materialises
+      // as "Untitled" in the Drive ROOT, then a rename/reparent PATCH) stranded
+      // that root file every time the second request failed (#5147).
+      const created =
+        body.byteLength <= MULTIPART_UPLOAD_MAX_BYTES
+          ? await this.createViaMultipart(name, folderId, body, contentType, path)
+          : await this.createViaResumable(name, folderId, body, contentType, path);
       this.idCache.set(path, created.id);
     }
   }
 
   async ensureDir(paths: string[]): Promise<void> {
+    logDriveOp('ensureDir', paths[paths.length - 1] ?? '');
     // Create each directory's full chain (idempotent via cache + findChild). The
     // engine passes ancestors top-down, so deeper paths reuse the cached parents.
     for (const path of paths) {
@@ -377,6 +444,7 @@ class DriveProviderImpl {
   }
 
   async deleteDir(path: string): Promise<void> {
+    logDriveOp('deleteDir', path);
     const folderId = await this.resolveFolderSegments(splitSegments(path), false);
     // Already absent — nothing to delete (idempotent).
     if (folderId === null) return;
@@ -545,29 +613,78 @@ class DriveProviderImpl {
     return file.id;
   }
 
-  /** Set a freshly-uploaded file's name and move it under its target folder. */
-  private async nameAndReparent(
-    fileId: string,
+  /**
+   * Create a new file with its metadata and bytes in a single
+   * `uploadType=multipart` POST: a `multipart/related` body whose first part is
+   * the `{name, parents}` JSON and whose second part is the raw bytes. Because
+   * the name and target folder ride with the bytes, a failed create leaves
+   * nothing behind — there is no window in which an unnamed file sits in the
+   * user's Drive root (#5147).
+   */
+  private async createViaMultipart(
     name: string,
     folderId: string,
-    path: string,
-  ): Promise<void> {
-    const res = await this.authedFetch(reparentUrl(fileId, folderId, DRIVE_ROOT_ID), HTTP_PATCH, {
-      headers: { [CONTENT_TYPE_HEADER]: JSON_CONTENT_TYPE },
-      body: JSON.stringify({ name }),
-    });
-    await this.ensureOk(res, 'set metadata', path);
-  }
-
-  /** Send a simple media upload (create POST or overwrite PATCH) and parse the result. */
-  private async uploadMedia(
-    url: string,
-    method: typeof HTTP_POST | typeof HTTP_PATCH,
     body: ArrayBuffer,
     contentType: string,
     path: string,
   ): Promise<DriveFile> {
-    const res = await this.authedFetch(url, method, {
+    const metadata = JSON.stringify({ name, parents: [folderId] });
+    const encoder = new TextEncoder();
+    const head = encoder.encode(
+      `--${MULTIPART_BOUNDARY}\r\n` +
+        `${CONTENT_TYPE_HEADER}: ${JSON_CONTENT_TYPE}; charset=UTF-8\r\n\r\n` +
+        `${metadata}\r\n` +
+        `--${MULTIPART_BOUNDARY}\r\n` +
+        `${CONTENT_TYPE_HEADER}: ${contentType}\r\n\r\n`,
+    );
+    const tail = encoder.encode(`\r\n--${MULTIPART_BOUNDARY}--`);
+    const payload = new Uint8Array(head.byteLength + body.byteLength + tail.byteLength);
+    payload.set(head, 0);
+    payload.set(new Uint8Array(body), head.byteLength);
+    payload.set(tail, head.byteLength + body.byteLength);
+    const res = await this.authedFetch(multipartUploadUrl(), HTTP_POST, {
+      headers: {
+        [CONTENT_TYPE_HEADER]: `multipart/related; boundary=${MULTIPART_BOUNDARY}`,
+      },
+      body: payload.buffer as ArrayBuffer,
+    });
+    await this.ensureOk(res, 'upload', path);
+    return (await res.json()) as DriveFile;
+  }
+
+  /**
+   * Create a file too large for a multipart upload (Drive caps it at 5 MB —
+   * a buffered web book upload can exceed that) through a resumable session:
+   * the metadata rides in the initiation, and the file only materialises when
+   * the byte PUT completes, so an interrupted create strands nothing (#5147).
+   * The PUT is single-shot, like {@link uploadStream}'s: on failure the engine
+   * simply re-runs the write, which opens a fresh session.
+   */
+  private async createViaResumable(
+    name: string,
+    folderId: string,
+    body: ArrayBuffer,
+    contentType: string,
+    path: string,
+  ): Promise<DriveFile> {
+    const sessionUri = await this.openResumableSession(name, folderId, null, contentType, path);
+    const res = await this.fetchFn(sessionUri, {
+      method: HTTP_PUT,
+      headers: { [CONTENT_TYPE_HEADER]: contentType },
+      body,
+    });
+    await this.ensureOk(res, 'upload', path);
+    return (await res.json()) as DriveFile;
+  }
+
+  /** Overwrite an existing file's bytes via a media PATCH and parse the result. */
+  private async uploadMedia(
+    url: string,
+    body: ArrayBuffer,
+    contentType: string,
+    path: string,
+  ): Promise<DriveFile> {
+    const res = await this.authedFetch(url, HTTP_PATCH, {
       headers: { [CONTENT_TYPE_HEADER]: contentType },
       body,
     });
@@ -587,13 +704,14 @@ class DriveProviderImpl {
    * Two-step handshake: (1) POST/PATCH the metadata to open a session — Drive
    * replies with a one-time, already-authenticated session URI in `Location`;
    * (2) the native upload plugin PUTs the file body to that URI off the disk.
-   * The metadata (name + parent) rides in the initiation, so unlike the buffered
-   * create-then-name path there is no follow-up reparent PATCH.
+   * The metadata (name + parent) rides in the initiation, so the file can never
+   * appear unnamed in the Drive root, mirroring the buffered create paths.
    *
    * Returns `true` on success, `false` on a swallowed failure (matching the
    * provider contract: the engine re-ensures dirs and retries once, then throws).
    */
   async uploadStream(remotePath: string, localPath: string): Promise<boolean> {
+    logDriveOp('uploadStream', remotePath);
     try {
       const segments = splitSegments(remotePath);
       const name = segments.pop();
@@ -670,6 +788,7 @@ class DriveProviderImpl {
    * Returns `false` when the file is absent or the transport swallows a failure.
    */
   async downloadStream(remotePath: string, localPath: string): Promise<boolean> {
+    logDriveOp('downloadStream', remotePath);
     try {
       const fileId = await this.resolveFile(remotePath);
       if (fileId === null) return false;
@@ -689,6 +808,10 @@ class DriveProviderImpl {
   /** Issue an authenticated Drive request, retried on transient failures. */
   private async authedFetch(url: string, method: string, init?: RequestInit): Promise<Response> {
     return this.withBackoff(async () => {
+      if (LOG_DRIVE_REQUESTS) {
+        driveRequestSeq += 1;
+        console.log(`[gdrive] #${driveRequestSeq} ${method} ${describeDriveRequest(url, method)}`);
+      }
       const token = await this.auth.getAccessToken();
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
@@ -701,8 +824,8 @@ class DriveProviderImpl {
   /**
    * Retry `fn` on a 429 / 5xx response — OR a thrown transport error — with
    * `Retry-After`-aware exponential backoff. A first full-sync of a large library
-   * at concurrency 4 multiplies Drive calls (per-segment resolution + 2-write
-   * create-then-name), so a 429 is expected, not exceptional.
+   * at concurrency 4 multiplies Drive calls (per-segment resolution + per-file
+   * creates), so a 429 is expected, not exceptional.
    *
    * Thrown fetches are retried too: on mobile (observed on Android) a long
    * multi-request sync hits transient transport failures — reqwest's

@@ -26,6 +26,7 @@ import {
   SettingsSwitchRow,
 } from './primitives';
 import NumberInput from './NumberInput';
+import { Toggle } from '../primitives/toggle';
 
 const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }) => {
   const _ = useTranslation();
@@ -86,7 +87,6 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
   const [showBatteryPercentage, setShowBatteryPercentage] = useState(
     viewSettings.showBatteryPercentage,
   );
-  const [tapToToggleFooter, setTapToToggleFooter] = useState(viewSettings.tapToToggleFooter);
   const [progressStyle, setProgressStyle] = useState(viewSettings.progressStyle);
   const [referencePageCount, setReferencePageCount] = useState(viewSettings.referencePageCount);
   const [screenOrientation, setScreenOrientation] = useState(viewSettings.screenOrientation);
@@ -128,7 +128,6 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
       use24HourClock: setUse24HourClock,
       showCurrentBatteryStatus: setShowCurrentBatteryStatus,
       showBatteryPercentage: setShowBatteryPercentage,
-      tapToToggleFooter: setTapToToggleFooter,
     });
   };
 
@@ -413,11 +412,6 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
   }, [referencePageCount]);
 
   useEffect(() => {
-    saveViewSettings(envConfig, bookKey, 'tapToToggleFooter', tapToToggleFooter, false, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tapToToggleFooter]);
-
-  useEffect(() => {
     if (showHeader === viewSettings.showHeader) return;
     if (showHeader && !viewSettings.vertical) {
       const minMarginTop = Math.max(0, Math.round((44 - gridInsets.top) / 4) * 4);
@@ -462,12 +456,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
         className='flex items-center justify-between px-4'
       >
         <SettingLabel>{_('Override Book Layout')}</SettingLabel>
-        <input
-          type='checkbox'
-          className='toggle'
-          checked={overrideLayout}
-          onChange={() => setOverrideLayout(!overrideLayout)}
-        />
+        <Toggle checked={overrideLayout} onChange={() => setOverrideLayout(!overrideLayout)} />
       </div>
       {mightBeRTLBook && (
         <div
@@ -614,9 +603,11 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           value={showHeader && !isVertical ? marginTopPx : compactMarginTopPx}
           onChange={showHeader && !isVertical ? setMarginTopPx : setCompactMarginTopPx}
           min={
-            showHeader && !isVertical ? Math.max(0, Math.round((16 - gridInsets.top) / 4) * 4) : 0
+            showHeader && !isVertical
+              ? Math.max(0, Math.round((16 - gridInsets.top) / 4) * 4) - gridInsets.top
+              : 0
           }
-          max={88}
+          max={144}
           step={4}
         />
         <NumberInput
@@ -625,10 +616,10 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           onChange={showFooter && !isVertical ? setMarginBottomPx : setCompactMarginBottomPx}
           min={
             showFooter && !isVertical
-              ? Math.max(0, Math.round((16 - gridInsets.bottom) / 4) * 4)
+              ? Math.max(0, Math.round((16 - gridInsets.bottom) / 4) * 4) - gridInsets.bottom
               : 0
           }
-          max={88}
+          max={144}
           step={4}
         />
         <NumberInput
@@ -636,7 +627,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           value={showFooter && isVertical ? marginLeftPx : compactMarginLeftPx}
           onChange={showFooter && isVertical ? setMarginLeftPx : setCompactMarginLeftPx}
           min={0}
-          max={88}
+          max={144}
           step={4}
         />
         <NumberInput
@@ -644,11 +635,11 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           value={showHeader && isVertical ? marginRightPx : compactMarginRightPx}
           onChange={showHeader && isVertical ? setMarginRightPx : setCompactMarginRightPx}
           min={0}
-          max={88}
+          max={144}
           step={4}
         />
         <NumberInput
-          label={_('Column Gap (%)')}
+          label={_('Additional Margin (%)')}
           value={gapPercent}
           onChange={setGapPercent}
           min={0}
@@ -698,7 +689,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           data-setting-id='settings.layout.showFooter'
         />
         <SettingsSwitchRow
-          label={_('Show Remaining Time')}
+          label={_('Remaining Time')}
           checked={showRemainingTime}
           disabled={!showFooter}
           onChange={() => {
@@ -711,7 +702,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           }}
         />
         <SettingsSwitchRow
-          label={_('Show Remaining Pages')}
+          label={_('Remaining Pages')}
           checked={showRemainingPages}
           disabled={!showFooter}
           onChange={() => {
@@ -724,7 +715,7 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           }}
         />
         <SettingsSwitchRow
-          label={_('Show Reading Progress')}
+          label={_('Reading Progress')}
           checked={showProgressInfo}
           disabled={!showFooter}
           onChange={() => setShowProgressInfo(!showProgressInfo)}
@@ -757,14 +748,14 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           />
         )}
         <SettingsSwitchRow
-          label={_('Show Progress Bar')}
+          label={_('Progress Bar')}
           checked={showStickyProgressBar}
           disabled={!showFooter}
           onChange={() => setShowStickyProgressBar(!showStickyProgressBar)}
           data-setting-id='settings.layout.showStickyProgressBar'
         />
         <SettingsSwitchRow
-          label={_('Show Current Time')}
+          label={_('Current Time')}
           checked={showCurrentTime}
           disabled={!showFooter}
           onChange={() => setShowCurrentTime(!showCurrentTime)}
@@ -778,22 +769,16 @@ const LayoutPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRese
           />
         )}
         <SettingsSwitchRow
-          label={_('Show Current Battery Status')}
+          label={_('Battery Status')}
           checked={showCurrentBatteryStatus}
           disabled={!showFooter}
           onChange={() => setShowCurrentBatteryStatus(!showCurrentBatteryStatus)}
         />
         <SettingsSwitchRow
-          label={_('Show Battery Percentage')}
+          label={_('Battery Percentage')}
           checked={showBatteryPercentage}
           disabled={!showFooter || !showCurrentBatteryStatus}
           onChange={() => setShowBatteryPercentage(!showBatteryPercentage)}
-        />
-        <SettingsSwitchRow
-          label={_('Tap to Toggle Footer')}
-          checked={tapToToggleFooter}
-          disabled={!showFooter}
-          onChange={() => setTapToToggleFooter(!tapToToggleFooter)}
         />
       </BoxedList>
 

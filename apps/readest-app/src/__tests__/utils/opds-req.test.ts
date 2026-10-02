@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deserializeOPDSCustomHeaders } from '@/app/opds/utils/customHeaders';
+import { deserializeCustomHeaders } from '@/utils/customHeaders';
 
 // Mock environment for web platform
 vi.mock('@/services/environment', () => ({
@@ -99,7 +99,7 @@ describe('opdsReq', () => {
       });
       const params = new URL(proxied, 'https://web.readest.com').searchParams;
 
-      expect(deserializeOPDSCustomHeaders(params.get('headers'))).toEqual({
+      expect(deserializeCustomHeaders(params.get('headers'))).toEqual({
         'CF-Access-Client-Id': 'client-id',
         'CF-Access-Client-Secret': 'secret',
       });
@@ -175,6 +175,63 @@ describe('opdsReq', () => {
       const proxyUrl = fetchMock.mock.calls[0]![0] as string;
       const auth = new URL(proxyUrl, 'https://web.readest.com').searchParams.get('auth');
       expect(auth).toBe(`Basic ${btoa('alice:s3cret')}`);
+    });
+
+    it('recovers when a Digest-only server rejects the preemptive Basic header with 400', async () => {
+      // Calibre in 'digest' (or 'auto' over http) mode responds to a Basic
+      // Authorization header with 400 "Unsupported authentication method"
+      // instead of a 401 challenge, so the preemptive Basic header dead-ends
+      // the request. The client must re-issue the request without credentials
+      // to obtain the WWW-Authenticate challenge, then negotiate Digest.
+      fetchMock
+        .mockResolvedValueOnce(
+          makeResponse({ status: 400, body: 'Unsupported authentication method' }),
+        )
+        .mockResolvedValueOnce(
+          makeResponse({
+            status: 401,
+            wwwAuthenticate: 'Digest realm="calibre", nonce="abc123", algorithm="MD5", qop="auth"',
+          }),
+        )
+        .mockResolvedValueOnce(makeResponse({ status: 200, body: '<feed/>' }));
+
+      const res = await fetchWithAuth('http://calibre.example.com/opds', 'alice', 's3cret', false);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      const bareInit = fetchMock.mock.calls[1]![1] as RequestInit;
+      const bareHeaders = bareInit.headers as Record<string, string>;
+      expect(bareHeaders['Authorization']).toBeUndefined();
+      const digestInit = fetchMock.mock.calls[2]![1] as RequestInit;
+      const digestHeaders = digestInit.headers as Record<string, string>;
+      expect(digestHeaders['Authorization']).toMatch(/^Digest /);
+      expect(res.status).toBe(200);
+    });
+
+    it('recovers from the preemptive-Basic 400 through the proxy as well', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          makeResponse({ status: 400, body: 'Unsupported authentication method' }),
+        )
+        .mockResolvedValueOnce(
+          makeResponse({
+            // The web proxy maps the upstream 401 to 403 and forwards the
+            // WWW-Authenticate challenge.
+            status: 403,
+            wwwAuthenticate: 'Digest realm="calibre", nonce="abc123", algorithm="MD5", qop="auth"',
+          }),
+        )
+        .mockResolvedValueOnce(makeResponse({ status: 200, body: '<feed/>' }));
+
+      const res = await fetchWithAuth('http://calibre.example.com/opds', 'alice', 's3cret', true);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      const bareUrl = fetchMock.mock.calls[1]![0] as string;
+      expect(new URL(bareUrl, 'https://web.readest.com').searchParams.get('auth')).toBeNull();
+      const digestUrl = fetchMock.mock.calls[2]![0] as string;
+      expect(new URL(digestUrl, 'https://web.readest.com').searchParams.get('auth')).toMatch(
+        /^Digest /,
+      );
+      expect(res.status).toBe(200);
     });
 
     it('retries with Digest auth when the server issues a Digest challenge', async () => {

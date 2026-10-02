@@ -27,6 +27,11 @@ export interface UseBackgroundAudioRequest {
   enabled: boolean;
 }
 
+export interface SetSelectionSuppressedRequest {
+  target: 'gesture' | 'menu';
+  suppressed: boolean;
+}
+
 export interface InstallPackageRequest {
   path: string;
 }
@@ -140,6 +145,36 @@ export async function invokeUseBackgroundAudio(request: UseBackgroundAudioReques
   });
 }
 
+/**
+ * Acquire or release the Android WifiManager MulticastLock so LocalSend
+ * discovery announcements are delivered. Android only; a no-op elsewhere
+ * (callers gate on isAndroidApp).
+ */
+export async function setMulticastLock(acquire: boolean): Promise<void> {
+  await invoke('plugin:native-bridge|set_multicast_lock', {
+    payload: { acquire },
+  });
+}
+
+// Suppress a piece of the OS text-selection UI that would fight the reader's
+// own selection UX:
+//  - target 'gesture' (iOS): the system long-press selection for non-editable
+//    content, while the instant-highlight quick action owns the hold. WebKit
+//    consults selectability before any touch handler runs, so JS-level
+//    suppression cannot win that race.
+//  - target 'menu' (Android, #5427): the floating selection ActionMode
+//    (Copy / Share / Select all), so it can't cover Readest's annotation
+//    toolbar. Chromium shows it through paths that never fire a cancelable
+//    `contextmenu` event, so DOM-level preventDefault can't stop it;
+//    MainActivity refuses floating action modes while this flag is set.
+export async function setSelectionSuppressed(
+  request: SetSelectionSuppressedRequest,
+): Promise<void> {
+  await invoke('plugin:native-bridge|set_selection_suppressed', {
+    payload: request,
+  });
+}
+
 export async function installPackage(
   request: InstallPackageRequest,
 ): Promise<InstallPackageResponse> {
@@ -226,6 +261,32 @@ export async function setScreenBrightness(
   return result;
 }
 
+export interface HasAmbientLightSensorResponse {
+  available: boolean;
+  error?: string;
+}
+
+export interface AmbientLightUpdatesResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface AmbientLightPayload {
+  lux: number;
+}
+
+export async function hasAmbientLightSensor(): Promise<HasAmbientLightSensorResponse> {
+  return invoke<HasAmbientLightSensorResponse>('plugin:native-bridge|has_ambient_light_sensor');
+}
+
+export async function startAmbientLightUpdates(): Promise<AmbientLightUpdatesResponse> {
+  return invoke<AmbientLightUpdatesResponse>('plugin:native-bridge|start_ambient_light_updates');
+}
+
+export async function stopAmbientLightUpdates(): Promise<AmbientLightUpdatesResponse> {
+  return invoke<AmbientLightUpdatesResponse>('plugin:native-bridge|stop_ambient_light_updates');
+}
+
 export async function getExternalSDCardPath(): Promise<GetExternalSDCardPathResponse> {
   const result = await invoke<GetExternalSDCardPathResponse>(
     'plugin:native-bridge|get_external_sdcard_path',
@@ -236,6 +297,14 @@ export async function getExternalSDCardPath(): Promise<GetExternalSDCardPathResp
 export async function selectDirectory(): Promise<SelectDirectoryResponse> {
   const result = await invoke<SelectDirectoryResponse>('plugin:native-bridge|select_directory');
   return result;
+}
+
+// Android only. Opens the system document picker fire-and-forget; the picked
+// URIs come back as a `file-picker-result` plugin event (see
+// useAndroidPickedBooks) so they survive the activity/process being torn down
+// while the picker is in the foreground (#1217).
+export async function showFilePicker(): Promise<void> {
+  await invoke('plugin:native-bridge|show_file_picker');
 }
 
 export async function getStorefrontRegionCode(): Promise<GetStorefrontRegionCodeResponse> {
@@ -253,6 +322,30 @@ export async function getStorefrontRegionCode(): Promise<GetStorefrontRegionCode
  */
 export async function refreshEinkScreen(): Promise<RefreshEinkScreenResponse> {
   return await invoke<RefreshEinkScreenResponse>('plugin:native-bridge|refresh_eink_screen');
+}
+
+/** Webview region to snapshot, in CSS pixels of the viewport (origin top-left). */
+export interface CaptureWebviewRegionRequest {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Capture a region of the running webview as compressed image bytes for
+ * the mesh page-curl texture (#555): PNG on macOS, JPEG on iOS/Android
+ * (phone-CPU PNG encoding took ~1.5s per turn). The snapshot is taken at
+ * screen scale, capped at 2x CSS pixels on mobile. Rejects on platforms
+ * without a native capture implementation (web, Windows/Linux so far) —
+ * callers fall back to the CSS curl.
+ */
+export async function captureWebviewRegion(
+  request: CaptureWebviewRegionRequest,
+): Promise<ArrayBuffer> {
+  return await invoke<ArrayBuffer>('plugin:native-bridge|capture_webview_region', {
+    payload: request,
+  });
 }
 
 // ── Sync passphrase keychain ────────────────────────────────────────────
@@ -393,4 +486,30 @@ export async function installNightlyUpdate(
   const channel = new Channel<NightlyProgress>();
   if (onProgress) channel.onmessage = onProgress;
   await invoke<void>('install_nightly_update', { endpoint, channel });
+}
+
+export interface ICloudContainerStatusResponse {
+  available: boolean;
+  documentsPath?: string;
+}
+
+export interface ICloudEnsureDownloadedRequest {
+  path: string;
+  timeoutMs?: number;
+}
+
+export interface ICloudEnsureDownloadedResponse {
+  status: 'ready' | 'notFound' | 'timeout';
+}
+
+export async function getICloudContainerStatus(): Promise<ICloudContainerStatusResponse> {
+  return invoke<ICloudContainerStatusResponse>('plugin:native-bridge|icloud_container_status');
+}
+
+export async function icloudEnsureDownloaded(
+  request: ICloudEnsureDownloadedRequest,
+): Promise<ICloudEnsureDownloadedResponse> {
+  return invoke<ICloudEnsureDownloadedResponse>('plugin:native-bridge|icloud_ensure_downloaded', {
+    payload: request,
+  });
 }

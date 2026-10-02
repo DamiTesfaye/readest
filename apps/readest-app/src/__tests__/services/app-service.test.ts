@@ -42,6 +42,7 @@ vi.mock('@/services/cloudService', () => ({
   downloadCloudFile: vi.fn().mockResolvedValue(undefined),
   downloadBookCovers: vi.fn().mockResolvedValue(undefined),
   downloadBook: vi.fn().mockResolvedValue(undefined),
+  downloadReplicaFileFromCloud: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/services/fontService', () => ({
@@ -67,9 +68,20 @@ vi.mock('@/utils/misc', async (importOriginal) => {
   };
 });
 
+// Keep the real isStoragePermissionError; only stub the interactive request.
+vi.mock('@/utils/permission', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    requestStoragePermission: vi.fn(),
+  };
+});
+
 import { BaseAppService } from '@/services/appService';
 import * as Settings from '@/services/settingsService';
 import * as BookSvc from '@/services/bookService';
+import * as LibrarySvc from '@/services/libraryService';
+import { requestStoragePermission } from '@/utils/permission';
 
 // Concrete test implementation of BaseAppService
 class TestAppService extends BaseAppService {
@@ -193,6 +205,70 @@ describe('BaseAppService', () => {
     });
   });
 
+  describe('saveLibraryBooks storage permission (READEST-A)', () => {
+    // clearAllMocks resets call history but not implementations, so restore the
+    // shared saveLibraryBooks mock's default after these override it.
+    afterEach(() => {
+      vi.mocked(LibrarySvc.saveLibraryBooks).mockReset().mockResolvedValue(undefined);
+      vi.mocked(requestStoragePermission).mockReset();
+    });
+
+    const permError = () =>
+      new Error(
+        'Failed to save library.json: failed to open file at path: ' +
+          '/storage/emulated/0/Readest/Books/library.json.bak with error: ' +
+          'Permission denied (os error 13)',
+      );
+
+    test('on Android, requests storage permission and retries once when granted', async () => {
+      service.isAndroidApp = true;
+      vi.mocked(LibrarySvc.saveLibraryBooks)
+        .mockRejectedValueOnce(permError())
+        .mockResolvedValueOnce(undefined);
+      vi.mocked(requestStoragePermission).mockResolvedValue(true);
+
+      await expect(service.saveLibraryBooks([])).resolves.toBeUndefined();
+      expect(requestStoragePermission).toHaveBeenCalledTimes(1);
+      expect(LibrarySvc.saveLibraryBooks).toHaveBeenCalledTimes(2);
+    });
+
+    test('on Android, does not crash when permission is denied', async () => {
+      service.isAndroidApp = true;
+      vi.mocked(LibrarySvc.saveLibraryBooks).mockRejectedValue(permError());
+      vi.mocked(requestStoragePermission).mockResolvedValue(false);
+
+      await expect(service.saveLibraryBooks([])).resolves.toBeUndefined();
+      // No retry when the permission was declined.
+      expect(LibrarySvc.saveLibraryBooks).toHaveBeenCalledTimes(1);
+    });
+
+    test('only prompts once per session across repeated failing saves', async () => {
+      service.isAndroidApp = true;
+      vi.mocked(LibrarySvc.saveLibraryBooks).mockRejectedValue(permError());
+      vi.mocked(requestStoragePermission).mockResolvedValue(false);
+
+      await service.saveLibraryBooks([]);
+      await service.saveLibraryBooks([]);
+      expect(requestStoragePermission).toHaveBeenCalledTimes(1);
+    });
+
+    test('re-throws non-permission errors', async () => {
+      service.isAndroidApp = true;
+      vi.mocked(LibrarySvc.saveLibraryBooks).mockRejectedValue(new Error('disk full'));
+
+      await expect(service.saveLibraryBooks([])).rejects.toThrow('disk full');
+      expect(requestStoragePermission).not.toHaveBeenCalled();
+    });
+
+    test('does not intercept on non-Android platforms', async () => {
+      service.isAndroidApp = false;
+      vi.mocked(LibrarySvc.saveLibraryBooks).mockRejectedValue(permError());
+
+      await expect(service.saveLibraryBooks([])).rejects.toThrow('Permission denied');
+      expect(requestStoragePermission).not.toHaveBeenCalled();
+    });
+  });
+
   describe('file operations', () => {
     test('openFile delegates to fs', async () => {
       await service.openFile('test.epub', 'Books');
@@ -248,8 +324,13 @@ describe('BaseAppService', () => {
 
     test('readDirectory delegates to fs.readDir', async () => {
       const result = await service.readDirectory('dir', 'Books');
-      expect(mockFs.readDir).toHaveBeenCalledWith('dir', 'Books');
+      expect(mockFs.readDir).toHaveBeenCalledWith('dir', 'Books', undefined);
       expect(result).toEqual([{ path: 'a.txt', size: 10 }]);
+    });
+
+    test('readDirectory forwards the extensions filter to fs.readDir', async () => {
+      await service.readDirectory('dir', 'Books', ['epub', 'mobi']);
+      expect(mockFs.readDir).toHaveBeenCalledWith('dir', 'Books', ['epub', 'mobi']);
     });
 
     test('getImageURL delegates to fs', async () => {
@@ -343,10 +424,6 @@ describe('BaseAppService', () => {
       const result = await service.loadLibraryBooks();
       expect(result).toEqual([{ title: 'Book1' }]);
     });
-
-    test('saveLibraryBooks delegates', async () => {
-      await service.saveLibraryBooks([]);
-    });
   });
 
   describe('runMigrations', () => {
@@ -387,6 +464,84 @@ describe('BaseAppService', () => {
 
       // Should not have tried to read the backup file
       expect(mockFs.readFile).not.toHaveBeenCalledWith('library_backup.json', 'Books', 'text');
+    });
+  });
+
+  // Issue #5675: the native downloader writes with `File::create`, which does
+  // NOT create parent directories — a missing bundle dir surfaces as
+  // "No such file or directory (os error 2)". The pull path only mints (and
+  // mkdirs) a bundle dir for records it has never seen; a record whose
+  // directory was lost afterwards, a transfer replayed from the persisted
+  // queue, or a Retry All all reach the download with no directory. Book
+  // downloads already guard this (cloudService.downloadBook), replica
+  // downloads did not.
+  describe('downloadReplicaFile', () => {
+    test('creates the bundle directory before downloading', async () => {
+      await service.downloadReplicaFile(
+        'font',
+        'c1',
+        'Georgia.ttf',
+        'v04c1uy/Georgia.ttf',
+        'Fonts',
+      );
+
+      expect(mockFs.createDir).toHaveBeenCalledWith('v04c1uy', 'Fonts', true);
+    });
+
+    test('creates the directory before the download starts, not after', async () => {
+      const CloudSvc = await import('@/services/cloudService');
+      await service.downloadReplicaFile(
+        'font',
+        'c1',
+        'Georgia.ttf',
+        'v04c1uy/Georgia.ttf',
+        'Fonts',
+      );
+
+      const mkdirOrder = (mockFs.createDir as ReturnType<typeof vi.fn>).mock
+        .invocationCallOrder[0]!;
+      const downloadOrder = (CloudSvc.downloadReplicaFileFromCloud as ReturnType<typeof vi.fn>).mock
+        .invocationCallOrder[0]!;
+      expect(mkdirOrder).toBeLessThan(downloadOrder);
+    });
+
+    test('nested bundle paths create the full parent chain', async () => {
+      await service.downloadReplicaFile(
+        'dictionary',
+        'd1',
+        'concise.css',
+        'bundle-1/assets/concise.css',
+        'Dictionaries',
+      );
+
+      expect(mockFs.createDir).toHaveBeenCalledWith('bundle-1/assets', 'Dictionaries', true);
+    });
+
+    test('a flat legacy path with no bundle dir does not create a directory', async () => {
+      await service.downloadReplicaFile('font', 'c1', 'Georgia.ttf', 'Georgia.ttf', 'Fonts');
+
+      expect(mockFs.createDir).not.toHaveBeenCalled();
+    });
+
+    test('still downloads to the resolved absolute destination', async () => {
+      const CloudSvc = await import('@/services/cloudService');
+      await service.downloadReplicaFile(
+        'font',
+        'c1',
+        'Georgia.ttf',
+        'v04c1uy/Georgia.ttf',
+        'Fonts',
+      );
+
+      expect(CloudSvc.downloadReplicaFileFromCloud).toHaveBeenCalledWith(
+        service,
+        expect.objectContaining({
+          kind: 'font',
+          replicaId: 'c1',
+          filename: 'Georgia.ttf',
+          dst: expect.stringContaining('v04c1uy/Georgia.ttf'),
+        }),
+      );
     });
   });
 });

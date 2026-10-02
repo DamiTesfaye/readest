@@ -1,5 +1,5 @@
 import type { Book } from '@/types/book';
-import { isCurrentlyReadingBook } from '@/app/library/utils/libraryUtils';
+import { isCurrentlyReadingBook } from '@/utils/book';
 
 export interface LibraryPopoverSegments {
   reading: Book[];

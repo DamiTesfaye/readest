@@ -1,4 +1,5 @@
 import { SystemSettings } from './settings';
+import type { RssFeed } from '@/types/rss';
 import { Book, BookConfig, BookContent, ImportBookOptions, ViewSettings } from './book';
 import { BookMetadata } from '@/libs/document';
 import type { BookNav } from '@/services/nav';
@@ -60,7 +61,7 @@ export interface FileSystem {
   readFile(path: string, base: BaseDir, mode: 'text' | 'binary'): Promise<string | ArrayBuffer>;
   writeFile(path: string, base: BaseDir, content: string | ArrayBuffer | File): Promise<void>;
   removeFile(path: string, base: BaseDir): Promise<void>;
-  readDir(path: string, base: BaseDir): Promise<FileItem[]>;
+  readDir(path: string, base: BaseDir, extensions?: string[]): Promise<FileItem[]>;
   createDir(path: string, base: BaseDir, recursive?: boolean): Promise<void>;
   removeDir(path: string, base: BaseDir, recursive?: boolean): Promise<void>;
   exists(path: string, base: BaseDir): Promise<boolean>;
@@ -91,6 +92,8 @@ export interface AppService {
   hasUpdater: boolean;
   hasOrientationLock: boolean;
   hasScreenBrightness: boolean;
+  /** True when a hardware ambient light sensor can drive Ambient Mode. */
+  hasAmbientLightSensor: boolean;
   hasIAP: boolean;
   isMobile: boolean;
   isAppDataSandbox: boolean;
@@ -107,6 +110,8 @@ export interface AppService {
   canCustomizeRootDir: boolean;
   canReadExternalDir: boolean;
   supportsCanvasContext2DFilter: boolean;
+  supportsViewTransitionsAPI: boolean;
+  supportsViewTransitionGroup: boolean;
   distChannel: DistChannel;
   storefrontRegionCode: string | null;
   isOnlineCatalogsAccessible: boolean;
@@ -128,7 +133,7 @@ export interface AppService {
   getCachedImageUrl(pathOrUrl: string): Promise<string>;
   selectDirectory(mode: SelectDirectoryMode): Promise<string>;
   selectFiles(name: string, extensions: string[]): Promise<string[]>;
-  readDirectory(path: string, base: BaseDir): Promise<FileItem[]>;
+  readDirectory(path: string, base: BaseDir, extensions?: string[]): Promise<FileItem[]>;
   /**
    * Best-effort: extend the Tauri `fs_scope` and `asset_protocol_scope`
    * to cover the given paths. No-op on web. Used after a directory or
@@ -189,6 +194,7 @@ export interface AppService {
     handleProgress: ProgressHandler,
     hash: string,
     temp?: boolean,
+    media?: string,
   ): Promise<string | undefined>;
   uploadReplicaFile(
     kind: string,
@@ -218,6 +224,8 @@ export interface AppService {
   saveBookNav(book: Book, nav: BookNav): Promise<void>;
   loadBookContent(book: Book): Promise<BookContent>;
   resolveNativeBookFilePath(book: Book): Promise<string | null>;
+  loadFeeds(): Promise<RssFeed[]>;
+  saveFeeds(feeds: RssFeed[]): Promise<void>;
   loadLibraryBooks(): Promise<Book[]>;
   saveLibraryBooks(books: Book[], options?: SaveLibraryBooksOptions): Promise<void>;
   getCoverImageUrl(book: Book): string;
@@ -232,4 +240,6 @@ export interface AppService {
     base: BaseDir,
     opts?: DatabaseOpts,
   ): Promise<DatabaseService>;
+  databaseExists(path: string, base: BaseDir): Promise<boolean>;
+  deleteDatabase(path: string, base: BaseDir): Promise<void>;
 }

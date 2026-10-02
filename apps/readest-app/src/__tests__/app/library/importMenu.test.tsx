@@ -12,6 +12,7 @@ const renderMenu = (menuClassName?: string) =>
       menuClassName={menuClassName}
       onImportBooksFromFiles={vi.fn()}
       onOpenCatalogManager={vi.fn()}
+      onOpenFeeds={vi.fn()}
     />,
   );
 

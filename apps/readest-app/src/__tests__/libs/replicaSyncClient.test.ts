@@ -225,7 +225,7 @@ describe('ReplicaSyncClient.listReplicaKeys (cache + dedupe)', () => {
     expect(second).toEqual([sampleKey]);
   });
 
-  test('createReplicaKey appends the new salt to the cache (no extra fetch)', async () => {
+  test('createReplicaKey puts the new salt first in the cache (no extra fetch)', async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ rows: [sampleKey] }), { status: 200 }),
     );
@@ -235,7 +235,10 @@ describe('ReplicaSyncClient.listReplicaKeys (cache + dedupe)', () => {
     mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ row: fresh }), { status: 201 }));
     await client.createReplicaKey('pbkdf2-600k-sha256');
     const cached = await client.listReplicaKeys();
-    expect(cached).toEqual([sampleKey, fresh]);
+    // Newest first, matching the server's ORDER BY created_at DESC — the
+    // CryptoSession takes rows[0] as the active salt, so an appended row
+    // would hand it the *oldest* salt after a rotation.
+    expect(cached).toEqual([fresh, sampleKey]);
     expect(mockFetch).toHaveBeenCalledTimes(2); // initial list + create; no re-list
   });
 

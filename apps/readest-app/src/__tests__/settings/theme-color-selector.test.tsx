@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import ThemeColorSelector from '@/components/settings/color/ThemeColorSelector';
+import ThemeColorSelector from '@/components/settings/theme/ThemeColorSelector';
 import { themes } from '@/styles/themes';
 
 afterEach(cleanup);
@@ -75,7 +75,7 @@ describe('ThemeColorSelector masonry cards', () => {
           light: themes[1]!.colors.light,
           dark: themes[1]!.colors.dark,
         },
-        isCustomizale: true,
+        isCustomizable: true,
       },
     ];
     renderSelector({ themes: themes.concat(customThemes), themeColor: 'my-custom' });

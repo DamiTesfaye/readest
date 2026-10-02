@@ -17,7 +17,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import BoxedList from '@/components/settings/primitives/BoxedList';
 import SettingsSelect from '@/components/settings/primitives/SettingsSelect';
-import TTSIcon from '@/app/reader/components/tts/TTSIcon';
 import UserAvatar from '@/components/UserAvatar';
 
 const bookCover =
@@ -100,18 +99,6 @@ export const demos: DemoEntry[] = [
     node: <div className='text-xs opacity-60'>Needs runtime context — see source</div>,
     notes:
       'Wraps useDictionaryResults, which depends on EnvContext, the theme/custom-dictionary Zustand stores, and Tauri opener — none mockable from the playground. Renders a 0.75 snap-height bottom sheet showing a word and its definitions.',
-  },
-  {
-    name: 'TTSIcon',
-    sourcePath: 'app/reader/components/tts/TTSIcon.tsx',
-    status: 'used',
-    node: (
-      <div className='h-12 w-12'>
-        <TTSIcon isPlaying ttsInited onClick={() => {}} />
-      </div>
-    ),
-    notes:
-      'Sized by its parent (h-full/w-full); animated equalizer bars play while isPlaying is true.',
   },
   {
     name: 'CachedImage',

@@ -8,6 +8,7 @@ import {
 } from '@/types/settings';
 import { saveSysSettings } from '@/helpers/settings';
 import { navigateToLibrary } from '@/utils/nav';
+import { ensureLibraryGroupByType } from '../utils/libraryUtils';
 
 export const useLibrarySortControls = () => {
   const router = useRouter();
@@ -15,7 +16,7 @@ export const useLibrarySortControls = () => {
   const { envConfig } = useEnv();
   const { settings } = useSettingsStore();
 
-  const groupBy = settings.libraryGroupBy;
+  const groupBy = ensureLibraryGroupByType(searchParams?.get('groupBy'), settings.libraryGroupBy);
   const sortBy = settings.librarySortBy;
   const isAscending = settings.librarySortAscending;
   const sortByAuto = settings.librarySortByAuto ?? true;
@@ -25,20 +26,21 @@ export const useLibrarySortControls = () => {
   const primaryEffective: LibrarySortByType =
     sortByAuto && groupBy === LibraryGroupByType.Series ? LibrarySortByType.Series : sortBy;
   const primaryIsImplicit = sortByAuto && primaryEffective !== sortBy;
-  const sortBy2: LibrarySecondarySortByType = settings.librarySortBy2 ?? 'none';
+  const thenSortBy: LibrarySecondarySortByType = settings.libraryThenSortBy ?? 'none';
   // Smart default: when grouping by Author and the user hasn't picked an explicit
   // secondary, Series is implied. Surface this in the menu so the highlighted row
   // matches the actual sort behavior.
   const secondaryEffective: LibrarySecondarySortByType =
-    sortBy2 === 'none' && groupBy === LibraryGroupByType.Author
+    thenSortBy === 'none' && groupBy === LibraryGroupByType.Author
       ? LibrarySortByType.Series
-      : sortBy2;
-  const secondaryIsImplicit = sortBy2 === 'none' && secondaryEffective !== 'none';
+      : thenSortBy;
+  const secondaryIsImplicit = thenSortBy === 'none' && secondaryEffective !== 'none';
+  const isThenAscending = settings.libraryThenSortAscending ?? true;
 
   const handleSetGroupBy = async (value: LibraryGroupByType) => {
     await saveSysSettings(envConfig, 'libraryGroupBy', value);
 
-    const params = new URLSearchParams(searchParams?.toString());
+    const params = new URLSearchParams(window.location.search);
     if (value === LibraryGroupByType.Group) {
       params.delete('groupBy');
     } else {
@@ -55,7 +57,7 @@ export const useLibrarySortControls = () => {
     // smart-default so future groupBy changes don't override the user.
     await saveSysSettings(envConfig, 'librarySortByAuto', false);
 
-    const params = new URLSearchParams(searchParams?.toString());
+    const params = new URLSearchParams(window.location.search);
     params.set('sort', value);
     navigateToLibrary(router, `${params.toString()}`);
   };
@@ -63,20 +65,28 @@ export const useLibrarySortControls = () => {
   const handleSetSortAscending = async (value: boolean) => {
     await saveSysSettings(envConfig, 'librarySortAscending', value);
 
-    const params = new URLSearchParams(searchParams?.toString());
+    const params = new URLSearchParams(window.location.search);
     params.set('order', value ? 'asc' : 'desc');
     navigateToLibrary(router, `${params.toString()}`);
   };
 
-  const handleSetSortBy2 = async (value: LibrarySecondarySortByType) => {
-    await saveSysSettings(envConfig, 'librarySortBy2', value);
+  const handleSetThenSortBy = async (value: LibrarySecondarySortByType) => {
+    await saveSysSettings(envConfig, 'libraryThenSortBy', value);
 
-    const params = new URLSearchParams(searchParams?.toString());
+    const params = new URLSearchParams(window.location.search);
     if (value === 'none') {
-      params.delete('sort2');
+      params.delete('thenSort');
     } else {
-      params.set('sort2', value);
+      params.set('thenSort', value);
     }
+    navigateToLibrary(router, `${params.toString()}`);
+  };
+
+  const handleSetThenSortAscending = async (value: boolean) => {
+    await saveSysSettings(envConfig, 'libraryThenSortAscending', value);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('thenOrder', value ? 'asc' : 'desc');
     navigateToLibrary(router, `${params.toString()}`);
   };
 
@@ -84,7 +94,8 @@ export const useLibrarySortControls = () => {
     groupBy,
     sortBy,
     isAscending,
-    sortBy2,
+    thenSortBy,
+    isThenAscending,
     primaryEffective,
     primaryIsImplicit,
     secondaryEffective,
@@ -92,6 +103,7 @@ export const useLibrarySortControls = () => {
     handleSetGroupBy,
     handleSetSortBy,
     handleSetSortAscending,
-    handleSetSortBy2,
+    handleSetThenSortBy,
+    handleSetThenSortAscending,
   };
 };

@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 import { impactFeedback } from '@tauri-apps/plugin-haptics';
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ThemeMode } from '@/styles/themes';
 import { SettingLabel } from '../primitives';
 
 const ASSETS = '/images/theme-toggle';
 
 interface ThemeModeSelectorProps {
-  themeMode: 'auto' | 'light' | 'dark';
+  themeMode: ThemeMode;
   /** Effective mode currently rendered (auto resolves to system). */
   isDarkMode: boolean;
   /** Current OS scheme — drives the A button's indicator artwork. */

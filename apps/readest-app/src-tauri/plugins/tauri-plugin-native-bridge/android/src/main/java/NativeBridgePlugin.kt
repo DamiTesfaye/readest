@@ -2,7 +2,9 @@ package com.readest.native_bridge
 
 import android.Manifest
 import android.app.Activity
+import android.app.Application
 import android.app.PendingIntent
+import android.os.Bundle
 import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
@@ -19,7 +21,18 @@ import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.WindowInsetsController
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Rect
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.hardware.input.InputManager
+import android.os.Handler
+import android.os.Looper
+import android.util.Base64
+import android.view.PixelCopy
 import android.webkit.WebView
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -44,17 +57,24 @@ import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
 import org.json.JSONArray
 import java.io.*
+import kotlin.math.abs
 import kotlinx.coroutines.*
 
 @InvokeArg
 class AuthRequestArgs {
     var authUrl: String? = null
+    var callbackUrl: String? = null
 }
 
 @InvokeArg
 class CopyURIRequestArgs {
     var uri: String? = null
     var dst: String? = null
+}
+
+@InvokeArg
+class MulticastLockArgs {
+    var acquire: Boolean = false
 }
 
 @InvokeArg
@@ -82,6 +102,12 @@ class InterceptKeysRequestArgs {
     var backKey: Boolean? = null
     var pageTurnerKeys: Boolean? = null
     var learnMode: Boolean? = null
+}
+
+@InvokeArg
+class SetSelectionSuppressedArgs {
+    var target: String? = null
+    var suppressed: Boolean = false
 }
 
 @InvokeArg
@@ -121,6 +147,14 @@ class UpdateReadingWidgetBookArgs {
     var author: String = ""
     var percent: Int = 0
     var coverPath: String = ""
+}
+
+@InvokeArg
+class CaptureWebviewRegionArgs {
+    var x: Float = 0f
+    var y: Float = 0f
+    var width: Float = 0f
+    var height: Float = 0f
 }
 
 @InvokeArg
@@ -175,8 +209,7 @@ interface KeyDownInterceptor {
 )
 class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
     private val implementation = NativeBridge()
-    private var redirectScheme = "readest"
-    private var redirectHost = "auth-callback"
+    private var webViewRef: WebView? = null
     private val billingManager by lazy {
         BillingManager(activity)
     }
@@ -186,28 +219,142 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
     // a dead Activity.
     private val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    // Held while the LocalSend service runs so multicast discovery
+    // announcements are delivered; most Android devices filter multicast
+    // packets without it. Released in onDestroy.
+    private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
+
+    private var sensorManager: SensorManager? = null
+    private var ambientLightListening = false
+    private var lastEmittedLux: Float = Float.NaN
+    private val ambientLightListener = object : SensorEventListener {
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+        override fun onSensorChanged(event: SensorEvent?) {
+            val lux = event?.values?.getOrNull(0) ?: return
+            // Skip tiny noise so JS hysteresis is not flooded (~SENSOR_DELAY_NORMAL).
+            if (!lastEmittedLux.isNaN() && abs(lux - lastEmittedLux) < 0.5f) return
+            lastEmittedLux = lux
+            val payload = JSObject()
+            payload.put("lux", lux.toDouble())
+            // Deliberately NOT emitOrQueue: that queue is for one-shot events
+            // like shared-intent that must survive until JS registers. This is
+            // a continuous stream, so a sample nobody is listening for is
+            // worthless and queueing it would grow without bound whenever the
+            // sensor outlives the listener (e.g. the WebView renderer dies).
+            triggerEvent("ambient-light", payload)
+        }
+    }
+
+    // Chromium's Web Gamepad API starts a native polling thread as soon as a
+    // page observes it (#5693). InputManager is event-driven, so use it only to
+    // tell JS when the browser API should be enabled or disabled.
+    private var inputManager: InputManager? = null
+    private var gamepadConnected = false
+    private val gamepadInputListener = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) = emitGamepadConnection()
+        override fun onInputDeviceRemoved(deviceId: Int) = emitGamepadConnection()
+        override fun onInputDeviceChanged(deviceId: Int) = emitGamepadConnection()
+    }
+
+    private fun hasConnectedGamepad(): Boolean {
+        val inputManager = inputManager ?: return false
+        return hasGamepadDevice(inputManager.inputDeviceIds) { deviceId ->
+            inputManager.getInputDevice(deviceId)?.sources
+        }
+    }
+
+    private fun emitGamepadConnection(force: Boolean = false) {
+        val connected = hasConnectedGamepad()
+        if (!force && connected == gamepadConnected) return
+        gamepadConnected = connected
+        if (!hasListener(GAMEPAD_CONNECTION_EVENT)) return
+
+        val payload = JSObject().apply { put("connected", connected) }
+        triggerEvent(GAMEPAD_CONNECTION_EVENT, payload)
+    }
+
     override fun onDestroy() {
+        stopAmbientLightUpdatesInternal()
+        inputManager?.unregisterInputDeviceListener(gamepadInputListener)
+        inputManager = null
+        try {
+            multicastLock?.takeIf { it.isHeld }?.release()
+        } catch (_: Exception) {
+            // Releasing an unheld lock throws on some OEM builds; ignore.
+        }
+        multicastLock = null
         pluginScope.cancel()
+        activity.application.unregisterActivityLifecycleCallbacks(lifecycleCallbacks)
         instance = null
     }
 
     companion object {
+        private const val GAMEPAD_CONNECTION_EVENT = "gamepad-connection"
         private const val REQUEST_MANAGE_STORAGE = 1001
         private const val FOLDER_PICKER_REQUEST_CODE = 1002
+        private const val FILE_PICKER_REQUEST_CODE = 1003
         var pendingInvoke: Invoke? = null
+        private var pendingAuthCallbackTarget: OAuthCallbackTarget? = null
         var pendingFolderPickerInvoke: Invoke? = null
+        // A file-picker result can be delivered to a MainActivity that was
+        // recreated after the process died behind the system picker (#1217).
+        // onActivityResult then fires before Tauri has instantiated this
+        // plugin, so the raw Intent is stashed here and drained in load().
+        private var pendingFilePickerData: Intent? = null
         private var instance: NativeBridgePlugin? = null
         fun getInstance(): NativeBridgePlugin? = instance
+
+        fun deliverActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+            val plugin = instance
+            if (plugin != null) {
+                plugin.handleActivityResult(requestCode, resultCode, data)
+            } else if (requestCode == FILE_PICKER_REQUEST_CODE &&
+                resultCode == Activity.RESULT_OK && data != null) {
+                pendingFilePickerData = data
+            }
+        }
     }
 
     override fun load(webView: WebView) {
         instance = this
+        webViewRef = webView
         super.load(webView)
+        inputManager = activity.getSystemService(Context.INPUT_SERVICE) as? InputManager
+        gamepadConnected = hasConnectedGamepad()
+        inputManager?.registerInputDeviceListener(gamepadInputListener, null)
+        activity.application.registerActivityLifecycleCallbacks(lifecycleCallbacks)
         handleIntent(activity.intent)
+        pendingFilePickerData?.let { data ->
+            pendingFilePickerData = null
+            emitFilePickerResult(data)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         handleIntent(intent)
+    }
+
+    // Tauri declares Plugin.onResume but never registers the observer that calls it.
+    private val lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityResumed(resumed: Activity) {
+            if (resumed === activity) releaseBrightnessOverride()
+        }
+
+        override fun onActivityCreated(a: Activity, b: Bundle?) {}
+        override fun onActivityStarted(a: Activity) {}
+        override fun onActivityPaused(a: Activity) {}
+        override fun onActivityStopped(a: Activity) {}
+        override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
+        override fun onActivityDestroyed(a: Activity) {}
+    }
+
+    // The system owns brightness across a background trip: drop our window
+    // override on resume and keep whatever brightness the system shows now.
+    private fun releaseBrightnessOverride() {
+        val layoutParams = activity.window.attributes
+        layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        activity.window.attributes = layoutParams
     }
 
     private fun handleIntent(intent: Intent?) {
@@ -217,19 +364,13 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
         // OAuth callback uses a custom scheme on intent.data and is handled
         // separately from any user-shared content.
         intent.data?.let { uri ->
-            val scheme = uri.scheme ?: ""
-            val isReadestAuth = scheme == "readest" && uri.host == "auth-callback"
-            // Google Drive sign-in uses the reverse-DNS "iOS URL scheme"
-            // (com.googleusercontent.apps.<id>:/oauthredirect) registered as a
-            // BROWSABLE deep link; resolve it through the same pending invoke as
-            // the Supabase readest://auth-callback flow.
-            val isGoogleOAuth = scheme.startsWith("com.googleusercontent.apps.")
-            if (isReadestAuth || isGoogleOAuth) {
+            if (pendingAuthCallbackTarget?.matches(uri.toString()) == true) {
                 val result = JSObject().apply {
                     put("redirectUrl", uri.toString())
                 }
                 pendingInvoke?.resolve(result)
                 pendingInvoke = null
+                pendingAuthCallbackTarget = null
                 return
             }
         }
@@ -366,20 +507,53 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
                 triggerEvent(event, payload)
             }
         }
+        if (hasListener(GAMEPAD_CONNECTION_EVENT)) {
+            // registerListener can race both initial app hydration and device
+            // changes. Re-query instead of trusting the cached value so an
+            // already-connected controller is always reported immediately.
+            emitGamepadConnection(force = true)
+        }
     }
 
     @Command
     fun auth_with_custom_tab(invoke: Invoke) {
         val args = invoke.parseArgs(AuthRequestArgs::class.java)
+        val callbackTarget = args.callbackUrl?.let(OAuthCallbackTarget::parse)
+        if (callbackTarget == null) {
+            invoke.reject("Invalid OAuth callback URL")
+            return
+        }
         val uri = Uri.parse(args.authUrl)
 
         val customTabsIntent = CustomTabsIntent.Builder().build()
         customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NO_HISTORY
 
         Log.d("NativeBridgePlugin", "Launching OAuth URL: ${args.authUrl}")
-        customTabsIntent.launchUrl(activity, uri)
-
         pendingInvoke = invoke
+        pendingAuthCallbackTarget = callbackTarget
+        customTabsIntent.launchUrl(activity, uri)
+    }
+
+    @Command
+    fun set_multicast_lock(invoke: Invoke) {
+        val args = invoke.parseArgs(MulticastLockArgs::class.java)
+        try {
+            if (args.acquire) {
+                if (multicastLock == null) {
+                    val wifi = activity.applicationContext
+                        .getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                    multicastLock = wifi.createMulticastLock("readest-localsend").apply {
+                        setReferenceCounted(false)
+                    }
+                }
+                multicastLock?.acquire()
+            } else {
+                multicastLock?.release()
+            }
+            invoke.resolve()
+        } catch (e: Exception) {
+            invoke.reject(e.message ?: "multicast lock failed")
+        }
     }
 
     @Command
@@ -454,8 +628,10 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
 
                     val itemUri = resolver.insert(collection, values)
                     if (itemUri == null) {
+                        val error = "MediaStore rejected $displayName ($mimeType) in $album"
+                        Log.e("NativeBridge", error)
                         r.put("success", false)
-                        r.put("error", "Failed to create MediaStore entry")
+                        r.put("error", error)
                         return@withContext r
                     }
 
@@ -476,8 +652,12 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
                     r.put("success", true)
                     r.put("uri", itemUri.toString())
                 } catch (e: Exception) {
+                    // OEM MediaStore implementations diverge on what they accept, so
+                    // the exception is the only thing that identifies a device-specific
+                    // failure from a bug report.
+                    Log.e("NativeBridge", "Failed to save image to gallery", e)
                     r.put("success", false)
-                    r.put("error", e.message)
+                    r.put("error", "${e.javaClass.simpleName}: ${e.message}")
                 }
                 r
             }
@@ -707,6 +887,20 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
         invoke.resolve()
     }
 
+    // Suppress a piece of the OS selection UI. target "menu" (#5427): gate for
+    // the system text-selection floating toolbar — MainActivity consults this
+    // flag in onWindowStartingActionMode; see SelectionMenuSuppressor. target
+    // "gesture" is a no-op here: Android needs no native selection-gesture
+    // gate (native-touch forwarding covers instant highlight).
+    @Command
+    fun set_selection_suppressed(invoke: Invoke) {
+        val args = invoke.parseArgs(SetSelectionSuppressedArgs::class.java)
+        if (args.target == "menu") {
+            SelectionMenuSuppressor.suppressed = args.suppressed
+        }
+        invoke.resolve()
+    }
+
     @Command
     fun lock_screen_orientation(invoke: Invoke) {
       val args = invoke.parseArgs(LockScreenOrientationRequestArgs::class.java)
@@ -804,6 +998,73 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
             ret.put("error", e.message)
         }
         invoke.resolve(ret)
+    }
+
+    @Command
+    fun has_ambient_light_sensor(invoke: Invoke) {
+        val ret = JSObject()
+        try {
+            val sm = activity.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            val sensor = sm.getDefaultSensor(Sensor.TYPE_LIGHT)
+            ret.put("available", sensor != null)
+        } catch (e: Exception) {
+            ret.put("available", false)
+            ret.put("error", e.message)
+        }
+        invoke.resolve(ret)
+    }
+
+    @Command
+    fun start_ambient_light_updates(invoke: Invoke) {
+        val ret = JSObject()
+        try {
+            if (ambientLightListening) {
+                ret.put("success", true)
+                invoke.resolve(ret)
+                return
+            }
+            val sm = activity.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            val sensor = sm.getDefaultSensor(Sensor.TYPE_LIGHT)
+            if (sensor == null) {
+                ret.put("success", false)
+                ret.put("error", "No ambient light sensor")
+                invoke.resolve(ret)
+                return
+            }
+            sensorManager = sm
+            lastEmittedLux = Float.NaN
+            sm.registerListener(ambientLightListener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+            ambientLightListening = true
+            ret.put("success", true)
+        } catch (e: Exception) {
+            ret.put("success", false)
+            ret.put("error", e.message)
+        }
+        invoke.resolve(ret)
+    }
+
+    @Command
+    fun stop_ambient_light_updates(invoke: Invoke) {
+        val ret = JSObject()
+        try {
+            stopAmbientLightUpdatesInternal()
+            ret.put("success", true)
+        } catch (e: Exception) {
+            ret.put("success", false)
+            ret.put("error", e.message)
+        }
+        invoke.resolve(ret)
+    }
+
+    private fun stopAmbientLightUpdatesInternal() {
+        if (!ambientLightListening) return
+        try {
+            sensorManager?.unregisterListener(ambientLightListener)
+        } catch (_: Exception) {
+        }
+        ambientLightListening = false
+        sensorManager = null
+        lastEmittedLux = Float.NaN
     }
 
     @Command
@@ -994,6 +1255,52 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
         }
     }
 
+    // Book-import file picker. Unlike the Tauri dialog plugin this resolves
+    // the invoke immediately and delivers the picked URIs as a
+    // `file-picker-result` event through the pending-event queue: a promise
+    // held across the picker round-trip dies whenever Android tears down the
+    // activity or process while the picker is in the foreground (low-RAM
+    // devices, FireOS — #1217), but a queued event survives until the JS
+    // listener re-registers after any WebView reload.
+    @Command
+    fun show_file_picker(invoke: Invoke) {
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                // Book extensions have no reliable MIME mapping in SAF; the
+                // JS side re-applies the extension whitelist on the result.
+                type = "*/*"
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+            activity.startActivityForResult(intent, FILE_PICKER_REQUEST_CODE)
+            invoke.resolve()
+        } catch (e: Exception) {
+            invoke.reject("Failed to open file picker: ${e.message}")
+        }
+    }
+
+    private fun emitFilePickerResult(data: Intent) {
+        val uris = mutableListOf<Uri>()
+        data.clipData?.let { clip ->
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i)?.uri?.let { uris.add(it) }
+            }
+        }
+        if (uris.isEmpty()) {
+            data.data?.let { uris.add(it) }
+        }
+        if (uris.isEmpty()) return
+        // ACTION_OPEN_DOCUMENT grants are persistable; keep them so the copy
+        // into the library can happen after a process restart.
+        uris.forEach { tryTakePersistableReadPermission(it) }
+        val payload = JSObject().apply {
+            val arr = JSArray()
+            uris.forEach { arr.put(it.toString()) }
+            put("uris", arr)
+        }
+        emitOrQueue("file-picker-result", payload)
+    }
+
     @Command
     fun select_directory(invoke: Invoke) {
         pendingFolderPickerInvoke = invoke
@@ -1018,6 +1325,10 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
             if (invoke != null) {
                 handleDirectorySelected(data?.data, invoke)
                 pendingFolderPickerInvoke = null
+            }
+        } else if (requestCode == FILE_PICKER_REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                emitFilePickerResult(data)
             }
         }
     }
@@ -1509,6 +1820,77 @@ class NativeBridgePlugin(private val activity: Activity): Plugin(activity) {
                 ret.put("error", e.message ?: "unknown")
             }
             invoke.resolve(ret)
+        }
+    }
+
+    /**
+     * Snapshot a region of the webview for the mesh page-curl texture
+     * (readest#555). The rect arrives in CSS pixels of the JS viewport;
+     * scaling by the display density (devicePixelRatio) maps it to window
+     * pixels. PixelCopy reads back from the window surface, which includes
+     * the hardware-accelerated WebView that View.draw would miss. Resolved
+     * as base64 because the plugin boundary is JSON-only; the Rust side
+     * decodes back to bytes.
+     *
+     * The result is JPEG, not PNG: a full-screen 3x PNG took ~1.5s to
+     * encode per page turn on a Xiaomi 13, which read as the curl not
+     * working at all. The page is opaque so JPEG loses nothing visible,
+     * and the destination bitmap is capped at 2x CSS pixels — PixelCopy
+     * scales into a smaller bitmap for free and the moving page stays
+     * visually sharp.
+     */
+    @Command
+    fun capture_webview_region(invoke: Invoke) {
+        val args = invoke.parseArgs(CaptureWebviewRegionArgs::class.java)
+        val webView = webViewRef
+        val window = activity.window
+        if (webView == null || window == null) {
+            invoke.reject("WebView not available")
+            return
+        }
+        activity.runOnUiThread {
+            val density = webView.resources.displayMetrics.density
+            val location = IntArray(2)
+            webView.getLocationInWindow(location)
+            val left = location[0] + (args.x * density).toInt()
+            val top = location[1] + (args.y * density).toInt()
+            val width = (args.width * density).toInt()
+            val height = (args.height * density).toInt()
+            if (width <= 0 || height <= 0) {
+                invoke.reject("Empty capture region")
+                return@runOnUiThread
+            }
+            val captureScale = minOf(density, 2f)
+            val destWidth = (args.width * captureScale).toInt()
+            val destHeight = (args.height * captureScale).toInt()
+            val bitmap = Bitmap.createBitmap(destWidth, destHeight, Bitmap.Config.ARGB_8888)
+            try {
+                PixelCopy.request(
+                    window,
+                    Rect(left, top, left + width, top + height),
+                    bitmap,
+                    { result ->
+                        if (result == PixelCopy.SUCCESS) {
+                            // Encode off the main thread; ~100ms of work for
+                            // a full-screen 2x JPEG.
+                            pluginScope.launch {
+                                val data = withContext(Dispatchers.IO) {
+                                    val out = ByteArrayOutputStream()
+                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                    Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+                                }
+                                invoke.resolve(JSObject().put("data", data))
+                            }
+                        } else {
+                            invoke.reject("PixelCopy failed: $result")
+                        }
+                    },
+                    Handler(Looper.getMainLooper())
+                )
+            } catch (e: IllegalArgumentException) {
+                // Thrown when the rect falls outside the window bounds.
+                invoke.reject("Capture region out of bounds: ${e.message}")
+            }
         }
     }
 }

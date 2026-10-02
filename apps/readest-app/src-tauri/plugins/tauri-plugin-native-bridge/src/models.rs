@@ -5,6 +5,10 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 pub struct AuthRequest {
     pub auth_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_scheme: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -52,6 +56,24 @@ pub struct SaveImageToGalleryResponse {
 #[serde(rename_all = "camelCase")]
 pub struct UseBackgroundAudioRequest {
     pub enabled: bool,
+}
+
+/// Acquire/release the Android WifiManager MulticastLock so LocalSend
+/// discovery announcements are delivered while the service runs.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MulticastLockRequest {
+    pub acquire: bool,
+}
+
+/// Which piece of the OS selection UI to gate: "gesture" suppresses the
+/// long-press text-selection gesture (iOS, instant highlight), "menu"
+/// suppresses the floating selection toolbar (Android, #5427).
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSelectionSuppressedRequest {
+    pub target: String,
+    pub suppressed: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -219,6 +241,20 @@ pub struct SetScreenBrightnessResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct HasAmbientLightSensorResponse {
+    pub available: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AmbientLightUpdatesResponse {
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetExternalSDCardPathResponse {
     pub path: Option<String>,
     pub error: Option<String>,
@@ -342,6 +378,16 @@ pub struct ClipUrlRequest {
     pub background: Option<String>,
     #[serde(default)]
     pub foreground: Option<String>,
+    /// Interactive mode: show the page with a Cancel/Capture bar instead
+    /// of the opaque overlay so the user can sign in before capturing.
+    #[serde(default)]
+    pub interactive: Option<bool>,
+    #[serde(default)]
+    pub sign_in_hint: Option<String>,
+    #[serde(default)]
+    pub capture_label: Option<String>,
+    #[serde(default)]
+    pub cancel_label: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -350,6 +396,22 @@ pub struct ClipUrlResponse {
     /// Rendered `document.documentElement.outerHTML` captured from the
     /// hidden WKWebView / WebView once load+settle completed.
     pub html: String,
+}
+
+/// Read (and delete) a page-HTML file the iOS Share Extension captured
+/// from the user's signed-in Safari tab into the App Group container.
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadShareClipHtmlRequest {
+    /// Bare file name inside the App Group `SharedClips/` directory —
+    /// never a path; the native side rejects anything with a separator.
+    pub file_name: String,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadShareClipHtmlResponse {
+    pub html: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -431,4 +493,53 @@ pub struct UpdateReadingWidgetRequest {
     pub empty_title: String,
     #[serde(default)]
     pub tts: Option<ReadingWidgetTts>,
+}
+
+/// Region of the webview to snapshot for the mesh page-curl (#555),
+/// in CSS pixels of the webview viewport (origin top-left). The native
+/// side applies the screen scale factor.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptureWebviewRegionRequest {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+/// Mobile-side response: Swift/Kotlin can only resolve JSON, so the
+/// PNG crosses the plugin boundary base64-encoded; `mobile.rs` decodes
+/// it back to bytes so the JS-facing command stays binary.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptureWebviewRegionResponse {
+    pub data: String,
+}
+
+/// iCloud ubiquity-container probe result. `documents_path` is the absolute
+/// path of the container's Documents folder (created on first probe);
+/// `available: false` covers no-iCloud-session, missing entitlement, and
+/// unsupported platforms alike.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ICloudContainerStatusResponse {
+    pub available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documents_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ICloudEnsureDownloadedRequest {
+    /// Absolute path inside the ubiquity container.
+    pub path: String,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ICloudEnsureDownloadedResponse {
+    /// "ready" | "notFound" | "timeout"
+    pub status: String,
 }

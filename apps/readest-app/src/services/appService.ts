@@ -1,4 +1,5 @@
 import { SystemSettings } from '@/types/settings';
+import { applySyncBooksAutoEnable } from '@/services/sync/cloudSyncProvider';
 import {
   AppPlatform,
   AppService,
@@ -17,8 +18,10 @@ import { SchemaType } from '@/services/database/migrate';
 import { Book, BookConfig, BookContent, ImportBookOptions, ViewSettings } from '@/types/book';
 import type { BookNav } from '@/services/nav';
 import { getLibraryFilename, getLibraryBackupFilename } from '@/utils/book';
+import { getDirPath } from '@/utils/path';
 
 import { getOSPlatform } from '@/utils/misc';
+import { isStoragePermissionError, requestStoragePermission } from '@/utils/permission';
 import { ProgressHandler } from '@/utils/transfer';
 import { CustomTextureInfo } from '@/styles/textures';
 import { CustomFont, CustomFontInfo } from '@/styles/fonts';
@@ -32,6 +35,11 @@ import * as FontSvc from './fontService';
 import * as ImageSvc from './imageService';
 import * as LibrarySvc from './libraryService';
 import * as Settings from './settingsService';
+import {
+  loadFeeds as loadFeedsFromDisk,
+  saveFeeds as saveFeedsToDisk,
+} from '@/services/rss/feedPersistence';
+import type { RssFeed } from '@/types/rss';
 
 export abstract class BaseAppService implements AppService {
   osPlatform: OsPlatform = getOSPlatform();
@@ -59,15 +67,18 @@ export abstract class BaseAppService implements AppService {
   hasUpdater = false;
   hasOrientationLock = false;
   hasScreenBrightness = false;
+  hasAmbientLightSensor = false;
   hasIAP = false;
   canCustomizeRootDir = false;
   canReadExternalDir = false;
   supportsCanvasContext2DFilter = true;
+  supportsViewTransitionsAPI = false;
+  supportsViewTransitionGroup = false;
   distChannel = 'readest' as DistChannel;
   storefrontRegionCode: string | null = null;
   isOnlineCatalogsAccessible = true;
 
-  protected CURRENT_MIGRATION_VERSION = 20251124;
+  protected CURRENT_MIGRATION_VERSION = 20260706;
 
   protected abstract fs: FileSystem;
   protected abstract resolvePath(fp: string, base: BaseDir): ResolvedPath;
@@ -99,13 +110,50 @@ export abstract class BaseAppService implements AppService {
     opts?: DatabaseOpts,
   ): Promise<DatabaseService>;
 
-  protected async runMigrations(lastMigrationVersion: number): Promise<void> {
+  // Databases live at the resolved fs path on native and node; the web app
+  // overrides both because its databases live in OPFS under flattened names,
+  // invisible to the IndexedDB-backed fs layer.
+  async databaseExists(path: string, base: BaseDir): Promise<boolean> {
+    return this.fs.exists(path, base);
+  }
+
+  async deleteDatabase(path: string, base: BaseDir): Promise<void> {
+    await this.fs.removeFile(path, base).catch(() => {});
+    await this.fs.removeFile(`${path}-wal`, base).catch(() => {});
+  }
+
+  protected async runMigrations(
+    lastMigrationVersion: number,
+    settings?: SystemSettings,
+  ): Promise<void> {
     if (lastMigrationVersion < 20251124) {
       try {
         await this.migrate20251124();
       } catch (error) {
         console.error('Error migrating to version 20251124:', error);
       }
+    }
+    if (lastMigrationVersion < 20260706 && settings) {
+      try {
+        this.migrate20260706(settings);
+      } catch (error) {
+        console.error('Error migrating to version 20260706:', error);
+      }
+    }
+  }
+
+  /**
+   * Users with WebDAV/Drive already enabled had native Readest Cloud uploads
+   * gated off when cloud sync provider selection shipped; flip syncBooks on
+   * once for every enabled third-party backend so their books keep backing up
+   * somewhere. This force-enables syncBooks a single time even for a user who
+   * had explicitly turned it off — intentional, since the alternative is books
+   * backing up nowhere. Mutates the caller's settings snapshot, which the
+   * caller persists together with migrationVersion.
+   */
+  private migrate20260706(settings: SystemSettings): void {
+    if (applySyncBooksAutoEnable(settings)) {
+      console.log('Migration 20260706: enabled syncBooks for enabled cloud sync backends.');
     }
   }
 
@@ -173,8 +221,8 @@ export abstract class BaseAppService implements AppService {
     return prefix ? `${prefix}/${path}` : path;
   }
 
-  async readDirectory(path: string, base: BaseDir): Promise<FileItem[]> {
-    return await this.fs.readDir(path, base);
+  async readDirectory(path: string, base: BaseDir, extensions?: string[]): Promise<FileItem[]> {
+    return await this.fs.readDir(path, base, extensions);
   }
 
   async exists(path: string, base: BaseDir): Promise<boolean> {
@@ -296,6 +344,7 @@ export abstract class BaseAppService implements AppService {
     handleProgress: ProgressHandler,
     hash: string,
     temp: boolean = false,
+    media?: string,
   ) {
     return CloudSvc.uploadFileToCloud(
       this.fs,
@@ -306,6 +355,7 @@ export abstract class BaseAppService implements AppService {
       handleProgress,
       hash,
       temp,
+      media,
     );
   }
 
@@ -335,6 +385,19 @@ export abstract class BaseAppService implements AppService {
     base: BaseDir,
     onProgress?: ProgressHandler,
   ) {
+    // The native downloader writes with `File::create`, which does not create
+    // parent directories, so a missing bundle dir fails as an opaque
+    // "No such file or directory (os error 2)" (issue #5675). The pull path
+    // only mkdirs when it MINTS a bundle dir for a record it has never seen —
+    // a record whose directory was lost afterwards (custom root dir changed,
+    // external storage cleared), a transfer replayed from the persisted queue,
+    // and Retry All all arrive here with nothing on disk. Book downloads have
+    // always guarded this (see cloudService.downloadBook); do the same here.
+    // `createDir` is recursive, so this is a no-op when the dir exists.
+    const bundleDir = getDirPath(lfp);
+    if (bundleDir) {
+      await this.fs.createDir(bundleDir, base, true);
+    }
     // Resolve the relative `<bundleDir>/<filename>` lfp against the
     // replica's base dir before downloading. Mirrors how upload uses
     // `resolveFilePath(opts.lfp, opts.base)`. Without this, the writer
@@ -437,11 +500,43 @@ export abstract class BaseAppService implements AppService {
     return BookSvc.saveBookNav(this.fs, book, nav);
   }
 
+  async loadFeeds(): Promise<RssFeed[]> {
+    return loadFeedsFromDisk(this.fs);
+  }
+
+  async saveFeeds(feeds: RssFeed[]): Promise<void> {
+    return saveFeedsToDisk(this.fs, feeds);
+  }
+
   async loadLibraryBooks(): Promise<Book[]> {
     return LibrarySvc.loadLibraryBooks(this.fs, this.generateCoverImageUrl.bind(this));
   }
 
+  // Prompt for storage permission at most once per session (see saveLibraryBooks).
+  private storagePermissionRequested = false;
+
   async saveLibraryBooks(books: Book[], options?: SaveLibraryBooksOptions): Promise<void> {
-    return LibrarySvc.saveLibraryBooks(this.fs, books, options);
+    try {
+      return await LibrarySvc.saveLibraryBooks(this.fs, books, options);
+    } catch (error) {
+      // A custom library folder on Android shared storage needs All Files
+      // Access. Without it the write fails with EACCES and, because callers
+      // (sync, imports) don't await/catch this, it surfaced as an unhandled
+      // rejection crash (Sentry READEST-A). Re-request the permission through
+      // the same flow used at import time and retry once. Only prompt once per
+      // session so background saves don't repeatedly yank the user to system
+      // settings; after that a still-denied save is logged, not crashed —
+      // the user was already shown the All Files Access screen.
+      if (!this.isAndroidApp || !isStoragePermissionError(error)) {
+        throw error;
+      }
+      if (!this.storagePermissionRequested) {
+        this.storagePermissionRequested = true;
+        if (await requestStoragePermission()) {
+          return await LibrarySvc.saveLibraryBooks(this.fs, books, options);
+        }
+      }
+      console.warn('[library] not saved: storage permission not granted', error);
+    }
   }
 }

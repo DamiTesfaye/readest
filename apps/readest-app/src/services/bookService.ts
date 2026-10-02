@@ -26,6 +26,7 @@ import type { BookNav } from '@/services/nav';
 import { partialMD5, md5 } from '@/utils/md5';
 import { getBaseFilename, getFilename } from '@/utils/path';
 import { BookDoc, DocumentLoader } from '@/libs/document';
+import { hasMediaOverlays } from '@/services/tts/mediaOverlay';
 import { tryNativeParseEpub } from '@/utils/tauriEpubBridge';
 import { tryNativeParseMobi } from '@/utils/tauriMobiBridge';
 import { isPseStreamFileName, openPseStreamBook, parsePseStreamFileName } from './opds/pseStream';
@@ -88,6 +89,112 @@ export function normalizeFilePathForIndex(path: string, osPlatform?: OsPlatform)
     osPlatform === 'macos' || osPlatform === 'ios' || osPlatform === 'windows';
   const n = path.replace(/\\/g, '/').replace(/\/+$/, '');
   return caseInsensitive ? n.toLowerCase() : n;
+}
+
+export interface ScannedFileEntry {
+  /** Absolute path, already joined with the folder root. */
+  fullPath: string;
+  /** File size in bytes. */
+  size: number;
+}
+
+/**
+ * From a folder scan, keep only entries that (a) match one of `extensions`
+ * (lowercased, no leading dot), (b) are at least `minSizeBytes`, and (c) are
+ * NOT already in the library. Membership is tested against `existingPaths`,
+ * which the caller builds from `buildBookLookupIndex(...).byFilePath.keys()`
+ * (those keys are already normalized by `normalizeFilePathForIndex`, so we
+ * normalize each scanned path the same way before comparing). Pure — no I/O.
+ */
+export function selectNewImportableFiles(
+  entries: ScannedFileEntry[],
+  opts: {
+    extensions: string[];
+    minSizeBytes: number;
+    existingPaths: Set<string>;
+    osPlatform?: OsPlatform;
+  },
+): ScannedFileEntry[] {
+  const exts = new Set(opts.extensions.map((e) => e.toLowerCase()));
+  return entries.filter((entry) => {
+    const ext = entry.fullPath.split('.').pop()?.toLowerCase() ?? '';
+    if (!exts.has(ext)) return false;
+    if (opts.minSizeBytes > 0 && entry.size < opts.minSizeBytes) return false;
+    const key = normalizeFilePathForIndex(entry.fullPath, opts.osPlatform);
+    return !!key && !opts.existingPaths.has(key);
+  });
+}
+
+/**
+ * Turn the newly-found entries of one watched folder into importer inputs.
+ *
+ * `flatten` mirrors the Import-from-Folder dialog's "Folder Structure" choice
+ * for that folder. In the default "Create groups from subfolders" mode every
+ * file carries the watched folder as `basePath` — that hint is what makes
+ * `importBooks` derive a group from the subfolder the file lives in. Without it
+ * auto-imported books piled up in the library root while the same folder's
+ * initial import stayed grouped (issue #5423). Flattened folders ("Import all
+ * into library") omit the hint so their books keep landing in the root.
+ */
+export function toWatchedFolderImports(
+  folder: string,
+  entries: ScannedFileEntry[],
+  flatten: boolean,
+): Array<{ path: string; basePath?: string }> {
+  return entries.map(({ fullPath }) =>
+    flatten ? { path: fullPath } : { path: fullPath, basePath: folder },
+  );
+}
+
+/**
+ * Collect all known local source paths from the library into a normalized set.
+ *
+ * Unlike `buildBookLookupIndex(...).byFilePath`, this includes soft-deleted
+ * books (`deletedAt` set) so that auto-import does not resurrect a book the
+ * user intentionally removed from their library. `altFilePaths` is included
+ * alongside `filePath`: several files in a watched folder can dedup into one
+ * book (same bytes under two names, or two files sharing a metaHash), and a
+ * path the importer folded away is just as "known" as the one it kept.
+ *
+ * URL-backed entries (remote books) are excluded — only on-disk paths matter.
+ */
+export function collectKnownSourcePaths(books: Book[], osPlatform?: OsPlatform): Set<string> {
+  const paths = new Set<string>();
+  for (const book of books) {
+    for (const path of [book.filePath, ...(book.altFilePaths ?? [])]) {
+      if (!path || isValidURL(path)) continue;
+      const key = normalizeFilePathForIndex(path, osPlatform);
+      if (key) paths.add(key);
+    }
+  }
+  return paths;
+}
+
+/**
+ * Move `book.filePath` into `book.altFilePaths` because `nextFilePath` is about
+ * to take its place.
+ *
+ * The newest path always wins the `filePath` slot — that is what makes a rename
+ * recoverable (the old name is gone from disk, the new one is where the bytes
+ * are). Without this the displaced path would simply be forgotten, and the
+ * auto-import scan would rediscover it as a "new" file on the next pass,
+ * re-import it, displace the current path in turn, and ping-pong forever.
+ *
+ * Idempotent: entries are deduplicated by normalized key and `nextFilePath` is
+ * never kept as its own alternative.
+ */
+function displaceSourcePath(book: Book, nextFilePath: string, osPlatform?: OsPlatform): void {
+  const nextKey = normalizeFilePathForIndex(nextFilePath, osPlatform);
+  const seen = new Set<string>();
+  const paths: string[] = [];
+  for (const path of [book.filePath, ...(book.altFilePaths ?? [])]) {
+    if (!path || isValidURL(path)) continue;
+    const key = normalizeFilePathForIndex(path, osPlatform);
+    if (!key || key === nextKey || seen.has(key)) continue;
+    seen.add(key);
+    paths.push(path);
+  }
+  book.altFilePaths = paths.length > 0 ? paths : undefined;
 }
 
 export interface CoverContext {
@@ -303,11 +410,15 @@ export async function importBook(
   } = options;
   const isPseStream = typeof file === 'string' && isPseStreamFileName(file);
 
+  let loadedBook: BookDoc | undefined;
+  let fileobj: File | undefined;
+  // TXT conversion replaces `fileobj` with a plain in-memory EPUB File. Track
+  // the opened RemoteFile/NativeFile so we can close it right after convert
+  // (and still in outer `finally` for non-TXT ClosableFile paths).
+  let openedSource: ClosableFile | undefined;
   try {
-    let loadedBook: BookDoc;
     let format: BookFormat;
     let filename: string;
-    let fileobj: File | undefined;
     // When the Rust EPUB parser succeeds it gives us the partialMD5 for free,
     // so we can short-circuit the JS hashing pass below.
     let nativeHash: string | undefined;
@@ -330,9 +441,25 @@ export async function importBook(
           fileobj = file;
           filename = file.name;
         }
+        const maybeClosable = fileobj as ClosableFile;
+        if (typeof maybeClosable.close === 'function') {
+          openedSource = maybeClosable;
+        }
         if (/\.txt$/i.test(filename)) {
           const txt2epub = new TxtToEpubConverter();
-          ({ file: fileobj } = await txt2epub.convert({ file: fileobj }));
+          try {
+            ({ file: fileobj } = await txt2epub.convert({ file: fileobj }));
+          } finally {
+            // Convert consumes the source; release RemoteFile/NativeFile
+            // immediately so DocumentLoader / cover / write do not keep the
+            // path handle pinned. Outer `finally` stays an idempotent net.
+            if (openedSource?.close) {
+              try {
+                await openedSource.close();
+              } catch {}
+            }
+            openedSource = undefined;
+          }
         }
         if (!fileobj || fileobj.size === 0) {
           throw new Error('Invalid or empty book file');
@@ -397,7 +524,14 @@ export async function importBook(
         ? nativeHash!
         : await partialMD5(fileobj!);
 
-    const metaHash = getMetadataHash(loadedBook.metadata);
+    // PDF metadata is often generic boilerplate (e.g. every PowerPoint export
+    // is titled "PowerPoint Presentation" by the same author), so metadata
+    // alone wrongly collapses distinct files into one book (issue #5411).
+    // Salt the hash with the original filename so only same-named PDFs dedupe.
+    const metaHash = getMetadataHash(
+      loadedBook.metadata,
+      format === 'PDF' ? getBaseFilename(filename) : undefined,
+    );
     let existingBook = lookupIndex
       ? lookupIndex.byHash.get(hash)
       : books.find((b) => b.hash === hash);
@@ -406,6 +540,7 @@ export async function importBook(
     if (existingBook) {
       if (!transient) {
         existingBook.deletedAt = null;
+        existingBook.fileSyncDeletionRequestedAt = null;
       }
       existingBook.createdAt = Date.now();
       existingBook.updatedAt = Date.now();
@@ -441,6 +576,10 @@ export async function importBook(
       sourceTitle: formatTitle(loadedBook.metadata.title),
       primaryLanguage,
       author: formatAuthors(loadedBook.metadata.author, primaryLanguage),
+      // Cached here because the library list never opens the book: it is a
+      // property of the file, so it is re-derived on every (re)import rather
+      // than synced as user data.
+      hasNarration: hasMediaOverlays(loadedBook) || undefined,
       metadata: loadedBook.metadata,
       createdAt: existingBook ? existingBook.createdAt : Date.now(),
       uploadedAt: existingBook ? existingBook.uploadedAt : null,
@@ -483,9 +622,12 @@ export async function importBook(
       existingBook.downloadedAt = Date.now();
     }
 
-    if (!(await fs.exists(getDir(book), 'Books'))) {
-      await fs.createDir(getDir(book), 'Books');
-    }
+    // Idempotent create (recursive): a plain createDir defaults to
+    // non-recursive and throws if the dir already exists, and the check-then-
+    // create above races two concurrent imports of the same book — on Windows
+    // the loser fails with "Cannot create a file when that file already exists"
+    // (Sentry READEST-H). create_dir_all is a no-op when the dir exists.
+    await fs.createDir(getDir(book), 'Books', true);
     const bookFilename = getLocalBookFilename(book);
     const willWriteBookFile =
       saveBook &&
@@ -539,15 +681,39 @@ export async function importBook(
     if (existingBook) existingBook.coverHash = coverHash;
     // Never overwrite the config file only when it's not existed
     if (!existingBook) {
-      await saveBookConfigFn(book, INIT_BOOK_CONFIG);
-      books.push(book);
-      if (lookupIndex) {
-        lookupIndex.byHash.set(book.hash, book);
-        if (book.metaHash) {
-          const key = `${book.metaHash}:${book.format}`;
-          const list = lookupIndex.byMetaKey.get(key);
-          if (list) list.push(book);
-          else lookupIndex.byMetaKey.set(key, [book]);
+      // Guard on the FILE, not the library record: a hash dir can already hold
+      // a config.json while no library row points at it. `restoreBackup` walks
+      // straight into that — for a hash dir the archive's library.json does not
+      // list, it extracts the dir (config.json included) and then imports the
+      // book file — and a library.json that was lost or reset leaves every
+      // Books/<hash>/ in the same state. Stamping INIT_BOOK_CONFIG here threw
+      // away the reading position, bookmarks and annotations sitting on disk
+      // (issue #5716). Same hash means the same bytes, so an existing config
+      // always belongs to this book.
+      if (!(await fs.exists(getConfigFilename(book), 'Books'))) {
+        await saveBookConfigFn(book, INIT_BOOK_CONFIG);
+      }
+      // Concurrent imports of identical bytes (the folder-import pool) both
+      // read `byHash` right after hashing but only write it here, after the
+      // createDir/writeFile/cover awaits — so both miss and both would push a
+      // row (#5601). Re-check synchronously after the last await and adopt
+      // the winner's row instead; the winner already wrote the same
+      // Books/<hash>/ files, ours were idempotent rewrites.
+      const raced = lookupIndex
+        ? lookupIndex.byHash.get(book.hash)
+        : books.find((b) => b.hash === book.hash);
+      if (raced) {
+        existingBook = raced;
+      } else {
+        books.push(book);
+        if (lookupIndex) {
+          lookupIndex.byHash.set(book.hash, book);
+          if (book.metaHash) {
+            const key = `${book.metaHash}:${book.format}`;
+            const list = lookupIndex.byMetaKey.get(key);
+            if (list) list.push(book);
+            else lookupIndex.byMetaKey.set(key, [book]);
+          }
         }
       }
     } else if (metaHashMatch && oldBookDir && oldBookDir !== getDir(book)) {
@@ -595,7 +761,16 @@ export async function importBook(
         // inPlace: source file is inside the user's library root and we read it
         // there directly instead of duplicating it under Books/<hash>/.
         book.filePath = file;
-        if (existingBook) existingBook.filePath = file;
+        if (existingBook) {
+          // A second on-disk file just deduped into a book we already have.
+          // Keep the path it is losing so the auto-import scan knows both
+          // files are accounted for (transient previews are never persisted,
+          // so there is nothing to remember for them).
+          if (inPlace && !transient) {
+            displaceSourcePath(existingBook, file, osPlatform);
+          }
+          existingBook.filePath = file;
+        }
       }
     }
     // Now that `filePath` is set, keep the path index in sync so later files
@@ -611,15 +786,27 @@ export async function importBook(
       }
     }
     book.coverImageUrl = await generateCoverImageUrlFn(book);
-    const f = file as ClosableFile;
-    if (f && f.close) {
-      await f.close();
-    }
 
     return existingBook || book;
   } catch (error) {
     console.error('Error importing book:', error);
     throw error;
+  } finally {
+    // Release the parsed document (a PDF leaks its pdf.js worker otherwise,
+    // ~60 MB per imported file — #5387) and the opened file handle.
+    try {
+      await loadedBook?.destroy?.();
+    } catch (error) {
+      console.warn('Error destroying book document:', error);
+    }
+    // Prefer `openedSource` only: after TXT convert we clear it once the source
+    // is released early. Falling back to `fileobj` would double-close when
+    // convert failed and `fileobj` is still the original ClosableFile.
+    if (openedSource?.close) {
+      try {
+        await openedSource.close();
+      } catch {}
+    }
   }
 }
 
@@ -752,12 +939,19 @@ export async function fetchBookDetails(
     await downloadBookFn(book);
   }
   const { file } = await loadBookContent(fs, book);
-  const bookDoc = (await new DocumentLoader(file).open()).book;
-  const f = file as ClosableFile;
-  if (f && f.close) {
-    await f.close();
+  let bookDoc: BookDoc | undefined;
+  try {
+    bookDoc = (await new DocumentLoader(file).open()).book;
+    return bookDoc.metadata;
+  } finally {
+    try {
+      await bookDoc?.destroy?.();
+    } catch {}
+    const f = file as ClosableFile;
+    if (f && f.close) {
+      await f.close();
+    }
   }
-  return bookDoc.metadata;
 }
 
 /**
@@ -768,28 +962,43 @@ export async function fetchBookDetails(
  */
 export async function refreshBookMetadata(fs: FileSystem, book: Book): Promise<boolean> {
   const { file } = await loadBookContent(fs, book);
-  const { book: bookDoc } = await new DocumentLoader(file).open();
-  if (!bookDoc) return false;
+  let bookDoc: BookDoc | undefined;
+  try {
+    ({ book: bookDoc } = await new DocumentLoader(file).open());
+    if (!bookDoc) return false;
 
-  book.metadata = bookDoc.metadata;
-  book.metaHash = getMetadataHash(bookDoc.metadata);
-  const primaryLanguage = getPrimaryLanguage(bookDoc.metadata.language);
-  if (primaryLanguage) {
-    book.primaryLanguage = primaryLanguage;
-  }
+    book.metadata = bookDoc.metadata;
+    // PDF metaHash is salted with the original import filename (issue #5411),
+    // which is lost after import — keep the value stamped at import time.
+    if (book.format !== 'PDF' || !book.metaHash) {
+      book.metaHash = getMetadataHash(bookDoc.metadata);
+    }
+    const primaryLanguage = getPrimaryLanguage(bookDoc.metadata.language);
+    if (primaryLanguage) {
+      book.primaryLanguage = primaryLanguage;
+    }
 
-  // Update series info from metadata
-  if (book.metadata?.belongsTo?.series) {
-    const belongsTo = book.metadata.belongsTo.series;
-    const series = Array.isArray(belongsTo) ? belongsTo[0] : belongsTo;
-    if (series) {
-      book.metadata.series = formatTitle(series.name);
-      book.metadata.seriesIndex = parseFloat(series.position || '0');
-      if (series.total) book.metadata.seriesTotal = parseInt(series.total, 10);
+    // Update series info from metadata
+    if (book.metadata?.belongsTo?.series) {
+      const belongsTo = book.metadata.belongsTo.series;
+      const series = Array.isArray(belongsTo) ? belongsTo[0] : belongsTo;
+      if (series) {
+        book.metadata.series = formatTitle(series.name);
+        book.metadata.seriesIndex = parseFloat(series.position || '0');
+        if (series.total) book.metadata.seriesTotal = parseInt(series.total, 10);
+      }
+    }
+
+    return true;
+  } finally {
+    try {
+      await bookDoc?.destroy?.();
+    } catch {}
+    const f = file as ClosableFile;
+    if (f && f.close) {
+      await f.close();
     }
   }
-
-  return true;
 }
 
 export async function exportBook(

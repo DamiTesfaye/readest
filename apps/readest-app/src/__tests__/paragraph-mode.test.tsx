@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor as waitForWithOptions,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ParagraphOverlay from '@/app/reader/components/paragraph/ParagraphOverlay';
@@ -22,6 +28,20 @@ const currentViewSettings = {
 const mockGetViewSettings = vi.fn(() => currentViewSettings);
 const mockSetViewSettings = vi.fn();
 const mockGetProgress = vi.fn(() => null);
+const realSetTimeout = globalThis.setTimeout;
+const waitFor = <T,>(callback: () => T | Promise<T>) =>
+  waitForWithOptions(callback, { interval: 1 });
+
+beforeEach(() => {
+  // Preserve Testing Library's 1s failure timeout while collapsing app animation/debounce waits.
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation((handler, timeout) =>
+    realSetTimeout(handler, typeof timeout === 'number' && timeout < 500 ? 0 : timeout),
+  );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 let mockIsFixedLayout = false;
 
@@ -302,7 +322,6 @@ describe('paragraph mode', () => {
     const { container } = render(
       <ParagraphOverlay
         bookKey={overlayBookKey}
-        dimOpacity={0.3}
         viewSettings={{ writingMode: 'horizontal-tb', vertical: false, rtl: true } as never}
       />,
     );
@@ -343,6 +362,8 @@ describe('paragraph mode', () => {
       y: 0,
       toJSON: () => ({}),
     } as DOMRect);
+    let clickTime = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => clickTime);
 
     fireEvent.click(contentArea, { clientX: 150, clientY: 20 });
     await waitFor(() => {
@@ -363,9 +384,7 @@ describe('paragraph mode', () => {
     });
     dispatchSpy.mockClear();
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 320));
-    });
+    clickTime += 320;
 
     fireEvent.click(contentArea, { clientX: 40, clientY: 150 });
     await waitFor(() => {
@@ -383,7 +402,6 @@ describe('paragraph mode', () => {
     const { container } = render(
       <ParagraphOverlay
         bookKey={overlayBookKey}
-        dimOpacity={0.3}
         viewSettings={{ writingMode: 'horizontal-tb', vertical: false, rtl: false } as never}
         onClose={onClose}
       />,
@@ -468,6 +486,15 @@ describe('paragraph mode', () => {
   const getDialog = (container: HTMLElement) =>
     container.querySelector('[role="dialog"]') as HTMLDivElement;
 
+  it('paints a solid backdrop instead of blurring the page behind it (#5275)', async () => {
+    const { container } = await renderVisibleOverlay(vi.fn());
+    const dialog = getDialog(container);
+
+    expect(dialog.className).toContain('bg-base-100');
+    expect(dialog.getAttribute('style') ?? '').not.toContain('blur');
+    expect(dialog.getAttribute('style') ?? '').not.toContain('background');
+  });
+
   it('focuses the dialog when it opens so it receives keys directly (#4717)', async () => {
     const { container } = await renderVisibleOverlay(vi.fn());
     const dialog = getDialog(container);
@@ -513,6 +540,75 @@ describe('paragraph mode', () => {
     fireEvent.keyDown(getDialog(container), { key: 'x' });
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('paragraph mode display settings (#5246)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  const fontViewSettings = {
+    writingMode: 'horizontal-tb',
+    vertical: false,
+    rtl: false,
+    defaultFont: 'Serif',
+    serifFont: 'Bitter',
+    sansSerifFont: 'Roboto',
+    monospaceFont: 'Fira Code',
+    defaultCJKFont: 'LXGW WenKai',
+    defaultFontSize: 20,
+    lineHeight: 1.6,
+    fontWeight: 400,
+  } as never;
+
+  const renderOverlayWithFonts = async (fontScale?: number) => {
+    const overlayBookKey = 'overlay-book';
+    const doc = createDoc('<p>你好，世界</p>');
+    const range = doc.createRange();
+    range.selectNodeContents(doc.querySelector('p')!);
+
+    const { container } = render(
+      <ParagraphOverlay
+        bookKey={overlayBookKey}
+        viewSettings={fontViewSettings}
+        fontScale={fontScale}
+      />,
+    );
+
+    await act(async () => {
+      await eventDispatcher.dispatch('paragraph-focus', {
+        bookKey: overlayBookKey,
+        range,
+        presentation: { dir: 'ltr', writingMode: 'horizontal-tb', vertical: false, rtl: false },
+      });
+    });
+
+    return waitFor(() => {
+      const node = container.querySelector('.paragraph-content') as HTMLDivElement | null;
+      expect(node).not.toBeNull();
+      return node!;
+    });
+  };
+
+  it('applies the reader font chain including the CJK/custom font', async () => {
+    const paragraphContent = await renderOverlayWithFonts();
+
+    // The bare `"Bitter", serif` pair dropped the user's CJK/custom font, so
+    // CJK text fell back to the system font (#5246). The overlay must resolve
+    // the same chain as the RSVP overlay (getBaseFontFamily).
+    expect(paragraphContent.style.fontFamily).toContain('Bitter');
+    expect(paragraphContent.style.fontFamily).toContain('LXGW WenKai');
+  });
+
+  it('scales the paragraph text and its frame by the font scale', async () => {
+    const paragraphContent = await renderOverlayWithFonts(1.5);
+
+    expect(paragraphContent.style.fontSize).toBe('30px');
+    // The frame must carry the scaled font too, so its ch-based width cap
+    // grows with the text instead of squeezing bigger text into the same box.
+    const frame = paragraphContent.parentElement as HTMLDivElement;
+    expect(frame.style.fontSize).toBe('30px');
   });
 });
 

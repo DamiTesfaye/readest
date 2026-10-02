@@ -9,6 +9,7 @@ Default permissions for the plugin
 - `allow-copy-uri-to-path`
 - `allow-save-image-to-gallery`
 - `allow-use-background-audio`
+- `allow-set-multicast-lock`
 - `allow-install-package`
 - `allow-set-system-ui-visibility`
 - `allow-get-status-bar-height`
@@ -24,12 +25,16 @@ Default permissions for the plugin
 - `allow-get-safe-area-insets`
 - `allow-get-screen-brightness`
 - `allow-set-screen-brightness`
+- `allow-has-ambient-light-sensor`
+- `allow-start-ambient-light-updates`
+- `allow-stop-ambient-light-updates`
 - `allow-get-external-sdcard-path`
 - `allow-open-external-url`
 - `allow-show-lookup-popover`
 - `allow-get-lookup-dictionary`
 - `allow-clear-lookup-dictionary`
 - `allow-select-directory`
+- `allow-show-file-picker`
 - `allow-get-storefront-region-code`
 - `allow-request-manage-storage-permission`
 - `allow-register-listener`
@@ -47,6 +52,11 @@ Default permissions for the plugin
 - `allow-clear-secure-item`
 - `allow-refresh-eink-screen`
 - `allow-update-reading-widget`
+- `allow-capture-webview-region`
+- `allow-set-selection-suppressed`
+- `allow-read-share-clip-html`
+- `allow-icloud-container-status`
+- `allow-icloud-ensure-downloaded`
 
 ## Permission Table
 
@@ -105,6 +115,32 @@ Enables the auth_with_safari command without any pre-configured scope.
 <td>
 
 Denies the auth_with_safari command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:allow-capture-webview-region`
+
+</td>
+<td>
+
+Enables the capture_webview_region command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-capture-webview-region`
+
+</td>
+<td>
+
+Denies the capture_webview_region command without any pre-configured scope.
 
 </td>
 </tr>
@@ -580,6 +616,32 @@ Denies the get_system_color_scheme command without any pre-configured scope.
 <tr>
 <td>
 
+`native-bridge:allow-has-ambient-light-sensor`
+
+</td>
+<td>
+
+Enables the has_ambient_light_sensor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-has-ambient-light-sensor`
+
+</td>
+<td>
+
+Denies the has_ambient_light_sensor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `native-bridge:allow-iap-fetch-products`
 
 </td>
@@ -710,6 +772,58 @@ Denies the iap_restore_purchases command without any pre-configured scope.
 <tr>
 <td>
 
+`native-bridge:allow-icloud-container-status`
+
+</td>
+<td>
+
+Enables the icloud_container_status command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-icloud-container-status`
+
+</td>
+<td>
+
+Denies the icloud_container_status command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:allow-icloud-ensure-downloaded`
+
+</td>
+<td>
+
+Enables the icloud_ensure_downloaded command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-icloud-ensure-downloaded`
+
+</td>
+<td>
+
+Denies the icloud_ensure_downloaded command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `native-bridge:allow-install-package`
 
 </td>
@@ -833,6 +947,32 @@ Enables the open_external_url command without any pre-configured scope.
 <td>
 
 Denies the open_external_url command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:allow-read-share-clip-html`
+
+</td>
+<td>
+
+Enables the read_share_clip_html command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-read-share-clip-html`
+
+</td>
+<td>
+
+Denies the read_share_clip_html command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1074,6 +1214,32 @@ Denies the select_directory command without any pre-configured scope.
 <tr>
 <td>
 
+`native-bridge:allow-set-multicast-lock`
+
+</td>
+<td>
+
+Enables the set_multicast_lock command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-set-multicast-lock`
+
+</td>
+<td>
+
+Denies the set_multicast_lock command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `native-bridge:allow-set-screen-brightness`
 
 </td>
@@ -1119,6 +1285,32 @@ Enables the set_secure_item command without any pre-configured scope.
 <td>
 
 Denies the set_secure_item command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:allow-set-selection-suppressed`
+
+</td>
+<td>
+
+Enables the set_selection_suppressed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-set-selection-suppressed`
+
+</td>
+<td>
+
+Denies the set_selection_suppressed command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1178,6 +1370,32 @@ Denies the set_system_ui_visibility command without any pre-configured scope.
 <tr>
 <td>
 
+`native-bridge:allow-show-file-picker`
+
+</td>
+<td>
+
+Enables the show_file_picker command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-show-file-picker`
+
+</td>
+<td>
+
+Denies the show_file_picker command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `native-bridge:allow-show-lookup-popover`
 
 </td>
@@ -1197,6 +1415,58 @@ Enables the show_lookup_popover command without any pre-configured scope.
 <td>
 
 Denies the show_lookup_popover command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:allow-start-ambient-light-updates`
+
+</td>
+<td>
+
+Enables the start_ambient_light_updates command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-start-ambient-light-updates`
+
+</td>
+<td>
+
+Denies the start_ambient_light_updates command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:allow-stop-ambient-light-updates`
+
+</td>
+<td>
+
+Enables the stop_ambient_light_updates command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`native-bridge:deny-stop-ambient-light-updates`
+
+</td>
+<td>
+
+Denies the stop_ambient_light_updates command without any pre-configured scope.
 
 </td>
 </tr>

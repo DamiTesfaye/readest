@@ -20,7 +20,9 @@ interface LibraryContentHeaderProps {
   onImportBooksFromFiles: () => void;
   onImportBooksFromDirectory?: () => void;
   onImportBookFromUrl?: () => void;
+  onImportBookFromNovelUrl?: () => void;
   onOpenCatalogManager: () => void;
+  onOpenFeeds: () => void;
 }
 
 const LibraryContentHeader: React.FC<LibraryContentHeaderProps> = ({
@@ -32,7 +34,9 @@ const LibraryContentHeader: React.FC<LibraryContentHeaderProps> = ({
   onImportBooksFromFiles,
   onImportBooksFromDirectory,
   onImportBookFromUrl,
+  onImportBookFromNovelUrl,
   onOpenCatalogManager,
+  onOpenFeeds,
 }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
@@ -94,7 +98,9 @@ const LibraryContentHeader: React.FC<LibraryContentHeaderProps> = ({
                   onImportBooksFromFiles={onImportBooksFromFiles}
                   onImportBooksFromDirectory={onImportBooksFromDirectory}
                   onImportBookFromUrl={onImportBookFromUrl}
+                  onImportBookFromNovelUrl={onImportBookFromNovelUrl}
                   onOpenCatalogManager={onOpenCatalogManager}
+                  onOpenFeeds={onOpenFeeds}
                 />
               </Dropdown>
             )}

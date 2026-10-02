@@ -33,10 +33,10 @@ import { getUnaddedPopularCatalogs, validateOPDSURL } from '../utils/opdsUtils';
 import { POPULAR_CATALOG_GROUPS } from '../utils/popularCatalogs';
 import { FailedDownloadsDialog } from './FailedDownloadsDialog';
 import {
-  formatOPDSCustomHeadersInput,
-  hasOPDSCustomHeaders,
-  parseOPDSCustomHeadersInput,
-} from '../utils/customHeaders';
+  formatCustomHeadersInput,
+  hasCustomHeaders,
+  parseCustomHeadersInput,
+} from '@/utils/customHeaders';
 import ModalPortal from '@/components/ModalPortal';
 
 async function validateOPDSCatalog(
@@ -184,7 +184,7 @@ export function CatalogManager({
   const handleAddCatalog = async () => {
     if (!newCatalog.name || !newCatalog.url) return;
 
-    const parsedHeaders = parseOPDSCustomHeadersInput(newCatalog.customHeadersInput);
+    const parsedHeaders = parseCustomHeadersInput(newCatalog.customHeadersInput);
     if (parsedHeaders.error) {
       setHeaderError(parsedHeaders.error);
       return;
@@ -232,7 +232,7 @@ export function CatalogManager({
       return;
     }
 
-    const customHeaders = hasOPDSCustomHeaders(parsedHeaders.headers)
+    const customHeaders = hasCustomHeaders(parsedHeaders.headers)
       ? parsedHeaders.headers
       : undefined;
 
@@ -302,7 +302,7 @@ export function CatalogManager({
       description: catalog.description || '',
       username: catalog.username || '',
       password: catalog.password || '',
-      customHeadersInput: formatOPDSCustomHeadersInput(catalog.customHeaders),
+      customHeadersInput: formatCustomHeadersInput(catalog.customHeaders),
       proxyConsent: false,
       autoDownload: catalog.autoDownload || false,
     });
@@ -757,7 +757,7 @@ export function CatalogManager({
                       setHeaderError('');
                       setProxyConsentError('');
                     }}
-                    placeholder={formatOPDSCustomHeadersInput({
+                    placeholder={formatCustomHeadersInput({
                       'CF-Access-Client-Id': 'your-client-id',
                       'CF-Access-Client-Secret': 'your-client-secret',
                     })}

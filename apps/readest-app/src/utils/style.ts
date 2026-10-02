@@ -6,7 +6,7 @@ import {
   CJK_SANS_SERIF_FONTS,
   CJK_SERIF_FONTS,
 } from '@/services/constants';
-import { ViewSettings } from '@/types/book';
+import { BookFormat, FIXED_LAYOUT_FORMATS, ViewSettings } from '@/types/book';
 import {
   themes,
   Palette,
@@ -25,6 +25,8 @@ import {
   resolveBackgroundColor,
 } from '@/styles/backgrounds';
 import { createFontCSS, CustomFont } from '@/styles/fonts';
+import { readStoredAmbientIsDarkMode } from './ambientLight';
+import { INLINE_FORMATTING_SELECTOR } from './inlineTags';
 import { getOSPlatform } from './misc';
 import { SCROLL_WRAPPER_CLASS, SCROLL_WRAPPER_FIT_CLASS } from './scrollable';
 
@@ -100,6 +102,16 @@ const getFontStyles = (
 ) => {
   const families = buildFontFamilyLists(serif, sansSerif, monospace, defaultCJKFont);
   const defaultFontFamily = defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif';
+  // Normalize publisher body-copy sizes (the Readium CSS element set) so the
+  // configured font size applies even when the book sets explicit sizes on its
+  // paragraphs (#5420). Opt-in via "Override Book Font" since it also flattens
+  // intentional sizing on these elements. Fixed layouts are unaffected: their
+  // renderer has no setStyles, so this is only injected into reflowable docs.
+  const bodyFontSizeOverride = `
+    p, li, div, pre, dd {
+      font-size: max(1rem, var(--min-font-size, 8px)) !important;
+    }
+  `;
   const fontStyles = `
     html {
       --serif: ${families.serif};
@@ -155,6 +167,7 @@ const getFontStyles = (
     body *:not(pre, code, kbd, .code):not(pre *, code *, kbd *, .code *) {
       ${overrideFont ? 'font-family: revert !important;' : ''}
     }
+    ${overrideFont ? bodyFontSizeOverride : ''}
   `;
   return fontStyles;
 };
@@ -274,10 +287,13 @@ const getColorStyles = (
     body.pbg {
       ${isDarkMode ? `background-color: ${bg} !important;` : ''}
     }
+    /* When inverting in dark mode, invert(100%) must stay the effective filter
+       (a later filter declaration would discard it), and multiply must not
+       apply: multiply with a dark page background erases the image (#5250). */
     img {
       ${isDarkMode && invertImgColorInDark ? 'filter: invert(100%);' : ''}
-      ${isDarkMode && overrideColor ? 'filter: grayscale(100%) contrast(1.2) brightness(1.2);' : ''}
-      ${overrideColor ? 'mix-blend-mode: multiply;' : ''}
+      ${isDarkMode && !invertImgColorInDark && overrideColor ? 'filter: grayscale(100%) contrast(1.2) brightness(1.2);' : ''}
+      ${overrideColor && !(isDarkMode && invertImgColorInDark) ? 'mix-blend-mode: multiply;' : ''}
     }
     svg, img {
       ${overrideColor ? `background-color: transparent !important;` : ''};
@@ -302,9 +318,15 @@ const getColorStyles = (
     table:has(> colgroup) {
       table-layout: fixed;
     }
+    /* break-word, never anywhere: overflow-wrap:anywhere (and its legacy alias
+       word-break:break-word) count mid-word break opportunities in min-content
+       sizing, which drops every cell's minimum to a single character. Auto table
+       layout then hands the whole width to the widest column and shreds a short
+       label column into a stack of letters (#5681). break-word leaves intrinsic
+       sizes alone and still breaks a long token that overflows its cell; a table
+       too wide for its column scrolls in its wrapper instead (#4029, #4391). */
     td, th {
-      word-break: break-word;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     /* code */
     body.theme-dark code {
@@ -382,6 +404,13 @@ const getPageLayoutStyles = (
     zoom: ${zoomLevel};
     padding: unset;
     margin: unset;
+  }
+  /* -webkit-touch-callout on html/body does not reach descendant images in
+     Android WebView, and the native image callout collides with the reader's
+     touch handlers and can freeze the app */
+  img {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
   }
   svg:where(:not([width])), img:where(:not([width])) {
     width: auto;
@@ -550,6 +579,12 @@ const getParagraphLayoutStyles = (
   html, body {
     text-align: var(--default-text-align);
   }
+  /* Authored text-wrap: pretty (e.g. Standard Ebooks' core.css) makes engines
+     that justify with it (Safari 26+, recent Chromium) overshoot inter-word
+     gaps and blocks the Word Spacing setting (#5582). Only the style longhand
+     is reset so an authored nowrap mode survives, and only on justified text
+     containers so balanced headings keep their rag. */
+  ${justify ? 'html, body, p, li, blockquote, dd { text-wrap-style: auto !important; }' : ''}
   [align="left"] { text-align: left; }
   [align="right"] { text-align: right; }
   [align="center"] { text-align: center; }
@@ -558,7 +593,13 @@ const getParagraphLayoutStyles = (
       text-align: unset;
       hyphens: unset;
   }
-  p, blockquote, dd, div:not(:has(*:not(b, a, em, i, strong, u, span))) {
+  /* The div clause treats a div as paragraph-like only when every descendant is
+     inline formatting (INLINE_FORMATTING_TAGS). Anything injected into a book
+     paragraph at runtime — the translation target, its preserved markup, the
+     a11y skip link — must use a tag from that list, or the enclosing div drops
+     this whole rule and reverts to the book's default line spacing, indent and
+     hyphenation. */
+  p, blockquote, dd, div:not(:has(*:not(${INLINE_FORMATTING_SELECTOR}))) {
     line-height: ${lineSpacing} ${overrideLayout ? '!important' : ''};
     word-spacing: ${wordSpacing}px ${overrideLayout ? '!important' : ''};
     letter-spacing: ${letterSpacing}px ${overrideLayout ? '!important' : ''};
@@ -728,6 +769,11 @@ const getTranslationStyles = (showSource: boolean) => `
   }
   .translation-target {
   }
+  /* The original is wrapped rather than erased so its CFIs stay resolvable;
+     cfi-skip keeps the wrapper invisible to CFI indexing. */
+  .translation-source-hidden {
+    display: none !important;
+  }
   .translation-target.hidden {
     display: none !important;
   }
@@ -810,6 +856,7 @@ export const getThemeCode = () => {
   let rawColor = 'default';
   let systemIsDarkMode = false;
   let highContrast = false;
+  let ambientIsDarkMode = false;
   let customThemes: CustomTheme[] = [];
   let themeBackground: ThemeBackground | null = null;
   if (typeof window !== 'undefined') {
@@ -817,6 +864,10 @@ export const getThemeCode = () => {
     themeMode = localStorage.getItem('themeMode') || 'auto';
     systemIsDarkMode = localStorage.getItem('systemIsDarkMode') === 'true';
     highContrast = localStorage.getItem('highContrast') === 'true';
+    ambientIsDarkMode = readStoredAmbientIsDarkMode(
+      localStorage.getItem('ambientIsDarkMode'),
+      systemIsDarkMode,
+    );
     customThemes = JSON.parse(localStorage.getItem('customThemes') || '[]');
     try {
       themeBackground = JSON.parse(localStorage.getItem('themeBackground') || 'null');
@@ -830,7 +881,12 @@ export const getThemeCode = () => {
   // book content matches the app chrome for the default appearance and migrated
   // themes. getEffectiveDarkMode then honors mode-locked themes' moods.
   const themeColor = customTheme ? rawColor : resolveThemeName(rawColor);
-  const isDarkMode = getEffectiveDarkMode(themeColor, themeMode as ThemeMode, systemIsDarkMode);
+  const isDarkMode = getEffectiveDarkMode(
+    themeColor,
+    themeMode as ThemeMode,
+    systemIsDarkMode,
+    ambientIsDarkMode,
+  );
   let currentTheme = themes.find((theme) => theme.name === themeColor);
   if (!currentTheme && customTheme) {
     currentTheme = {
@@ -972,7 +1028,18 @@ export const applyTranslationStyle = (viewSettings: ViewSettings) => {
   document.head.appendChild(styleElement);
 };
 
-export const transformStylesheet = (css: string, vw: number, vh: number, vertical: boolean) => {
+export const transformStylesheet = (
+  css: string,
+  vw: number,
+  vh: number,
+  vertical: boolean,
+  isFixedLayout = false,
+) => {
+  // Fixed-layout pages are authored against their own viewport: rescaling font
+  // sizes, resolving vw/vh against the reader viewport or repainting colors
+  // breaks the authored page. Leave them exactly as the book wrote them (#5649).
+  if (isFixedLayout) return css;
+
   const isMobile = ['ios', 'android'].includes(getOSPlatform());
   const fontScale = isMobile ? 1.25 : 1;
   const isInlineStyle = !css.includes('{');
@@ -1127,10 +1194,17 @@ export const transformStylesheet = (css: string, vw: number, vh: number, vertica
     .replace(/([\s;])-ms-user-select\s*:\s*none/gi, '$1-ms-user-select: unset')
     .replace(/([\s;])-o-user-select\s*:\s*none/gi, '$1-o-user-select: unset')
     .replace(/([\s;])user-select\s*:\s*none/gi, '$1user-select: unset')
+    // Park the `var(--x, x)` chunks an earlier pass already produced: their
+    // inner keywords would otherwise be rewritten again into
+    // `var(--var(--serif, serif), serif)`, which is invalid, so the CSS parser
+    // drops the whole declaration and the book loses its fonts (readest#5277).
+    // The placeholders are underscore-wrapped so `\b` never matches inside them.
+    .replace(/var\(\s*--(sans-serif|serif|monospace)\s*,\s*\1\s*\)/gi, 'READEST_GF_$1_PLACEHOLDER')
     .replace(/(font-family\s*:[^;]*?)\bsans-serif\b/gi, '$1READEST_SS_PLACEHOLDER')
     .replace(/(font-family\s*:[^;]*?)\bserif\b(?!-)/gi, '$1var(--serif, serif)')
     .replace(/READEST_SS_PLACEHOLDER/g, 'var(--sans-serif, sans-serif)')
     .replace(/(font-family\s*:[^;]*?)\bmonospace\b/gi, '$1var(--monospace, monospace)')
+    .replace(/READEST_GF_(sans-serif|serif|monospace)_PLACEHOLDER/gi, 'var(--$1, $1)')
     .replace(/([\s;])font-weight\s*:\s*normal/gi, '$1font-weight: var(--font-weight)')
     .replace(/([\s;])color\s*:\s*black/gi, '$1color: var(--theme-fg-color)')
     .replace(/([\s;])color\s*:\s*#000000/gi, '$1color: var(--theme-fg-color)')
@@ -1290,11 +1364,17 @@ export const applyFixedlayoutStyles = (
   document: Document,
   viewSettings: ViewSettings,
   themeCode?: ThemeCode,
+  format?: BookFormat,
 ) => {
   if (!themeCode) {
     themeCode = getThemeCode();
   }
   const { bg, fg, primary, isDarkMode } = themeCode;
+  // PDF and comic pages are rendered by the app, so they take the theme colors.
+  // Fixed-layout EPUB pages are authored by the book: theming the page repaints
+  // the background the book drew and, because a dark color scheme also swaps the
+  // browser default text color, recolors text the book never colored (#5649).
+  const appRendered = !format || FIXED_LAYOUT_FORMATS.has(format);
   const isEink = viewSettings.isEink;
   const overrideColor = viewSettings.overrideColor!;
   const invertImgColorInDark = viewSettings.invertImgColorInDark!;
@@ -1316,11 +1396,15 @@ export const applyFixedlayoutStyles = (
       --theme-bg-color: ${bg};
       --theme-fg-color: ${fg};
       --theme-primary-color: ${primary};
-      color-scheme: ${isDarkMode ? 'dark' : 'light'};
+      color-scheme: ${appRendered && isDarkMode ? 'dark' : 'light'};
+      /* Chrome for Android's text autosizing rescales line metrics and shifts
+         absolutely positioned per-letter text in fixed-layout books (#5641). */
+      -webkit-text-size-adjust: none;
+      text-size-adjust: none;
     }
     body {
       position: relative;
-      background-color: var(--theme-bg-color);
+      ${appRendered ? 'background-color: var(--theme-bg-color);' : ''}
     }
     ${isEink ? getEinkSelectionStyles() : ''}
     #canvas {

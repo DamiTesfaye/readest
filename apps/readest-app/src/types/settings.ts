@@ -19,6 +19,7 @@ export const LibrarySortByType = {
   Format: 'format',
   Published: 'published',
   Progress: 'progress',
+  TimeRemaining: 'timeRemaining',
 } as const;
 
 export type LibrarySortByType = (typeof LibrarySortByType)[keyof typeof LibrarySortByType];
@@ -39,6 +40,8 @@ export const LibraryGroupByType = {
   Group: 'group',
   Series: 'series',
   Author: 'author',
+  Tag: 'tag',
+  Subject: 'subject',
 } as const;
 
 export type LibraryGroupByType = (typeof LibraryGroupByType)[keyof typeof LibraryGroupByType];
@@ -52,7 +55,6 @@ export interface ReadSettings {
   notebookWidth: string;
   isNotebookPinned: boolean;
   notebookActiveTab: NotebookTab;
-  autohideCursor: boolean;
   translationProvider: string;
   translateTargetLang: string;
   /**
@@ -81,12 +83,44 @@ export interface KOSyncSettings {
   deviceName: string;
   checksumMethod: KOSyncChecksumMethod;
   strategy: KOSyncStrategy;
+  customHeaders?: Record<string, string>;
+  /**
+   * Include the book's filename, title and authors in progress uploads, in the
+   * optional `metadata` field KOReader 2026.05+ sends when "Send document
+   * metadata" is enabled. The official sync server ignores it; custom
+   * KOSync-compatible servers may use it to identify what is being read.
+   * Off by default, matching KOReader.
+   */
+  sendMetadata?: boolean;
+}
+
+export interface BookOrbitSettings {
+  enabled: boolean;
+  /** Base server origin, e.g. https://books.example.com (no /api/v1/koreader suffix). */
+  serverUrl: string;
+  username: string;
+  userkey: string;
+  password?: string;
+  deviceId: string;
+  deviceName: string;
+  strategy: KOSyncStrategy;
+  syncProgress: boolean;
+  /** Annotations and bookmarks. */
+  syncNotes: boolean;
+  syncStats: boolean;
+  syncBookStates: boolean;
+  customHeaders?: Record<string, string>;
 }
 
 export interface ReadwiseSettings {
   enabled: boolean;
   accessToken: string;
   lastSyncedAt: number;
+  /**
+   * Send the book cover with pushed highlights (image_url). Optional so
+   * settings persisted before this option existed default to enabled.
+   */
+  includeCoverImage?: boolean;
   /**
    * Advanced: override the Readwise API base URL (e.g. for a self-hosted,
    * Readwise-compatible receiver). When unset or blank, the official
@@ -143,6 +177,11 @@ export interface WebDAVSettings {
   // Wall-clock millisecond timestamp of the last successful end-to-end
   // sync, surfaced in the WebDAV settings sub-page.
   lastSyncedAt?: number;
+  // Device-local wall-clock millis of when this provider was made the
+  // selected cloud sync backend on THIS device. Anchors the mixed-fleet
+  // detection probe: any native /api/sync row newer than this means
+  // another device is still writing the gated channels.
+  providerSelectedAt?: number;
 }
 
 /**
@@ -164,6 +203,103 @@ export interface GoogleDriveSettings {
   strategy?: KOSyncStrategy;
   deviceId?: string;
   lastSyncedAt?: number;
+  /** See {@link WebDAVSettings.providerSelectedAt}. */
+  providerSelectedAt?: number;
+}
+
+/**
+ * S3-compatible object-store file-sync settings — the third file-sync
+ * backend alongside {@link WebDAVSettings} and {@link GoogleDriveSettings},
+ * sharing the same engine, sub-toggles, and strategy vocabulary. Covers any
+ * SigV4 endpoint: Cloudflare R2, AWS S3, MinIO, Backblaze B2. Addressing is
+ * path-style (`<endpoint>/<bucket>/<key>`). Credentials live here like
+ * WebDAV's (same encrypted cross-device credential-sync semantics).
+ */
+export interface S3Settings {
+  enabled: boolean;
+  /** Service endpoint origin, e.g. `https://<account-id>.r2.cloudflarestorage.com`. */
+  endpoint: string;
+  /** SigV4 region; 'auto' works for R2/MinIO, AWS wants the bucket region. */
+  region?: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  syncProgress?: boolean;
+  syncNotes?: boolean;
+  syncBooks?: boolean;
+  fullSync?: boolean;
+  strategy?: KOSyncStrategy;
+  deviceId?: string;
+  lastSyncedAt?: number;
+  /** See {@link WebDAVSettings.providerSelectedAt}. */
+  providerSelectedAt?: number;
+}
+
+/**
+ * Microsoft OneDrive file-sync settings. An OAuth-based file-sync backend
+ * alongside {@link GoogleDriveSettings}, storing data in the Graph App Folder
+ * (approot). No URL / credentials / root path and no BYO client; the OAuth
+ * token lives in the OS keychain (native) or sessionStorage (web), never here.
+ * `deviceId`/`lastSyncedAt`/`providerSelectedAt` are device-local.
+ */
+export interface OneDriveSettings {
+  enabled: boolean;
+  /** Connected account's userPrincipalName/email, shown in the settings UI. */
+  accountLabel?: string;
+  syncProgress?: boolean;
+  syncNotes?: boolean;
+  syncBooks?: boolean;
+  fullSync?: boolean;
+  strategy?: KOSyncStrategy;
+  deviceId?: string;
+  lastSyncedAt?: number;
+  /** See {@link WebDAVSettings.providerSelectedAt}. */
+  providerSelectedAt?: number;
+}
+
+/**
+ * iCloud Drive file-sync settings. Available only in the iOS/macOS Tauri
+ * apps: the backend is the app's ubiquity container, synced by the OS. No
+ * credentials and no OAuth — the device's iCloud session is the account.
+ * `deviceId`/`lastSyncedAt`/`providerSelectedAt` are device-local.
+ */
+export interface ICloudSettings {
+  enabled: boolean;
+  syncProgress?: boolean;
+  syncNotes?: boolean;
+  syncBooks?: boolean;
+  fullSync?: boolean;
+  strategy?: KOSyncStrategy;
+  deviceId?: string;
+  lastSyncedAt?: number;
+  /** See {@link WebDAVSettings.providerSelectedAt}. */
+  providerSelectedAt?: number;
+}
+
+/**
+ * Readest Cloud's own library-sync switch. Readest Cloud used to be the
+ * derived fallback — "on" whenever no third-party provider was enabled —
+ * because exactly one provider could own the library channels. Providers are
+ * now independently selectable (#5062), so Readest Cloud needs a flag of its
+ * own.
+ *
+ * `enabled` is DELIBERATELY optional with no default (this slice must never
+ * enter `DEFAULT_SYSTEM_SETTINGS`): an absent value falls back to the old
+ * derivation, so upgrading users keep exactly the behaviour they had and no
+ * migration has to rewrite anyone's settings. It is written only once the user
+ * touches a Cloud Sync checkbox.
+ *
+ * Device-local, like the other providers' `enabled` flags.
+ */
+export interface ReadestCloudSettings {
+  enabled?: boolean;
+  /**
+   * Device-local wall-clock millis of when this device turned Readest Cloud
+   * off. Anchors the mixed-fleet probe: a native /api/sync row newer than this
+   * means another device is still writing the channels this one stopped
+   * writing. Excluded from cross-device restore.
+   */
+  disabledAt?: number;
 }
 
 /**
@@ -209,6 +345,12 @@ export interface KeyBinding {
   id: string;
   /** Human-readable label shown in settings. */
   label: string;
+  /** DOM modifier state. Optional so persisted single-key bindings remain valid. */
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  metaKey?: boolean;
+  altGraphKey?: boolean;
 }
 
 export interface HardwarePageTurnerSettings {
@@ -238,20 +380,40 @@ export interface SystemSettings {
    * settings backups via `BACKUP_SETTINGS_BLACKLIST`.
    */
   externalLibraryFolders?: string[];
+  /**
+   * Absolute paths of the external library folders the user has opted into
+   * auto-import for. On library open and whenever the app regains focus,
+   * Readest re-scans each of these and imports any newly-added book files.
+   * A subset of {@link externalLibraryFolders} (auto-import requires the
+   * folder to be read in place). Set per-folder from the Import-from-Folder
+   * dialog. Desktop + Android only. Device-local (paths are meaningful only
+   * on this filesystem) and excluded from cloud settings backups via
+   * `BACKUP_SETTINGS_BLACKLIST`.
+   */
+  autoImportFolders?: string[];
+  /**
+   * The subset of {@link autoImportFolders} the user imported with "Import all
+   * into library" (flatten). Auto-imported books from those folders go straight
+   * to the library root; every other watched folder mirrors its subfolders as
+   * groups, matching the dialog's default "Create groups from subfolders" —
+   * which is also what a folder watched before this list existed falls back to.
+   * Device-local, and excluded from cloud settings backups alongside
+   * {@link autoImportFolders}.
+   */
+  autoImportFlattenFolders?: string[];
 
   keepLogin: boolean;
-  autoUpload: boolean;
   alwaysOnTop: boolean;
   openBookInNewWindow: boolean;
   autoCheckUpdates: boolean;
   updateChannel: 'stable' | 'nightly';
   screenWakeLock: boolean;
+  autohideCursor: boolean;
   screenBrightness: number;
   autoScreenBrightness: boolean;
   swipeBrightnessGesture: boolean;
   hardwarePageTurner: HardwarePageTurnerSettings;
   alwaysShowStatusBar: boolean;
-  alwaysInForeground: boolean;
   openLastBooks: boolean;
   lastOpenBooks: string[];
   autoImportBooksOnOpen: boolean;
@@ -273,11 +435,14 @@ export interface SystemSettings {
    * `false` the moment the user picks any primary sort in the menu.
    */
   librarySortByAuto: boolean;
-  librarySortBy2: LibrarySecondarySortByType;
+  libraryThenSortBy: LibrarySecondarySortByType;
+  /** Sort order of the secondary ("Then by") key, independent of `librarySortAscending` (#5119). */
+  libraryThenSortAscending: boolean;
   libraryGroupBy: LibraryGroupByType;
   libraryCoverFit: LibraryCoverFitType;
   libraryAutoColumns: boolean;
   libraryColumns: number;
+  librarySkeuomorphicCovers: boolean;
   /** Show the recently-read carousel at the top of the library (issue #3797). */
   libraryRecentShelfEnabled: boolean;
   /**
@@ -324,10 +489,16 @@ export interface SystemSettings {
   biometricUnlockEnabled?: boolean;
 
   kosync: KOSyncSettings;
+  bookorbit: BookOrbitSettings;
   readwise: ReadwiseSettings;
   hardcover: HardcoverSettings;
+  /** Optional by design — see {@link ReadestCloudSettings}. Never defaulted. */
+  readestCloud?: ReadestCloudSettings;
   webdav: WebDAVSettings;
   googleDrive: GoogleDriveSettings;
+  s3: S3Settings;
+  onedrive: OneDriveSettings;
+  icloud: ICloudSettings;
 
   aiSettings: AISettings;
   /**

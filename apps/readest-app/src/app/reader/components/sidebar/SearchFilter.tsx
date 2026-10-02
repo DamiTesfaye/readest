@@ -142,7 +142,7 @@ const SearchFilter: React.FC<SearchFilterProps> = ({
           <Chip
             label={_('Fuzzy match')}
             isEink={isEink}
-            isActive={searchConfig.fuzzy && !isRegex}
+            isActive={!!searchConfig.fuzzy && !isRegex}
             disabled={isRegex}
             title={regexHint}
             onClick={() => update({ fuzzy: !searchConfig.fuzzy })}
@@ -150,7 +150,7 @@ const SearchFilter: React.FC<SearchFilterProps> = ({
           <Chip
             label={_('Ignore Punctuations')}
             isEink={isEink}
-            isActive={searchConfig.ignorePunctuation && !isRegex}
+            isActive={!!searchConfig.ignorePunctuation && !isRegex}
             disabled={isRegex}
             title={regexHint}
             onClick={() => update({ ignorePunctuation: !searchConfig.ignorePunctuation })}

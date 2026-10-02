@@ -14,7 +14,9 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useCustomFontStore } from '@/store/customFontStore';
 import { useParallelViewStore } from '@/store/parallelViewStore';
 import { useMouseEvent, useTouchEvent, useOpenMediaEvent } from '../hooks/useIframeEvents';
+import { useCapturedTurn, applyPageTurnAttributes } from '../hooks/useCapturedTurn';
 import { useBrightnessGesture } from '../hooks/useBrightnessGesture';
+import { registerBookmarkPullDoc } from '../utils/bookmarkPullGesture';
 import BrightnessOverlay from './BrightnessOverlay';
 import { usePagination, viewPagination } from '../hooks/usePagination';
 import { useFoliateEvents } from '../hooks/useFoliateEvents';
@@ -24,6 +26,7 @@ import { useBackgroundTexture } from '@/hooks/useBackgroundTexture';
 import { useAutoFocus } from '@/hooks/useAutoFocus';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useEinkMode } from '@/hooks/useEinkMode';
+import { bookOrbitProgressProvider } from '../hooks/bookOrbitProgressProvider';
 import { useKOSync } from '../hooks/useKOSync';
 import { useFileSync } from '../hooks/useFileSync';
 import {
@@ -50,24 +53,30 @@ import {
   handleKeyup,
   handleMousedown,
   handleMouseup,
+  handleMousemove,
+  handleAuxclick,
   handleClick,
+  handleClickCapture,
   handleWheel,
   handleTouchStart,
   handleTouchMove,
   handleTouchEnd,
-  addLongPressListeners,
+  handleTouchCancel,
 } from '../utils/iframeEventHandlers';
 import { getMaxInlineSize } from '@/utils/config';
 import { getDirFromUILanguage } from '@/utils/rtl';
 import { isTauriAppPlatform } from '@/services/environment';
 import { TransformContext } from '@/services/transformers/types';
 import { transformContent } from '@/services/transformService';
-import { lockScreenOrientation } from '@/utils/bridge';
+import { lockScreenOrientation, setSelectionSuppressed } from '@/utils/bridge';
 import { useTextTranslation } from '../hooks/useTextTranslation';
 import { useBookCoverAutoSave } from '../hooks/useAutoSaveBookCover';
 import { useDiscordPresence } from '@/hooks/useDiscordPresence';
 import { manageSyntaxHighlighting } from '@/utils/highlightjs';
 import { getViewInsets } from '@/utils/insets';
+import { collectDocumentImages, DocumentImage } from '../utils/documentImages';
+import { footerReservesBand } from '../utils/footerBand';
+import { showTransientHighlight } from '../utils/transientHighlight';
 import { handleA11yNavigation } from '@/utils/a11y';
 import { isCJKLang } from '@/utils/lang';
 import { getLocale } from '@/utils/misc';
@@ -75,11 +84,18 @@ import { isMetered } from '@/utils/network';
 import { eventDispatcher } from '@/utils/event';
 import { isFontType } from '@/utils/font';
 import { getScrollGapAttr } from '@/utils/webtoon';
+import { useMiddleClickAutoscroll } from '../hooks/useMiddleClickAutoscroll';
+import { useAutoScroll } from '../hooks/useAutoScroll';
+import { useAutoScrollSpeedGesture } from '../hooks/useAutoScrollSpeedGesture';
 import { ParagraphControl } from './paragraph';
+import AutoscrollIndicator from './AutoscrollIndicator';
+import AutoScrollControl from './AutoScrollControl';
+import AutoScrollSpeedOverlay from './AutoScrollSpeedOverlay';
 import Spinner from '@/components/Spinner';
 import KOSyncConflictResolver from './KOSyncResolver';
 import ImageViewer from './ImageViewer';
 import TableViewer from './TableViewer';
+import { getTTSMiniPlayerClearance } from '../utils/ttsMiniPlayerPosition';
 
 declare global {
   interface Window {
@@ -127,8 +143,25 @@ const FoliateViewer: React.FC<{
   const doubleClickDisabled = useRef(!!viewSettings?.disableDoubleClick);
   const [toastMessage, setToastMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [navigating, setNavigating] = useState(false);
+  const navSpinnerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const librarySearchHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scrollMargins, setScrollMargins] = useState({ top: 0, bottom: 0 });
   const docLoaded = useRef(false);
+
+  const autoScroll = useAutoScroll(bookKey, viewRef);
+  const { registerSpeedListeners, overlayVisible: speedOverlayVisible } =
+    useAutoScrollSpeedGesture(autoScroll);
+
+  // A pending anti-flash timer must not fire setNavigating on an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (navSpinnerTimerRef.current) clearTimeout(navSpinnerTimerRef.current);
+      if (librarySearchHighlightTimerRef.current) {
+        clearTimeout(librarySearchHighlightTimerRef.current);
+      }
+    };
+  }, []);
 
   useAutoFocus<HTMLDivElement>({ ref: containerRef });
 
@@ -148,6 +181,7 @@ const FoliateViewer: React.FC<{
   useProgressAutoSave(bookKey);
   useBookCoverAutoSave(bookKey);
   const { syncState, conflictDetails, resolveWithLocal, resolveWithRemote } = useKOSync(bookKey);
+  const bookOrbitSync = useKOSync(bookKey, bookOrbitProgressProvider);
   useFileSync(bookKey);
   useTextTranslation(bookKey, viewRef.current);
 
@@ -247,7 +281,13 @@ const FoliateViewer: React.FC<{
           const viewSettings = getViewSettings(bookKey);
           const bookData = getBookData(bookKey);
           if (viewSettings && detail.type === 'text/css')
-            return transformStylesheet(data, width, height, viewSettings.vertical);
+            return transformStylesheet(
+              data,
+              width,
+              height,
+              viewSettings.vertical,
+              bookData?.isFixedLayout,
+            );
           const isHtml = detail.type === 'application/xhtml+xml' || detail.type === 'text/html';
           if (viewSettings && bookData && isHtml) {
             const ctx: TransformContext = {
@@ -315,6 +355,10 @@ const FoliateViewer: React.FC<{
         writingDir?.vertical || viewSettings.writingMode.includes('vertical') || false;
       const newRtl =
         writingDir?.rtl ||
+        // Fixed-layout books carry no writing mode; their direction may come
+        // from the document itself (PDF ViewerPreferences /Direction /R2L),
+        // and page-turn taps and swipes must follow it.
+        bookDoc.dir === 'rtl' ||
         getDirFromUILanguage() === 'rtl' ||
         viewSettings.writingMode.includes('rl') ||
         false;
@@ -333,7 +377,7 @@ const FoliateViewer: React.FC<{
       });
 
       if (bookDoc.rendition?.layout === 'pre-paginated') {
-        applyFixedlayoutStyles(detail.doc, viewSettings);
+        applyFixedlayoutStyles(detail.doc, viewSettings, undefined, bookData.book?.format);
         const themeCode = getThemeCode();
         if (bookData.book?.format === 'PDF' && themeCode && renderer) {
           renderer.pageColors = viewSettings.applyThemeToPDF
@@ -398,16 +442,27 @@ const FoliateViewer: React.FC<{
         detail.doc.addEventListener('keyup', handleKeyup.bind(null, bookKey));
         detail.doc.addEventListener('mousedown', handleMousedown.bind(null, bookKey));
         detail.doc.addEventListener('mouseup', handleMouseup.bind(null, bookKey));
+        detail.doc.addEventListener('mousemove', handleMousemove.bind(null, bookKey));
+        detail.doc.addEventListener('auxclick', handleAuxclick.bind(null, bookKey));
+        detail.doc.addEventListener('click', handleClickCapture.bind(null, bookKey), {
+          capture: true,
+        });
         detail.doc.addEventListener(
           'click',
           handleClick.bind(null, bookKey, doubleClickDisabled, !!bookData?.isFixedLayout),
         );
         detail.doc.addEventListener('wheel', handleWheel.bind(null, bookKey));
         detail.doc.addEventListener('touchstart', handleTouchStart.bind(null, bookKey));
-        detail.doc.addEventListener('touchmove', handleTouchMove.bind(null, bookKey));
-        detail.doc.addEventListener('touchend', handleTouchEnd.bind(null, bookKey));
-        addLongPressListeners(bookKey, detail.doc);
+        detail.doc.addEventListener('touchmove', handleTouchMove.bind(null, bookKey), {
+          passive: false,
+        });
+        detail.doc.addEventListener('touchend', handleTouchEnd.bind(null, bookKey), {
+          passive: false,
+        });
+        detail.doc.addEventListener('touchcancel', handleTouchCancel.bind(null, bookKey));
         registerBrightnessListeners(detail.doc);
+        registerSpeedListeners(detail.doc);
+        registerBookmarkPullDoc(bookKey, detail.doc);
       }
     }
   };
@@ -456,6 +511,20 @@ const FoliateViewer: React.FC<{
       },
     };
   };
+
+  const navigateStartHandler = useCallback(() => {
+    if (navSpinnerTimerRef.current) clearTimeout(navSpinnerTimerRef.current);
+    // Delay so instant same-section jumps don't flash the spinner.
+    navSpinnerTimerRef.current = setTimeout(() => setNavigating(true), 200);
+  }, []);
+
+  const navigateEndHandler = useCallback(() => {
+    if (navSpinnerTimerRef.current) {
+      clearTimeout(navSpinnerTimerRef.current);
+      navSpinnerTimerRef.current = null;
+    }
+    setNavigating(false);
+  }, []);
 
   const stabilizedHandler = useCallback(() => {
     setLoading(false);
@@ -508,51 +577,30 @@ const FoliateViewer: React.FC<{
   const { handlePageFlip } = usePagination(bookKey, viewRef, containerRef);
   const mouseHandlers = useMouseEvent(bookKey, handlePageFlip);
   const touchHandlers = useTouchEvent(bookKey);
+  const autoscrollAnchor = useMiddleClickAutoscroll(bookKey, viewRef, containerRef);
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  // The description of the image on screen, kept next to `selectedImage` so the
+  // two can never drift apart (the pressed image may be missing from the list).
+  const [selectedImageAlt, setSelectedImageAlt] = useState<string>('');
   const [selectedTableHtml, setSelectedTableHtml] = useState<string | null>(null);
-  const [imageList, setImageList] = useState<{ src: string; cfi: string | null }[]>([]);
+  const [imageList, setImageList] = useState<DocumentImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
   const handleImagePress = useCallback(async (src: string) => {
     try {
       // Get all images from the current document
-      const docs = viewRef.current?.renderer.getContents();
-      const allImages: { src: string; cfi: string | null }[] = [];
-
-      docs?.forEach(({ doc, index }) => {
-        const elements = doc.querySelectorAll('img, svg');
-        elements.forEach((el) => {
-          if (index === undefined) return;
-          if (el.localName === 'img') {
-            const img = el as HTMLImageElement;
-            if (img.src && img.parentNode) {
-              const range = doc.createRange();
-              range.selectNodeContents(img);
-              const cfi = viewRef.current?.getCFI(index, range) || null;
-              allImages.push({ src: img.src, cfi });
-            }
-          } else if (el.localName === 'svg') {
-            const svg = el as unknown as SVGSVGElement;
-            const svgImage = svg.querySelector('image');
-            const href =
-              svgImage?.getAttribute('href') ||
-              svgImage?.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
-            if (href) {
-              const range = doc.createRange();
-              range.selectNodeContents(svg);
-              const cfi = viewRef.current?.getCFI(index, range) || null;
-              allImages.push({ src: href, cfi });
-            }
-          }
-        });
-      });
+      const allImages = collectDocumentImages(
+        viewRef.current?.renderer.getContents() ?? [],
+        (index, range) => viewRef.current?.getCFI(index, range) || null,
+      );
 
       // Find the index of the pressed image
       const index = allImages.findIndex((img) => img.src === src);
 
       setImageList(allImages);
       setCurrentImageIndex(index >= 0 ? index : 0);
+      setSelectedImageAlt(index >= 0 ? allImages[index]!.alt : '');
 
       const dataUrl = await convertBlobUrlToDataUrl(src);
       setSelectedImage(dataUrl);
@@ -570,9 +618,10 @@ const FoliateViewer: React.FC<{
       const newIndex = currentImageIndex - 1;
       setCurrentImageIndex(newIndex);
       try {
-        const { src, cfi } = imageList[newIndex]!;
+        const { src, cfi, alt } = imageList[newIndex]!;
         const dataUrl = await convertBlobUrlToDataUrl(src);
         setSelectedImage(dataUrl);
+        setSelectedImageAlt(alt);
         if (cfi && viewRef.current) {
           viewRef.current?.goTo(cfi);
         }
@@ -587,9 +636,10 @@ const FoliateViewer: React.FC<{
       const newIndex = currentImageIndex + 1;
       setCurrentImageIndex(newIndex);
       try {
-        const { src, cfi } = imageList[newIndex]!;
+        const { src, cfi, alt } = imageList[newIndex]!;
         const dataUrl = await convertBlobUrlToDataUrl(src);
         setSelectedImage(dataUrl);
+        setSelectedImageAlt(alt);
         if (cfi && viewRef.current) {
           viewRef.current?.goTo(cfi);
         }
@@ -601,17 +651,22 @@ const FoliateViewer: React.FC<{
 
   const handleCloseImage = useCallback(() => {
     setSelectedImage(null);
+    setSelectedImageAlt('');
     setImageList([]);
     setCurrentImageIndex(0);
   }, []);
 
   useOpenMediaEvent(bookKey, handleImagePress, handleTablePress);
 
+  useCapturedTurn(bookKey, viewRef);
+
   useFoliateEvents(viewRef.current, {
     onLoad: docLoadHandler,
     onStabilized: stabilizedHandler,
     onRelocate: progressRelocateHandler,
     onRendererRelocate: docRelocateHandler,
+    onNavigateStart: navigateStartHandler,
+    onNavigateEnd: navigateEndHandler,
   });
 
   useEffect(() => {
@@ -702,6 +757,14 @@ const FoliateViewer: React.FC<{
       } else {
         view.renderer.removeAttribute('animated');
       }
+      // Arms the foliate CursorAutohider — goes on the view element itself,
+      // not the renderer, and is re-checked on every mousemove so the
+      // ControlPanel toggle takes effect without recreating the view.
+      view.toggleAttribute(
+        'autohide-cursor',
+        !appService?.isMobile && !!useSettingsStore.getState().settings.autohideCursor,
+      );
+      applyPageTurnAttributes(view, viewSettings, bookDoc.rendition?.layout === 'pre-paginated');
       // iOS WebKit composites large/persistent page layers without the Android
       // high-DPR Blink freeze, so opt this renderer into the GPU-accelerated
       // page-turn path (persistent compositor layers + no main-thread
@@ -709,11 +772,6 @@ const FoliateViewer: React.FC<{
       // (readest#4768).
       if (appService?.isIOSApp) {
         view.renderer.setAttribute('gpu-composite', '');
-      }
-      if (viewSettings.disableSwipe) {
-        view.renderer.setAttribute('no-swipe', '');
-      } else {
-        view.renderer.removeAttribute('no-swipe');
       }
       if (appService?.isAndroidApp) {
         if (eink) {
@@ -752,15 +810,21 @@ const FoliateViewer: React.FC<{
       } else {
         await view.goToFraction(0);
       }
-      setViewInited(bookKey, true);
-
       // The reader is showing a deep-link target, not the user's actual reading
       // position. Mark the view as a preview so progress writers (auto-save,
       // cloud sync, kosync) skip until the user takes a reading action. The
       // flag clears on the first user-initiated relocate (page / scroll) in
-      // docRelocateHandler below.
+      // docRelocateHandler below. Set before `inited` so everything that starts
+      // reading on init (e.g. Auto Scroll resume) already sees the preview.
       if (overrideLocation) {
         setPreviewMode(bookKey, true);
+      }
+      setViewInited(bookKey, true);
+      if (overrideLocation && searchParams?.get('highlight') === 'search') {
+        librarySearchHighlightTimerRef.current = await showTransientHighlight(
+          view,
+          overrideLocation,
+        );
       }
     };
 
@@ -769,20 +833,33 @@ const FoliateViewer: React.FC<{
   }, []);
 
   const applyMarginAndGap = () => {
-    const viewSettings = getViewSettings(bookKey)!;
+    // Invoked from effects/observers that can fire after the book is torn down,
+    // when getViewSettings(bookKey) returns null. The `!` assertion hid that, so
+    // the reads below (getViewInsets, viewSettings.showHeader) crashed on null
+    // (READEST-2V). Bail: there is no view left to lay out.
+    const viewSettings = getViewSettings(bookKey);
+    if (!viewSettings) return;
     const viewState = getViewState(bookKey);
+    const bookData = getBookData(bookKey);
     const viewInsets = getViewInsets(viewSettings);
     const showDoubleBorder = viewSettings.vertical && viewSettings.doubleBorder;
     const showDoubleBorderHeader = showDoubleBorder && viewSettings.showHeader;
     const showDoubleBorderFooter = showDoubleBorder && viewSettings.showFooter;
     const showTopHeader = viewSettings.showHeader && !viewSettings.vertical;
-    const showBottomFooter = viewSettings.showFooter && !viewSettings.vertical;
+    // The bottom band is reserved only while the footer displays something
+    // there (and never in scrolled mode, where the info floats in pills) —
+    // see footerReservesBand. Otherwise the empty reservation shows as a
+    // full-width blank bar that steals space from the book text.
+    const showBottomFooter = footerReservesBand(viewSettings) && !viewSettings.vertical;
     const moreTopInset = showTopHeader ? Math.max(0, 16 - insets.top) : 0;
-    const ttsBarHeight =
-      viewState?.ttsEnabled && viewSettings.showTTSBar ? 52 + gridInsets.bottom * 0.33 : 0;
+    // Only the persistent 'minimal' card reserves a band; the 'full' one
+    // auto-hides with the toolbar and overlaps instead (#5310).
+    const miniPlayerClearance = viewState?.ttsEnabled
+      ? getTTSMiniPlayerClearance(viewSettings, gridInsets.bottom * 0.33)
+      : 0;
     const moreBottomInset = showBottomFooter
-      ? Math.max(0, Math.max(ttsBarHeight, 16) - insets.bottom)
-      : Math.max(0, ttsBarHeight);
+      ? Math.max(0, Math.max(miniPlayerClearance, 16) - insets.bottom)
+      : Math.max(0, miniPlayerClearance);
     const moreRightInset = showDoubleBorderHeader ? 32 : 0;
     const moreLeftInset = showDoubleBorderFooter ? 32 : 0;
     const topMargin = (showTopHeader ? insets.top : viewInsets.top) + moreTopInset;
@@ -799,13 +876,22 @@ const FoliateViewer: React.FC<{
       const footerVisible = showBottomFooter;
       const safeBottomPadding = appService?.hasSafeAreaInset ? gridInsets.bottom * 0.33 : 0;
       const footerBarHeight = safeBottomPadding + viewSettings.marginBottomPx;
-      const scrollTop = headerVisible ? gridInsets.top + viewSettings.marginTopPx : 0;
-      const scrollBottom = footerVisible ? Math.max(footerBarHeight, ttsBarHeight) : ttsBarHeight;
-      setScrollMargins({ top: scrollTop, bottom: scrollBottom });
+      // topMargin, not the raw margin sum: it carries the 16px moreTopInset
+      // floor, so a negative top margin keeps the scroll viewport glued to the
+      // lifted header band instead of running under it (#5303).
+      const scrollTop = headerVisible ? topMargin : 0;
+      const scrollBottom = footerVisible
+        ? Math.max(footerBarHeight, miniPlayerClearance)
+        : miniPlayerClearance;
+      setScrollMargins({ top: bookData?.isFixedLayout ? 0 : scrollTop, bottom: scrollBottom });
     } else {
       setScrollMargins({ top: 0, bottom: 0 });
     }
     viewRef.current?.renderer.setAttribute('gap', `${viewSettings.gapPercent}%`);
+    viewRef.current?.renderer.setAttribute(
+      'scroll-direction',
+      viewSettings.scrolledDirection === 'horizontal' ? 'horizontal' : 'vertical',
+    );
     if (viewSettings.scrolled) {
       viewRef.current?.renderer.setAttribute('flow', 'scrolled');
       if (viewSettings.noContinuousScroll) {
@@ -816,6 +902,40 @@ const FoliateViewer: React.FC<{
     }
   };
 
+  // iOS: the system long-press selection would race the instant-highlight
+  // hold — WebKit consults selectability before any touch handler runs, so
+  // JS-level suppression cannot win. Suppress it natively while the highlight
+  // quick action owns the gesture; restore when the mode turns off or the
+  // reader closes.
+  useEffect(() => {
+    if (!appService?.isIOSApp) return;
+    const suppressed =
+      !!viewSettings?.enableAnnotationQuickActions &&
+      viewSettings?.annotationQuickAction === 'highlight';
+    setSelectionSuppressed({ target: 'gesture', suppressed }).catch(() => {});
+    return () => {
+      if (suppressed) {
+        setSelectionSuppressed({ target: 'gesture', suppressed: false }).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    appService?.isIOSApp,
+    viewSettings?.enableAnnotationQuickActions,
+    viewSettings?.annotationQuickAction,
+  ]);
+
+  // Android (#5427): useTextSelector keeps the system selection toolbar
+  // natively suppressed while reader text is selected. If the reader closes
+  // with a live selection, no selectionchange fires to lift the flag — reset
+  // it here so selection menus elsewhere in the app are not muted.
+  useEffect(() => {
+    if (!appService?.isAndroidApp) return;
+    return () => {
+      setSelectionSuppressed({ target: 'menu', suppressed: false }).catch(() => {});
+    };
+  }, [appService?.isAndroidApp]);
+
   useEffect(() => {
     if (viewRef.current && viewRef.current.renderer) {
       const renderer = viewRef.current.renderer;
@@ -824,7 +944,7 @@ const FoliateViewer: React.FC<{
       const docs = viewRef.current.renderer.getContents();
       docs.forEach(({ doc }) => {
         if (bookDoc.rendition?.layout === 'pre-paginated') {
-          applyFixedlayoutStyles(doc, viewSettings);
+          applyFixedlayoutStyles(doc, viewSettings, undefined, bookData?.book?.format);
         }
         applyThemeModeClass(doc, isDarkMode);
         applyScrollModeClass(doc, viewSettings.scrolled || false);
@@ -913,10 +1033,19 @@ const FoliateViewer: React.FC<{
     viewSettings?.doubleBorder,
     viewSettings?.showHeader,
     viewSettings?.showFooter,
-    viewSettings?.showTTSBar,
     viewSettings?.scrolled,
     viewSettings?.noContinuousScroll,
     viewState?.ttsEnabled,
+    // Switching Player Style changes whether a band is reserved at all.
+    viewSettings?.ttsPlayerStyle,
+    // footerReservesBand inputs: the band must collapse/return live when the
+    // user flips these settings.
+    viewSettings?.showStickyProgressBar,
+    viewSettings?.showRemainingTime,
+    viewSettings?.showRemainingPages,
+    viewSettings?.showProgressInfo,
+    viewSettings?.showCurrentTime,
+    viewSettings?.showCurrentBatteryStatus,
   ]);
 
   return (
@@ -925,6 +1054,7 @@ const FoliateViewer: React.FC<{
         <ImageViewer
           gridInsets={gridInsets}
           src={selectedImage}
+          caption={selectedImageAlt}
           onClose={handleCloseImage}
           onPrevious={currentImageIndex > 0 ? handlePreviousImage : undefined}
           onNext={currentImageIndex < imageList.length - 1 ? handleNextImage : undefined}
@@ -953,9 +1083,24 @@ const FoliateViewer: React.FC<{
         {...mouseHandlers}
         {...touchHandlers}
       />
+      {autoscrollAnchor && <AutoscrollIndicator anchor={autoscrollAnchor} />}
+      {autoScroll.active && (
+        <AutoScrollControl
+          bookKey={bookKey}
+          paused={autoScroll.paused}
+          speed={autoScroll.speed}
+          onTogglePause={autoScroll.togglePause}
+          onAdjustSpeed={autoScroll.adjustSpeed}
+          onStop={autoScroll.stop}
+          gridInsets={gridInsets}
+        />
+      )}
       <BrightnessOverlay visible={overlayVisible} level={overlayLevel} />
+      {autoScroll.active && (
+        <AutoScrollSpeedOverlay visible={speedOverlayVisible} speed={autoScroll.speed} />
+      )}
       <ParagraphControl bookKey={bookKey} viewRef={viewRef} gridInsets={gridInsets} />
-      {((!docLoaded.current && loading) || viewState?.loading) && (
+      {((!docLoaded.current && loading) || navigating || viewState?.loading) && (
         <div className='absolute left-0 top-0 z-10 flex h-full w-full items-center justify-center'>
           <Spinner loading={true} />
         </div>
@@ -966,6 +1111,14 @@ const FoliateViewer: React.FC<{
           onResolveWithLocal={resolveWithLocal}
           onResolveWithRemote={resolveWithRemote}
           onClose={resolveWithLocal}
+        />
+      )}
+      {bookOrbitSync.syncState === 'conflict' && bookOrbitSync.conflictDetails && (
+        <KOSyncConflictResolver
+          details={bookOrbitSync.conflictDetails}
+          onResolveWithLocal={bookOrbitSync.resolveWithLocal}
+          onResolveWithRemote={bookOrbitSync.resolveWithRemote}
+          onClose={bookOrbitSync.resolveWithLocal}
         />
       )}
     </>

@@ -10,6 +10,7 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useParallelViewStore } from '@/store/parallelViewStore';
+import { useAndroidGamepadConnection } from '@/hooks/useAndroidGamepadConnection';
 import { useGamepad } from '@/hooks/useGamepad';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SystemSettings } from '@/types/settings';
@@ -40,6 +41,7 @@ import Notebook from './notebook/Notebook';
 import MindmapView from './mindmap/MindmapView';
 import { useMindmapActions } from './mindmap/useMindmapActions';
 import { flushMindmapSync } from '@/services/mindmap/sync/lifecycle';
+import LocalSendManager from '@/components/localsend/LocalSendManager';
 import BooksGrid from './BooksGrid';
 import SettingsDialog from '@/components/settings/SettingsDialog';
 
@@ -68,7 +70,13 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const mindmapActions = useMindmapActions();
 
   useBookShortcuts({ sideBarBookKey, bookKeys });
-  useGamepad();
+  const isAndroidApp = appService?.isAndroidApp === true;
+  const androidGamepadConnected = useAndroidGamepadConnection(isAndroidApp);
+  // Android's native bridge gates the Web Gamepad API so Chromium polls only
+  // while a controller exists. Other platforms retain the existing behavior.
+  useGamepad({
+    enabled: appService !== null && (!isAndroidApp || androidGamepadConnected),
+  });
 
   useEffect(() => {
     if (isInitiating.current) return;
@@ -151,22 +159,25 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
     }
 
     let unlistenOnCloseWindow: Promise<UnlistenFn>;
-    if (isTauriAppPlatform()) {
-      unlistenOnCloseWindow = tauriHandleOnCloseWindow(closeBooks);
+    if (appService?.hasWindow) {
+      unlistenOnCloseWindow = tauriHandleOnCloseWindow(closeBooks).catch((error) => {
+        console.info('Failed to register close-window listener:', error);
+        return () => {};
+      });
     }
     window.addEventListener('beforeunload', handleCloseBooks);
     eventDispatcher.on('beforereload', handleCloseBooks);
-    eventDispatcher.on('close-reader', handleCloseBooks);
+    eventDispatcher.on('close-reader', handleCloseReaderToLibrary);
     eventDispatcher.on('quit-app', closeBooks);
     return () => {
       window.removeEventListener('beforeunload', handleCloseBooks);
       eventDispatcher.off('beforereload', handleCloseBooks);
-      eventDispatcher.off('close-reader', handleCloseBooks);
+      eventDispatcher.off('close-reader', handleCloseReaderToLibrary);
       eventDispatcher.off('quit-app', closeBooks);
       unlistenOnCloseWindow?.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookKeys]);
+  }, [bookKeys, appService?.hasWindow]);
 
   const saveBookConfig = async (bookKey: string) => {
     const config = getConfig(bookKey);
@@ -180,7 +191,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
     }
   };
 
-  const saveConfigAndCloseBook = async (bookKey: string) => {
+  const saveConfigAndCloseBook = async (bookKey: string, keepTTSAlive = false) => {
     console.log('Closing book', bookKey);
 
     const viewState = getViewState(bookKey);
@@ -194,7 +205,13 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
     } catch {
       console.info('Error closing book', bookKey);
     }
-    eventDispatcher.dispatch('tts-stop', { bookKey });
+    // Closes that keep the webview alive (back to library, Android back, pane
+    // dismiss) let a live TTS session continue in the background;
+    // webview-destroying closes (quit, window close, reload) hard-stop so the
+    // media session and Android foreground service tear down with the page.
+    eventDispatcher.dispatch(keepTTSAlive ? 'tts-close-book' : 'tts-stop', {
+      bookKey,
+    });
     await saveBookConfig(bookKey);
     clearViewState(bookKey);
   };
@@ -208,10 +225,16 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
     navigateBackToLibrary();
   };
 
-  const closeBooks = async () => {
+  const handleCloseReaderToLibrary = () => {
+    return handleCloseBooks(true);
+  };
+
+  // Also wired directly to beforeunload/quit-app/window-close, which pass an
+  // event object: only a literal `true` keeps TTS alive.
+  const closeBooks = async (keepTTSAlive?: unknown) => {
     const settings = useSettingsStore.getState().settings;
     await Promise.all([
-      ...bookKeys.map(async (key) => await saveConfigAndCloseBook(key)),
+      ...bookKeys.map(async (key) => await saveConfigAndCloseBook(key, keepTTSAlive === true)),
       flushMindmapSync(),
     ]);
     await saveSettings(envConfig, settings);
@@ -220,7 +243,10 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const handleCloseBooks = throttle(closeBooks, 200);
 
   const handleCloseBooksToLibrary = async () => {
-    handleCloseBooks();
+    // SPA navigation in the main window (or on web) keeps the webview alive:
+    // TTS may continue headless. Non-main Tauri windows close their webview
+    // below, but their per-window TTS dies with the window either way.
+    handleCloseBooks(true);
     if (isTauriAppPlatform()) {
       const currentWindow = getCurrentWindow();
       if (currentWindow.label === 'main') {
@@ -237,7 +263,10 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   };
 
   const handleCloseBook = async (bookKey: string) => {
-    saveConfigAndCloseBook(bookKey);
+    // Header X / pane close: an SPA-side close on web and the main window.
+    // The Tauri reader-window branches below destroy their webview, which
+    // takes the per-window TTS with it either way.
+    saveConfigAndCloseBook(bookKey, true);
     if (sideBarBookKey === bookKey) {
       setSideBarBookKey(getNextBookKey(sideBarBookKey));
     }
@@ -246,7 +275,9 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       const openWithFiles = (await parseOpenWithFiles(appService)) || [];
       if (appService?.hasWindow) {
         if (openWithFiles.length > 0) {
-          tauriHandleOnCloseWindow(closeBooks);
+          void tauriHandleOnCloseWindow(closeBooks).catch((error) => {
+            console.info('Failed to register close-window listener:', error);
+          });
           return await tauriHandleClose();
         }
         const currentWindow = getCurrentWindow();
@@ -306,6 +337,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       {isSettingsDialogOpen && <SettingsDialog bookKey={settingsDialogBookKey} />}
       <Notebook />
       <MindmapView {...mindmapActions} />
+      <LocalSendManager />
       {showDetailsBook && (
         <BookDetailModal
           isOpen={!!showDetailsBook}

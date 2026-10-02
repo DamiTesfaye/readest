@@ -18,8 +18,14 @@ type RulerTestRect = {
 
 // Mutable doubles read lazily by the store mock so individual tests can drive
 // the progress range and the scrolled-mode visible contents.
-let mockProgress: { range: unknown; pageinfo: { current: number } } | null = null;
+let mockProgress: {
+  range: unknown;
+  location: string;
+  fraction: number;
+  pageinfo: { current: number };
+} | null = null;
 let mockContents: Array<{ doc: unknown }> = [];
+let mockColumnCount = 1;
 
 vi.mock('@/context/EnvContext', () => {
   // Stable envConfig ref; an unstable one would churn the throttled save → ruler
@@ -33,7 +39,9 @@ vi.mock('@/store/readerStore', () => {
   // renders); the ReadingRuler cache effect lists getView as a dependency, so an
   // unstable ref would make it re-run on every render.
   const getProgress = () => mockProgress;
-  const getView = () => ({ renderer: { columnCount: 1, getContents: () => mockContents } });
+  const getView = () => ({
+    renderer: { columnCount: mockColumnCount, getContents: () => mockContents },
+  });
   const store = { getProgress, getView };
   return { useReaderStore: () => store };
 });
@@ -101,6 +109,46 @@ const makeScrolledContents = (
   return [{ doc }];
 };
 
+const makePaginatedContent = (
+  frameLeft: number,
+  frameWidth: number,
+  lineRects: RulerTestRect[],
+): {
+  doc: unknown;
+  range: { getClientRects: () => RulerTestRect[]; startContainer: object };
+} => {
+  const doc: {
+    body: object;
+    createRange: () => unknown;
+    defaultView: { frameElement: { getBoundingClientRect: () => DOMRect } };
+  } = {
+    body: {},
+    createRange: () => range,
+    defaultView: {
+      frameElement: {
+        getBoundingClientRect: () =>
+          ({
+            x: frameLeft,
+            y: 0,
+            top: 0,
+            left: frameLeft,
+            right: frameLeft + frameWidth,
+            bottom: 1000,
+            width: frameWidth,
+            height: 1000,
+            toJSON: () => ({}),
+          }) as DOMRect,
+      },
+    },
+  };
+  const range = {
+    startContainer: { ownerDocument: doc },
+    selectNodeContents: () => {},
+    getClientRects: () => lineRects,
+  };
+  return { doc, range };
+};
+
 vi.mock('@/helpers/settings', () => ({
   saveViewSettings: (...args: unknown[]) => saveViewSettings(...args),
 }));
@@ -128,6 +176,7 @@ describe('ReadingRuler', () => {
     Range.prototype.getClientRects = function (this: Range) {
       return (textRects.get(this.startContainer) ?? []) as unknown as DOMRectList;
     };
+    mockColumnCount = 1;
 
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
       configurable: true,
@@ -280,12 +329,113 @@ describe('ReadingRuler', () => {
     expect(saveViewSettings).not.toHaveBeenCalled();
   });
 
+  it('resets on a new visible location within the same estimated page', async () => {
+    mockProgress = {
+      range: null,
+      location: 'epubcfi(/6/2!/4/2)',
+      fraction: 0.1,
+      pageinfo: { current: 4 },
+    };
+    const props = {
+      bookKey: 'book-1',
+      isVertical: false,
+      rtl: false,
+      lines: 2,
+      position: 96.9,
+      opacity: 0.5,
+      color: 'transparent' as const,
+      bookFormat: 'EPUB' as BookFormat,
+      viewSettings,
+      gridInsets: { top: 0, right: 0, bottom: 0, left: 0 },
+    };
+
+    const { container, rerender } = render(<ReadingRuler {...props} />);
+    const rulerTop = () =>
+      parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.top);
+    expect(rulerTop()).toBeCloseTo(96.9, 5);
+
+    // Foliate's pageinfo is a coarse estimated reading location, so adjacent
+    // visual pages can share it. The visible CFI still changes on the real turn.
+    mockProgress = {
+      range: null,
+      location: 'epubcfi(/6/2!/4/18)',
+      fraction: 0.11,
+      pageinfo: { current: 4 },
+    };
+    rerender(<ReadingRuler {...props} />);
+
+    await waitFor(() => {
+      expect(rulerTop()).toBeLessThan(20);
+    });
+  });
+
+  it('advances into the next visible document before turning a two-page spread', async () => {
+    mockColumnCount = 2;
+    const left = makePaginatedContent(0, 400, [
+      { top: 450, bottom: 490, left: 40, right: 360, width: 320, height: 40 },
+    ]);
+    const right = makePaginatedContent(400, 400, [
+      { top: 100, bottom: 140, left: 40, right: 360, width: 320, height: 40 },
+      { top: 200, bottom: 240, left: 40, right: 360, width: 320, height: 40 },
+    ]);
+    const nextSpread = makePaginatedContent(800, 400, [
+      { top: 100, bottom: 140, left: 40, right: 360, width: 320, height: 40 },
+    ]);
+    mockContents = [{ doc: left.doc }, { doc: right.doc }, { doc: nextSpread.doc }];
+    mockProgress = {
+      range: left.range,
+      location: 'epubcfi(/6/2!/4/2)',
+      fraction: 0.1,
+      pageinfo: { current: 4 },
+    };
+
+    const { container } = render(
+      <ReadingRuler
+        bookKey='book-1'
+        isVertical={false}
+        rtl={false}
+        lines={1}
+        position={47}
+        opacity={0.5}
+        color='transparent'
+        bookFormat='EPUB'
+        viewSettings={viewSettings}
+        gridInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      />,
+    );
+    const rulerLeft = () =>
+      parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.left);
+
+    await waitFor(() => expect(rulerLeft()).toBeLessThan(400));
+
+    const consumed = eventDispatcher.dispatchSync('reading-ruler-move', {
+      bookKey: 'book-1',
+      direction: 'forward',
+    });
+
+    expect(consumed).toBe(true);
+    await waitFor(() => expect(rulerLeft()).toBeGreaterThan(400));
+
+    expect(
+      eventDispatcher.dispatchSync('reading-ruler-move', {
+        bookKey: 'book-1',
+        direction: 'forward',
+      }),
+    ).toBe(true);
+    expect(
+      eventDispatcher.dispatchSync('reading-ruler-move', {
+        bookKey: 'book-1',
+        direction: 'forward',
+      }),
+    ).toBe(false);
+  });
+
   // Regression: issue #4386 — in scrolled mode the ruler used to re-snap on every
   // relocate fired while scrolling, so its position crept down the page. It must
   // stay fixed on screen while scrolling; snapping only happens on click.
   it('keeps the ruler fixed on screen while scrolling in scrolled mode', () => {
     const lineRects = makeLineRects(50, 100, 40);
-    mockProgress = { range: {}, pageinfo: { current: 0 } };
+    mockProgress = { range: {}, location: 'page-1', fraction: 0.1, pageinfo: { current: 0 } };
     mockContents = makeScrolledContents(0, lineRects);
     const scrolledSettings = { ...viewSettings, scrolled: true } as ViewSettings;
 
@@ -312,7 +462,7 @@ describe('ReadingRuler', () => {
 
     // Simulate scrolling: a new relocate range arrives with the content shifted
     // up, but the section/page is unchanged.
-    mockProgress = { range: {}, pageinfo: { current: 0 } };
+    mockProgress = { range: {}, location: 'page-1', fraction: 0.1, pageinfo: { current: 0 } };
     mockContents = makeScrolledContents(-130, lineRects);
     rerender(<ReadingRuler {...props} />);
 
@@ -324,7 +474,12 @@ describe('ReadingRuler', () => {
   // progress right-to-left, so advancing the ruler forward must move the band to
   // the LEFT. It used to run backwards because rtl was false for vertical-rl.
   it('advances the vertical-rl ruler band to the left on a forward move', async () => {
-    mockProgress = { range: makeVerticalColumnsRange(), pageinfo: { current: 0 } };
+    mockProgress = {
+      range: makeVerticalColumnsRange(),
+      location: 'page-1',
+      fraction: 0.1,
+      pageinfo: { current: 0 },
+    };
     const verticalSettings = { ...viewSettings } as ViewSettings;
 
     const { container } = render(
@@ -365,7 +520,12 @@ describe('ReadingRuler', () => {
 
   // The vertical-lr (Mongolian) counterpart moves the other way: forward => right.
   it('advances the vertical-lr ruler band to the right on a forward move', async () => {
-    mockProgress = { range: makeVerticalColumnsRange(), pageinfo: { current: 0 } };
+    mockProgress = {
+      range: makeVerticalColumnsRange(),
+      location: 'page-1',
+      fraction: 0.1,
+      pageinfo: { current: 0 },
+    };
     const verticalSettings = { ...viewSettings } as ViewSettings;
 
     const { container } = render(
@@ -403,9 +563,76 @@ describe('ReadingRuler', () => {
     });
   });
 
+  // Regression: issue #5491 — resizing repaginates the book and fires a relocate
+  // with a new location; the ruler used to treat that as a page turn and snap to
+  // the first/last line group of the page. It must instead re-attach to the same
+  // text via the anchor captured when the band was placed.
+  it('re-anchors the band to the same text after a resize reflow', async () => {
+    // The anchored text's line: at 300 before the reflow, at 600 after.
+    const anchorRect = { top: 300, bottom: 340, left: 50, right: 750, width: 700, height: 40 };
+    const doc: Record<string, unknown> = {};
+    const anchorRange = {
+      startContainer: { nodeType: 3, length: 20, ownerDocument: doc },
+      startOffset: 0,
+      setStart: () => {},
+      setEnd: () => {},
+      getClientRects: () => [anchorRect],
+    };
+    Object.assign(doc, {
+      defaultView: {},
+      caretRangeFromPoint: () => anchorRange,
+    });
+    const makeRange = (rects: RulerTestRect[]) => ({
+      startContainer: { ownerDocument: doc },
+      getClientRects: () => rects,
+    });
+
+    mockProgress = {
+      range: makeRange(makeLineRects(9, 100, 40)),
+      location: 'epubcfi(/6/2!/4/2)',
+      fraction: 0.1,
+      pageinfo: { current: 4 },
+    };
+    const props = {
+      bookKey: 'book-1',
+      isVertical: false,
+      rtl: false,
+      lines: 2,
+      position: 33,
+      opacity: 0.5,
+      color: 'transparent' as const,
+      bookFormat: 'EPUB' as BookFormat,
+      viewSettings,
+      gridInsets: { top: 0, right: 0, bottom: 0, left: 0 },
+    };
+
+    const { container, rerender } = render(<ReadingRuler {...props} />);
+    const rulerTop = () =>
+      parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.top);
+    // Mount snaps to the line at 300 -> block 300..440 -> centered at 37%.
+    expect(rulerTop()).toBeCloseTo(37, 1);
+
+    // Reflow: the same text now lives at 600. The location CFI changes and the
+    // fraction drifts down, which the old code read as a backward page turn.
+    anchorRect.top = 600;
+    anchorRect.bottom = 640;
+    mockProgress = {
+      range: makeRange(makeLineRects(9, 100, 40)),
+      location: 'epubcfi(/6/2!/4/18)',
+      fraction: 0.09,
+      pageinfo: { current: 4 },
+    };
+    rerender(<ReadingRuler {...props} />);
+
+    await waitFor(() => {
+      // Band re-attaches to the anchored text: block 600..740 -> 67%.
+      expect(rulerTop()).toBeCloseTo(67, 1);
+    });
+  });
+
   it('still snaps the ruler to lines when advancing by click in scrolled mode', async () => {
     const lineRects = makeLineRects(50, 100, 40);
-    mockProgress = { range: {}, pageinfo: { current: 0 } };
+    mockProgress = { range: {}, location: 'page-1', fraction: 0.1, pageinfo: { current: 0 } };
     mockContents = makeScrolledContents(0, lineRects);
     const scrolledSettings = { ...viewSettings, scrolled: true } as ViewSettings;
 
@@ -443,7 +670,12 @@ describe('ReadingRuler', () => {
       { top: 0, bottom: 120, left: 50, right: 750, width: 700, height: 120 },
       ...makeLineRects(8, 50, 40).map((r) => ({ ...r, top: r.top + 130, bottom: r.bottom + 130 })),
     ];
-    mockProgress = { range: makeTextRange(lineRects), pageinfo: { current: 0 } };
+    mockProgress = {
+      range: makeTextRange(lineRects),
+      location: 'page-1',
+      fraction: 0.1,
+      pageinfo: { current: 0 },
+    };
 
     const { container } = render(
       <ReadingRuler
@@ -472,7 +704,13 @@ describe('ReadingRuler', () => {
   it('measures the page again when a tap moves the ruler', async () => {
     const linesFrom = (top: number, pitch: number) =>
       makeLineRects(10, pitch, 40).map((r) => ({ ...r, top: r.top + top, bottom: r.bottom + top }));
-    mockProgress = { range: makeTextRange(linesFrom(100, 50)), pageinfo: { current: 0 } };
+    const progress = {
+      range: makeTextRange(linesFrom(100, 50)) as unknown,
+      location: 'page-1',
+      fraction: 0.1,
+      pageinfo: { current: 0 },
+    };
+    mockProgress = progress;
 
     const { container } = render(
       <ReadingRuler
@@ -492,7 +730,7 @@ describe('ReadingRuler', () => {
       parseFloat((container.querySelector('.ruler') as HTMLDivElement).style.top);
     await waitFor(() => expect(rulerTop()).toBeCloseTo(12, 5));
 
-    mockProgress.range = makeTextRange(linesFrom(100, 80));
+    progress.range = makeTextRange(linesFrom(100, 80));
     eventDispatcher.dispatchSync('reading-ruler-move', { bookKey: 'book-1', direction: 'forward' });
 
     await waitFor(() => expect(rulerTop()).toBeCloseTo(20, 5));

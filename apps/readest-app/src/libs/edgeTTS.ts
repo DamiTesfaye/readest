@@ -1,5 +1,6 @@
 import { md5 } from 'js-md5';
 import WebSocket from 'isomorphic-ws';
+import type TauriWebSocketConnection from '@tauri-apps/plugin-websocket';
 import { randomMd5 } from '@/utils/misc';
 import { LRUCache } from '@/utils/lru';
 import { genSSML } from '@/utils/ssml';
@@ -343,22 +344,30 @@ export const parseWordBoundariesHeader = (value: string | null): TTSWordBoundary
   }
 };
 
-const hashPayload = (payload: EdgeTTSPayload): string => {
+export const hashTTSPayload = (payload: EdgeTTSPayload): string => {
   const base = JSON.stringify(payload);
   return md5(base);
 };
 
 export type EDGE_TTS_PROTOCOL = 'wss' | 'https';
 
+// Inactivity budget for the Tauri WebSocket transport. Synthesis frames
+// stream continuously once the request is sent; a socket silent this long is
+// dead and would otherwise hang playback forever (#5230).
+const WS_INACTIVITY_TIMEOUT_MS = 30_000;
+
 export class EdgeSpeechTTS {
   static voices = genVoiceList(EDGE_TTS_VOICES);
   private static audioCache = new LRUCache<string, Blob>(200);
-  private static audioUrlCache = new LRUCache<string, string>(200, (_, url) => {
-    if (url.startsWith('blob:')) {
-      URL.revokeObjectURL(url);
-    }
-  });
   private static boundariesCache = new LRUCache<string, TTSWordBoundary[]>(200);
+  // In-flight fetches keyed by payload hash. The LRU dedupes storage, not
+  // requests: the playback scheduler and the preload paths race for the same
+  // sentences at every paragraph start, and without this map each racer opens
+  // its own WSS connection for the same audio.
+  private static inflight = new Map<
+    string,
+    Promise<{ blob: Blob; boundaries: TTSWordBoundary[] }>
+  >();
   private protocol: EDGE_TTS_PROTOCOL = 'wss';
 
   constructor(protocol?: EDGE_TTS_PROTOCOL) {
@@ -471,24 +480,61 @@ export class EdgeSpeechTTS {
     const config = genSendContent(configHeaders, configContent);
 
     if (isTauriAppPlatform()) {
+      // Every exit path must settle this promise (#5230): the plugin's channel
+      // delivers a server close as a `Close` message and a connection read
+      // error as a bare string (no `type` field) — ignoring them left the
+      // promise pending forever, wedging the whole speak pipeline (and the
+      // static inflight map poisoned that sentence until app restart).
       return new Promise(async (resolve, reject) => {
+        let ws: TauriWebSocketConnection | null = null;
+        let settled = false;
+        let unlisten: (() => void) | null = null;
+        let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+        const cleanup = () => {
+          if (inactivityTimer !== null) clearTimeout(inactivityTimer);
+          inactivityTimer = null;
+          unlisten?.();
+          unlisten = null;
+          void ws?.disconnect().catch(() => {});
+        };
+        const settle = (complete: () => void) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          complete();
+        };
+        // Frames stream steadily during synthesis, so prolonged silence means
+        // a half-open socket (e.g. a mobile network handover) that will never
+        // error or close on its own. Reject so the caller's retry can open a
+        // fresh connection.
+        const armInactivityTimer = () => {
+          if (inactivityTimer !== null) clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(() => {
+            settle(() => reject(new Error('WebSocket timed out waiting for audio.')));
+          }, WS_INACTIVITY_TIMEOUT_MS);
+        };
         try {
           const TauriWebSocket = (await import('@tauri-apps/plugin-websocket')).default;
-          const ws = await TauriWebSocket.connect(url, { headers: baseHeaders });
+          ws = await TauriWebSocket.connect(url, { headers: baseHeaders });
           let audioData = new ArrayBuffer(0);
           const boundaries: TTSWordBoundary[] = [];
-          const messageUnlisten = await ws.addListener((msg) => {
+          unlisten = ws.addListener((msg) => {
+            if (settled) return;
+            armInactivityTimer();
+            if (typeof msg === 'string') {
+              return settle(() => reject(new Error(`WebSocket error occurred: ${msg}`)));
+            }
             if (msg.type === 'Text') {
               const { headers, body } = getHeadersAndData(msg.data as string);
               if (headers['Path'] === 'audio.metadata') {
                 boundaries.push(...parseAudioMetadataBody(body.trim()));
               } else if (headers['Path'] === 'turn.end') {
-                ws.disconnect();
-                messageUnlisten();
-                if (!audioData.byteLength) {
-                  return reject(new Error('No audio data received.'));
-                }
-                resolve({ response: new Response(audioData), boundaries });
+                settle(() => {
+                  if (!audioData.byteLength) {
+                    return reject(new Error('No audio data received.'));
+                  }
+                  resolve({ response: new Response(audioData), boundaries });
+                });
               }
             } else if (msg.type === 'Binary') {
               let buffer: ArrayBufferLike;
@@ -506,12 +552,16 @@ export class EdgeSpeechTTS {
                 merged.set(new Uint8Array(newBody), audioData.byteLength);
                 audioData = merged.buffer;
               }
+            } else if (msg.type === 'Close') {
+              settle(() => reject(new Error('WebSocket closed before audio completed.')));
             }
+            // Ping/Pong frames only refresh the inactivity timer.
           });
+          armInactivityTimer();
           await ws.send(config);
           await ws.send(content);
         } catch (error) {
-          reject(new Error(`WebSocket error occurred: ${error}`));
+          settle(() => reject(new Error(`WebSocket error occurred: ${error}`)));
         }
       });
     } else if (isCloudflareWorkers()) {
@@ -740,25 +790,42 @@ export class EdgeSpeechTTS {
     return this.#fetchEdgeSpeech(payload);
   }
 
-  async createAudio(
+  // Fetch (or reuse) the audio blob + boundaries for a payload, deduplicating
+  // both stored results (LRU) and in-flight requests (inflight map).
+  async #fetchAndCache(
     payload: EdgeTTSPayload,
-  ): Promise<{ url: string; boundaries: TTSWordBoundary[] }> {
-    const cacheKey = hashPayload(payload);
-    const cachedUrl = EdgeSpeechTTS.audioUrlCache.get(cacheKey);
-    if (cachedUrl) {
-      return { url: cachedUrl, boundaries: EdgeSpeechTTS.boundariesCache.get(cacheKey) ?? [] };
+  ): Promise<{ blob: Blob; boundaries: TTSWordBoundary[] }> {
+    const cacheKey = hashTTSPayload(payload);
+    const cachedBlob = EdgeSpeechTTS.audioCache.get(cacheKey);
+    if (cachedBlob) {
+      return { blob: cachedBlob, boundaries: EdgeSpeechTTS.boundariesCache.get(cacheKey) ?? [] };
     }
-    const { response, boundaries } = await this.#fetchEdgeSpeech(payload);
-    const arrayBuffer = await response.arrayBuffer();
-    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
-    const objectUrl = URL.createObjectURL(blob);
-    EdgeSpeechTTS.audioCache.set(cacheKey, blob);
-    EdgeSpeechTTS.audioUrlCache.set(cacheKey, objectUrl);
-    EdgeSpeechTTS.boundariesCache.set(cacheKey, boundaries);
-    return { url: objectUrl, boundaries };
+    const pending = EdgeSpeechTTS.inflight.get(cacheKey);
+    if (pending) return pending;
+    const promise = (async () => {
+      const { response, boundaries } = await this.#fetchEdgeSpeech(payload);
+      const arrayBuffer = await response.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+      EdgeSpeechTTS.audioCache.set(cacheKey, blob);
+      EdgeSpeechTTS.boundariesCache.set(cacheKey, boundaries);
+      return { blob, boundaries };
+    })();
+    EdgeSpeechTTS.inflight.set(cacheKey, promise);
+    try {
+      return await promise;
+    } finally {
+      EdgeSpeechTTS.inflight.delete(cacheKey);
+    }
   }
 
-  async createAudioUrl(payload: EdgeTTSPayload): Promise<string> {
-    return (await this.createAudio(payload)).url;
+  // Audio bytes for Web Audio decoding. The cache keeps a Blob and every call
+  // mints a fresh ArrayBuffer copy via blob.arrayBuffer() — WebKit's
+  // decodeAudioData detaches its input, so handing out a shared buffer would
+  // break replay from cache on Safari.
+  async createAudioData(
+    payload: EdgeTTSPayload,
+  ): Promise<{ data: ArrayBuffer; boundaries: TTSWordBoundary[] }> {
+    const { blob, boundaries } = await this.#fetchAndCache(payload);
+    return { data: await blob.arrayBuffer(), boundaries };
   }
 }

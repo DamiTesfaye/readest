@@ -2,6 +2,7 @@ import { BookMetadata } from '@/libs/document';
 import { TTSHighlightOptions } from '@/services/tts/types';
 import { TTSHighlightGranularity } from '@/services/tts/types';
 import { TTSMediaMetadataMode } from '@/services/tts/types';
+import { TTSPlayerStyle } from '@/services/tts/types';
 import type { AnnotationLinkType } from '@/utils/deeplink';
 import { AnnotationToolType } from './annotator';
 
@@ -87,6 +88,12 @@ export interface Book {
   url?: string;
   // if Book is a transient local book we can load the book content via filePath
   filePath?: string;
+  // Other on-disk paths that resolved to this same book — a watched folder
+  // holding the same file twice under different names, or a copy left behind
+  // after a rename. Only `filePath` is ever read from; these are remembered so
+  // the auto-import scan doesn't treat a known duplicate as a new file on every
+  // pass. Device-local like `filePath`: never published to peers.
+  altFilePaths?: string[];
   // Partial md5 hash of the book file, used as the unique identifier
   hash: string;
   // Metadata md5 hash, used to aggregate different versions of the same book
@@ -108,6 +115,12 @@ export interface Book {
   createdAt: number;
   updatedAt: number;
   deletedAt?: number | null;
+  /**
+   * Positive authorization to delete this book's directory from third-party
+   * file-sync providers. Must equal the current `deletedAt` tombstone; a plain
+   * tombstone hides the library row but preserves provider bytes (#5695).
+   */
+  fileSyncDeletionRequestedAt?: number | null;
 
   uploadedAt?: number | null;
   downloadedAt?: number | null;
@@ -122,8 +135,16 @@ export interface Book {
   readingStatus?: ReadingStatus;
   readingStatusUpdatedAt?: number; // ms; bumped only when readingStatus changes
   primaryLanguage?: string;
+  // The book carries its own recorded narration (EPUB 3 Media Overlays), so the
+  // library can badge it without opening the file. Derived from the file on
+  // every import, like `format` — not user data, so it needs no LWW timestamp.
+  hasNarration?: boolean;
 
   metadata?: BookMetadata;
+  // Field-level LWW timestamp for the metadata group (title, author, tags,
+  // metadata), so a page-turn that wins whole-row LWW on updatedAt cannot
+  // clobber a metadata edit (mirrors readingStatusUpdatedAt / coverUpdatedAt).
+  metadataUpdatedAt?: number | null;
 }
 
 export interface BookGroupType {
@@ -192,6 +213,7 @@ export interface BookLayout {
   compactMarginPx?: number; // deprecated
   gapPercent: number;
   scrolled: boolean;
+  scrolledDirection: 'vertical' | 'horizontal';
   webtoonMode: boolean;
   noContinuousScroll: boolean;
   disableClick: boolean;
@@ -209,6 +231,12 @@ export interface BookLayout {
   scrollingOverlap: number;
   allowScript: boolean;
   hideScrollbar: boolean;
+  /* Auto Scroll (#4998) speed as a percentage; 100 = AUTO_SCROLL_BASE_PX_PER_SEC. */
+  autoScrollSpeed: number;
+  /* True when a session was still running as the book was closed, so reopening
+     the book resumes it (#5631). Per book: written with the global write
+     skipped, and cleared by any explicit stop. */
+  autoScrollRunning: boolean;
 }
 
 export interface BookStyle {
@@ -271,7 +299,9 @@ export interface BookLanguage {
   convertChineseVariant: ConvertChineseVariant;
 }
 
-export type ProgressBarMode = 'remaining' | 'progress' | 'battery' | 'time' | 'all' | 'none';
+// 'push' slides the whole strip; 'slide' and 'curl' layer the outgoing page
+// over the still incoming page (Apple Books style, needs View Transitions).
+export type PageTurnStyle = 'push' | 'slide' | 'curl';
 export interface ViewConfig {
   sideBarTab: string;
   uiLanguage: string;
@@ -290,13 +320,12 @@ export interface ViewConfig {
   use24HourClock: boolean;
   showCurrentBatteryStatus: boolean;
   showBatteryPercentage: boolean;
-  tapToToggleFooter: boolean;
   showPaginationButtons: boolean;
   progressStyle: 'percentage' | 'fraction' | 'reference';
   referencePageCount: number;
-  progressInfoMode: ProgressBarMode;
 
   animated: boolean;
+  pageTurnStyle: PageTurnStyle;
   isEink: boolean;
   isColorEink: boolean;
 
@@ -311,12 +340,20 @@ export interface ViewConfig {
 
 export interface TTSConfig {
   ttsRate: number;
+  ttsSentenceGap: number;
+  ttsParagraphGap: number;
   ttsVoice: string;
+  // Prefer the book's own recorded narration (EPUB 3 Media Overlays) over
+  // synthesized speech. Defaults on, so a read-along book is read by its
+  // narrator; picking a synthetic voice while that book is open clears it.
+  // Distinct from ttsVoice because ttsVoice inherits the global default and so
+  // cannot tell "never chose" from "chose a synthetic voice for this book".
+  ttsUseNarration: boolean;
   ttsLocation: string;
-  showTTSBar: boolean;
   ttsHighlightOptions: TTSHighlightOptions;
   ttsHighlightGranularity: TTSHighlightGranularity;
   ttsMediaMetadata: TTSMediaMetadataMode;
+  ttsPlayerStyle: TTSPlayerStyle;
 }
 
 export interface TranslatorConfig {
@@ -327,10 +364,17 @@ export interface TranslatorConfig {
   ttsReadAloudText: string;
 }
 
+// Markdown and plain text render the note template; JSON emits the
+// machine-readable file that Readest itself can import back (#5400).
+export type NoteExportFormat = 'markdown' | 'text' | 'json';
+
 export interface NoteExportConfig {
   includeTitle: boolean;
   includeAuthor: boolean;
   includeDate: boolean;
+  // Include a public cover image link; requires publishing the cover to the
+  // public bucket (sign-in) unless the book already has a public cover URL.
+  includeCoverImage: boolean;
   includeChapterTitles: boolean;
   includeQuotes: boolean;
   includeNotes: boolean;
@@ -341,7 +385,10 @@ export interface NoteExportConfig {
   noteSeparator: string;
   useCustomTemplate: boolean;
   customTemplate: string;
+  // Superseded by `exportFormat`; kept so configs written before the JSON
+  // option existed still pick the right format on load.
   exportAsPlainText: boolean;
+  exportFormat: NoteExportFormat;
   // Highlight colors/styles to omit from the export. Empty arrays export
   // everything; storing exclusions keeps colors/styles added later included
   // by default (#4801).
@@ -442,8 +489,8 @@ export interface BookSearchConfig {
   mode: SearchMode;
   matchCase: boolean;
   matchDiacritics: boolean;
-  fuzzy: boolean;
-  ignorePunctuation: boolean;
+  fuzzy?: boolean;
+  ignorePunctuation?: boolean;
   // nearby-words: maximum number of words separating the matched words
   nearbyWords?: number;
   /** @deprecated since schema v3 — mirrors `mode === 'whole-words'`; kept for sync wire back-compat. */
@@ -455,6 +502,12 @@ export interface BookSearchConfig {
   // pre-cached search results
   results?: BookSearchResult[] | BookSearchMatch[] | null;
 }
+
+export type LibrarySearchConfig = Omit<BookSearchConfig, 'mode'> & {
+  mode: SearchMode | 'fuzzy';
+};
+
+export type LibrarySearchTarget = 'books' | 'text';
 
 export interface SearchExcerpt {
   pre: string;
@@ -469,6 +522,28 @@ export interface BookSearchMatch {
   // nearby-words: per-word CFIs to highlight (>= 2); absent for single-span matches
   cfis?: string[];
   excerpt: SearchExcerpt;
+}
+
+// Text-offset locator into a section's extracted text. Library search results
+// carry locators instead of CFIs; the CFI is resolved lazily on click so
+// searching never needs live DOM Ranges (see librarySearchService).
+export interface SearchResultLocator {
+  section: number;
+  start: number;
+  end: number;
+  // fuzzy/nearby: matched sub-spans within [start, end)
+  runs?: { start: number; end: number }[];
+}
+
+export interface LibrarySearchMatch {
+  locator: SearchResultLocator;
+  excerpt: SearchExcerpt;
+}
+
+export interface LibrarySearchSectionResult {
+  index: number;
+  label: string;
+  subitems: LibrarySearchMatch[];
 }
 
 export interface BookSearchResult {

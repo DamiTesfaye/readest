@@ -46,6 +46,23 @@ export interface SectionItem {
 
   loadText?: () => Promise<string | null>;
   createDocument: () => Promise<Document>;
+
+  // EPUB 3 Media Overlays: the manifest item of this section's SMIL file, or
+  // null when the section has no recorded narration. Populated by foliate's
+  // EPUB parser from the spine item's `media-overlay` attribute.
+  mediaOverlay?: { href: string; id: string } | null;
+}
+
+// A Calibre custom column embedded in the OPF as "user metadata"; parsed by
+// foliate-js's getMetadata (see getCalibreUserMetadata in epub.js). `value`
+// is an array for multi-value columns, `extra` is the series index for
+// datatype 'series'.
+export interface CalibreCustomColumn {
+  label: string;
+  name: string;
+  datatype: string;
+  value: string | number | boolean | string[];
+  extra?: number;
 }
 
 export type BookMetadata = {
@@ -57,7 +74,7 @@ export type BookMetadata = {
   publisher?: string;
   published?: string;
   description?: string;
-  subject?: string | string[] | Contributor;
+  subject?: string | string[] | Contributor | Contributor[];
   identifier?: string;
   isbn?: string;
   altIdentifier?: string | string[] | Identifier;
@@ -74,6 +91,9 @@ export type BookMetadata = {
   coverImageFile?: string;
   coverImageUrl?: string;
   coverImageBlobUrl?: string;
+
+  calibreColumns?: CalibreCustomColumn[];
+  feedUrl?: string;
 };
 
 export interface BookDoc {
@@ -90,6 +110,21 @@ export interface BookDoc {
   transformTarget?: EventTarget;
   splitTOCHref(href: string): Array<string | number>;
   getCover(): Promise<Blob | null>;
+  // Present on formats that carry a real spine (EPUB); absent for the ones
+  // foliate-js gives synthetic per-index CFIs. Mirrors `view.resolveCFI`.
+  resolveCFI?(cfi: string): { index: number; anchor?: (doc: Document) => Range | number } | null;
+  // Formats backed by live parser state must be released explicitly: a PDF
+  // book holds a pdf.js document whose dedicated worker survives GC, so
+  // dropping the reference leaks the whole parsed file (#5387).
+  destroy?(): void | Promise<void>;
+
+  // Container access, present on EPUB. Recorded narration needs both: the SMIL
+  // files as text, the audio as blobs. Hrefs are zip paths, as resolved on
+  // manifest items.
+  loadText?(href: string): Promise<string | null>;
+  loadBlob?(href: string): Promise<Blob>;
+  // EPUB 3 `media:*` package metadata, used to name the narrator.
+  media?: { narrator?: string; duration?: number };
 }
 
 export const EXTS: Record<BookFormat, string> = {

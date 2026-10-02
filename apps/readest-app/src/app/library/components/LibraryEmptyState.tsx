@@ -7,7 +7,7 @@ import { useAppRouter } from '@/hooks/useAppRouter';
 import { navigateToLogin } from '@/utils/nav';
 
 interface LibraryEmptyStateProps {
-  onImport: () => void;
+  onImport: (anchor: HTMLElement) => void;
 }
 
 const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
@@ -33,11 +33,12 @@ const LibraryEmptyState: React.FC<LibraryEmptyStateProps> = ({ onImport }) => {
         <div className='flex w-full max-w-xs flex-col items-center gap-3'>
           <button
             type='button'
+            aria-haspopup='menu'
             className={clsx(
               'bg-base-300 eink-bordered hover:bg-base-300/70 flex h-9 items-center rounded-lg px-4',
               'font-sans text-sm font-medium',
             )}
-            onClick={onImport}
+            onClick={(event) => onImport(event.currentTarget)}
           >
             {_('Import to Library')}
           </button>

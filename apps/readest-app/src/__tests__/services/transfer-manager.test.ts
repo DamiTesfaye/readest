@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { useTransferStore, TransferItem } from '@/store/transferStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import type { SystemSettings } from '@/types/settings';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 // The transferManager module is a singleton, so we need to mock its
@@ -105,6 +107,16 @@ beforeEach(() => {
   resetTransferManager();
   vi.clearAllMocks();
   localStorage.clear();
+  // Book uploads are gated on the selected cloud sync provider and
+  // deferred until settings hydrate; hydrate with Readest Cloud selected
+  // so the pre-gating behavior under test is preserved.
+  useSettingsStore.setState({
+    settings: {
+      version: 1,
+      webdav: { enabled: false },
+      googleDrive: { enabled: false },
+    } as SystemSettings,
+  });
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -524,6 +536,90 @@ describe('TransferManager', () => {
       const stored = JSON.parse(localStorage.getItem('readest_transfer_queue')!);
       expect(stored.transfers[id1]).toBeUndefined();
       expect(stored.transfers[id2]).toBeDefined();
+    });
+  });
+
+  // ── clearCompleted ───────────────────────────────────────────────
+  describe('clearCompleted', () => {
+    test('removes completed transfers, keeps others, and persists the queue', async () => {
+      const book1 = makeBook({ hash: 'h1', title: 'B1' });
+      const book2 = makeBook({ hash: 'h2', title: 'B2' });
+      const appService = makeAppService();
+      await transferManager.initialize(
+        appService as never,
+        () => [book1, book2],
+        vi.fn(),
+        translationFn,
+      );
+
+      transferManager.pauseQueue();
+      const id1 = transferManager.queueUpload(book1)!;
+      const id2 = transferManager.queueDownload(book2)!;
+      useTransferStore.getState().setTransferStatus(id1, 'completed');
+
+      transferManager.clearCompleted();
+
+      expect(useTransferStore.getState().transfers[id1]).toBeUndefined();
+      expect(useTransferStore.getState().transfers[id2]).toBeDefined();
+
+      const stored = JSON.parse(localStorage.getItem('readest_transfer_queue')!);
+      expect(stored.transfers[id1]).toBeUndefined();
+      expect(stored.transfers[id2]).toBeDefined();
+    });
+  });
+
+  // ── clearFailed ──────────────────────────────────────────────────
+  describe('clearFailed', () => {
+    test('removes failed/cancelled transfers, keeps others, and persists the queue', async () => {
+      const book1 = makeBook({ hash: 'h1', title: 'B1' });
+      const book2 = makeBook({ hash: 'h2', title: 'B2' });
+      const appService = makeAppService();
+      await transferManager.initialize(
+        appService as never,
+        () => [book1, book2],
+        vi.fn(),
+        translationFn,
+      );
+
+      transferManager.pauseQueue();
+      const id1 = transferManager.queueUpload(book1)!;
+      const id2 = transferManager.queueDownload(book2)!;
+      useTransferStore.getState().setTransferStatus(id1, 'failed', 'boom');
+
+      transferManager.clearFailed();
+
+      expect(useTransferStore.getState().transfers[id1]).toBeUndefined();
+      expect(useTransferStore.getState().transfers[id2]).toBeDefined();
+
+      const stored = JSON.parse(localStorage.getItem('readest_transfer_queue')!);
+      expect(stored.transfers[id1]).toBeUndefined();
+      expect(stored.transfers[id2]).toBeDefined();
+    });
+  });
+
+  // ── clearAll ─────────────────────────────────────────────────────
+  describe('clearAll', () => {
+    test('removes every transfer and persists the empty queue', async () => {
+      const book1 = makeBook({ hash: 'h1', title: 'B1' });
+      const book2 = makeBook({ hash: 'h2', title: 'B2' });
+      const appService = makeAppService();
+      await transferManager.initialize(
+        appService as never,
+        () => [book1, book2],
+        vi.fn(),
+        translationFn,
+      );
+
+      transferManager.pauseQueue();
+      transferManager.queueUpload(book1);
+      transferManager.queueDownload(book2);
+
+      transferManager.clearAll();
+
+      expect(Object.keys(useTransferStore.getState().transfers)).toHaveLength(0);
+
+      const stored = JSON.parse(localStorage.getItem('readest_transfer_queue')!);
+      expect(Object.keys(stored.transfers)).toHaveLength(0);
     });
   });
 
@@ -980,6 +1076,102 @@ describe('TransferManager', () => {
       const t = useTransferStore.getState().transfers[id!]!;
       expect(t.type).toBe('delete');
       expect(t.replicaFiles?.map((f) => f.logical)).toEqual(['webster.mdx', 'webster.mdd']);
+    });
+  });
+
+  // Replica transfers are background sync (fonts / textures / dictionaries /
+  // OPDS catalogs pull and push on their own). They must never toast — a
+  // library with a dozen synced fonts otherwise fires a dozen success toasts
+  // on a fresh device, and a dozen "Failed to download file" toasts when the
+  // download breaks (issue #5675).
+  describe('replica transfers are silent background work', () => {
+    const makeReplicaAppService = () =>
+      ({
+        uploadBook: vi.fn().mockResolvedValue(undefined),
+        downloadBook: vi.fn().mockResolvedValue(undefined),
+        deleteBook: vi.fn().mockResolvedValue(undefined),
+        uploadReplicaFile: vi.fn().mockResolvedValue(undefined),
+        downloadReplicaFile: vi.fn().mockResolvedValue(undefined),
+        isMacOSApp: false,
+      }) as Record<string, unknown>;
+
+    const replicaFiles = [{ logical: 'Georgia.ttf', lfp: 'b1/Georgia.ttf', byteSize: 10 }];
+
+    const toastsOfType = (type: string) =>
+      (eventDispatcher.dispatch as Mock).mock.calls.filter(
+        (c) => c[0] === 'toast' && (c[1] as Record<string, unknown>)?.['type'] === type,
+      );
+
+    test('queueReplicaDownload marks the transfer as background', async () => {
+      const appService = makeReplicaAppService();
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      const id = transferManager.queueReplicaDownload(
+        'font',
+        'c1',
+        'Georgia Regular',
+        replicaFiles,
+        'Fonts',
+      );
+      expect(useTransferStore.getState().transfers[id!]!.isBackground).toBe(true);
+    });
+
+    test('queueReplicaUpload marks the transfer as background', async () => {
+      const appService = makeReplicaAppService();
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      const id = transferManager.queueReplicaUpload(
+        'font',
+        'c1',
+        'Georgia Regular',
+        replicaFiles,
+        'Fonts',
+      );
+      expect(useTransferStore.getState().transfers[id!]!.isBackground).toBe(true);
+    });
+
+    test('a successful replica download dispatches no toast', async () => {
+      const appService = makeReplicaAppService();
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      transferManager.queueReplicaDownload('font', 'c1', 'Georgia Regular', replicaFiles, 'Fonts');
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(toastsOfType('info')).toHaveLength(0);
+    });
+
+    test('a failing replica download dispatches no error toast once retries are exhausted', async () => {
+      const appService = makeReplicaAppService();
+      // Native Tauri rejections arrive as plain strings, which is what the
+      // real os-error-2 failure looks like.
+      appService['downloadReplicaFile'] = vi
+        .fn()
+        .mockRejectedValue('No such file or directory (os error 2)');
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      const id = transferManager.queueReplicaDownload(
+        'font',
+        'c1',
+        'Georgia Regular',
+        replicaFiles,
+        'Fonts',
+      );
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(useTransferStore.getState().transfers[id!]!.status).toBe('failed');
+      expect(toastsOfType('error')).toHaveLength(0);
+    });
+
+    test('a failing foreground book upload still toasts', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Loud Book' });
+      const appService = makeReplicaAppService();
+      (appService['uploadBook'] as Mock).mockRejectedValue(new Error('Network fail'));
+      await transferManager.initialize(appService as never, () => [book], vi.fn(), translationFn);
+
+      transferManager.queueUpload(book);
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(toastsOfType('error').length).toBeGreaterThan(0);
     });
   });
 });

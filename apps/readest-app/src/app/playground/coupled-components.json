@@ -1410,7 +1410,7 @@
   {
     "name": "ThemeColorSelector",
     "names": ["ThemeColorSelector"],
-    "path": "components/settings/color/ThemeColorSelector.tsx",
+    "path": "components/settings/theme/ThemeColorSelector.tsx",
     "dir": "components/settings/color",
     "status": "used",
     "coupling": ["data-hooks"]

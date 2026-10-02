@@ -6,7 +6,8 @@ export type BaseColor = {
   primary: string;
 };
 
-export type ThemeMode = 'auto' | 'light' | 'dark';
+/** `ambient` follows the ambient light sensor (lux → light/dark), Android-first. */
+export type ThemeMode = 'auto' | 'light' | 'dark' | 'ambient';
 
 export type Palette = {
   'base-100': string;
@@ -43,7 +44,7 @@ export type Theme = {
   // Hidden themes back a real daisyUI theme (so build-time CSS exists) but are
   // never shown as a picker card. The dual-mood `default` appearance uses this.
   hidden?: boolean;
-  isCustomizale?: boolean;
+  isCustomizable?: boolean;
 };
 
 export type CustomTheme = {
@@ -280,9 +281,11 @@ export const getEffectiveDarkMode = (
   themeName: string,
   themeMode: ThemeMode,
   systemIsDarkMode: boolean,
+  ambientIsDarkMode = systemIsDarkMode,
 ): boolean => {
   const mood = themes.find((t) => t.name === themeName)?.mood;
   if (mood) return mood === 'dark';
+  if (themeMode === 'ambient') return ambientIsDarkMode;
   return themeMode === 'dark' || (themeMode === 'auto' && systemIsDarkMode);
 };
 

@@ -10,18 +10,15 @@ import type {
   OPDSStreamLink,
 } from '@/types/opds';
 import { REL } from '@/types/opds';
-import { MIMETYPES } from '@/libs/document';
 import { isWebAppPlatform } from '@/services/environment';
 import { fetchWithAuth } from '@/app/opds/utils/opdsReq';
-import {
-  resolveURL,
-  parseMediaType,
-  looksLikeXMLContent,
-  parseOPDSXML,
-} from '@/app/opds/utils/opdsUtils';
-import { normalizeOPDSCustomHeaders } from '@/app/opds/utils/customHeaders';
+import { resolveURL, looksLikeXMLContent, parseOPDSXML } from '@/app/opds/utils/opdsUtils';
+import { normalizeCustomHeaders } from '@/utils/customHeaders';
+import { getOPDSCoverHref } from './cover';
+import { classifyAcquisitionLink, pickPreferredLink } from './formats';
+import { getOPDSBookMetadata } from './metadata';
 import type { OPDSSubscriptionState, PendingItem } from './types';
-import { MAX_PAGES_PER_FEED } from './types';
+import { MAX_CRAWL_DEPTH, MAX_FEEDS_PER_CRAWL, MAX_PAGES_PER_FEED } from './types';
 
 const SORT_NEW_REL = 'http://opds-spec.org/sort/new';
 
@@ -49,84 +46,24 @@ function isSafeAcquisitionLink(link: AnyAcqLink): link is ValidAcqLink {
   return rels.some((r) => SAFE_ACQ_RELS.includes(r));
 }
 
-// Tier 0 (best) → 4 (worst). See getAcquisitionLink for the policy.
-type FormatTier = 0 | 1 | 2 | 3 | 4;
-
-// When a feed omits the link `type` (or returns the uninformative
-// application/octet-stream), fall back to inferring the format from the
-// href extension and the human-readable link title. Order matters here:
-// AZW3 must match before AZW, EPUB 3 before plain EPUB.
-const INFERENCE_RULES: ReadonlyArray<{ mime: string; href: RegExp; title: RegExp }> = [
-  { mime: 'application/epub+zip', href: /\.epub3(?:[?#]|$)/i, title: /\bepub\s*3\b|\bepub3\b/i },
-  { mime: 'application/epub+zip', href: /\.epub(?:[?#]|$)/i, title: /\bepub\b/i },
-  { mime: 'application/x-mobi8-ebook', href: /\.azw3(?:[?#]|$)/i, title: /\bazw\s*3\b|\bazw3\b/i },
-  { mime: 'application/vnd.amazon.ebook', href: /\.azw(?:[?#]|$)/i, title: /\bazw\b/i },
-  { mime: 'application/x-mobipocket-ebook', href: /\.mobi(?:[?#]|$)/i, title: /\bmobi\b/i },
-  { mime: 'application/pdf', href: /\.pdf(?:[?#]|$)/i, title: /\bpdf\b/i },
-  { mime: 'application/vnd.comicbook+zip', href: /\.cbz(?:[?#]|$)/i, title: /\bcbz\b/i },
-  { mime: 'application/x-fictionbook+xml', href: /\.fb2(?:[?#]|$)/i, title: /\bfb2\b/i },
-];
-
-function inferMediaType(link: ValidAcqLink): string {
-  const title = link.title ?? '';
-  for (const rule of INFERENCE_RULES) {
-    if (rule.href.test(link.href) || rule.title.test(title)) return rule.mime;
-  }
-  return '';
-}
-
-function getEffectiveMediaType(link: ValidAcqLink): string {
-  const declared = parseMediaType(link.type)?.mediaType ?? '';
-  // Treat octet-stream as "the server didn't actually tell us" — most
-  // OPDS feeds emit a real media type for known formats, and falling back
-  // to href/title inference recovers from servers that don't.
-  if (declared && declared !== 'application/octet-stream') return declared;
-  return inferMediaType(link);
-}
-
-function isAdvancedEpub(link: ValidAcqLink, mediaType: string): boolean {
-  if (mediaType !== 'application/epub+zip') return false;
-  const version = parseMediaType(link.type)?.parameters?.['version'];
-  if (version && /^3(\.|$)/.test(version)) return true;
-  const title = link.title?.toLowerCase() ?? '';
-  if (title.includes('advanced')) return true;
-  if (title.includes('epub3') || title.includes('epub 3')) return true;
-  if (/\.epub3(?:[?#.]|$)/i.test(link.href)) return true;
-  return false;
-}
-
-function getFormatTier(link: ValidAcqLink): FormatTier {
-  const mediaType = getEffectiveMediaType(link);
-  if (MIMETYPES.EPUB.includes(mediaType)) {
-    return isAdvancedEpub(link, mediaType) ? 0 : 1;
-  }
-  if (
-    MIMETYPES.MOBI.includes(mediaType) ||
-    MIMETYPES.AZW.includes(mediaType) ||
-    MIMETYPES.AZW3.includes(mediaType)
-  ) {
-    return 2;
-  }
-  if (MIMETYPES.PDF.includes(mediaType) || MIMETYPES.CBZ.includes(mediaType)) {
-    return 3;
-  }
-  return 4;
-}
-
 /**
  * Pick the best acquisition link on a publication for unattended download.
  *
  * 1. Filter to safe rels (acquisition / acquisition/open-access), drop
  *    indirect links — leaves entries we can fetch directly.
- * 2. Prefer open-access over plain acquisition.
- * 3. Within those, rank by format tier:
+ * 2. Drop formats Readest cannot import — downloading them only to fail at
+ *    import wastes the transfer and leaves a failed entry behind (#5583).
+ * 3. Prefer open-access over plain acquisition.
+ * 4. Within those, rank by format tier:
  *    Advanced EPUB / EPUB3 > EPUB > MOBI/AZW/AZW3 > PDF/CBZ > other.
  *    Ties resolve by feed order.
  *
- * Returns undefined when no safe link exists — the entry is skipped.
+ * Returns undefined when no usable link exists — the entry is skipped.
  */
 export function getAcquisitionLink(pub: OPDSPublication): ValidAcqLink | undefined {
-  const acqLinks = pub.links.filter(isSafeAcquisitionLink);
+  const acqLinks = pub.links
+    .filter(isSafeAcquisitionLink)
+    .filter((link) => classifyAcquisitionLink(link) !== 'unsupported');
   if (acqLinks.length === 0) return undefined;
 
   const openAccess = acqLinks.filter((link) => {
@@ -135,16 +72,7 @@ export function getAcquisitionLink(pub: OPDSPublication): ValidAcqLink | undefin
   });
   const candidates = openAccess.length > 0 ? openAccess : acqLinks;
 
-  let best = candidates[0]!;
-  let bestTier = getFormatTier(best);
-  for (let i = 1; i < candidates.length && bestTier > 0; i++) {
-    const tier = getFormatTier(candidates[i]!);
-    if (tier < bestTier) {
-      best = candidates[i]!;
-      bestTier = tier;
-    }
-  }
-  return best;
+  return pickPreferredLink(candidates);
 }
 
 /**
@@ -196,10 +124,13 @@ export function collectNewEntries(
     if (!acqLink) continue;
 
     seenInBatch.add(entryId);
+    const metadata = getOPDSBookMetadata(pub);
     items.push({
       entryId,
       title: pub.metadata.title || acqLink.title || 'Untitled',
       acquisitionHref: acqLink.href,
+      coverHref: getOPDSCoverHref(pub),
+      metadata: Object.keys(metadata).length ? metadata : undefined,
       mimeType: acqLink.type ?? 'application/octet-stream',
       updated: pub.metadata.updated,
       baseURL,
@@ -268,9 +199,10 @@ function hasRel(item: LinkLike, target: string): boolean {
 
 /**
  * Find the catalog's "by newest" feed URL — the one that lists publications
- * in reverse-chronological order. Auto-download follows only this feed (plus
- * its rel=next pages); we deliberately don't crawl the rest of the navigation
- * tree because subscribing to a whole catalog is rarely what the user wants.
+ * in reverse-chronological order. For library catalogs auto-download follows
+ * only this feed (plus its rel=next pages); we deliberately don't crawl the
+ * rest of the navigation tree because subscribing to a whole library catalog
+ * is rarely what the user wants.
  *
  * Detection order:
  *  1. Authoritative: any link or navigation entry with
@@ -280,8 +212,8 @@ function hasRel(item: LinkLike, target: string): boolean {
  *  3. Href heuristics: ?sort_order=release_date (Project Gutenberg),
  *     /new-releases, /recently-added, ?sort=new, etc.
  *
- * Returns undefined when no candidate matches — the caller should treat the
- * catalog as not auto-download-capable rather than fall back to a deep crawl.
+ * Returns undefined when no candidate matches — the caller then treats the
+ * catalog as a directory-style feed and crawls its subsections instead.
  */
 export function findNewestFeedURL(feed: OPDSFeed, baseURL: string): string | undefined {
   const candidates: LinkLike[] = [...(feed.links ?? []), ...(feed.navigation ?? [])];
@@ -312,88 +244,151 @@ function feedHasContent(feed: OPDSFeed): boolean {
   return false;
 }
 
+// Rels that must not be treated as subdirectories when crawling a
+// directory-style catalog: facets and structural links (self/up/start/…)
+// would re-list the same feed under another sort order or escape the
+// subscribed folder into its parent.
+const CRAWL_SKIP_RELS = [REL.FACET, 'self', 'start', 'up', 'top', 'search'];
+
 /**
- * Resolve a catalog URL down to its acquisition feed:
- * - If the root already contains publications, use it as-is.
- * - Otherwise look for a "by newest" link and follow it.
- *
- * Returns null when no acquisition feed can be found — auto-download will
- * skip the catalog rather than crawl through every navigation branch.
+ * Collect sub-catalog URLs from a feed's navigation entries — the
+ * subdirectories of a directory-style catalog (copyparty and other file
+ * servers expose folders as rel="subsection" entries). Entries with a
+ * non-catalog media type or a facet/structural rel are skipped; a missing
+ * type is accepted since many servers omit it on navigation entries.
  */
-async function resolveAcquisitionFeed(
-  url: string,
-  username: string,
-  password: string,
-  customHeaders: Record<string, string>,
-  visited: Set<string>,
-): Promise<{ feed: OPDSFeed; baseURL: string } | null> {
-  visited.add(url);
-  const root = await fetchFeed(url, username, password, customHeaders);
-  if (!root) return null;
-
-  const newestURL = findNewestFeedURL(root.feed, root.baseURL);
-  if (newestURL && !visited.has(newestURL)) {
-    visited.add(newestURL);
-    const newest = await fetchFeed(newestURL, username, password, customHeaders);
-    if (newest && feedHasContent(newest.feed)) return newest;
+export function getSubsectionURLs(feed: OPDSFeed, baseURL: string): string[] {
+  const urls: string[] = [];
+  for (const item of feed.navigation ?? []) {
+    if (!item.href) continue;
+    const rels = Array.isArray(item.rel) ? item.rel : [item.rel ?? ''];
+    if (rels.some((rel) => CRAWL_SKIP_RELS.includes(rel))) continue;
+    if (item.type && !isOPDSCatalog(item.type)) continue;
+    urls.push(resolveURL(item.href, baseURL));
   }
+  return urls;
+}
 
-  if (feedHasContent(root.feed)) return root;
-  return null;
+interface CrawlContext {
+  catalog: OPDSCatalog;
+  knownIds: Set<string>;
+  username: string;
+  password: string;
+  customHeaders: Record<string, string>;
+  visited: Set<string>;
+  /** Follow subsection navigation entries (directory-style catalogs). */
+  crawlNav: boolean;
 }
 
 /**
- * Check a catalog's "by newest" feed for new items.
+ * Walk feeds breadth-first from an already-fetched start feed, collecting
+ * new PendingItems. Every feed's rel=next chain is followed up to
+ * MAX_PAGES_PER_FEED pages. When ctx.crawlNav is set, subsection navigation
+ * entries are followed too, at most MAX_CRAWL_DEPTH levels below the start
+ * feed and MAX_FEEDS_PER_CRAWL fetches in total.
+ */
+async function crawlFeeds(
+  start: { feed: OPDSFeed; baseURL: string },
+  ctx: CrawlContext,
+): Promise<PendingItem[]> {
+  const items: PendingItem[] = [];
+  const queue: Array<{ url: string; depth: number; page: number }> = [];
+
+  const processFeed = (feed: OPDSFeed, baseURL: string, depth: number, page: number) => {
+    const newItems = collectNewEntries(feed, ctx.knownIds, baseURL);
+    // Mark as known so a book listed by several crawled feeds is only
+    // collected once.
+    for (const item of newItems) ctx.knownIds.add(item.entryId);
+    items.push(...newItems);
+
+    const nextHref = getNextPageUrl(feed);
+    if (nextHref && page < MAX_PAGES_PER_FEED) {
+      const nextURL = resolveURL(nextHref, baseURL);
+      if (!ctx.visited.has(nextURL)) {
+        ctx.visited.add(nextURL);
+        queue.push({ url: nextURL, depth, page: page + 1 });
+      }
+    }
+
+    if (ctx.crawlNav && depth < MAX_CRAWL_DEPTH) {
+      for (const subURL of getSubsectionURLs(feed, baseURL)) {
+        if (ctx.visited.has(subURL)) continue;
+        ctx.visited.add(subURL);
+        queue.push({ url: subURL, depth: depth + 1, page: 1 });
+      }
+    }
+  };
+
+  processFeed(start.feed, start.baseURL, 0, 1);
+
+  let fetches = 1; // the start feed was already fetched by the caller
+  while (queue.length > 0 && fetches < MAX_FEEDS_PER_CRAWL) {
+    const node = queue.shift()!;
+    const next = await fetchFeed(node.url, ctx.username, ctx.password, ctx.customHeaders);
+    fetches++;
+    if (!next) continue;
+    processFeed(next.feed, next.baseURL, node.depth, node.page);
+  }
+  if (queue.length > 0) {
+    console.warn(
+      `OPDS sync: catalog "${ctx.catalog.name}" crawl budget exhausted; ${queue.length} sub-feed(s) skipped`,
+    );
+  }
+
+  return items;
+}
+
+/**
+ * Check a catalog for new items. Pure discovery — no downloads, no state
+ * mutations.
  *
- * Pure discovery — no downloads, no state mutations. Resolves the catalog
- * URL to its newest-acquisition feed (see resolveAcquisitionFeed) and walks
- * up to MAX_PAGES_PER_FEED of rel=next pagination, collecting entries that
- * aren't already in knownEntryIds.
+ * Library catalogs (those exposing a "by newest" feed, see
+ * findNewestFeedURL) are checked through that feed and its rel=next pages
+ * only. Catalogs without one are directory-style listings (e.g. copyparty):
+ * the subscribed URL itself is the acquisition feed and its subsection
+ * navigation entries are subdirectories, which are crawled breadth-first so
+ * books in subfolders are downloaded too (#4272).
  */
 export async function checkFeedForNewItems(
   catalog: OPDSCatalog,
   state: OPDSSubscriptionState,
 ): Promise<PendingItem[]> {
   const knownIds = new Set(state.knownEntryIds);
-  const customHeaders = normalizeOPDSCustomHeaders(catalog.customHeaders);
+  const customHeaders = normalizeCustomHeaders(catalog.customHeaders);
   const username = catalog.username ?? '';
   const password = catalog.password ?? '';
-  const visited = new Set<string>();
+  const visited = new Set<string>([catalog.url]);
 
-  const acquisition = await resolveAcquisitionFeed(
-    catalog.url,
+  const root = await fetchFeed(catalog.url, username, password, customHeaders);
+  if (!root) return [];
+
+  const ctx: CrawlContext = {
+    catalog,
+    knownIds,
     username,
     password,
     customHeaders,
     visited,
-  );
-  if (!acquisition) {
+    crawlNav: false,
+  };
+
+  const newestURL = findNewestFeedURL(root.feed, root.baseURL);
+  if (newestURL) {
+    if (!visited.has(newestURL)) {
+      visited.add(newestURL);
+      const newest = await fetchFeed(newestURL, username, password, customHeaders);
+      if (newest && feedHasContent(newest.feed)) return crawlFeeds(newest, ctx);
+    }
+    // Broken or empty "by newest" feed: fall back to the root feed's own
+    // publications, still without crawling navigation.
+    return crawlFeeds(root, ctx);
+  }
+
+  if (!feedHasContent(root.feed) && getSubsectionURLs(root.feed, root.baseURL).length === 0) {
     console.warn(
-      `OPDS sync: catalog "${catalog.name}" has no recognizable "by newest" feed; skipping`,
+      `OPDS sync: catalog "${catalog.name}" has no publications or subdirectories; skipping`,
     );
     return [];
   }
-
-  const items: PendingItem[] = [];
-  let { feed, baseURL } = acquisition;
-  items.push(...collectNewEntries(feed, knownIds, baseURL));
-
-  let pageCount = 1;
-  while (pageCount < MAX_PAGES_PER_FEED) {
-    const nextHref = getNextPageUrl(feed);
-    if (!nextHref) break;
-    const nextUrl = resolveURL(nextHref, baseURL);
-    if (visited.has(nextUrl)) break;
-    visited.add(nextUrl);
-
-    const next = await fetchFeed(nextUrl, username, password, customHeaders);
-    if (!next) break;
-
-    items.push(...collectNewEntries(next.feed, knownIds, next.baseURL));
-    feed = next.feed;
-    baseURL = next.baseURL;
-    pageCount++;
-  }
-
-  return items;
+  return crawlFeeds(root, { ...ctx, crawlNav: true });
 }

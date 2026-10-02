@@ -28,7 +28,7 @@ beforeEach(() => {
     librarySortBy: 'updated',
     librarySortAscending: false,
     librarySortByAuto: true,
-    librarySortBy2: 'none',
+    libraryThenSortBy: 'none',
   };
   navigateToLibrary.mockReset();
   saveSysSettings.mockReset();
@@ -102,20 +102,20 @@ describe('SortFilterMenu', () => {
   it('sets a secondary sort and clears it when the active pill is clicked again', async () => {
     render(<SortFilterMenu />);
     fireEvent.click(section('Then arrange by').getByRole('button', { name: 'Author' }));
-    expect(saveSysSettings).toHaveBeenCalledWith(expect.anything(), 'librarySortBy2', 'author');
-    await waitFor(() => expect(navigateToLibrary.mock.calls[0]?.[1]).toContain('sort2=author'));
+    expect(saveSysSettings).toHaveBeenCalledWith(expect.anything(), 'libraryThenSortBy', 'author');
+    await waitFor(() => expect(navigateToLibrary.mock.calls[0]?.[1]).toContain('thenSort=author'));
 
     cleanup();
-    settings = { ...settings, librarySortBy2: 'author' };
+    settings = { ...settings, libraryThenSortBy: 'author' };
     navigateToLibrary.mockReset();
     saveSysSettings.mockReset();
     render(<SortFilterMenu />);
     const pill = section('Then arrange by').getByRole('button', { name: 'Author' });
     expect(pill.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(pill);
-    expect(saveSysSettings).toHaveBeenCalledWith(expect.anything(), 'librarySortBy2', 'none');
+    expect(saveSysSettings).toHaveBeenCalledWith(expect.anything(), 'libraryThenSortBy', 'none');
     await waitFor(() => expect(navigateToLibrary).toHaveBeenCalled());
-    expect(navigateToLibrary.mock.calls[0]?.[1] ?? '').not.toContain('sort2=');
+    expect(navigateToLibrary.mock.calls[0]?.[1] ?? '').not.toContain('thenSort=');
   });
 
   it('highlights the implicit secondary sort when grouping by author', () => {

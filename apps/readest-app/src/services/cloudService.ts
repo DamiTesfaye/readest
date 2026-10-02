@@ -51,6 +51,14 @@ export async function deleteBook(
         await fs.removeDir(dir, 'Books', true);
       }
       useMindmapStore.getState().removeByBookHash(book.hash);
+      // The per-book TTS audio cache lives under Cache (kept out of Books/
+      // so backups and sync never pick it up); purge erases every trace of
+      // the book, so drop it too. Non-purge deletes leave it: like
+      // config.json, a re-downloaded book resumes with a warm audio cache.
+      const ttsCacheDir = `tts-cache/${book.hash}`;
+      if (await fs.exists(ttsCacheDir, 'Cache')) {
+        await fs.removeDir(ttsCacheDir, 'Cache', true);
+      }
     }
 
     if (deleteAction === 'both' && (await fs.exists(getCoverFilename(book), 'Books'))) {
@@ -90,11 +98,12 @@ export async function uploadFileToCloud(
   handleProgress: ProgressHandler,
   hash: string,
   temp: boolean = false,
+  media?: string,
 ): Promise<string | undefined> {
   console.log('Uploading file:', lfp, 'to', cfp);
   const file = await fs.openFile(lfp, base, cfp);
   const localFullpath = await resolveFilePath(lfp, base);
-  const downloadUrl = await uploadFile(file, localFullpath, handleProgress, hash, temp);
+  const downloadUrl = await uploadFile(file, localFullpath, handleProgress, hash, temp, media);
   const f = file as ClosableFile;
   if (f && f.close) {
     await f.close();
@@ -214,6 +223,7 @@ export async function uploadBook(
   completedFiles.count++;
 
   book.deletedAt = null;
+  book.fileSyncDeletionRequestedAt = null;
   book.updatedAt = Date.now();
   book.uploadedAt = Date.now();
   book.downloadedAt = Date.now();

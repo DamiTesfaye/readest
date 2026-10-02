@@ -50,7 +50,7 @@ const SortFilterMenu: React.FC<SortFilterMenuProps> = ({ setIsDropdownOpen }) =>
   const {
     groupBy,
     isAscending,
-    sortBy2,
+    thenSortBy,
     primaryEffective,
     primaryIsImplicit,
     secondaryEffective,
@@ -58,7 +58,7 @@ const SortFilterMenu: React.FC<SortFilterMenuProps> = ({ setIsDropdownOpen }) =>
     handleSetGroupBy,
     handleSetSortBy,
     handleSetSortAscending,
-    handleSetSortBy2,
+    handleSetThenSortBy,
   } = useLibrarySortControls();
 
   const groupByOptions = [
@@ -85,8 +85,8 @@ const SortFilterMenu: React.FC<SortFilterMenuProps> = ({ setIsDropdownOpen }) =>
   ];
 
   const handleSecondaryPick = (value: LibrarySortByType) => {
-    const next: LibrarySecondarySortByType = sortBy2 === value ? 'none' : value;
-    handleSetSortBy2(next);
+    const next: LibrarySecondarySortByType = thenSortBy === value ? 'none' : value;
+    handleSetThenSortBy(next);
   };
 
   return (
@@ -145,7 +145,7 @@ const SortFilterMenu: React.FC<SortFilterMenuProps> = ({ setIsDropdownOpen }) =>
                 <Pill
                   key={option.value}
                   label={isImplicit ? `${option.label} (${_('Auto')})` : option.label}
-                  selected={isImplicit || sortBy2 === option.value}
+                  selected={isImplicit || thenSortBy === option.value}
                   onClick={() => handleSecondaryPick(option.value)}
                 />
               );
