@@ -48,7 +48,7 @@ export class ReaderPage extends BasePage {
     this.translatorPopup = page.locator('.popup-container:has(h1:text-is("Original Text"))');
     this.proofreadPopup = page.locator('.popup-container:has-text("Selected text:")');
     this.noteEditor = page.locator('.note-editor-container');
-    this.annotationItems = page.locator('li.booknote-item[role="button"]');
+    this.annotationItems = page.locator('[role="list"] > .booknote-item[role="listitem"]');
   }
 
   /** Wait until the reader route is active and the book viewer has mounted. */
@@ -131,7 +131,7 @@ export class ReaderPage extends BasePage {
   }
 
   async openFooterPanel(name: string): Promise<void> {
-    await this.useCompactLayout();
+    await this.switchToCompactLayout();
     await this.revealHeader();
     const tab = this.page.getByRole('button', { name, exact: true });
     await tab.focus();
@@ -197,11 +197,11 @@ export class ReaderPage extends BasePage {
    * entry is the header's remaining route into the dialog.
    */
   async openSettings(): Promise<void> {
-    await this.useCompactLayout();
+    await this.switchToCompactLayout();
     await this.revealHeader();
     await this.headerBar.locator('button[aria-label="View Options"]').click();
     await this.page.locator('.view-menu').getByText('Settings', { exact: true }).click();
-    await this.useDesktopLayout();
+    await this.switchToDesktopLayout();
   }
 
   /**
@@ -222,8 +222,8 @@ export class ReaderPage extends BasePage {
   }
 
   /**
-   * Add an annotation tool to the selection toolbar via
-   * Settings -> Behavior -> Customize Toolbar, by its chip label.
+   * Add an annotation tool to the selection popup from the Control tab's
+   * Customize Toolbar page, by its chip label.
    */
   async enableAnnotationTool(name: string): Promise<void> {
     await this.openSettings();
@@ -235,12 +235,12 @@ export class ReaderPage extends BasePage {
 
   /**
    * Turn the in-page header band (the running section title) on or off from
-   * the settings dialog. With it off the book text moves up to the compact top
-   * margin, right under the header bar's hover strip.
+   * the Control tab of the settings dialog. With it off the book text moves up
+   * to the compact top margin, right under the header bar's hover strip.
    */
   async setPageHeaderVisible(visible: boolean): Promise<void> {
     await this.openSettings();
-    await this.page.locator('[data-tab="Layout"]').click();
+    await this.page.locator('[data-tab="Control"]').click();
 
     const toggle = this.page
       .locator('[data-setting-id="settings.layout.showHeader"]')
@@ -321,12 +321,12 @@ export class ReaderPage extends BasePage {
     return hit;
   }
 
-  async useCompactLayout(): Promise<void> {
+  async switchToCompactLayout(): Promise<void> {
     await this.page.setViewportSize({ width: 600, height: 900 });
     await this.page.waitForTimeout(800);
   }
 
-  async useDesktopLayout(): Promise<void> {
+  async switchToDesktopLayout(): Promise<void> {
     await this.page.setViewportSize({ width: 1280, height: 720 });
   }
 
@@ -483,17 +483,34 @@ export class ReaderPage extends BasePage {
   }
 
   /**
-   * Open the sidebar's "Annotate" tab, which lists the book's annotations
-   * (assert against {@link annotationItems} afterwards).
+   * Open the header's More > Annotations popover, which lists the book's
+   * annotations (assert against {@link annotationItems} afterwards).
    */
   async openAnnotationsTab(): Promise<void> {
     await this.dismissPopup();
     await this.closeNotebook();
-    await this.openSidebar();
-    await this.sidebar.locator('[aria-label="Annotate"]').click();
+    if (
+      await this.annotationItems
+        .first()
+        .isVisible()
+        .catch(() => false)
+    )
+      return;
+    await this.revealHeader();
+    await this.page.locator('button[aria-label="More"]:visible').first().click();
+    await this.page.getByRole('button', { name: 'Annotations', exact: true }).click();
   }
 
-  /** Delete the first annotation from the sidebar's "Annotate" tab. */
+  async editFirstNote(): Promise<void> {
+    await this.page.keyboard.press('Escape');
+    await this.revealHeader();
+    await this.page.locator('button[aria-label="More"]:visible').first().click();
+    await this.page.getByRole('button', { name: 'Bookmarks & Notes', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await this.noteEditor.waitFor({ state: 'visible' });
+  }
+
+  /** Delete the first annotation from the More > Annotations popover. */
   async deleteFirstAnnotation(): Promise<void> {
     await this.openAnnotationsTab();
     const item = this.annotationItems.first();

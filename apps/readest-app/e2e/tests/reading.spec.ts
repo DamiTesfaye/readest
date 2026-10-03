@@ -58,7 +58,7 @@ test.describe('Reading', () => {
 
   test('adds and removes a bookmark', async ({ openBook }) => {
     const reader = await openBook();
-    await reader.useCompactLayout();
+    await reader.switchToCompactLayout();
     await reader.revealHeader();
 
     await expect(reader.addBookmarkButton).toBeVisible();

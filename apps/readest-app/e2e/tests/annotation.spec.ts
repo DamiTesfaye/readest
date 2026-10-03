@@ -64,6 +64,7 @@ test.describe('Annotation', () => {
     const reader = await openBook();
 
     await reader.selectText();
+    await reader.popupTool('Advanced settings').click();
     await reader.popupTool('Proofread').click();
     await expect(reader.proofreadPopup).toBeVisible();
     await expect(reader.annotationPopup).toBeHidden();
@@ -94,7 +95,10 @@ test.describe('Annotation', () => {
     await reader.addNote(noteText);
 
     await reader.openAnnotationsTab();
-    await expect(reader.annotationItems.getByText(noteText)).toBeVisible();
+    await expect(reader.annotationItems).toHaveCount(1);
+
+    await reader.editFirstNote();
+    await expect(reader.noteEditor.getByRole('textbox')).toHaveValue(noteText);
   });
 
   test('copies a link to the highlight once Copy Link is enabled', async ({
