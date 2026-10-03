@@ -95,24 +95,28 @@ describe('touch long press in real Chromium', () => {
     expect(menus()).toHaveLength(0);
   });
 
-  it('opens a single menu where Chromium also fires contextmenu for the long press', async () => {
+  it.each([
+    ['after', HOLD_MS],
+    ['before', 300],
+  ])('opens a single menu when the browser fires contextmenu %s the long press timer', async (_order, contextMenuAt) => {
     const controller = mountCanvas([nodeA()]);
     await frames();
     const cancel = vi.spyOn(controller, 'pointerCancel');
-    const contextMenus: Event[] = [];
     const canvas = screen.getByTestId('mindmap-canvas');
-    canvas.addEventListener('contextmenu', (event) => contextMenus.push(event));
-    const { x, y } = input.toCdp(...clientAt(controller, 180, 132));
-    await input.session.send('Input.synthesizeTapGesture', {
-      x,
-      y,
-      duration: 1200,
-      tapCount: 1,
-      gestureSourceType: 'touch',
+    const [x, y] = clientAt(controller, 180, 132);
+    await touch('touchStart', [[x, y]]);
+    await wait(contextMenuAt);
+    const contextMenu = new MouseEvent('contextmenu', {
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+      cancelable: true,
     });
+    canvas.dispatchEvent(contextMenu);
+    await wait(HOLD_MS);
+    await lift();
     await frames(4);
-    expect(contextMenus.length).toBeGreaterThan(0);
-    expect(contextMenus.every((event) => event.defaultPrevented)).toBe(true);
+    expect(contextMenu.defaultPrevented).toBe(true);
     expect(menus()).toHaveLength(1);
     expect(cancel).toHaveBeenCalledOnce();
     expect(controller.selection.get()).toEqual(['a']);
