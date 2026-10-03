@@ -10,6 +10,7 @@ import {
   reorderToolbar,
   supportsProofread,
   getPopupExtraToolTypes,
+  getSelectionPopupHeight,
 } from '@/utils/annotationToolbar';
 
 describe('annotationToolbar helpers', () => {
@@ -126,5 +127,15 @@ describe('getPopupExtraToolTypes', () => {
 
   test('leaves Copy Link out of the default toolbar', () => {
     expect(getPopupExtraToolTypes(undefined, true)).not.toContain('copylink');
+  });
+});
+
+describe('getSelectionPopupHeight', () => {
+  test('fits the fixed sections and the Advanced settings row', () => {
+    expect(getSelectionPopupHeight([], false)).toBe(450);
+  });
+
+  test('grows by one row per extra tool and for the Delete row', () => {
+    expect(getSelectionPopupHeight(['copylink', 'tts'], true)).toBe(450 + 3 * 32);
   });
 });

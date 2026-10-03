@@ -58,7 +58,11 @@ import { getIndexFromCfi } from '@/utils/cfi';
 import { writeTextToClipboard } from '@/utils/clipboard';
 import { canShareText, shareSelectedText } from '@/utils/share';
 import { buildAnnotationUrl } from '@/utils/deeplink';
-import { getPopupExtraToolTypes, supportsProofread } from '@/utils/annotationToolbar';
+import {
+  getPopupExtraToolTypes,
+  getSelectionPopupHeight,
+  supportsProofread,
+} from '@/utils/annotationToolbar';
 import { DEFAULT_NOTE_EXPORT_CONFIG } from '@/services/constants';
 import { saveSysSettings } from '@/helpers/settings';
 import { TransformContext } from '@/services/transformers/types';
@@ -219,7 +223,11 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const proofreadPopupHeight = Math.min(200, maxHeight);
   const canShare = canShareText(appService);
   const annotPopupWidth = Math.min(useResponsiveSize(240), maxWidth);
-  const annotPopupHeight = Math.min(useResponsiveSize(390), maxHeight);
+  const popupExtraToolTypes = getPopupExtraToolTypes(viewSettings.annotationToolbarItems, canShare);
+  const annotPopupHeight = Math.min(
+    useResponsiveSize(getSelectionPopupHeight(popupExtraToolTypes, !!selection?.annotated)),
+    maxHeight,
+  );
   const androidSelectionHandlerHeight = 0;
 
   // Reposition popups on scroll without dismissing them
@@ -1857,7 +1865,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     }
   };
 
-  const popupExtraActions = getPopupExtraToolTypes(viewSettings.annotationToolbarItems, canShare)
+  const popupExtraActions = popupExtraToolTypes
     .map((type): AnnotationPopupAction | null => {
       const def = annotationToolButtons.find((button) => button.type === type);
       if (!def) return null;
