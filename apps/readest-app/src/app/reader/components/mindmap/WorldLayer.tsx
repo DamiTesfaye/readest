@@ -128,7 +128,6 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
   useEffect(() => {
     const world = worldRef.current!;
     let settle: ReturnType<typeof setTimeout> | undefined;
-    let settledScale = controller.camera.get().z;
     const place = (): void => {
       const { x, y, z } = controller.camera.get();
       world.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
@@ -137,11 +136,10 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
     const move = (): void => {
       moving.current = true;
       place();
-      if (controller.camera.get().z !== settledScale) world.style.willChange = 'transform';
+      world.style.willChange = 'transform';
       clearTimeout(settle);
       settle = setTimeout(() => {
         moving.current = false;
-        settledScale = controller.camera.get().z;
         world.style.willChange = '';
         cull();
       }, CAMERA_SETTLE_MS);
