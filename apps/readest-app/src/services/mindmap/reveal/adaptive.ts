@@ -23,8 +23,9 @@ export interface ResolvedMapMode {
 export const FINISHED_PROGRESS = 0.99;
 
 const TERM_SEPARATOR = /\s*(?:[,;/|&]|--)\s*/;
-const FICTION_TERM = /\b(?<!non[-\s]?)fiction\b|\bnovels?\b/;
+const FICTION_TERM = /\bfiction\b|\bnovels?\b/;
 const NON_FICTION_TERM = /\bnon[-\s]?fiction\b/;
+const NON_FICTION_TERMS = /non[-\s]?fiction\b/g;
 const NON_FICTION_SUBJECTS: ReadonlySet<string> = new Set([
   'history',
   'biography',
@@ -93,9 +94,12 @@ const subjectTerms = (subject: BookMetadata['subject']): string[] =>
     .map((term) => term.trim())
     .filter(Boolean);
 
+const isFictionTerm = (term: string): boolean =>
+  FICTION_TERM.test(term.replace(NON_FICTION_TERMS, ' '));
+
 export const genreOf = (subject: BookMetadata['subject']): Genre => {
   const terms = subjectTerms(subject);
-  if (terms.some((term) => FICTION_TERM.test(term))) return 'fiction';
+  if (terms.some(isFictionTerm)) return 'fiction';
   const nonFiction = terms.some(
     (term) => NON_FICTION_TERM.test(term) || NON_FICTION_SUBJECTS.has(term),
   );

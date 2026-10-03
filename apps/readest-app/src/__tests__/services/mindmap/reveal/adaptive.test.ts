@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   type AdaptiveInput,
@@ -18,6 +20,21 @@ describe('genreOf', () => {
     expect(genreOf(['Alternative History'])).toBe('fiction');
     expect(genreOf(['Fiction', 'History'])).toBe('fiction');
     expect(genreOf('Juvenile Fiction / Science')).toBe('fiction');
+  });
+
+  it('tells fiction apart from non-fiction inside one term', () => {
+    expect(genreOf('Non-fiction')).toBe('non-fiction');
+    expect(genreOf('Non fiction essays')).toBe('non-fiction');
+    expect(genreOf('Non-fiction and fiction')).toBe('fiction');
+    expect(genreOf('Graphic novels')).toBe('fiction');
+  });
+
+  it('classifies genres without lookbehind regex, which older Android WebViews reject', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/services/mindmap/reveal/adaptive.ts'),
+      'utf-8',
+    );
+    expect(source).not.toMatch(/\(\?<[!=]/);
   });
 
   it('splits compound subject headings into terms', () => {
