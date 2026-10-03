@@ -6,7 +6,7 @@ import { playwright } from '@vitest/browser-playwright';
 import { loadEnvFile } from './vitest.env.mts';
 
 // Load .env and .env.web so browser tests have the same env as the web app.
-const env = { ...loadEnvFile('.env'), ...loadEnvFile('.env.web') };
+const env = { ...loadEnvFile('.env'), ...loadEnvFile('.env.web'), CI: process.env['CI'] ?? '' };
 
 const MINDMAP_PERF_TEST = 'src/__tests__/app/reader/components/mindmap/mindmapCanvas.browser.test.tsx';
 
