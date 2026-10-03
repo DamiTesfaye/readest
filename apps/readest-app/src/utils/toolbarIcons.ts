@@ -20,6 +20,10 @@ export const getSelectionIconSrc = (icon: string, isDarkMode: boolean): string =
   return isDarkMode ? `/images/selection/${icon}-muted.svg` : `/images/selection/${icon}.svg`;
 };
 
+export const getSelectionIconColor = (isDarkMode: boolean): string => {
+  return isDarkMode ? MUTED_ICON_FILL : COLORED_ICON_FILL;
+};
+
 export const getHomepageIconSrc = (icon: string, isDarkMode: boolean, active = false): string => {
   return !isDarkMode || active
     ? `/images/homepage/${icon}.svg`

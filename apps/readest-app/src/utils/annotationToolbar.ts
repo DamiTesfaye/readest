@@ -60,6 +60,14 @@ export const getToolbarToolTypes = (
   canShare: boolean,
 ): AnnotationToolType[] => sanitize(items).filter((type) => canShare || type !== 'share');
 
+const POPUP_EXTRA_TOOL_TYPES: AnnotationToolType[] = ['copylink', 'tts'];
+
+export const getPopupExtraToolTypes = (
+  items: AnnotationToolType[] | undefined,
+  canShare: boolean,
+): AnnotationToolType[] =>
+  getToolbarToolTypes(items, canShare).filter((type) => POPUP_EXTRA_TOOL_TYPES.includes(type));
+
 // Hidden tools (the "Available" tray), in canonical order.
 export const getAvailableToolTypes = (
   items: AnnotationToolType[] | undefined,

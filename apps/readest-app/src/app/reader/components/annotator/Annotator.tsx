@@ -57,6 +57,9 @@ import { getWordCount, isSingleLookupTerm } from '@/utils/word';
 import { getIndexFromCfi } from '@/utils/cfi';
 import { writeTextToClipboard } from '@/utils/clipboard';
 import { canShareText, shareSelectedText } from '@/utils/share';
+import { buildAnnotationUrl } from '@/utils/deeplink';
+import { getPopupExtraToolTypes, supportsProofread } from '@/utils/annotationToolbar';
+import { DEFAULT_NOTE_EXPORT_CONFIG } from '@/services/constants';
 import { saveSysSettings } from '@/helpers/settings';
 import { TransformContext } from '@/services/transformers/types';
 import { transformContent } from '@/services/transformService';
@@ -77,7 +80,8 @@ import {
 } from '../../utils/globalAnnotations';
 import AnnotationRangeEditor from './AnnotationRangeEditor';
 import SelectionRangeEditor from './SelectionRangeEditor';
-import AnnotationPopup from './AnnotationPopup';
+import AnnotationPopup, { AnnotationPopupAction } from './AnnotationPopup';
+import { annotationToolButtons } from './AnnotationTools';
 import DictionaryPopup from './DictionaryPopup';
 import DictionarySheet from './DictionarySheet';
 import TranslatorPopup from './TranslatorPopup';
@@ -1170,6 +1174,26 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     }
   };
 
+  const handleCopyLink = () => {
+    if (!selection) return;
+    const cfi = selection.cfi || view?.getCFI(selection.index, selection.range);
+    if (!cfi) return;
+    const noteId = config.booknotes?.find((note) => note.cfi === cfi && !note.deletedAt)?.id;
+    const linkType = viewSettings.noteExportConfig?.linkType ?? DEFAULT_NOTE_EXPORT_CONFIG.linkType;
+    const url = buildAnnotationUrl(
+      { bookHash: bookKey.split('-')[0]!, noteId: noteId ?? uniqueId(), cfi },
+      linkType,
+    );
+    void writeTextToClipboard(url);
+    eventDispatcher.dispatch('toast', {
+      type: 'info',
+      message: _('Copied to clipboard'),
+      className: 'whitespace-nowrap',
+      timeout: 2000,
+    });
+    handleDismissPopupAndSelection();
+  };
+
   const handleShare = () => {
     if (!selection?.text) return;
     const position = trianglePosition
@@ -1833,6 +1857,15 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     }
   };
 
+  const popupExtraActions = getPopupExtraToolTypes(viewSettings.annotationToolbarItems, canShare)
+    .map((type): AnnotationPopupAction | null => {
+      const def = annotationToolButtons.find((button) => button.type === type);
+      if (!def) return null;
+      const onClick = type === 'copylink' ? handleCopyLink : () => handleSpeakText();
+      return { id: type, label: _(def.label), Icon: def.Icon, onClick };
+    })
+    .filter((action): action is AnnotationPopupAction => action !== null);
+
   const handleBookmark = () => {
     eventDispatcher.dispatch('toggle-bookmark', { bookKey });
     handleDismissPopupAndSelection();
@@ -1930,6 +1963,10 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           onSearch={handleSearch}
           onCopy={() => handleCopy(true)}
           onShare={handleShare}
+          onDelete={() => handleHighlight(false)}
+          canProofread={supportsProofread(bookData.book?.format)}
+          onProofread={handleProofread}
+          extraActions={popupExtraActions}
           onDismiss={handleDismissPopupAndSelection}
         />
       )}

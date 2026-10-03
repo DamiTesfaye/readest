@@ -67,12 +67,16 @@ export const demos: DemoEntry[] = [
           onSearch={noop}
           onCopy={noop}
           onShare={noop}
+          onDelete={noop}
+          canProofread
+          onProofread={noop}
+          extraActions={[]}
           onDismiss={noop}
         />
       </div>
     ),
     notes:
-      'Sectioned selection popup over a passage: style icons crossfade to the selected color, five color dots, then bookmark/note, lookup/translate, and search/copy/share rows.',
+      'Sectioned selection popup over a passage: style icons crossfade to the selected color, five color dots, then bookmark/note, lookup/translate, search/copy/share rows and an Advanced settings row.',
   },
   {
     name: 'DoubleBorder',

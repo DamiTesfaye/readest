@@ -9,6 +9,7 @@ import {
   removeToolFromToolbar,
   reorderToolbar,
   supportsProofread,
+  getPopupExtraToolTypes,
 } from '@/utils/annotationToolbar';
 
 describe('annotationToolbar helpers', () => {
@@ -113,5 +114,17 @@ describe('supportsProofread', () => {
 
   test('excludes a book whose format is not known yet', () => {
     expect(supportsProofread(undefined)).toBe(false);
+  });
+});
+
+describe('getPopupExtraToolTypes', () => {
+  test('adds only the enabled tools the selection popup has no fixed row for', () => {
+    expect(
+      getPopupExtraToolTypes(['copy', 'tts', 'highlight', 'copylink', 'proofread'], true),
+    ).toEqual(['tts', 'copylink']);
+  });
+
+  test('leaves Copy Link out of the default toolbar', () => {
+    expect(getPopupExtraToolTypes(undefined, true)).not.toContain('copylink');
   });
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { FiLink } from 'react-icons/fi';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,19 +49,34 @@ const renderPopup = (overrides: Partial<React.ComponentProps<typeof AnnotationPo
     onSearch: vi.fn(),
     onCopy: vi.fn(),
     onShare: vi.fn(),
+    onDelete: vi.fn(),
+    canProofread: true,
+    onProofread: vi.fn(),
+    extraActions: [],
     onDismiss: vi.fn(),
     ...overrides,
   };
-  render(<AnnotationPopup {...props} />);
-  return props;
+  const view = render(<AnnotationPopup {...props} />);
+  return { ...props, rerender: () => view.rerender(<AnnotationPopup {...props} />) };
 };
+
+const ADVANCED_HINTS = [
+  'Proofread and fix the text',
+  'Correct a typo in this passage',
+  'Replace words across the book',
+  'Tidy up how the text reads',
+  'Tools for fixing the text',
+];
 
 beforeEach(() => {
   themeColor = 'default';
   isDarkMode = false;
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe('AnnotationPopup', () => {
   it('renders the four styles in underline, highlight, squiggly, strikethrough order', () => {
@@ -224,5 +240,70 @@ describe('AnnotationPopup', () => {
     });
     expect(screen.getByTestId('annotation-notes')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Bookmark page' })).toBeNull();
+  });
+
+  it('offers Delete only when the selection is an existing highlight', () => {
+    renderPopup();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    cleanup();
+    const props = renderPopup({ annotatedStyle: 'highlight' });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(props.onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders extra toolbar actions alongside Search, Copy and Share', () => {
+    const onClick = vi.fn();
+    renderPopup({ extraActions: [{ id: 'copylink', label: 'Copy Link', Icon: FiLink, onClick }] });
+    const row = screen.getByRole('button', { name: 'Copy Link' });
+    expect(row.parentElement).toBe(screen.getByRole('button', { name: 'Search' }).parentElement);
+    fireEvent.click(row);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('ends with an Advanced settings row whose hint is picked at random', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    renderPopup();
+    const buttons = screen.getAllByRole('button');
+    const advanced = buttons[buttons.length - 1]!;
+    expect(advanced.textContent).toContain('Advanced settings');
+    expect(advanced.textContent).toContain(ADVANCED_HINTS[0]);
+    cleanup();
+    vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    renderPopup();
+    expect(screen.getByRole('button', { name: /Advanced settings/ }).textContent).toContain(
+      ADVANCED_HINTS[ADVANCED_HINTS.length - 1],
+    );
+  });
+
+  it('keeps the same hint while the popup stays open', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const props = renderPopup();
+    vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    props.rerender();
+    expect(screen.getByRole('button', { name: /Advanced settings/ }).textContent).toContain(
+      ADVANCED_HINTS[0],
+    );
+  });
+
+  it('opens the advanced panel and runs Proofread from it', () => {
+    const props = renderPopup();
+    expect(screen.queryByRole('button', { name: 'Proofread' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Advanced settings/ }));
+    expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Proofread' }));
+    expect(props.onProofread).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns from the advanced panel to the actions', () => {
+    renderPopup();
+    fireEvent.click(screen.getByRole('button', { name: /Advanced settings/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
+  });
+
+  it('disables Proofread for books that cannot be proofread', () => {
+    renderPopup({ canProofread: false });
+    fireEvent.click(screen.getByRole('button', { name: /Advanced settings/ }));
+    expect(screen.getByRole('button', { name: 'Proofread' }).hasAttribute('disabled')).toBe(true);
   });
 });
