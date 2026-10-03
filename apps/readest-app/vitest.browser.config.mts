@@ -8,6 +8,13 @@ import { loadEnvFile } from './vitest.env.mts';
 // Load .env and .env.web so browser tests have the same env as the web app.
 const env = { ...loadEnvFile('.env'), ...loadEnvFile('.env.web') };
 
+const MINDMAP_PERF_TEST = 'src/__tests__/app/reader/components/mindmap/mindmapCanvas.browser.test.tsx';
+
+const contextOptions = {
+  viewport: { width: 1920, height: 1080 },
+  deviceScaleFactor: 2,
+};
+
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   define: {
@@ -52,7 +59,6 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.browser.test.ts', 'src/**/*.browser.test.tsx'],
     onConsoleLog(_log, type) {
       if (type === 'stdout') return false;
     },
@@ -60,13 +66,7 @@ export default defineConfig({
       enabled: true,
       headless: true,
       screenshotFailures: false,
-      provider: playwright({
-        contextOptions: {
-          viewport: { width: 1920, height: 1080 },
-          deviceScaleFactor: 2,
-        },
-      }),
-      instances: [{ browser: 'chromium' }],
+      provider: playwright({ contextOptions }),
       expect: {
         toMatchScreenshot: {
           comparatorName: 'pixelmatch',
@@ -84,5 +84,30 @@ export default defineConfig({
         },
       },
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'chromium',
+          include: ['src/**/*.browser.test.ts', 'src/**/*.browser.test.tsx'],
+          browser: { instances: [{ browser: 'chromium' }] },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'chromium-one-raster-thread',
+          include: [MINDMAP_PERF_TEST],
+          sequence: { groupOrder: 1 },
+          browser: {
+            provider: playwright({
+              contextOptions,
+              launchOptions: { args: ['--num-raster-threads=1'] },
+            }),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+    ],
   },
 });
