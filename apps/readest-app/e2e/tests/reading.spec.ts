@@ -23,6 +23,7 @@ test.describe('Reading', () => {
 
   test('jumps to an entered page number', async ({ openBook }) => {
     const reader = await openBook();
+    await reader.openProgressPanel();
     const startProgress = await reader.readingProgress();
     const total = Number((await reader.pageJumpInput.inputValue()).split('/')[1]);
     const target = Math.max(2, Math.round(total / 2));
@@ -47,7 +48,7 @@ test.describe('Reading', () => {
     await expect(reader.viewer).toBeVisible();
   });
 
-  test('increases the font size from the settings dialog', async ({ openBook }) => {
+  test('increases the font size from the Font & Layout panel', async ({ openBook }) => {
     const reader = await openBook();
 
     const { before, after } = await reader.increaseFontSize();
@@ -57,6 +58,7 @@ test.describe('Reading', () => {
 
   test('adds and removes a bookmark', async ({ openBook }) => {
     const reader = await openBook();
+    await reader.useCompactLayout();
     await reader.revealHeader();
 
     await expect(reader.addBookmarkButton).toBeVisible();

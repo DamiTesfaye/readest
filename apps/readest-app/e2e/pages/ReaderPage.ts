@@ -112,14 +112,35 @@ export class ReaderPage extends BasePage {
    * reveal is needed.
    */
   async readingProgress(): Promise<number> {
-    const value = await this.pageJumpInput.inputValue();
-    const match = value.match(/(\d+(?:\.\d+)?)/);
+    const value = await this.pageStatus.textContent();
+    const match = (value ?? '').match(/(\d+(?:\.\d+)?)/);
     return match ? Number(match[1]) : Number.NaN;
   }
 
-  /** Jump to a page by typing into the footer's page-jump input. */
+  get pageStatus(): Locator {
+    return this.page
+      .getByRole('status')
+      .filter({ hasText: /^Page \d+/ })
+      .first();
+  }
+
+  async openProgressPanel(): Promise<void> {
+    if (await this.pageJumpInput.isVisible().catch(() => false)) return;
+    await this.openFooterPanel('Reading Progress');
+    await this.pageJumpInput.waitFor({ state: 'visible' });
+  }
+
+  async openFooterPanel(name: string): Promise<void> {
+    await this.useCompactLayout();
+    await this.revealHeader();
+    const tab = this.page.getByRole('button', { name, exact: true });
+    await tab.focus();
+    await tab.press('Enter');
+  }
+
+  /** Jump to a page by typing into the Reading Progress panel's input. */
   async goToPage(page: number): Promise<void> {
-    await this.revealFooter();
+    await this.openProgressPanel();
     await this.pageJumpInput.click();
     await this.pageJumpInput.fill(String(page));
     await this.pageJumpInput.press('Enter');
@@ -129,25 +150,40 @@ export class ReaderPage extends BasePage {
 
   async openSidebar(): Promise<void> {
     if (await this.sidebar.isVisible()) return;
-    await this.revealHeader();
-    await this.page.locator('button[aria-label="Toggle Sidebar"]').first().click();
+    await this.page.keyboard.press('s');
     await this.sidebar.waitFor({ state: 'visible' });
+    const search = this.sidebar.getByRole('textbox', { name: 'Search...' });
+    if (await search.isVisible().catch(() => false)) {
+      await search.fill('');
+      await search.press('Escape');
+    }
   }
 
-  /** Open the sidebar and navigate to the TOC chapter at the given index. */
+  get contentsPopover(): Locator {
+    return this.page
+      .locator('.toolbar-popover, [role="dialog"]')
+      .filter({ hasText: 'Contents' })
+      .last();
+  }
+
+  async openContents(): Promise<void> {
+    await this.revealHeader();
+    await this.headerBar.locator('button[title="Contents"]').click();
+    await this.tocItems.first().waitFor({ state: 'visible' });
+  }
+
   async openTocChapter(index: number): Promise<void> {
-    await this.openSidebar();
-    await this.sidebar.locator('[aria-label="TOC"]').click();
+    await this.openContents();
     await this.tocItems.nth(index).click();
+    await this.page.keyboard.press('Escape');
   }
 
   // --- in-book search ---
 
   /** Run an in-book search and return the number of results. */
   async search(term: string): Promise<number> {
-    await this.openSidebar();
-    await this.page.locator('button[title="Show Search Bar"]').click();
-    await this.sidebar.locator('input.search-input').fill(term);
+    await this.openContents();
+    await this.page.locator('input.search-input:visible').first().fill(term);
     await this.searchResults.first().waitFor({ state: 'visible' });
     return this.searchResults.count();
   }
@@ -161,28 +197,27 @@ export class ReaderPage extends BasePage {
    * entry is the header's remaining route into the dialog.
    */
   async openSettings(): Promise<void> {
+    await this.useCompactLayout();
     await this.revealHeader();
     await this.headerBar.locator('button[aria-label="View Options"]').click();
     await this.page.locator('.view-menu').getByText('Settings', { exact: true }).click();
+    await this.useDesktopLayout();
   }
 
   /**
-   * Open the settings dialog, increase the default font size by one step,
+   * Open the compact footer's Font & Layout panel, increase the font size by one step,
    * and return the value before and after.
    */
   async increaseFontSize(): Promise<{ before: string; after: string }> {
-    await this.openSettings();
-    await this.page.locator('[data-tab="Font"]').click();
+    await this.openFooterPanel('Font & Layout');
 
-    const row = this.page.locator('[data-setting-id="settings.font.defaultFontSize"]');
-    const input = row.locator('input').first();
-    await input.waitFor({ state: 'visible' });
-    const before = await input.inputValue();
-    await row.locator('[aria-label="Increase"]').click();
-    await expect(input).not.toHaveValue(before);
-    const after = await input.inputValue();
+    const slider = this.page.getByRole('slider', { name: 'Font Size' });
+    await slider.waitFor({ state: 'visible' });
+    const before = await slider.inputValue();
+    await slider.fill(String(Number(before) + 10));
+    await expect(slider).not.toHaveValue(before);
+    const after = await slider.inputValue();
 
-    await this.page.keyboard.press('Escape');
     return { before, after };
   }
 
@@ -284,6 +319,15 @@ export class ReaderPage extends BasePage {
       hit = await this.firstLineHitTest();
     }
     return hit;
+  }
+
+  async useCompactLayout(): Promise<void> {
+    await this.page.setViewportSize({ width: 600, height: 900 });
+    await this.page.waitForTimeout(800);
+  }
+
+  async useDesktopLayout(): Promise<void> {
+    await this.page.setViewportSize({ width: 1280, height: 720 });
   }
 
   // --- bookmarks ---
@@ -399,12 +443,12 @@ export class ReaderPage extends BasePage {
   }
 
   async selectHighlightColor(color: string): Promise<void> {
-    await this.page.locator(`[aria-label="Select ${color} color"]`).click();
+    await this.annotationPopup.getByRole('button', { name: `${color} color` }).click();
   }
 
   /** Annotate the current selection with a note. */
   async addNote(text: string): Promise<void> {
-    await this.popupTool('Annotate').click();
+    await this.popupTool('Add note').click();
     await this.noteEditor.waitFor({ state: 'visible' });
     await this.noteEditor.getByRole('textbox').fill(text);
     await this.notebook.getByRole('button', { name: 'Save' }).click();

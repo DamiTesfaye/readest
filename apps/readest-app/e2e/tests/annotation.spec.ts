@@ -26,7 +26,7 @@ test.describe('Annotation', () => {
     const reader = await openBook();
 
     await reader.selectText();
-    await reader.popupTool('Dictionary').click();
+    await reader.popupTool(/^Look up/).click();
     await expect(reader.dictionaryPopup).toBeVisible();
     await expect(reader.annotationPopup).toBeHidden();
 
