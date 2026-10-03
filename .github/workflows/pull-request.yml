@@ -234,6 +234,13 @@ jobs:
         working-directory: apps/readest-app
         run: pnpm test:pr:web:unit --shard=${{ matrix.shard }}/2
 
+      - name: print chromium gpu info
+        if: matrix.shard == 1
+        working-directory: apps/readest-app
+        run: |
+          echo "nproc: $(nproc)"
+          node scripts/print-chromium-gpu-info.mjs
+
       - name: run web browser tests
         if: matrix.shard == 1
         working-directory: apps/readest-app
