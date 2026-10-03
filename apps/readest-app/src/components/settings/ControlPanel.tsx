@@ -33,7 +33,7 @@ import { optInTelemetry, optOutTelemetry } from '@/utils/telemetry';
 const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }) => {
   const _ = useTranslation();
   const { envConfig, appService } = useEnv();
-  const { getView, getViews, getViewSettings, recreateViewer } = useReaderStore();
+  const { getView, getViews, getViewSettings, getGridInsets, recreateViewer } = useReaderStore();
   const { getBookData } = useBookDataStore();
   const { settings } = useSettingsStore();
   const { applyEinkMode } = useEinkMode();
@@ -41,6 +41,7 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
   const bookData = getBookData(bookKey);
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
 
+  const [showPageHeader, setShowPageHeader] = useState(viewSettings.showHeader);
   const [isScrolledMode, setScrolledMode] = useState(viewSettings.scrolled);
   const [noContinuousScroll, setNoContinuousScroll] = useState(viewSettings.noContinuousScroll);
   const [scrollingOverlap, setScrollingOverlap] = useState(viewSettings.scrollingOverlap);
@@ -342,6 +343,24 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
     }
   };
 
+  const togglePageHeader = () => {
+    const newValue = !showPageHeader;
+    if (newValue && !viewSettings.vertical) {
+      const gridInsets = getGridInsets(bookKey) || { top: 0 };
+      const minMarginTop = Math.max(0, Math.round((44 - gridInsets.top) / 4) * 4);
+      saveViewSettings(
+        envConfig,
+        bookKey,
+        'marginTopPx',
+        Math.max(viewSettings.marginTopPx, minMarginTop),
+        false,
+        false,
+      );
+    }
+    saveViewSettings(envConfig, bookKey, 'showHeader', newValue, false, false);
+    setShowPageHeader(newValue);
+  };
+
   const getQuickActionOptions = () => {
     return [
       {
@@ -510,6 +529,12 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
           label={_('UI Animations')}
           checked={isUIAnimationsEnabled}
           onChange={toggleUIAnimations}
+        />
+        <SettingsSwitchRow
+          label={_('Show page header')}
+          checked={showPageHeader}
+          onChange={togglePageHeader}
+          data-setting-id='settings.layout.showHeader'
         />
         {appService?.isDesktopApp && (
           <SettingsSwitchRow
