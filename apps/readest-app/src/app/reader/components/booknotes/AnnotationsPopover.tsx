@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import React, { useCallback, useMemo } from 'react';
 
 import type { BookNote } from '@/types/book';
+import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -15,7 +16,8 @@ import ToolbarPopover from '@/components/ToolbarPopover';
 import PopoverTitleBar from '@/components/PopoverTitleBar';
 import { getToolbarIconSrc } from '@/utils/toolbarIcons';
 import type { SystemSettings } from '@/types/settings';
-import { getHighlightColorHex } from '../../utils/annotatorUtil';
+import { getHighlightColorHex, removeBookNoteOverlays } from '../../utils/annotatorUtil';
+import { DeleteIcon } from './BooknoteIcons';
 import { selectAnnotationEntries } from './selectors';
 
 export const ANNOTATIONS_POPOVER_WIDTH = 320;
@@ -62,10 +64,11 @@ const AnnotationsPopover: React.FC<AnnotationsPopoverProps> = ({
   onClose,
 }) => {
   const _ = useTranslation();
+  const { envConfig } = useEnv();
   const { settings } = useSettingsStore();
   const { themeColor, isDarkMode } = useThemeStore();
-  const { getConfig } = useBookDataStore();
-  const { getView } = useReaderStore();
+  const { getConfig, saveConfig, updateBooknotes } = useBookDataStore();
+  const { getView, getViewsById } = useReaderStore();
 
   const booknotes = getConfig(bookKey)?.booknotes;
   const entries = useMemo(() => selectAnnotationEntries(booknotes ?? []), [booknotes]);
@@ -77,6 +80,20 @@ const AnnotationsPopover: React.FC<AnnotationsPopoverProps> = ({
       onClose();
     },
     [bookKey, getView, onClose],
+  );
+
+  const handleDelete = useCallback(
+    (item: BookNote) => {
+      const config = getConfig(bookKey);
+      if (!config) return;
+      const remaining = (config.booknotes ?? []).map((note) =>
+        note.id === item.id ? { ...note, deletedAt: Date.now() } : note,
+      );
+      getViewsById(bookKey.split('-')[0]!).forEach((view) => removeBookNoteOverlays(view, item));
+      const updatedConfig = updateBooknotes(bookKey, remaining);
+      if (updatedConfig) saveConfig(envConfig, bookKey, updatedConfig, settings);
+    },
+    [bookKey, envConfig, getConfig, getViewsById, saveConfig, settings, updateBooknotes],
   );
 
   return (
@@ -106,11 +123,15 @@ const AnnotationsPopover: React.FC<AnnotationsPopoverProps> = ({
             </p>
           </div>
         ) : (
-          <div className='no-scrollbar flex flex-col gap-1 overflow-y-auto overscroll-contain px-3 pb-3 pt-1'>
+          <div
+            role='list'
+            className='no-scrollbar flex flex-col gap-1 overflow-y-auto overscroll-contain px-3 pb-3 pt-1'
+          >
             {entries.map((item) => (
               <div
                 key={item.id}
-                className='hover:bg-base-content/5 flex flex-col gap-2 rounded-lg p-3 transition-colors'
+                role='listitem'
+                className='booknote-item hover:bg-base-content/5 flex flex-col gap-2 rounded-lg p-3 transition-colors'
               >
                 <button
                   type='button'
@@ -130,12 +151,22 @@ const AnnotationsPopover: React.FC<AnnotationsPopoverProps> = ({
                   <span className='popover-label text-base-content/60'>
                     {formatBooknoteDate(item.createdAt)}
                   </span>
-                  {item.page ? (
-                    <span className='flex items-baseline gap-1'>
-                      <span className='popover-label text-base-content/60'>{_('Page')}</span>
-                      <span className='popover-title text-base-content text-sm'>{item.page}</span>
-                    </span>
-                  ) : null}
+                  <div className='flex items-center gap-4'>
+                    {item.page ? (
+                      <span className='flex items-baseline gap-1'>
+                        <span className='popover-label text-base-content/60'>{_('Page')}</span>
+                        <span className='popover-title text-base-content text-sm'>{item.page}</span>
+                      </span>
+                    ) : null}
+                    <button
+                      type='button'
+                      aria-label={_('Delete')}
+                      className='text-base-content/60 hover:text-base-content flex items-center transition-colors'
+                      onClick={() => handleDelete(item)}
+                    >
+                      <DeleteIcon className='h-3.5 w-2.5' />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

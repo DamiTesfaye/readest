@@ -4,15 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BookNote } from '@/types/book';
 
-const { dispatch, goTo } = vi.hoisted(() => ({
+const { dispatch, goTo, saveConfig, updateBooknotes } = vi.hoisted(() => ({
   dispatch: vi.fn(),
   goTo: vi.fn(),
+  saveConfig: vi.fn(),
+  updateBooknotes: vi.fn(() => ({ updated: true })),
 }));
 
 let booknotes: BookNote[] = [];
 
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
 vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch, on: vi.fn(), off: vi.fn() } }));
+vi.mock('@/context/EnvContext', () => ({ useEnv: () => ({ envConfig: {} }) }));
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: () => ({
     settings: {
@@ -31,10 +34,10 @@ vi.mock('@/store/themeStore', () => ({
   useThemeStore: () => ({ themeColor: 'default', isDarkMode: false }),
 }));
 vi.mock('@/store/bookDataStore', () => ({
-  useBookDataStore: () => ({ getConfig: () => ({ booknotes }) }),
+  useBookDataStore: () => ({ getConfig: () => ({ booknotes }), saveConfig, updateBooknotes }),
 }));
 vi.mock('@/store/readerStore', () => ({
-  useReaderStore: () => ({ getView: () => ({ goTo }) }),
+  useReaderStore: () => ({ getView: () => ({ goTo }), getViewsById: () => [] }),
 }));
 vi.mock('@/components/ToolbarPopover', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
@@ -164,6 +167,36 @@ describe('AnnotationsPopover', () => {
     });
     expect(goTo).toHaveBeenCalledWith('epubcfi(/6/4!/4/2)');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes each annotation as a list item with a Delete button', () => {
+    renderPopover();
+    const list = screen.getByRole('list');
+    const items = Array.from(list.querySelectorAll('[role="listitem"]'));
+    expect(items).toHaveLength(4);
+    for (const item of items) {
+      expect(item.className).toContain('booknote-item');
+      expect(item.querySelector('[aria-label="Delete"]')).toBeTruthy();
+    }
+  });
+
+  it('soft-deletes only the chosen annotation without mutating the stored array', () => {
+    const onClose = vi.fn();
+    renderPopover(onClose);
+    const before = booknotes.map((note) => ({ ...note }));
+    const item = screen
+      .getByText('I taught at Stanford in 2012')
+      .closest('[role="listitem"]') as HTMLElement;
+
+    fireEvent.click(item.querySelector('[aria-label="Delete"]')!);
+
+    expect(booknotes).toEqual(before);
+    const [, saved] = updateBooknotes.mock.calls[0] as unknown as [string, BookNote[]];
+    expect(saved.find((note) => note.id === 'ul1')?.deletedAt).toBeTypeOf('number');
+    expect(saved.find((note) => note.id === 'hl1')?.deletedAt).toBeUndefined();
+    expect(saveConfig).toHaveBeenCalledTimes(1);
+    expect(goTo).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('keeps bookmarks, excerpts and deleted annotations out of the list', () => {
