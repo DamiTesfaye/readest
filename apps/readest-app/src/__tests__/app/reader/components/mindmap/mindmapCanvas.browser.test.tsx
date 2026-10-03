@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { Profiler } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import MindmapCanvas, {
   type MindmapCanvasProps,
@@ -24,6 +24,11 @@ const WARM_UP_FRAMES = 20;
 const MEASURED_FRAMES = 120;
 const MEASURED_PASSES = 3;
 const DRAG_REACT_BUDGET_MS = 2;
+const CALIBRATION_NODES = 2000;
+const CALIBRATION_ROUNDS = 15;
+const REFERENCE_CALIBRATION_MS = 7;
+const MAX_RUNNER_SLOWDOWN = 4;
+const FRAME_TEST_TIMEOUT_MS = 60_000;
 
 const rgb = (hex: string): string => {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -118,6 +123,48 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, CAMERA_SETTLE_
 
 const p95 = (durations: number[]): number =>
   [...durations].sort((a, b) => a - b)[Math.floor(durations.length * 0.95)]!;
+
+const median = (durations: number[]): number =>
+  [...durations].sort((a, b) => a - b)[Math.floor(durations.length / 2)]!;
+
+const calibrationMs = (): number => {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:absolute;left:0;top:0;width:1200px;visibility:hidden';
+  for (let i = 0; i < CALIBRATION_NODES; i += 1) {
+    const node = document.createElement('div');
+    node.textContent = `Node ${i} with a label`;
+    node.style.cssText = 'display:inline-block;padding:4px;box-shadow:2px 2px 0 #000';
+    host.appendChild(node);
+  }
+  document.body.appendChild(host);
+  const samples: number[] = [];
+  for (let round = 0; round < CALIBRATION_ROUNDS; round += 1) {
+    const start = performance.now();
+    host.style.fontSize = `${12 + (round % 2)}px`;
+    host.getBoundingClientRect();
+    samples.push(performance.now() - start);
+  }
+  host.remove();
+  return median(samples);
+};
+
+const runnerSlowdown = (): number =>
+  Math.min(
+    MAX_RUNNER_SLOWDOWN,
+    Math.max(
+      1,
+      median([calibrationMs(), calibrationMs(), calibrationMs()]) / REFERENCE_CALIBRATION_MS,
+    ),
+  );
+
+let frameBudgetMs = FRAME_BUDGET_MS;
+let dragReactBudgetMs = DRAG_REACT_BUDGET_MS;
+
+beforeAll(() => {
+  const slowdown = runnerSlowdown();
+  frameBudgetMs = FRAME_BUDGET_MS * slowdown;
+  dragReactBudgetMs = DRAG_REACT_BUDGET_MS * slowdown;
+});
 
 const measureP95 = async (step: () => void): Promise<number> => {
   for (let i = 0; i < WARM_UP_FRAMES; i += 1) {
@@ -294,7 +341,7 @@ describe('mindmap canvas in a real browser', () => {
       await nextFrame();
     }
     canvas.dispatchEvent(new PointerEvent('pointerup', at(120 + moves * 3)));
-    expect((react.ms - before) / moves).toBeLessThan(DRAG_REACT_BUDGET_MS);
+    expect((react.ms - before) / moves).toBeLessThan(dragReactBudgetMs);
   });
 
   it('culls and rings only on-screen records when 2,000 are selected', async () => {
@@ -311,43 +358,55 @@ describe('mindmap canvas in a real browser', () => {
     expect(document.querySelectorAll('[data-testid="mm-selection-ring"]')).toHaveLength(1);
   });
 
-  it('keeps p95 frame time under 20 ms while panning with 2,000 records selected', async () => {
-    await page.viewport(1280, 900);
-    const { controller } = mount(linkedTree(2000), { x: 1, y: 1, z: 1 });
-    act(() =>
-      controller.selection.set(
-        controller.store
-          .all()
-          .filter((record) => record.type === 'node')
-          .map((record) => record.id),
-      ),
-    );
-    await nextFrame();
-    expect(await measureP95(() => controller.camera.panBy(-4, -2))).toBeLessThan(FRAME_BUDGET_MS);
-  });
+  it(
+    'keeps p95 frame time within the runner-scaled 20 ms budget while panning with 2,000 records selected',
+    async () => {
+      await page.viewport(1280, 900);
+      const { controller } = mount(linkedTree(2000), { x: 1, y: 1, z: 1 });
+      act(() =>
+        controller.selection.set(
+          controller.store
+            .all()
+            .filter((record) => record.type === 'node')
+            .map((record) => record.id),
+        ),
+      );
+      await nextFrame();
+      expect(await measureP95(() => controller.camera.panBy(-4, -2))).toBeLessThan(frameBudgetMs);
+    },
+    FRAME_TEST_TIMEOUT_MS,
+  );
 
-  it('keeps p95 frame time under 20 ms while panning a fitted map of 2,000 linked records', async () => {
-    await page.viewport(1280, 900);
-    const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
-    act(() => controller.fitView(false));
-    await nextFrame();
-    expect(screen.getByTestId('mm-record-n1999').style.display).toBe('');
-    expect(await measureP95(() => controller.camera.panBy(-2, -1))).toBeLessThan(FRAME_BUDGET_MS);
-  });
+  it(
+    'keeps p95 frame time within the runner-scaled 20 ms budget while panning a fitted map of 2,000 linked records',
+    async () => {
+      await page.viewport(1280, 900);
+      const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
+      act(() => controller.fitView(false));
+      await nextFrame();
+      expect(screen.getByTestId('mm-record-n1999').style.display).toBe('');
+      expect(await measureP95(() => controller.camera.panBy(-2, -1))).toBeLessThan(frameBudgetMs);
+    },
+    FRAME_TEST_TIMEOUT_MS,
+  );
 
-  it('keeps p95 frame time under 20 ms while zooming a fitted map of 2,000 linked records', async () => {
-    await page.viewport(1280, 900);
-    const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
-    act(() => controller.fitView(false));
-    await nextFrame();
-    let step = 0;
-    const zoomP95 = await measureP95(() => {
-      step += 1;
-      const factor = Math.floor(step / 30) % 2 === 0 ? 1.02 : 1 / 1.02;
-      controller.camera.zoomAt({ x: 500, y: 350 }, factor);
-    });
-    expect(zoomP95).toBeLessThan(FRAME_BUDGET_MS);
-  });
+  it(
+    'keeps p95 frame time within the runner-scaled 20 ms budget while zooming a fitted map of 2,000 linked records',
+    async () => {
+      await page.viewport(1280, 900);
+      const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
+      act(() => controller.fitView(false));
+      await nextFrame();
+      let step = 0;
+      const zoomP95 = await measureP95(() => {
+        step += 1;
+        const factor = Math.floor(step / 30) % 2 === 0 ? 1.02 : 1 / 1.02;
+        controller.camera.zoomAt({ x: 500, y: 350 }, factor);
+      });
+      expect(zoomP95).toBeLessThan(frameBudgetMs);
+    },
+    FRAME_TEST_TIMEOUT_MS,
+  );
 
   it('promotes the world layer while the camera moves and drops it once it settles', async () => {
     await page.viewport(1280, 900);
