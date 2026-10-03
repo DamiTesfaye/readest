@@ -319,6 +319,7 @@ test.describe('Mind map', () => {
 
   test('keeps Tab inside the full-screen map', async ({ openBook, page }) => {
     const reader = await openBook();
+    const inertBefore = await page.locator('[inert]').count();
     const canvas = await createBlankMap(reader, page);
     await expect(canvas).toBeFocused();
     const outside: string[] = [];
@@ -336,7 +337,7 @@ test.describe('Mind map', () => {
     expect(outside).toEqual([]);
     await page.getByRole('button', { name: /^Back to page/ }).click();
     await expect(canvas).toBeHidden();
-    await expect(page.locator('[inert]')).toHaveCount(0);
+    await expect(page.locator('[inert]')).toHaveCount(inertBefore);
   });
 
   test('deletes the open map without a save error', async ({ openBook, page }) => {
