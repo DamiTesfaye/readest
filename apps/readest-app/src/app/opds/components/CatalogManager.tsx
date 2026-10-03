@@ -30,6 +30,7 @@ import { SectionTitle } from '@/components/settings/primitives';
 import { deleteSubscriptionState, loadSubscriptionState } from '@/services/opds';
 import type { OPDSSubscriptionState } from '@/services/opds/types';
 import { getUnaddedPopularCatalogs, validateOPDSURL } from '../utils/opdsUtils';
+import { POPULAR_CATALOG_GROUPS } from '../utils/popularCatalogs';
 import { FailedDownloadsDialog } from './FailedDownloadsDialog';
 import {
   formatCustomHeadersInput,
@@ -37,37 +38,6 @@ import {
   parseCustomHeadersInput,
 } from '@/utils/customHeaders';
 import ModalPortal from '@/components/ModalPortal';
-
-const POPULAR_CATALOGS: OPDSCatalog[] = [
-  {
-    id: 'gutenberg',
-    name: 'Project Gutenberg',
-    url: 'https://m.gutenberg.org/ebooks.opds/',
-    description: "World's largest collection of free ebooks",
-    icon: '🏛️',
-  },
-  {
-    id: 'standardebooks',
-    name: 'Standard Ebooks',
-    url: 'https://standardebooks.org/feeds/opds',
-    description: 'Free and liberated ebooks, carefully produced for the true book lover',
-    icon: '📚',
-  },
-  {
-    id: 'manybooks',
-    name: 'ManyBooks',
-    url: 'https://manybooks.net/opds/index.php',
-    description: 'Over 50,000 free ebooks',
-    icon: '📖',
-  },
-  {
-    id: 'unglue.it',
-    name: 'Unglue.it',
-    url: 'https://unglue.it/api/opds/',
-    description: 'Free ebooks from authors who have "unglued" their books',
-    icon: '🔓',
-  },
-];
 
 async function validateOPDSCatalog(
   url: string,
@@ -106,9 +76,25 @@ interface CatalogManagerProps {
    * so the title shows.
    */
   inSubPage?: boolean;
+  /**
+   * Where the manager is hosted, so browsed feeds are tagged with a `from`
+   * param and closing the browser returns here instead of reopening the
+   * library dialog: 'library-catalogs' for the catalogs view embedded in
+   * the library page.
+   */
+  browseFrom?: 'library-catalogs';
+  /**
+   * Text filter over catalog names/descriptions. The library catalogs view
+   * feeds the sidebar search box through here.
+   */
+  searchQuery?: string;
 }
 
-export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) {
+export function CatalogManager({
+  inSubPage = false,
+  browseFrom,
+  searchQuery = '',
+}: CatalogManagerProps = {}) {
   const _ = useTranslation();
   const router = useRouter();
   const { envConfig, appService } = useEnv();
@@ -129,10 +115,21 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
   const [headerError, setHeaderError] = useState('');
   const [proxyConsentError, setProxyConsentError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const catalogFilter = searchQuery.trim().toLowerCase();
+  const matchesFilter = (name: string, extra?: string) =>
+    !catalogFilter ||
+    name.toLowerCase().includes(catalogFilter) ||
+    (extra ?? '').toLowerCase().includes(catalogFilter);
+  const visibleCatalogs = catalogs.filter((catalog) => matchesFilter(catalog.name, catalog.url));
   // Only surface popular catalogs the user hasn't already added; otherwise an
   // added entry would render in both sections and read as a duplicate (#4782).
-  const popularCatalogs = appService?.isOnlineCatalogsAccessible
-    ? getUnaddedPopularCatalogs(POPULAR_CATALOGS, catalogs)
+  const visiblePopularGroups = appService?.isOnlineCatalogsAccessible
+    ? POPULAR_CATALOG_GROUPS.map((group) => ({
+        title: group.title,
+        catalogs: getUnaddedPopularCatalogs(group.catalogs, catalogs).filter((catalog) =>
+          matchesFilter(catalog.name, catalog.description),
+        ),
+      })).filter((group) => group.catalogs.length > 0)
     : [];
   const [subscriptionStates, setSubscriptionStates] = useState<
     Record<string, OPDSSubscriptionState>
@@ -382,6 +379,8 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
     // instead of falling back to the standalone library OPDS dialog.
     if (inSubPage) {
       params.set('from', 'settings-integrations');
+    } else if (browseFrom) {
+      params.set('from', browseFrom);
     }
     router.push(`/opds?${params.toString()}`);
   };
@@ -420,7 +419,9 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
           </button>
         </div>
 
-        {catalogs.length === 0 ? (
+        {catalogs.length > 0 && visibleCatalogs.length === 0 ? (
+          <p className='text-base-content/60 text-sm'>{_('No catalogs match your search')}</p>
+        ) : catalogs.length === 0 ? (
           <div className='eink-bordered border-base-300 rounded-lg border-2 border-dashed p-12 text-center'>
             <IoBook className='text-base-content/40 mx-auto mb-4 h-12 w-12' />
             <h3 className='mb-2 font-semibold'>{_('No catalogs yet')}</h3>
@@ -433,7 +434,7 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
           </div>
         ) : (
           <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-            {catalogs.map((catalog) => {
+            {visibleCatalogs.map((catalog) => {
               const subState = subscriptionStates[catalog.id];
               const lastCheckedAt = subState?.lastCheckedAt ?? 0;
               const failedCount = subState?.failedEntries.length ?? 0;
@@ -594,51 +595,53 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
       </section>
 
       {/* Popular Catalogs */}
-      <section className={clsx('text-base', popularCatalogs.length === 0 && 'hidden')}>
-        <SectionTitle className='mb-3'>{_('Popular Catalogs')}</SectionTitle>
-        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-          {popularCatalogs.map((catalog) => (
-            <div
-              key={catalog.id}
-              className='card eink-bordered bg-base-100 border-base-200 flex flex-col border'
-            >
-              <div className='flex flex-1 flex-col gap-2.5 p-4'>
-                <h4>
-                  <button
-                    type='button'
-                    onClick={() => handleOpenCatalog(catalog)}
-                    className='flex w-full min-w-0 items-center gap-1.5 rounded-sm text-start text-sm font-semibold transition-colors duration-150 hover:underline focus-visible:underline focus-visible:outline-none'
-                  >
-                    {catalog.icon && <span className='flex-shrink-0'>{catalog.icon}</span>}
-                    <span className='truncate'>{catalog.name}</span>
-                  </button>
-                </h4>
-                {catalog.description && (
-                  <p className='text-base-content/70 line-clamp-2 text-xs leading-relaxed'>
-                    {catalog.description}
-                  </p>
-                )}
-                <div className='border-base-200 mt-auto flex items-center justify-end gap-1 border-t pt-3'>
-                  <button
-                    onClick={() => handleAddPopularCatalog(catalog)}
-                    className='hover:bg-base-200 focus-visible:ring-base-content/15 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
-                  >
-                    <IoAdd className='h-4 w-4' />
-                    {_('Add')}
-                  </button>
-                  <button
-                    onClick={() => handleOpenCatalog(catalog)}
-                    className='hover:bg-base-200 focus-visible:ring-base-content/15 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
-                  >
-                    {_('Browse')}
-                    <MdChevronRight className='h-4 w-4' />
-                  </button>
+      {visiblePopularGroups.map((group) => (
+        <section key={group.title} className='mb-10 text-base last:mb-0'>
+          <SectionTitle className='mb-3'>{_(group.title)}</SectionTitle>
+          <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            {group.catalogs.map((catalog) => (
+              <div
+                key={catalog.id}
+                className='card eink-bordered bg-base-100 border-base-200 flex flex-col border'
+              >
+                <div className='flex flex-1 flex-col gap-2.5 p-4'>
+                  <h4>
+                    <button
+                      type='button'
+                      onClick={() => handleOpenCatalog(catalog)}
+                      className='flex w-full min-w-0 items-center gap-1.5 rounded-sm text-start text-sm font-semibold transition-colors duration-150 hover:underline focus-visible:underline focus-visible:outline-none'
+                    >
+                      {catalog.icon && <span className='flex-shrink-0'>{catalog.icon}</span>}
+                      <span className='truncate'>{catalog.name}</span>
+                    </button>
+                  </h4>
+                  {catalog.description && (
+                    <p className='text-base-content/70 line-clamp-2 text-xs leading-relaxed'>
+                      {catalog.description}
+                    </p>
+                  )}
+                  <div className='border-base-200 mt-auto flex items-center justify-end gap-1 border-t pt-3'>
+                    <button
+                      onClick={() => handleAddPopularCatalog(catalog)}
+                      className='hover:bg-base-200 focus-visible:ring-base-content/15 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
+                    >
+                      <IoAdd className='h-4 w-4' />
+                      {_('Add')}
+                    </button>
+                    <button
+                      onClick={() => handleOpenCatalog(catalog)}
+                      className='hover:bg-base-200 focus-visible:ring-base-content/15 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2'
+                    >
+                      {_('Browse')}
+                      <MdChevronRight className='h-4 w-4' />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      ))}
 
       {/* Add/Edit Catalog Dialog */}
       {showAddDialog && (

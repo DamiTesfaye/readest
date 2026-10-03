@@ -165,6 +165,9 @@ importers:
       '@readest/turso-database-wasm-common':
         specifier: 0.7.0-pre.3-readest.0
         version: 0.7.0-pre.3-readest.0
+      '@rive-app/canvas':
+        specifier: ^2.38.1
+        version: 2.44.0
       '@serwist/next':
         specifier: ^9.5.6
         version: 9.5.11(next@16.2.11(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(@types/node@22.19.19)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(typescript@5.9.3)(webpack@5.106.2(postcss@8.5.25))
@@ -360,9 +363,15 @@ importers:
       overlayscrollbars-react:
         specifier: ^0.5.6
         version: 0.5.6(overlayscrollbars@2.16.0)(react@19.2.8)
+      perfect-freehand:
+        specifier: ^1.2.3
+        version: 1.2.3
       posthog-js:
         specifier: ^1.246.0
         version: 1.373.2
+      rbush:
+        specifier: ^4.0.1
+        version: 4.0.1
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -472,6 +481,9 @@ importers:
       '@types/nunjucks':
         specifier: ^3.2.6
         version: 3.2.6
+      '@types/rbush':
+        specifier: ^4.0.0
+        version: 4.0.0
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
@@ -2759,6 +2771,9 @@ packages:
     resolution: {integrity: sha512-C7c51Nn4yTxXFKvgh2txJFNweaVcfUPQxwEUFw4aWsCmfiBDJsTSwviIF8EcwjQ6k8bPyMWCl1vw4BdxE569Cg==}
     engines: {node: '>= 10'}
 
+  '@rive-app/canvas@2.44.0':
+    resolution: {integrity: sha512-ak0GGwCbuWubi6rP9qB5YPy5CxYuTY3AiuTV4i1Vi7GXhuK2XB+M+4WJMuGcYGfGLzojaVMKaxtunD5OjjGzOQ==}
+
   '@rolldown/pluginutils@1.0.0-rc.18':
     resolution: {integrity: sha512-CUY5Mnhe64xQBGZEEXQ5WyZwsc1JU3vAZLIxtrsBt3LO6UOb+C8GunVKqe9sT8NeWb4lqSaoJtp2xo6GxT1MNw==}
 
@@ -3715,6 +3730,9 @@ packages:
 
   '@types/nunjucks@3.2.6':
     resolution: {integrity: sha512-pHiGtf83na1nCzliuAdq8GowYiXvH5l931xZ0YEHaLMNFgynpEqx+IPStlu7UaDkehfvl01e4x/9Tpwhy7Ue3w==}
+
+  '@types/rbush@4.0.0':
+    resolution: {integrity: sha512-+N+2H39P8X+Hy1I5mC6awlTX54k3FhiUmvt7HWzGJZvF+syUAAxP/stwppS8JE84YHqFgRMv6fCy31202CMFxQ==}
 
   '@types/react-color@3.0.13':
     resolution: {integrity: sha512-2c/9FZ4ixC5T3JzN0LP5Cke2Mf0MKOP2Eh0NPDPWmuVH3NjPyhEjqNMQpN1Phr5m74egAy+p2lYNAFrX1z9Yrg==}
@@ -6966,6 +6984,9 @@ packages:
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
+  perfect-freehand@1.2.3:
+    resolution: {integrity: sha512-bHZSfqDHGNlPpgH2yxXgPHlQSPpEbo+qg7li0M78J9vNAi2yjwLeA4x79BEQhX44lEWpCLSFCeRZwpw0niiXPA==}
+
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -7179,6 +7200,9 @@ packages:
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
+  quickselect@3.0.0:
+    resolution: {integrity: sha512-XdjUArbK4Bm5fLLvlm5KpTFOiOThgfWWI4axAZDWg4E/0mKdZyI9tNEfds27qCi1ze/vwTR16kvmmGhRra3c2g==}
+
   range-parser@1.2.1:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
@@ -7192,6 +7216,9 @@ packages:
     engines: {node: '>= 10.13.0'}
     peerDependencies:
       webpack: ^4.0.0 || ^5.0.0
+
+  rbush@4.0.1:
+    resolution: {integrity: sha512-IP0UpfeWQujYC8Jg162rMNc01Rf0gWMMAb2Uxus/Q0qOFw4lCcq6ZnQEZwUoJqWyUGJ9th7JjwI4yIWo+uvoAQ==}
 
   react-colorful@5.8.0:
     resolution: {integrity: sha512-Wy9OzPfjSN9bF12OB8N7UQvlsZ0I+7wHxpN+bV5BjNQGxOj6IiwkRjevJK9yOBjJWGQvAaf1OXtn8rUeEatAng==}
@@ -11241,6 +11268,8 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
+  '@rive-app/canvas@2.44.0': {}
+
   '@rolldown/pluginutils@1.0.0-rc.18': {}
 
   '@rolldown/pluginutils@1.0.0-rc.3': {}
@@ -12200,6 +12229,8 @@ snapshots:
   '@types/normalize-package-data@2.4.4': {}
 
   '@types/nunjucks@3.2.6': {}
+
+  '@types/rbush@4.0.0': {}
 
   '@types/react-color@3.0.13(@types/react@19.2.14)':
     dependencies:
@@ -16027,6 +16058,8 @@ snapshots:
 
   pend@1.2.0: {}
 
+  perfect-freehand@1.2.3: {}
+
   picocolors@1.1.1: {}
 
   picomatch@4.0.4: {}
@@ -16251,6 +16284,8 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
+  quickselect@3.0.0: {}
+
   range-parser@1.2.1: {}
 
   raw-body@3.0.2:
@@ -16265,6 +16300,10 @@ snapshots:
       loader-utils: 2.0.4
       schema-utils: 3.3.0
       webpack: 5.106.2(postcss@8.5.25)
+
+  rbush@4.0.1:
+    dependencies:
+      quickselect: 3.0.0
 
   react-colorful@5.8.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:

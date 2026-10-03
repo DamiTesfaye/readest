@@ -74,8 +74,8 @@ describe('mapFoliateColor', () => {
     expect(mapFoliateColor('squiggly')).toEqual({ style: 'squiggly', color: 'red' });
   });
 
-  it('should map strikethrough to highlight/red', () => {
-    expect(mapFoliateColor('strikethrough')).toEqual({ style: 'highlight', color: 'red' });
+  it('should map strikethrough to strikethrough/red', () => {
+    expect(mapFoliateColor('strikethrough')).toEqual({ style: 'strikethrough', color: 'red' });
   });
 
   it('should default undefined to highlight/yellow', () => {

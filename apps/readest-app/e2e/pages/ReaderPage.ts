@@ -48,7 +48,7 @@ export class ReaderPage extends BasePage {
     this.translatorPopup = page.locator('.popup-container:has(h1:text-is("Original Text"))');
     this.proofreadPopup = page.locator('.popup-container:has-text("Selected text:")');
     this.noteEditor = page.locator('.note-editor-container');
-    this.annotationItems = page.locator('li.booknote-item[role="button"]');
+    this.annotationItems = page.locator('[role="list"] > .booknote-item[role="listitem"]');
   }
 
   /** Wait until the reader route is active and the book viewer has mounted. */
@@ -112,14 +112,35 @@ export class ReaderPage extends BasePage {
    * reveal is needed.
    */
   async readingProgress(): Promise<number> {
-    const value = await this.pageJumpInput.inputValue();
-    const match = value.match(/(\d+(?:\.\d+)?)/);
+    const value = await this.pageStatus.textContent();
+    const match = (value ?? '').match(/(\d+(?:\.\d+)?)/);
     return match ? Number(match[1]) : Number.NaN;
   }
 
-  /** Jump to a page by typing into the footer's page-jump input. */
+  get pageStatus(): Locator {
+    return this.page
+      .getByRole('status')
+      .filter({ hasText: /^Page \d+/ })
+      .first();
+  }
+
+  async openProgressPanel(): Promise<void> {
+    if (await this.pageJumpInput.isVisible().catch(() => false)) return;
+    await this.openFooterPanel('Reading Progress');
+    await this.pageJumpInput.waitFor({ state: 'visible' });
+  }
+
+  async openFooterPanel(name: string): Promise<void> {
+    await this.switchToCompactLayout();
+    await this.revealHeader();
+    const tab = this.page.getByRole('button', { name, exact: true });
+    await tab.focus();
+    await tab.press('Enter');
+  }
+
+  /** Jump to a page by typing into the Reading Progress panel's input. */
   async goToPage(page: number): Promise<void> {
-    await this.revealFooter();
+    await this.openProgressPanel();
     await this.pageJumpInput.click();
     await this.pageJumpInput.fill(String(page));
     await this.pageJumpInput.press('Enter');
@@ -129,25 +150,40 @@ export class ReaderPage extends BasePage {
 
   async openSidebar(): Promise<void> {
     if (await this.sidebar.isVisible()) return;
-    await this.revealHeader();
-    await this.page.locator('button[aria-label="Toggle Sidebar"]').first().click();
+    await this.page.keyboard.press('s');
     await this.sidebar.waitFor({ state: 'visible' });
+    const search = this.sidebar.getByRole('textbox', { name: 'Search...' });
+    if (await search.isVisible().catch(() => false)) {
+      await search.fill('');
+      await search.press('Escape');
+    }
   }
 
-  /** Open the sidebar and navigate to the TOC chapter at the given index. */
+  get contentsPopover(): Locator {
+    return this.page
+      .locator('.toolbar-popover, [role="dialog"]')
+      .filter({ hasText: 'Contents' })
+      .last();
+  }
+
+  async openContents(): Promise<void> {
+    await this.revealHeader();
+    await this.headerBar.locator('button[title="Contents"]').click();
+    await this.tocItems.first().waitFor({ state: 'visible' });
+  }
+
   async openTocChapter(index: number): Promise<void> {
-    await this.openSidebar();
-    await this.sidebar.locator('[aria-label="TOC"]').click();
+    await this.openContents();
     await this.tocItems.nth(index).click();
+    await this.page.keyboard.press('Escape');
   }
 
   // --- in-book search ---
 
   /** Run an in-book search and return the number of results. */
   async search(term: string): Promise<number> {
-    await this.openSidebar();
-    await this.page.locator('button[title="Show Search Bar"]').click();
-    await this.sidebar.locator('input.search-input').fill(term);
+    await this.openContents();
+    await this.page.locator('input.search-input:visible').first().fill(term);
     await this.searchResults.first().waitFor({ state: 'visible' });
     return this.searchResults.count();
   }
@@ -161,34 +197,33 @@ export class ReaderPage extends BasePage {
    * entry is the header's remaining route into the dialog.
    */
   async openSettings(): Promise<void> {
+    await this.switchToCompactLayout();
     await this.revealHeader();
     await this.headerBar.locator('button[aria-label="View Options"]').click();
     await this.page.locator('.view-menu').getByText('Settings', { exact: true }).click();
+    await this.switchToDesktopLayout();
   }
 
   /**
-   * Open the settings dialog, increase the default font size by one step,
+   * Open the compact footer's Font & Layout panel, increase the font size by one step,
    * and return the value before and after.
    */
   async increaseFontSize(): Promise<{ before: string; after: string }> {
-    await this.openSettings();
-    await this.page.locator('[data-tab="Font"]').click();
+    await this.openFooterPanel('Font & Layout');
 
-    const row = this.page.locator('[data-setting-id="settings.font.defaultFontSize"]');
-    const input = row.locator('input').first();
-    await input.waitFor({ state: 'visible' });
-    const before = await input.inputValue();
-    await row.locator('[aria-label="Increase"]').click();
-    await expect(input).not.toHaveValue(before);
-    const after = await input.inputValue();
+    const slider = this.page.getByRole('slider', { name: 'Font Size' });
+    await slider.waitFor({ state: 'visible' });
+    const before = await slider.inputValue();
+    await slider.fill(String(Number(before) + 10));
+    await expect(slider).not.toHaveValue(before);
+    const after = await slider.inputValue();
 
-    await this.page.keyboard.press('Escape');
     return { before, after };
   }
 
   /**
-   * Add an annotation tool to the selection toolbar via
-   * Settings -> Behavior -> Customize Toolbar, by its chip label.
+   * Add an annotation tool to the selection popup from the Control tab's
+   * Customize Toolbar page, by its chip label.
    */
   async enableAnnotationTool(name: string): Promise<void> {
     await this.openSettings();
@@ -200,12 +235,12 @@ export class ReaderPage extends BasePage {
 
   /**
    * Turn the in-page header band (the running section title) on or off from
-   * the settings dialog. With it off the book text moves up to the compact top
-   * margin, right under the header bar's hover strip.
+   * the Control tab of the settings dialog. With it off the book text moves up
+   * to the compact top margin, right under the header bar's hover strip.
    */
   async setPageHeaderVisible(visible: boolean): Promise<void> {
     await this.openSettings();
-    await this.page.locator('[data-tab="Layout"]').click();
+    await this.page.locator('[data-tab="Control"]').click();
 
     const toggle = this.page
       .locator('[data-setting-id="settings.layout.showHeader"]')
@@ -284,6 +319,15 @@ export class ReaderPage extends BasePage {
       hit = await this.firstLineHitTest();
     }
     return hit;
+  }
+
+  async switchToCompactLayout(): Promise<void> {
+    await this.page.setViewportSize({ width: 600, height: 900 });
+    await this.page.waitForTimeout(800);
+  }
+
+  async switchToDesktopLayout(): Promise<void> {
+    await this.page.setViewportSize({ width: 1280, height: 720 });
   }
 
   // --- bookmarks ---
@@ -399,12 +443,12 @@ export class ReaderPage extends BasePage {
   }
 
   async selectHighlightColor(color: string): Promise<void> {
-    await this.page.locator(`[aria-label="Select ${color} color"]`).click();
+    await this.annotationPopup.getByRole('button', { name: `${color} color` }).click();
   }
 
   /** Annotate the current selection with a note. */
   async addNote(text: string): Promise<void> {
-    await this.popupTool('Annotate').click();
+    await this.popupTool('Add note').click();
     await this.noteEditor.waitFor({ state: 'visible' });
     await this.noteEditor.getByRole('textbox').fill(text);
     await this.notebook.getByRole('button', { name: 'Save' }).click();
@@ -439,17 +483,34 @@ export class ReaderPage extends BasePage {
   }
 
   /**
-   * Open the sidebar's "Annotate" tab, which lists the book's annotations
-   * (assert against {@link annotationItems} afterwards).
+   * Open the header's More > Annotations popover, which lists the book's
+   * annotations (assert against {@link annotationItems} afterwards).
    */
   async openAnnotationsTab(): Promise<void> {
     await this.dismissPopup();
     await this.closeNotebook();
-    await this.openSidebar();
-    await this.sidebar.locator('[aria-label="Annotate"]').click();
+    if (
+      await this.annotationItems
+        .first()
+        .isVisible()
+        .catch(() => false)
+    )
+      return;
+    await this.revealHeader();
+    await this.page.locator('button[aria-label="More"]:visible').first().click();
+    await this.page.getByRole('button', { name: 'Annotations', exact: true }).click();
   }
 
-  /** Delete the first annotation from the sidebar's "Annotate" tab. */
+  async editFirstNote(): Promise<void> {
+    await this.page.keyboard.press('Escape');
+    await this.revealHeader();
+    await this.page.locator('button[aria-label="More"]:visible').first().click();
+    await this.page.getByRole('button', { name: 'Bookmarks & Notes', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+    await this.noteEditor.waitFor({ state: 'visible' });
+  }
+
+  /** Delete the first annotation from the More > Annotations popover. */
   async deleteFirstAnnotation(): Promise<void> {
     await this.openAnnotationsTab();
     const item = this.annotationItems.first();

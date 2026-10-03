@@ -6,10 +6,16 @@ import { fontAdapter, FONT_KIND } from './adapters/font';
 import { textureAdapter, TEXTURE_KIND } from './adapters/texture';
 import { opdsCatalogAdapter } from './adapters/opdsCatalog';
 import { settingsAdapter } from './adapters/settings';
+import { mindmapAdapter, MINDMAP_KIND } from './adapters/mindmap';
 import { getReplicaPersistEnv } from './replicaPersist';
 import { getReplicaAdapter, registerReplicaAdapter } from './replicaRegistry';
-import { registerReplicaDownloadHandler } from './replicaTransferIntegration';
+import {
+  registerReplicaDownloadHandler,
+  registerReplicaUploadHandler,
+} from './replicaTransferIntegration';
 import type { ReplicaAdapter } from './replicaRegistry';
+import { noticeMindmapMerge } from '@/services/mindmap/sync/mergeNotice';
+import { handleMindmapDownload, handleMindmapUpload } from '@/services/mindmap/sync/runtime';
 
 const KNOWN_ADAPTERS: ReplicaAdapter<unknown>[] = [
   dictionaryAdapter as unknown as ReplicaAdapter<unknown>,
@@ -19,6 +25,7 @@ const KNOWN_ADAPTERS: ReplicaAdapter<unknown>[] = [
   opdsCatalogAdapter as unknown as ReplicaAdapter<unknown>,
   // Bundled scalar settings — singleton row, no binary.
   settingsAdapter as unknown as ReplicaAdapter<unknown>,
+  mindmapAdapter as unknown as ReplicaAdapter<unknown>,
 ];
 
 let didBootstrap = false;
@@ -63,6 +70,10 @@ export const bootstrapReplicaAdapters = (): void => {
     }
     void useCustomTextureStore.getState().activateTextureByContentId(env, replicaId);
   });
+  registerReplicaDownloadHandler(MINDMAP_KIND, async (replicaId, files) => {
+    noticeMindmapMerge(replicaId, await handleMindmapDownload(replicaId, files));
+  });
+  registerReplicaUploadHandler(MINDMAP_KIND, handleMindmapUpload);
   didBootstrap = true;
 };
 

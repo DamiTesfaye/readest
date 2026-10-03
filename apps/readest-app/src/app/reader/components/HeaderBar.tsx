@@ -1,6 +1,5 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { VscLibrary } from 'react-icons/vsc';
 import { MdOutlineMenu } from 'react-icons/md';
 
 import { Insets } from '@/types/misc';
@@ -10,28 +9,38 @@ import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useSettingsStore } from '@/store/settingsStore';
 import { useTrafficLightStore } from '@/store/trafficLightStore';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
-import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { useSpatialNavigation } from '@/app/reader/hooks/useSpatialNavigation';
-import { getHighlightColorHex } from '../utils/annotatorUtil';
-import { annotationToolQuickActions } from './annotator/AnnotationTools';
-import { AnnotationToolType } from '@/types/annotator';
-import { saveViewSettings } from '@/helpers/settings';
 import { getHeaderTriggerHeight } from '@/utils/insets';
-import { isForcedMobileLayout } from '../utils/mobileLayout';
-import { HighlighterIcon } from '@/components/HighlighterIcon';
 import Dropdown from '@/components/Dropdown';
 import ModalPortal from '@/components/ModalPortal';
 import WindowButtons from '@/components/WindowButtons';
-import QuickActionMenu from './annotator/QuickActionMenu';
-import SidebarToggler from './SidebarToggler';
 import BookmarkToggler from './BookmarkToggler';
 import NotebookToggler from './NotebookToggler';
+import SettingsToggler from './SettingsToggler';
 import TranslationToggler from './TranslationToggler';
 import ViewMenu from './ViewMenu';
 import SyncInfoDialog from './SyncInfoDialog';
+import ToolbarPopover from '@/components/ToolbarPopover';
+import ThemeFontsPanel from '@/components/themefonts/ThemeFontsPanel';
+import TocPopover from './TocPopover';
+import LibraryPopover from './library/LibraryPopover';
+import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
+import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
+import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
+import MoreMenuButton from './MoreMenuButton';
+import PinnedMoreMenuButton from './PinnedMoreMenuButton';
+import SparkPopover from './SparkPopover';
+import AmpleCloudIcon from './AmpleCloudIcon';
+import { getToolbarSidePanelPlacement, getToolbarStackedPanelPlacement } from '@/utils/popover';
+import type { Rect } from '@/utils/sel';
+import { eventDispatcher } from '@/utils/event';
+import { getChromeColor, getContrastHex } from '@/styles/themes';
+import { getToolbarIconColor, getToolbarIconSrc } from '@/utils/toolbarIcons';
+import { saveViewSettings } from '@/helpers/settings';
+
+const THEME_FONTS_WIDTH = 300;
 
 interface HeaderBarProps {
   bookKey: string;
@@ -58,16 +67,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 }) => {
   const _ = useTranslation();
   const { envConfig, appService } = useEnv();
-  const { settings } = useSettingsStore();
   const headerRef = useRef<HTMLDivElement>(null);
+  const headerRootRef = useRef<HTMLDivElement>(null);
   const { isTrafficLightVisible } = useTrafficLight(headerRef);
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
   const { bookKeys, hoveredBookKey } = useReaderStore();
-  const { isDarkMode, systemUIVisible, statusBarHeight } = useThemeStore();
+  const { isDarkMode, themeColor, systemUIVisible, statusBarHeight } = useThemeStore();
   const { isSideBarVisible, getIsSideBarVisible } = useSidebarStore();
-  const { getView, getViewSettings, setHoveredBookKey } = useReaderStore();
+  const { getView, getViewState, getViewSettings, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
-  const viewSettings = getViewSettings(bookKey);
   const bookData = getBookData(bookKey);
   const bookConfig = getConfig(bookKey);
   const lastSyncedAt =
@@ -75,23 +83,23 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMetaHashDialogOpen, setIsMetaHashDialogOpen] = useState(false);
+  const [isThemeFontsOpen, setIsThemeFontsOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const tocAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const libraryAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isSparkOpen, setIsSparkOpen] = useState(false);
+  const sparkAnchorRef = useRef<HTMLButtonElement>(null);
+  const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
+  const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
+  const [sidePanelAnchorRect, setSidePanelAnchorRect] = useState<Rect | null>(null);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
-  const iconSize18 = useResponsiveSize(18);
 
   const docs = view?.renderer.getContents() ?? [];
   const pointerInDoc = docs.some(({ doc }) => doc?.body?.style.cursor === 'pointer');
-
-  const enableAnnotationQuickActions = viewSettings?.enableAnnotationQuickActions;
-  const annotationQuickActionButton =
-    annotationToolQuickActions.find(
-      (button) => button.type === viewSettings?.annotationQuickAction,
-    ) || annotationToolQuickActions[0]!;
-  const annotationQuickAction = viewSettings?.annotationQuickAction;
-  const AnnotationToolQuickActionIcon = annotationQuickActionButton.Icon;
-  const highlightStyle = settings.globalReadSettings.highlightStyle;
-  const highlightColor = settings.globalReadSettings.highlightStyles[highlightStyle];
-  const highlightHexColor = getHighlightColorHex(settings, highlightColor);
 
   const handleToggleDropdown = (isOpen: boolean) => {
     setIsDropdownOpen(isOpen);
@@ -99,9 +107,134 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     if (!isOpen) setHoveredBookKey('');
   };
 
-  const handleAnnotationQuickActionSelect = (action: AnnotationToolType | null) => {
-    if (viewSettings?.annotationQuickAction === action) action = null;
-    saveViewSettings(envConfig, bookKey, 'annotationQuickAction', action, false, true);
+  const chromeColor = getChromeColor(themeColor, isDarkMode);
+  const chromeTextColor = chromeColor ? getContrastHex(chromeColor) : undefined;
+
+  const handleToggleToc = () => {
+    setIsTocOpen((prev) => !prev);
+  };
+
+  const handleToggleLibrary = () => {
+    const next = !isLibraryOpen;
+    setIsLibraryOpen(next);
+    handleToggleDropdown(next);
+  };
+
+  const handleCloseLibrary = () => {
+    setIsLibraryOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  const openSidePanel = (panel: 'themeFonts' | 'booknotes' | 'annotations', anchorRect: Rect) => {
+    setSidePanelAnchorRect(anchorRect);
+    setIsThemeFontsOpen(panel === 'themeFonts');
+    setIsBooknotesOpen(panel === 'booknotes');
+    setIsAnnotationsOpen(panel === 'annotations');
+    setIsMoreOpen(true);
+    handleToggleDropdown(true);
+  };
+
+  const handleOpenBooknotes = (anchorRect: Rect) => {
+    openSidePanel('booknotes', anchorRect);
+  };
+
+  const handleCloseBooknotes = () => {
+    setIsBooknotesOpen(false);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  const handleOpenAnnotations = (anchorRect: Rect) => {
+    openSidePanel('annotations', anchorRect);
+  };
+
+  const handleCloseAnnotations = () => {
+    setIsAnnotationsOpen(false);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  const handleToggleTTS = () => {
+    const ttsEnabled = getViewState(bookKey)?.ttsEnabled;
+    eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
+  };
+
+  const handleToggleSpark = () => {
+    const next = !isSparkOpen;
+    setIsSparkOpen(next);
+    handleToggleDropdown(next);
+  };
+
+  const handleCloseSpark = () => {
+    setIsSparkOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  const handleThemeFontsOpen = (anchorRect: Rect) => {
+    openSidePanel('themeFonts', anchorRect);
+  };
+
+  const handleThemeFontsClose = () => {
+    setIsThemeFontsOpen(false);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  const sidePanelPointerY = sidePanelAnchorRect
+    ? (sidePanelAnchorRect.top + sidePanelAnchorRect.bottom) / 2
+    : undefined;
+
+  const getThemeFontsPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        THEME_FONTS_WIDTH,
+        sidePanelPointerY,
+      ),
+    [sidePanelPointerY],
+  );
+
+  const getAnnotationsPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        ANNOTATIONS_POPOVER_WIDTH,
+        sidePanelPointerY,
+      ),
+    [sidePanelPointerY],
+  );
+
+  const getBooknotesPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      sidePanelAnchorRect
+        ? getToolbarStackedPanelPlacement(sidePanelAnchorRect, viewport, BOOKNOTES_POPOVER_WIDTH)
+        : getToolbarSidePanelPlacement(
+            anchorRect,
+            viewport,
+            MORE_POPOVER_WIDTH,
+            BOOKNOTES_POPOVER_WIDTH,
+          ),
+    [sidePanelAnchorRect],
+  );
+
+  const handleToggleMore = () => {
+    const next = !isMoreOpen;
+    setIsMoreOpen(next);
+    handleToggleDropdown(next);
+  };
+
+  const isReadingRulerActive = !!getViewSettings(bookKey)?.readingRulerEnabled;
+  const handleCloseReadingRuler = () => {
+    saveViewSettings(envConfig, bookKey, 'readingRulerEnabled', false, false, false);
+  };
+
+  const handleCloseMore = () => {
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
   };
 
   useEffect(() => {
@@ -143,7 +276,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const insets = window.innerWidth < 640 ? screenInsets : gridInsets;
   const isHeaderVisible = hoveredBookKey === bookKey || isDropdownOpen;
   const isMobile = appService?.isMobile || window.innerWidth < 640;
-  const forceMobileLayout = isForcedMobileLayout(appService?.isMobile);
+  const viewSettings = getViewSettings(bookKey);
   const triggerHeight = viewSettings ? getHeaderTriggerHeight(gridInsets.top, viewSettings) : 0;
 
   useSpatialNavigation(headerRef, isHeaderVisible);
@@ -154,6 +287,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <div
+      ref={headerRootRef}
       className={clsx(
         // pointer-events-none: the wrapper is as tall as its safe-area
         // padding, so on notch devices its box covers the top inset strip and
@@ -217,6 +351,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           marginTop: systemUIVisible
             ? `${Math.max(insets.top, statusBarHeight)}px`
             : `${insets.top}px`,
+          backgroundColor: chromeColor ?? undefined,
+          color: chromeTextColor,
         }}
         onFocus={() => !appService?.isMobile && setHoveredBookKey(bookKey)}
         onMouseLeave={(e) => {
@@ -225,75 +361,72 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           }
         }}
       >
-        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2'>
-          {/* h-full so this scroller spans the whole bar: `overflow-x-auto`
-              also clips vertically, and shrink-wrapped to the 32px icons it
-              cut the buttons' touch halos back down to 32px (#5401). */}
-          {/* no-scrollbar: the overlay scrollbar of `overflow-x-auto` owns a
-              hit-test strip at the scroller's bottom edge on Android, which
-              cut the touch halos short of the 44px target (#5401) —
-              `scrollbar-width: none` alone does not remove that strip. */}
+        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2 sm:bg-transparent'>
           <div className='no-scrollbar flex h-full min-w-0 items-center gap-x-4 overflow-x-auto max-[350px]:gap-x-2'>
-            {/* Tablet portrait runs the mobile footer bar, whose TOC tab opens
-                this same sidebar — showing the toggle here too gave one action
-                two buttons (#5634). Phones are already covered by `sm:`. */}
-            {!isSideBarVisible && !forceMobileLayout && (
-              <div className='hidden sm:flex'>
-                <SidebarToggler bookKey={bookKey} />
-              </div>
-            )}
-            <button
-              title={_('Go to Library')}
-              className='btn btn-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex'
-              onClick={onGoToLibrary}
-            >
-              <VscLibrary size={iconSize18} className='fill-base-content' />
-            </button>
-            <BookmarkToggler bookKey={bookKey} />
-            <TranslationToggler bookKey={bookKey} />
+            <div className='hidden items-center gap-x-3 sm:flex'>
+              <button
+                ref={tocAnchorRef}
+                title={_('Contents')}
+                aria-expanded={isTocOpen}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
+                onClick={handleToggleToc}
+              >
+                <img
+                  src={getToolbarIconSrc('book-toc', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-6 w-auto object-contain'
+                />
+              </button>
+              <button
+                ref={libraryAnchorRef}
+                title={_('Library')}
+                aria-expanded={isLibraryOpen}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
+                onClick={handleToggleLibrary}
+              >
+                <img
+                  src={getToolbarIconSrc('library', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-auto object-contain'
+                />
+              </button>
+              <button
+                ref={sparkAnchorRef}
+                title={_('Spark')}
+                aria-expanded={isSparkOpen}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
+                onClick={handleToggleSpark}
+              >
+                <AmpleCloudIcon
+                  themeName={themeColor}
+                  isDarkMode={isDarkMode}
+                  visible={isHeaderVisible}
+                />
+              </button>
+            </div>
+            <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
+              <button
+                title={_('Go home')}
+                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
+                onClick={onGoToLibrary}
+              >
+                <img
+                  src={getToolbarIconSrc('go-home', themeColor, isDarkMode)}
+                  alt=''
+                  className='h-5 w-auto object-contain'
+                />
+              </button>
+              <BookmarkToggler bookKey={bookKey} />
+              <TranslationToggler bookKey={bookKey} />
+            </div>
           </div>
-          {enableAnnotationQuickActions && (
-            <Dropdown
-              label={
-                annotationQuickAction
-                  ? _('Disable Quick Action')
-                  : _('Enable Quick Action on Selection')
-              }
-              className='exclude-title-bar-mousedown dropdown-bottom dropdown-center'
-              menuClassName='!relative'
-              buttonClassName={clsx(
-                'btn btn-ghost h-8 min-h-8 w-8 p-0',
-                viewSettings?.annotationQuickAction && 'bg-base-300/50',
-              )}
-              toggleButton={
-                annotationQuickAction === 'highlight' || annotationQuickAction === null ? (
-                  <HighlighterIcon
-                    size={iconSize18}
-                    tipColor={annotationQuickAction === null ? '#8F8F8F' : highlightHexColor}
-                    tipStyle={{
-                      opacity: annotationQuickAction === null ? 0.5 : 0.8,
-                      mixBlendMode: isDarkMode ? 'screen' : 'multiply',
-                    }}
-                  />
-                ) : (
-                  <AnnotationToolQuickActionIcon size={iconSize18} />
-                )
-              }
-              onToggle={handleToggleDropdown}
-            >
-              <QuickActionMenu
-                selectedAction={viewSettings.annotationQuickAction}
-                onActionSelect={handleAnnotationQuickActionSelect}
-              />
-            </Dropdown>
-          )}
         </div>
 
         <div
           role='contentinfo'
           aria-label={_('Title') + ' - ' + bookTitle}
           className={clsx(
-            'header-title z-15 bg-base-100 pointer-events-none hidden flex-1 items-center justify-center sm:flex',
+            'header-title z-15 bg-base-100 pointer-events-none hidden flex-1 items-center justify-center sm:flex sm:bg-transparent',
             !windowButtonVisible && 'absolute inset-0',
             isHeaderCompact && '!hidden',
           )}
@@ -304,18 +437,84 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               'line-clamp-1 text-center text-xs font-semibold',
               !windowButtonVisible && 'max-w-[50%]',
             )}
+            style={{ color: chromeTextColor }}
           >
             {bookTitle}
           </div>
         </div>
 
-        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2'>
-          <NotebookToggler bookKey={bookKey} />
+        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2 sm:bg-transparent'>
+          <div className='hidden items-center gap-x-3 sm:flex'>
+            <MoreMenuButton
+              ref={moreAnchorRef}
+              isReadingRulerActive={isReadingRulerActive}
+              isMoreOpen={isMoreOpen}
+              iconColor={getToolbarIconColor(themeColor, isDarkMode)}
+              onToggleMore={handleToggleMore}
+              onCloseReadingRuler={handleCloseReadingRuler}
+            />
+          </div>
+          <MorePopover
+            bookKey={bookKey}
+            isOpen={isMoreOpen}
+            anchorEl={moreAnchorRef.current}
+            onClose={handleCloseMore}
+            onGoHome={onGoToLibrary}
+            onOpenThemeFonts={handleThemeFontsOpen}
+            onOpenBooknotes={handleOpenBooknotes}
+            onOpenAnnotations={handleOpenAnnotations}
+          />
+          <ToolbarPopover
+            isOpen={isThemeFontsOpen}
+            anchorEl={moreAnchorRef.current}
+            width={THEME_FONTS_WIDTH}
+            getPlacement={getThemeFontsPlacement}
+            onClose={handleThemeFontsClose}
+          >
+            <ThemeFontsPanel bookKey={bookKey} />
+          </ToolbarPopover>
+          <TocPopover
+            bookKey={bookKey}
+            isOpen={isTocOpen}
+            anchorEl={tocAnchorRef.current}
+            onClose={() => setIsTocOpen(false)}
+          />
+          <LibraryPopover
+            bookKey={bookKey}
+            isOpen={isLibraryOpen}
+            anchorEl={libraryAnchorRef.current}
+            onClose={handleCloseLibrary}
+          />
+          <SparkPopover
+            bookKey={bookKey}
+            isOpen={isSparkOpen}
+            anchorEl={sparkAnchorRef.current}
+            onClose={handleCloseSpark}
+            onToggleTTS={handleToggleTTS}
+          />
+          <BooknotesPopover
+            bookKey={bookKey}
+            isOpen={isBooknotesOpen}
+            anchorEl={moreAnchorRef.current}
+            getPlacement={getBooknotesPlacement}
+            onClose={handleCloseBooknotes}
+          />
+          <AnnotationsPopover
+            bookKey={bookKey}
+            isOpen={isAnnotationsOpen}
+            anchorEl={moreAnchorRef.current}
+            getPlacement={getAnnotationsPlacement}
+            onClose={handleCloseAnnotations}
+          />
+          <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
+            {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
+            <NotebookToggler bookKey={bookKey} />
+          </div>
           <Dropdown
             label={_('View Options')}
-            containerClassName='h-8'
+            containerClassName='h-8 sm:hidden'
             className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-            buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0 mt-0'
+            buttonClassName='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0 mt-0'
             toggleButton={<MdOutlineMenu />}
             onToggle={handleToggleDropdown}
           >
@@ -340,6 +539,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             headerRef={headerRef}
             showMinimize={bookKeys.length == 1 && windowButtonVisible}
             showMaximize={bookKeys.length == 1 && windowButtonVisible}
+            showClose={window.innerWidth < 640 || windowButtonVisible}
             closeButtonLabel={_('Close Book')}
             onClose={() => {
               setHoveredBookKey(null);
@@ -348,6 +548,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           />
         </div>
       </div>
+      <PinnedMoreMenuButton
+        containerRef={headerRootRef}
+        anchorRef={moreAnchorRef}
+        isHeaderVisible={isHeaderVisible}
+        isReadingRulerActive={isReadingRulerActive}
+        iconColor={getToolbarIconColor(themeColor, isDarkMode)}
+        onToggleMore={handleToggleMore}
+        onCloseReadingRuler={handleCloseReadingRuler}
+      />
     </div>
   );
 };

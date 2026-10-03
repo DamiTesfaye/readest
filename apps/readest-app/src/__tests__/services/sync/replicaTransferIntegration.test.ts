@@ -139,7 +139,9 @@ describe('replicaTransferIntegration', () => {
       files: [{ logical: 'x.mdx', lfp: 'b/x.mdx', byteSize: 10 }],
     });
     expect(downloadHandler).toHaveBeenCalledOnce();
-    expect(downloadHandler).toHaveBeenCalledWith('content-hash-abc');
+    expect(downloadHandler).toHaveBeenCalledWith('content-hash-abc', [
+      { logical: 'x.mdx', lfp: 'b/x.mdx', byteSize: 10 },
+    ]);
   });
 
   test('upload event does NOT invoke the download handler', async () => {

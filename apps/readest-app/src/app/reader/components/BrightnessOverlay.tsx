@@ -34,7 +34,7 @@ const BrightnessOverlay: React.FC<BrightnessOverlayProps> = ({ visible, level })
       dir='ltr'
       className={clsx(
         'pointer-events-none absolute left-0 top-1/2 z-[15] -translate-y-1/2',
-        'not-eink:transition-opacity not-eink:duration-200 motion-reduce:transition-none',
+        'not-eink:transition-opacity not-eink:duration-200',
         visible ? 'opacity-100' : 'opacity-0',
       )}
       style={{ marginInlineStart: 'calc(env(safe-area-inset-left) + 12px)' }}

@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import type { ReadingStatus } from '@/types/book';
+import { useThemeStore } from '@/store/themeStore';
 
 interface StatusBadgeProps {
   status?: ReadingStatus;
@@ -8,7 +9,26 @@ interface StatusBadgeProps {
 }
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, children, className }) => {
-  if (status !== 'finished' && status !== 'unread' && status !== 'abandoned') return null;
+  const { isDarkMode } = useThemeStore();
+
+  if (status === 'finished') {
+    return (
+      <span
+        className={clsx('status-badge-finished inline-flex h-4 items-center', className)}
+        role='status'
+      >
+        <img
+          src='/images/homepage/finished-tick.svg'
+          alt=''
+          aria-hidden
+          className={clsx('h-4 w-4 object-contain', isDarkMode && 'invert')}
+        />
+        <span className='sr-only'>{children}</span>
+      </span>
+    );
+  }
+
+  if (status !== 'unread' && status !== 'abandoned') return null;
 
   return (
     <span
@@ -17,13 +37,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, children, className }
         'rounded-[1px] px-0.5',
         'text-[8px] font-bold uppercase leading-none tracking-wider',
         'h-3.5',
-        status === 'finished' && 'status-badge-finished',
         status === 'unread' && 'status-badge-unread',
         status === 'abandoned' && 'status-badge-abandoned',
-        // finished: green/emerald
-        status === 'finished' && 'bg-emerald-100 dark:bg-emerald-900/90',
-        status === 'finished' && 'border border-emerald-300/50 dark:border-emerald-700/50',
-        status === 'finished' && 'text-emerald-700 dark:text-emerald-300',
         // unread: pastel yellow/amber
         status === 'unread' && 'bg-amber-100 dark:bg-amber-900/80',
         status === 'unread' && 'border border-amber-300/50 dark:border-amber-700/50',

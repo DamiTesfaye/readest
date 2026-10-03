@@ -18,6 +18,89 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Literata';
+  src: url('/fonts/Literata-Variable.ttf') format('truetype');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-Heavy.otf') format('opentype');
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-Medium.otf') format('opentype');
+  font-weight: 100 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-Demi.otf') format('opentype');
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-HeavyIt.otf') format('opentype');
+  font-weight: 800 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-MediumIt.otf') format('opentype');
+  font-weight: 100 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('/fonts/AvenirNextLTPro-DemiIt.otf') format('opentype');
+  font-weight: 600 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+.popover-title {
+  font-family: 'Literata', serif;
+  font-weight: 600;
+}
+
+.popover-label {
+  font-family: 'Avenir Next LT Pro', sans-serif;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.popover-field-label {
+  font-family: 'Avenir Next LT Pro', sans-serif;
+  font-weight: 500;
+  font-size: 0.6875rem;
+}
+
+.popover-action-label {
+  font-family: 'Avenir Next LT Pro', sans-serif;
+  font-weight: 600;
+}
+
+.text-xxs {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+}
+
 :root {
   border-radius: 10px;
   scrollbar-gutter: auto !important;
@@ -518,6 +601,57 @@ input[type='range'].slider-input {
   animation: spin-counterclockwise 1s linear;
 }
 
+/* Rubbery squash-and-stretch for the auto (system) theme button on click. */
+@keyframes squash-stretch {
+  0% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.2, 0.8);
+  }
+  55% {
+    transform: scale(0.9, 1.1);
+  }
+  75% {
+    transform: scale(1.05, 0.95);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+.animate-squash-stretch {
+  animation: squash-stretch 0.45s ease-out;
+}
+/* Wobble for the theme-card radio when a selection lands on it. */
+@keyframes wobble {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-12deg) scale(1.12);
+  }
+  50% {
+    transform: rotate(9deg) scale(1.06);
+  }
+  75% {
+    transform: rotate(-5deg) scale(1.02);
+  }
+}
+.animate-wobble {
+  animation: wobble 0.4s ease-in-out;
+}
+/* High Contrast: push app-chrome text (daisyUI --bc base-content) to the
+   contrast extreme for the active mode, keeping the theme's background so a
+   scene still reads as itself. Book content is boosted separately via
+   getThemeCode/boostContrast. Mode is read from the data-theme suffix. */
+:root[data-high-contrast='true'][data-theme$='-light'] {
+  --bc: 0% 0 0deg;
+}
+:root[data-high-contrast='true'][data-theme$='-dark'] {
+  --bc: 100% 0 0deg;
+}
+
 [data-eink='true'] [class*='shadow-'] {
   box-shadow: none !important;
 }
@@ -759,6 +893,20 @@ input[type='range'].slider-input {
   transition: none !important;
 }
 
+[data-ui-anim='off'] *,
+[data-ui-anim='off'] *::before,
+[data-ui-anim='off'] *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}
+
+[data-ui-anim='off']::view-transition-old(root),
+[data-ui-anim='off']::view-transition-new(root) {
+  animation: none !important;
+}
+
 /* settings highlight animation for command palette */
 @keyframes settings-highlight-pulse {
   0%,
@@ -842,34 +990,6 @@ html[data-nav-direction='back'] ::view-transition-new(root) {
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-/* Simpler fade for reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 0.15s;
-  }
-
-  ::view-transition-old(root) {
-    animation-name: simple-fade-out !important;
-  }
-
-  ::view-transition-new(root) {
-    animation-name: simple-fade-in !important;
-  }
-
-  @keyframes simple-fade-out {
-    to {
-      opacity: 0;
-    }
-  }
-
-  @keyframes simple-fade-in {
-    from {
-      opacity: 0;
-    }
   }
 }
 
@@ -992,6 +1112,28 @@ body.atmosphere #atmosphere-overlay {
 
 .animate-pin-cursor-blink {
   animation: pin-cursor-blink 1s step-end infinite;
+}
+
+@keyframes mm-pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-mm-pop {
+  animation: mm-pop 150ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-mm-pop {
+    animation: none;
+  }
+}
+[data-eink='true'] .animate-mm-pop {
+  animation: none;
 }
 
 /*

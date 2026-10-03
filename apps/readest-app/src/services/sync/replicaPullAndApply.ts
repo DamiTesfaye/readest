@@ -52,7 +52,8 @@ export interface PullAndApplyDeps<T extends ReplicaLocalRecord> {
    * Mints a fresh local bundleDir, creates the directory on disk under
    * the kind's base dir, returns the directory name (relative).
    */
-  createBundleDir(): Promise<string>;
+  createBundleDir(dir?: string): Promise<string>;
+  ensureDir?(dir: string): Promise<void>;
   /**
    * Hands the manifest's binary files off to TransferManager for
    * download. Returns the transfer id (or null if the queue isn't
@@ -124,12 +125,16 @@ export interface PullAndApplyDeps<T extends ReplicaLocalRecord> {
 const MANIFEST_FILE_TO_TRANSFER = (
   filename: string,
   byteSize: number,
-  bundleDir: string,
+  lfp: string,
 ): ReplicaTransferFile => ({
   logical: filename,
-  lfp: `${bundleDir}/${filename}`,
+  lfp,
   byteSize,
 });
+
+const bundlePath = (filename: string, bundleDir: string): string => `${bundleDir}/${filename}`;
+
+const parentDir = (path: string): string => path.slice(0, path.lastIndexOf('/'));
 
 const applyRow = async <T extends ReplicaLocalRecord>(
   row: ReplicaRow,
@@ -230,10 +235,12 @@ const applyRow = async <T extends ReplicaLocalRecord>(
   const needsBundleDir = !!deps.adapter.binary;
   let bundleDir: string;
   let displayName: string;
+  let current: T;
   if (local) {
     if (needsBundleDir && !local.bundleDir) return;
     bundleDir = local.bundleDir ?? '';
     displayName = deps.adapter.getDisplayName?.(local) ?? local.name;
+    current = local;
     // For metadata-only kinds, always re-apply the unpacked row so
     // per-field updates merge into the local copy: renames pushed
     // from another device, newly-decrypted credentials that weren't
@@ -249,12 +256,18 @@ const applyRow = async <T extends ReplicaLocalRecord>(
       }
     }
   } else {
-    bundleDir = needsBundleDir ? await deps.createBundleDir() : '';
+    const bundleDirFor = deps.adapter.binary?.bundleDirFor;
+    const namedDir = bundleDirFor ? bundleDirFor(row) : undefined;
+    if (namedDir === null) return;
+    bundleDir = needsBundleDir
+      ? await (namedDir === undefined ? deps.createBundleDir() : deps.createBundleDir(namedDir))
+      : '';
     const record = deps.adapter.unpackRow(row, bundleDir);
     if (!record) return;
     if (mergedLastSeen) record.lastSeenCipher = mergedLastSeen;
     deps.applyRemote(record);
     displayName = deps.adapter.getDisplayName?.(record) ?? record.name;
+    current = record;
   }
 
   // Metadata-only kinds: nothing more to do. The orchestrator's manifest
@@ -272,26 +285,31 @@ const applyRow = async <T extends ReplicaLocalRecord>(
     }
     return;
   }
-  if (!deps.adapter.binary) return;
+  const binary = deps.adapter.binary;
+  if (!binary) return;
 
-  // Skip the download queue if every manifest file is already on disk
-  // under the resolved bundle dir. Refresh-the-page is a no-op rather
-  // than a re-download; partial-download recovery still queues because
-  // some files would be missing.
-  const filenames = row.manifest_jsonb.files.map((f) => f.filename);
-  const allPresent = await deps.filesExist(bundleDir, filenames);
-  if (allPresent) return;
+  if (binary.isCurrent) {
+    if (binary.isCurrent(current, row.manifest_jsonb.files)) return;
+  } else {
+    // Skip the download queue if every manifest file is already on disk
+    // under the resolved bundle dir. Refresh-the-page is a no-op rather
+    // than a re-download; partial-download recovery still queues because
+    // some files would be missing.
+    const filenames = row.manifest_jsonb.files.map((f) => f.filename);
+    const allPresent = await deps.filesExist(bundleDir, filenames);
+    if (allPresent) return;
+  }
 
+  const pathOf = binary.downloadPath ?? bundlePath;
   const files = row.manifest_jsonb.files.map((f) =>
-    MANIFEST_FILE_TO_TRANSFER(f.filename, f.byteSize, bundleDir),
+    MANIFEST_FILE_TO_TRANSFER(f.filename, f.byteSize, pathOf(f.filename, bundleDir)),
   );
-  deps.queueReplicaDownload(
-    row.replica_id,
-    displayName,
-    files,
-    bundleDir,
-    deps.adapter.binary.localBaseDir,
-  );
+  if (binary.downloadPath && deps.ensureDir) {
+    for (const dir of new Set(files.map((file) => parentDir(file.lfp)))) {
+      await deps.ensureDir(dir);
+    }
+  }
+  deps.queueReplicaDownload(row.replica_id, displayName, files, bundleDir, binary.localBaseDir);
 };
 
 /**

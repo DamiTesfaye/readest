@@ -24,55 +24,42 @@ vi.mock('@/utils/nav', () => ({
   navigateToLogin: (...args: unknown[]) => navigateToLoginMock(...args),
 }));
 
-const useEnvMock = vi.fn();
-vi.mock('@/context/EnvContext', () => ({
-  useEnv: () => useEnvMock(),
-}));
-
 afterEach(() => {
   cleanup();
   useAuthMock.mockReset();
   navigateToLoginMock.mockReset();
-  useEnvMock.mockReset();
 });
 
 describe('LibraryEmptyState', () => {
-  it('renders title, desktop description, and both CTAs when logged out on desktop', () => {
-    useEnvMock.mockReturnValue({ appService: { isMobile: false } });
+  it('renders the illustration, title, description, and both CTAs when logged out', () => {
     useAuthMock.mockReturnValue({ user: null });
     render(<LibraryEmptyState onImport={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: 'Start your library' })).toBeTruthy();
-    expect(screen.getByText(/drop a book anywhere on this window/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Import Books' })).toBeTruthy();
+    expect(
+      document.querySelector('img[src="/images/homepage/import-library-placeholder.svg"]'),
+    ).toBeTruthy();
+    expect(screen.getByRole('heading', { name: "Let's Fill These Shelves" })).toBeTruthy();
+    expect(
+      screen.getByText("Import your books and keep everything you're reading in one place"),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Import to Library' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign in to sync your library' })).toBeTruthy();
   });
 
-  it('renders mobile description (no drag-drop language) when appService.isMobile', () => {
-    useEnvMock.mockReturnValue({ appService: { isMobile: true } });
-    useAuthMock.mockReturnValue({ user: null });
-    render(<LibraryEmptyState onImport={vi.fn()} />);
-
-    expect(screen.getByText(/pick a book from your device/i)).toBeTruthy();
-    expect(screen.queryByText(/drop a book anywhere on this window/i)).toBeNull();
-  });
-
   it('hides the sync button when the user is logged in', () => {
-    useEnvMock.mockReturnValue({ appService: { isMobile: false } });
     useAuthMock.mockReturnValue({ user: { id: 'stub-user' } });
     render(<LibraryEmptyState onImport={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: 'Import Books' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Import to Library' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sign in to sync your library' })).toBeNull();
   });
 
-  it('calls onImport when the Import Books button is clicked', () => {
-    useEnvMock.mockReturnValue({ appService: { isMobile: false } });
+  it('calls onImport when the Import to Library button is clicked', () => {
     useAuthMock.mockReturnValue({ user: null });
     const handleImport = vi.fn();
     render(<LibraryEmptyState onImport={handleImport} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Import Books' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import to Library' }));
 
     expect(handleImport).toHaveBeenCalledTimes(1);
   });

@@ -6,6 +6,8 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useResetViewSettings } from '@/hooks/useResetSettings';
 import { useEinkMode } from '@/hooks/useEinkMode';
+import { useUIAnimationsMode } from '@/hooks/useUIAnimationsMode';
+import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { getStyles } from '@/utils/style';
 import { getMaxInlineSize } from '@/utils/config';
 import { saveSysSettings, saveViewSettings } from '@/helpers/settings';
@@ -31,13 +33,15 @@ import { optInTelemetry, optOutTelemetry } from '@/utils/telemetry';
 const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }) => {
   const _ = useTranslation();
   const { envConfig, appService } = useEnv();
-  const { getView, getViews, getViewSettings, recreateViewer } = useReaderStore();
+  const { getView, getViews, getViewSettings, getGridInsets, recreateViewer } = useReaderStore();
   const { getBookData } = useBookDataStore();
   const { settings } = useSettingsStore();
   const { applyEinkMode } = useEinkMode();
+  const { applyUIAnimationsMode } = useUIAnimationsMode();
   const bookData = getBookData(bookKey);
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
 
+  const [showPageHeader, setShowPageHeader] = useState(viewSettings.showHeader);
   const [isScrolledMode, setScrolledMode] = useState(viewSettings.scrolled);
   const [noContinuousScroll, setNoContinuousScroll] = useState(viewSettings.noContinuousScroll);
   const [scrollingOverlap, setScrollingOverlap] = useState(viewSettings.scrollingOverlap);
@@ -72,6 +76,12 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
   const [isAutoCheckUpdates, setIsAutoCheckUpdates] = useState(settings.autoCheckUpdates);
   const [isNightlyChannel, setIsNightlyChannel] = useState(settings.updateChannel === 'nightly');
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(settings.telemetryEnabled);
+  const [isUIAnimationsEnabled, setIsUIAnimationsEnabled] = useState(() =>
+    resolveUIAnimationsEnabled(settings),
+  );
+  const [isAmpleDocumentPromptEnabled, setIsAmpleDocumentPromptEnabled] = useState(
+    settings.ampleDocumentPromptEnabled !== false,
+  );
 
   const resetToDefaults = useResetViewSettings();
   const pageTurnerResetRef = useRef<() => void>(() => {});
@@ -297,6 +307,19 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copyToNotebook]);
 
+  const toggleUIAnimations = () => {
+    const newValue = !isUIAnimationsEnabled;
+    saveSysSettings(envConfig, 'uiAnimationsEnabled', newValue);
+    setIsUIAnimationsEnabled(newValue);
+    applyUIAnimationsMode(newValue);
+  };
+
+  const toggleAmpleDocumentPrompt = () => {
+    const newValue = !isAmpleDocumentPromptEnabled;
+    saveSysSettings(envConfig, 'ampleDocumentPromptEnabled', newValue);
+    setIsAmpleDocumentPromptEnabled(newValue);
+  };
+
   const toggleAutoCheckUpdates = () => {
     const newValue = !isAutoCheckUpdates;
     saveSysSettings(envConfig, 'autoCheckUpdates', newValue);
@@ -318,6 +341,24 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
     } else {
       optOutTelemetry();
     }
+  };
+
+  const togglePageHeader = () => {
+    const newValue = !showPageHeader;
+    if (newValue && !viewSettings.vertical) {
+      const gridInsets = getGridInsets(bookKey) || { top: 0 };
+      const minMarginTop = Math.max(0, Math.round((44 - gridInsets.top) / 4) * 4);
+      saveViewSettings(
+        envConfig,
+        bookKey,
+        'marginTopPx',
+        Math.max(viewSettings.marginTopPx, minMarginTop),
+        false,
+        false,
+      );
+    }
+    saveViewSettings(envConfig, bookKey, 'showHeader', newValue, false, false);
+    setShowPageHeader(newValue);
   };
 
   const getQuickActionOptions = () => {
@@ -481,6 +522,28 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
             disabled={!animated}
           />
         </SettingsRow>
+      </BoxedList>
+
+      <BoxedList title={_('Interface')} data-setting-id='settings.control.uiAnimations'>
+        <SettingsSwitchRow
+          label={_('UI Animations')}
+          checked={isUIAnimationsEnabled}
+          onChange={toggleUIAnimations}
+        />
+        <SettingsSwitchRow
+          label={_('Show page header')}
+          checked={showPageHeader}
+          onChange={togglePageHeader}
+          data-setting-id='settings.layout.showHeader'
+        />
+        {appService?.isDesktopApp && (
+          <SettingsSwitchRow
+            label={_('Enhanced Import Prompt')}
+            checked={isAmpleDocumentPromptEnabled}
+            onChange={toggleAmpleDocumentPrompt}
+            data-setting-id='settings.control.ampleDocumentPrompt'
+          />
+        )}
       </BoxedList>
 
       <BoxedList title={_('Device')} data-setting-id='settings.control.device'>

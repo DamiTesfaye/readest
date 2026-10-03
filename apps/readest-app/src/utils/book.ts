@@ -310,7 +310,7 @@ export const getCurrentPage = (book: Book, progress: BookProgress) => {
  */
 export const isCurrentlyReadingBook = (book: Book): boolean =>
   !book.deletedAt &&
-  book.progress != null &&
+  (book.progress?.[0] ?? 0) > 0 &&
   book.readingStatus !== 'finished' &&
   book.readingStatus !== 'abandoned' &&
   book.readingStatus !== 'unread';

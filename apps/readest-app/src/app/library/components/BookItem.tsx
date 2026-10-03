@@ -1,12 +1,7 @@
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { MdCheckCircle, MdCheckCircleOutline } from 'react-icons/md';
-import {
-  LiaCloudUploadAltSolid,
-  LiaCloudDownloadAltSolid,
-  LiaHeadphonesSolid,
-  LiaInfoCircleSolid,
-} from 'react-icons/lia';
+import { LiaCloudDownloadAltSolid, LiaHeadphonesSolid, LiaInfoCircleSolid } from 'react-icons/lia';
 
 import { Book } from '@/types/book';
 import { useEnv } from '@/context/EnvContext';
@@ -22,6 +17,7 @@ import { isFeedBook } from '@/services/rss/feedBookUrl';
 import { formatAuthors, formatDescription, formatSeries } from '@/utils/book';
 import ReadingProgress from './ReadingProgress';
 import BookCover from '@/components/BookCover';
+import { UploadIcon } from '@/components/UploadIcon';
 
 interface BookItemProps {
   book: Book;
@@ -72,71 +68,80 @@ const BookItem: React.FC<BookItemProps> = ({
 
   const seriesText = formatSeries(book.metadata?.series, book.metadata?.seriesIndex);
 
+  const coverBlock = (
+    <div
+      className={clsx(
+        'bookitem-main relative flex justify-center overflow-hidden shadow-md',
+        mode === 'list' && 'rounded',
+        !fitCoverInGrid && 'aspect-[28/41]',
+        mode === 'grid' && 'items-end',
+        mode === 'list' && 'min-w-20 items-center',
+      )}
+      style={bookitemMainStyle}
+    >
+      <BookCover
+        mode={mode}
+        book={book}
+        coverFit={coverFit}
+        showSpine={settings.librarySkeuomorphicCovers}
+        imageClassName={clsx(
+          'shadow-md',
+          mode === 'list' && !settings.librarySkeuomorphicCovers && 'rounded',
+        )}
+        onAspectRatioChange={setCoverAspect}
+      />
+      {bookSelected && (
+        <div className='absolute inset-0 bg-black opacity-30 transition-opacity duration-300'></div>
+      )}
+      {isSelectMode && (
+        <div className='absolute bottom-1 right-1'>
+          {bookSelected ? (
+            <MdCheckCircle className='fill-blue-500' />
+          ) : (
+            <MdCheckCircleOutline className='fill-gray-300 drop-shadow-sm' />
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
       role='none'
       className={clsx(
         'book-item flex',
-        mode === 'grid' && 'h-full flex-col justify-end',
+        mode === 'grid' && 'h-full flex-row items-start gap-3',
         mode === 'list' && 'min-h-28 flex-row gap-4 overflow-hidden',
         mode === 'list' ? 'library-list-item' : 'library-grid-item',
         appService?.hasContextMenu ? 'cursor-pointer' : '',
       )}
       onClick={(e) => e.stopPropagation()}
     >
+      {mode === 'grid' ? <div className='w-[45%] shrink-0'>{coverBlock}</div> : coverBlock}
       <div
         className={clsx(
-          'bookitem-main relative flex justify-center overflow-hidden rounded',
-          !fitCoverInGrid && 'aspect-[28/41]',
-          coverFit === 'crop' && 'shadow-md',
-          mode === 'grid' && 'items-end',
-          mode === 'list' && 'min-w-20 items-center',
-        )}
-        style={bookitemMainStyle}
-      >
-        <BookCover
-          mode={mode}
-          book={book}
-          coverFit={coverFit}
-          showSpine={settings.librarySkeuomorphicCovers}
-          imageClassName={clsx(
-            'shadow-md',
-            settings.librarySkeuomorphicCovers ? 'rounded-none' : 'rounded',
-          )}
-          onAspectRatioChange={setCoverAspect}
-        />
-        {bookSelected && (
-          <div className='absolute inset-0 bg-black opacity-30 transition-opacity duration-300'></div>
-        )}
-        {isSelectMode && (
-          <div className='absolute bottom-1 right-1'>
-            {bookSelected ? (
-              <MdCheckCircle className='fill-blue-500' />
-            ) : (
-              <MdCheckCircleOutline className='fill-gray-300 drop-shadow-sm' />
-            )}
-          </div>
-        )}
-      </div>
-      <div
-        className={clsx(
-          'flex w-full flex-col p-0',
-          mode === 'grid' && 'pt-2',
-          mode === 'list' && 'gap-1 py-0',
+          'flex min-w-0 flex-col p-0',
+          mode === 'grid' && 'h-full flex-1',
+          mode === 'list' && 'w-full gap-1 py-0',
         )}
       >
-        <div className={clsx('min-w-0 flex-1', mode === 'list' && 'flex flex-col gap-1')}>
+        <div className={clsx('min-w-0', mode === 'list' && 'flex flex-1 flex-col gap-1')}>
           <h4
             className={clsx(
-              'overflow-hidden text-ellipsis font-semibold',
-              mode === 'grid' && 'block whitespace-nowrap text-[0.6em] text-xs',
+              'overflow-hidden text-ellipsis font-semibold [font-family:"Avenir_Next_LT_Pro"]',
+              mode === 'grid' && 'line-clamp-4 text-sm leading-snug',
               mode === 'list' && 'line-clamp-1 text-base',
             )}
           >
             {book.title}
           </h4>
+          {mode === 'grid' && (
+            <p className='text-neutral-content line-clamp-2 pt-1 text-sm [font-family:"Avenir_Next_LT_Pro"]'>
+              {formatAuthors(book.author, book.primaryLanguage) || ''}
+            </p>
+          )}
           {mode === 'list' && (
-            <p className='text-neutral-content line-clamp-1 text-sm'>
+            <p className='text-neutral-content line-clamp-1 text-sm [font-family:"Avenir_Next_LT_Pro"]'>
               {formatAuthors(book.author, book.primaryLanguage) || ''}
             </p>
           )}
@@ -152,6 +157,7 @@ const BookItem: React.FC<BookItemProps> = ({
         <div
           className={clsx(
             'flex items-center',
+            mode === 'grid' && 'mt-auto pt-2',
             book.progress || book.readingStatus ? 'justify-between' : 'justify-end',
           )}
           style={{
@@ -222,7 +228,7 @@ const BookItem: React.FC<BookItemProps> = ({
                   }}
                 >
                   {!book.uploadedAt && isReadestCloudStorageActive(settings) && (
-                    <LiaCloudUploadAltSolid size={iconSize15} />
+                    <UploadIcon size={iconSize15} />
                   )}
                   {book.uploadedAt && !book.downloadedAt && (
                     <LiaCloudDownloadAltSolid size={iconSize15} />

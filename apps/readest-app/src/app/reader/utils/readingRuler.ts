@@ -27,22 +27,36 @@ type RulerContainerRect = { top: number; left: number; right: number };
 
 type ReadingRulerSettings = Pick<ViewSettings, 'defaultFontSize' | 'lineHeight'>;
 
-/**
- * `Range.getClientRects()` aggregates the border boxes of every fully-enclosed
- * element, so multi-line `<p>`/container blocks show up as rects much taller
- * (along the ruler axis) than a text line. Drop those so they don't get merged
- * into a giant "line" that the snap would skip over. Line rects vastly
- * outnumber block rects, so the median thickness is the real line height.
- */
-const dropBlockRects = (rects: RulerRect[], isVertical: boolean): RulerRect[] => {
-  const valid = rects.filter((r) => r && r.width > 0 && r.height > 0);
-  if (valid.length < 3) return valid;
-  const thickness = (r: RulerRect) => (isVertical ? r.width : r.height);
-  const sorted = valid.map(thickness).sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
-  if (median <= 0) return valid;
-  const limit = median * 1.8;
-  return valid.filter((r) => thickness(r) <= limit);
+const hasSize = (r: RulerRect): boolean => r.width > 0 && r.height > 0;
+
+const VISIBLE_SOURCE_LINE = /\S(?:.*\S)?/g;
+
+export const collectTextLineRects = (range: Range): DOMRect[] => {
+  const root = range.commonAncestorContainer;
+  const doc = root.ownerDocument;
+  if (!doc) return [];
+  const rects: DOMRect[] = [];
+  const addTextRects = (node: Node) => {
+    const text = node.nodeValue ?? '';
+    const from = node === range.startContainer ? range.startOffset : 0;
+    const to = node === range.endContainer ? range.endOffset : text.length;
+    for (const match of text.slice(from, to).matchAll(VISIBLE_SOURCE_LINE)) {
+      const start = from + match.index;
+      const textRange = doc.createRange();
+      textRange.setStart(node, start);
+      textRange.setEnd(node, start + match[0].length);
+      rects.push(...Array.from(textRange.getClientRects()));
+    }
+  };
+  if (root.nodeType === Node.TEXT_NODE) {
+    addTextRects(root);
+    return rects;
+  }
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (range.intersectsNode(node)) addTextRects(node);
+  }
+  return rects;
 };
 
 /**
@@ -82,7 +96,7 @@ export const buildLineBoxes = (
   containerRect: RulerContainerRect,
 ): ReadingRulerLineBox[] => {
   const spans: ReadingRulerLineBox[] = [];
-  for (const r of dropBlockRects(rects, isVertical)) {
+  for (const r of rects.filter(hasSize)) {
     let start: number;
     let end: number;
     if (isVertical) {
@@ -142,7 +156,7 @@ export const buildReadingRulerColumns = (
 
   const colWidth = overlayWidth / cols;
   const buckets: RulerRect[][] = Array.from({ length: cols }, () => []);
-  for (const r of dropBlockRects(rects, false)) {
+  for (const r of rects.filter(hasSize)) {
     const center = (r.left + r.right) / 2;
     const idx = Math.max(0, Math.min(cols - 1, Math.floor(center / colWidth)));
     buckets[idx]!.push(r);

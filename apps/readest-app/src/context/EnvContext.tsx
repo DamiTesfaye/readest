@@ -9,6 +9,7 @@ import { initReplicaSync } from '@/services/sync/replicaSync';
 import { createSettingsCursorStore } from '@/services/sync/replicaCursorStore';
 import { startReplicaTransferIntegration } from '@/services/sync/replicaTransferIntegration';
 import { enableReplicaAutoPersist } from '@/services/sync/replicaPersist';
+import { installMindmapLifecycle } from '@/services/mindmap/sync/lifecycle';
 
 interface EnvContextType {
   envConfig: EnvConfigType;
@@ -35,6 +36,7 @@ export const EnvProvider = ({ children }: { children: ReactNode }) => {
           });
           ctx.manager.startAutoSync();
           startReplicaTransferIntegration(service);
+          installMindmapLifecycle();
         }
       } catch (err) {
         console.warn('replica sync init failed', err);

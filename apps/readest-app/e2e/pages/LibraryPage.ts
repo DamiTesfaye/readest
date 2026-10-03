@@ -6,10 +6,9 @@ import { BasePage } from './BasePage';
  */
 export class LibraryPage extends BasePage {
   readonly container: Locator;
-  readonly header: Locator;
+  readonly sidebar: Locator;
   readonly bookshelf: Locator;
   readonly searchInput: Locator;
-  readonly clearSearchButton: Locator;
   readonly emptyState: Locator;
   readonly emptyStateImportButton: Locator;
   readonly importMenu: Locator;
@@ -18,13 +17,12 @@ export class LibraryPage extends BasePage {
   constructor(page: Page) {
     super(page);
     this.container = page.locator('[aria-label="Your Library"]');
-    this.header = page.locator('[aria-label="Library Header"]');
+    this.sidebar = page.getByRole('complementary', { name: 'Library Sidebar' });
     this.bookshelf = page.locator('[aria-label="Bookshelf"]');
-    this.searchInput = page.locator('.search-input');
-    this.clearSearchButton = page.locator('[aria-label="Clear Search"]');
-    this.emptyState = page.getByRole('heading', { name: 'Start your library' });
+    this.searchInput = this.sidebar.getByRole('searchbox', { name: 'Search' });
+    this.emptyState = page.getByRole('heading', { name: "Let's Fill These Shelves" });
     this.emptyStateImportButton = page.locator('.hero').getByRole('button', {
-      name: 'Import Books',
+      name: 'Import to Library',
     });
     this.importMenu = page.locator('.menu-container');
     this.localFileImportItem = this.importMenu.getByRole('menuitem', { name: 'From Local File' });
@@ -45,7 +43,7 @@ export class LibraryPage extends BasePage {
   }
 
   /**
-   * Import a book file via the empty-state "Import Books" button, which opens
+   * Import a book file via the empty-state "Import to Library" button, which opens
    * the same import menu as the library header "+" button.
    *
    * The file `<input>` is created off-DOM (see `useFileSelector.selectFileWeb`),
