@@ -136,9 +136,7 @@ describe('AnnotationPopup', () => {
     for (const [name, heightClass] of expectHeights) {
       const button = screen.getByRole('button', { name });
       for (const img of Array.from(button.querySelectorAll('img'))) {
-        expect(img.className).toMatch(
-          new RegExp(`(^| )${heightClass.replace(/[[\]]/g, '\\$&')}( |$)`),
-        );
+        expect(img.className.split(/\s+/)).toContain(heightClass);
       }
     }
   });
