@@ -349,18 +349,30 @@ describe('mindmap canvas in a real browser', () => {
     expect(zoomP95).toBeLessThan(FRAME_BUDGET_MS);
   });
 
-  it('promotes the world layer while the camera moves and drops it once it settles', async () => {
+  it('promotes the world layer only once a gesture zooms and drops it after the camera settles', async () => {
     await page.viewport(1280, 900);
     const { controller } = mount(grid(10), { x: 1, y: 1, z: 1 });
     const world = screen.getByTestId('mm-world');
-    expect(world.style.willChange).toBe('');
+    const willChange = () => getComputedStyle(world).willChange;
     act(() => controller.camera.panBy(10, 0));
-    expect(world.style.willChange).toBe('transform');
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    act(() => controller.camera.panBy(10, 5));
+    expect(world.style.transform).toBe('translate(21px, 6px) scale(1)');
+    expect(willChange()).toBe('auto');
+    act(() => controller.camera.zoomAt({ x: 100, y: 100 }, 1.5));
+    expect(world.style.transform).not.toContain('translate(21px, 6px)');
+    expect(willChange()).toBe('transform');
     act(() => controller.camera.panBy(10, 0));
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(world.style.willChange).toBe('transform');
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(world.style.willChange).toBe('');
+    expect(willChange()).toBe('transform');
+    act(() => controller.camera.zoomAt({ x: 100, y: 100 }, 1 / 1.5));
+    expect(willChange()).toBe('transform');
+    await settle();
+    expect(willChange()).toBe('auto');
+    act(() => controller.camera.panBy(10, 0));
+    expect(willChange()).toBe('auto');
+    await settle();
+    act(() => controller.camera.zoomAt({ x: 300, y: 200 }, 1.2));
+    expect(willChange()).toBe('transform');
+    await settle();
+    expect(willChange()).toBe('auto');
   });
 });
