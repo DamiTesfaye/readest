@@ -97,7 +97,8 @@ export const isBookNavCacheCurrent = (
 const convertTocLabels = (items: TOCItem[], convertChineseVariant: ConvertChineseVariant) => {
   items.forEach((item) => {
     if (item.label) {
-      item.label = runSimpleCC(item.label, convertChineseVariant);
+      item.sourceLabel ??= item.label;
+      item.label = runSimpleCC(item.sourceLabel, convertChineseVariant);
     }
     if (item.subitems) {
       convertTocLabels(item.subitems, convertChineseVariant);

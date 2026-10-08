@@ -12,10 +12,16 @@ import {
   isValidThemeMode,
   readStoredAmbientIsDarkMode,
   resolveAmbientIsDarkMode,
-  resolveThemeIsDarkMode,
 } from '@/utils/ambientLight';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { CustomTheme, Palette, ThemeMode } from '@/styles/themes';
+import {
+  CustomTheme,
+  Palette,
+  ThemeMode,
+  resolveThemeName,
+  getEffectiveDarkMode,
+} from '@/styles/themes';
+import { ThemeBackground, applyBackgroundOverride } from '@/styles/backgrounds';
 import { EnvConfigType, isWebAppPlatform } from '@/services/environment';
 import { SystemSettings } from '@/types/settings';
 import { Insets } from '@/types/misc';
@@ -30,6 +36,8 @@ declare global {
 interface ThemeState {
   themeMode: ThemeMode;
   themeColor: string;
+  themeBackground: ThemeBackground | null;
+  highContrast: boolean;
   systemIsDarkMode: boolean;
   ambientIsDarkMode: boolean;
   themeCode: ThemeCode;
@@ -46,6 +54,8 @@ interface ThemeState {
   getIsDarkMode: () => boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setThemeColor: (color: string) => void;
+  setThemeBackground: (background: ThemeBackground | null) => void;
+  setHighContrast: (highContrast: boolean) => void;
   updateAppTheme: (color: keyof Palette) => void;
   saveCustomTheme: (
     envConfig: EnvConfigType,
@@ -66,12 +76,48 @@ const getInitialThemeMode = (): ThemeMode => {
   return 'auto';
 };
 
+const getInitialThemeBackground = (): ThemeBackground | null => {
+  if (typeof window === 'undefined' || !localStorage) return null;
+  try {
+    return JSON.parse(localStorage.getItem('themeBackground') || 'null');
+  } catch {
+    return null;
+  }
+};
+
 const getInitialThemeColor = (): string => {
   if (typeof window !== 'undefined' && localStorage) {
-    const defaultColor = window.__READEST_IS_EINK ? 'contrast' : 'default';
-    return localStorage.getItem('themeColor') || defaultColor;
+    // Every platform now starts on the dual-mood default appearance; e-ink no
+    // longer forces the removed `contrast` theme — it opts into High Contrast
+    // instead (see getInitialHighContrast).
+    return resolveThemeName(localStorage.getItem('themeColor') || 'default');
   }
   return 'default';
+};
+
+// Toggle the root attribute the High Contrast CSS in globals.css keys on.
+// Chrome (daisyUI) reacts through that CSS; book content reacts through
+// getThemeCode's boostContrast.
+const applyHighContrastAttr = (highContrast: boolean) => {
+  if (typeof document === 'undefined') return;
+  if (highContrast) {
+    document.documentElement.setAttribute('data-high-contrast', 'true');
+  } else {
+    document.documentElement.removeAttribute('data-high-contrast');
+  }
+};
+
+const getInitialHighContrast = (): boolean => {
+  if (typeof window !== 'undefined' && localStorage) {
+    const stored = localStorage.getItem('highContrast');
+    if (stored !== null) return stored === 'true';
+    // Migrate users on the removed `contrast` theme to the High Contrast flag.
+    if (localStorage.getItem('themeColor') === 'contrast') return true;
+    // E-ink screens default to High Contrast so text stays crisp and theme
+    // switching stays a single tap.
+    return Boolean(window.__READEST_IS_EINK);
+  }
+  return false;
 };
 
 const getInitialAmbientIsDarkMode = (systemIsDarkMode: boolean): boolean => {
@@ -156,15 +202,35 @@ const syncAmbientLightSubscription = (mode: ThemeMode) => {
 export const useThemeStore = create<ThemeState>((set, get) => {
   const initialThemeMode = getInitialThemeMode();
   const initialThemeColor = getInitialThemeColor();
+  const initialHighContrast = getInitialHighContrast();
+  // Persist the resolved High Contrast value so migration (contrast theme) and
+  // the e-ink default survive a later theme change that overwrites themeColor.
+  if (
+    typeof window !== 'undefined' &&
+    localStorage &&
+    localStorage.getItem('highContrast') === null
+  ) {
+    localStorage.setItem('highContrast', initialHighContrast ? 'true' : 'false');
+  }
+  applyHighContrastAttr(initialHighContrast);
+  const initialThemeBackground = getInitialThemeBackground();
+  applyBackgroundOverride(initialThemeColor, initialThemeBackground);
   const systemIsDarkMode =
     typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const ambientIsDarkMode = getInitialAmbientIsDarkMode(systemIsDarkMode);
-  const isDarkMode = resolveThemeIsDarkMode(initialThemeMode, systemIsDarkMode, ambientIsDarkMode);
+  const isDarkMode = getEffectiveDarkMode(
+    initialThemeColor,
+    initialThemeMode,
+    systemIsDarkMode,
+    ambientIsDarkMode,
+  );
   const themeCode = getThemeCode();
 
   return {
     themeMode: initialThemeMode,
     themeColor: initialThemeColor,
+    themeBackground: initialThemeBackground,
+    highContrast: initialHighContrast,
     systemIsDarkMode,
     ambientIsDarkMode,
     isDarkMode,
@@ -183,7 +249,8 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeMode', mode);
       }
-      const isDarkMode = resolveThemeIsDarkMode(
+      const isDarkMode = getEffectiveDarkMode(
+        get().themeColor,
         mode,
         get().systemIsDarkMode,
         get().ambientIsDarkMode,
@@ -196,9 +263,42 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     setThemeColor: (color) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeColor', color);
+        // Swatches are derived from the theme's own background, so a stored
+        // slot means nothing once the theme changes.
+        localStorage.removeItem('themeBackground');
       }
-      applyDataTheme(color, get().isDarkMode);
-      set({ themeColor: color });
+      applyBackgroundOverride(color, null);
+      const isDarkMode = getEffectiveDarkMode(
+        color,
+        get().themeMode,
+        get().systemIsDarkMode,
+        get().ambientIsDarkMode,
+      );
+      applyDataTheme(color, isDarkMode);
+      set({ themeColor: color, themeBackground: null, isDarkMode });
+      set({ themeCode: getThemeCode() });
+    },
+    setThemeBackground: (background) => {
+      if (typeof window !== 'undefined' && localStorage) {
+        if (background) {
+          localStorage.setItem('themeBackground', JSON.stringify(background));
+        } else {
+          localStorage.removeItem('themeBackground');
+        }
+      }
+      applyBackgroundOverride(get().themeColor, background);
+      set({ themeBackground: background });
+      // Recompute themeCode so the reader restyles book content with the new bg.
+      set({ themeCode: getThemeCode() });
+    },
+    setHighContrast: (highContrast) => {
+      if (typeof window !== 'undefined' && localStorage) {
+        localStorage.setItem('highContrast', highContrast ? 'true' : 'false');
+      }
+      applyHighContrastAttr(highContrast);
+      set({ highContrast });
+      // Recompute themeCode so the reader restyles book content with the
+      // boosted palette (getThemeCode reads the persisted flag).
       set({ themeCode: getThemeCode() });
     },
     updateAppTheme: (color) => {
@@ -228,7 +328,12 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     },
     handleSystemThemeChange: (systemIsDarkMode) => {
       const mode = get().themeMode;
-      const isDarkMode = resolveThemeIsDarkMode(mode, systemIsDarkMode, get().ambientIsDarkMode);
+      const isDarkMode = getEffectiveDarkMode(
+        get().themeColor,
+        mode,
+        systemIsDarkMode,
+        get().ambientIsDarkMode,
+      );
       applyDataTheme(get().themeColor, isDarkMode);
       set({ systemIsDarkMode, isDarkMode });
       set({ themeCode: getThemeCode() });
@@ -238,12 +343,18 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       const previous = ambientHasLuxReading ? get().ambientIsDarkMode : null;
       ambientHasLuxReading = true;
       const nextAmbientIsDark = resolveAmbientIsDarkMode(lux, previous);
-      if (nextAmbientIsDark === get().ambientIsDarkMode && get().isDarkMode === nextAmbientIsDark) {
+      const isDarkMode = getEffectiveDarkMode(
+        get().themeColor,
+        'ambient',
+        get().systemIsDarkMode,
+        nextAmbientIsDark,
+      );
+      if (nextAmbientIsDark === get().ambientIsDarkMode && get().isDarkMode === isDarkMode) {
         return;
       }
       persistAmbientIsDarkMode(nextAmbientIsDark);
-      applyDataTheme(get().themeColor, nextAmbientIsDark);
-      set({ ambientIsDarkMode: nextAmbientIsDark, isDarkMode: nextAmbientIsDark });
+      applyDataTheme(get().themeColor, isDarkMode);
+      set({ ambientIsDarkMode: nextAmbientIsDark, isDarkMode });
       set({ themeCode: getThemeCode() });
     },
     updateSafeAreaInsets: (insets) => {
@@ -256,13 +367,18 @@ export const loadDataTheme = () => {
   if (typeof localStorage === 'undefined' || typeof document === 'undefined') return;
 
   const themeMode = localStorage.getItem('themeMode');
-  const themeColor = localStorage.getItem('themeColor');
+  const themeColor = resolveThemeName(localStorage.getItem('themeColor'));
   if (themeMode && themeColor) {
     const systemIsDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const ambientIsDarkMode = getInitialAmbientIsDarkMode(systemIsDarkMode);
     const mode = isValidThemeMode(themeMode) ? themeMode : 'auto';
-    const isDarkMode = resolveThemeIsDarkMode(mode, systemIsDarkMode, ambientIsDarkMode);
+    const isDarkMode = getEffectiveDarkMode(themeColor, mode, systemIsDarkMode, ambientIsDarkMode);
     applyDataTheme(themeColor, isDarkMode);
+    if (localStorage.getItem('highContrast') === 'true') {
+      document.documentElement.setAttribute('data-high-contrast', 'true');
+    } else {
+      document.documentElement.removeAttribute('data-high-contrast');
+    }
   }
 };
 

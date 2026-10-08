@@ -7,6 +7,8 @@ import { TranslationFunc } from '@/hooks/useTranslation';
 import { createProgressThrottle, ProgressHandler, ProgressPayload } from '@/utils/transfer';
 import { eventDispatcher } from '@/utils/event';
 import { getTransferMessages } from './transferMessages';
+import { getReplicaAdapter } from './sync/replicaRegistry';
+import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
 
 const TRANSFER_QUEUE_KEY = 'readest_transfer_queue';
 const RETRY_DELAY_BASE_MS = 2000;
@@ -20,6 +22,24 @@ const PROGRESS_THROTTLE_MS = 100;
 // collapse them into one summary toast per burst instead of N identical toasts.
 const QUOTA_TOAST_FLUSH_MS = 1500;
 
+const isStaleReplicaDownload = (transfer: TransferItem, errorMessage: string): boolean =>
+  transfer.kind === 'replica' &&
+  transfer.type === 'download' &&
+  errorMessage === STORAGE_FILE_NOT_FOUND_ERROR &&
+  getReplicaAdapter(transfer.replicaKind ?? '')?.binary?.staleWhenMissing === true;
+
+const dropStaleReplicaDownload = (transfer: TransferItem): void => {
+  console.warn('replica download is stale', {
+    kind: transfer.replicaKind,
+    replicaId: transfer.replicaId,
+  });
+  useTransferStore.getState().removeTransfer(transfer.id);
+  getReplicaAdapter(transfer.replicaKind ?? '')?.binary?.onStaleDownload?.(
+    transfer.replicaId ?? '',
+    (transfer.replicaFiles ?? []).map((file) => file.logical),
+  );
+};
+
 interface PersistedQueueData {
   schemaVersion?: number;
   transfers: Record<string, TransferItem>;
@@ -32,7 +52,9 @@ class TransferManager {
   private static instance: TransferManager;
   private appService: AppService | null = null;
   private isProcessing = false;
+  private processQueueRequested = false;
   private abortControllers: Map<string, AbortController> = new Map();
+  private retryNotBefore: Map<string, number> = new Map();
   private isInitialized = false;
   private getLibrary: (() => Book[]) | null = null;
   private updateBook: ((book: Book) => Promise<void>) | null = null;
@@ -315,6 +337,7 @@ class TransferManager {
 
   retryTransfer(transferId: string): void {
     const store = useTransferStore.getState();
+    this.retryNotBefore.delete(transferId);
     store.retryTransfer(transferId);
     this.persistQueue();
     this.processQueue();
@@ -324,6 +347,7 @@ class TransferManager {
     const store = useTransferStore.getState();
     const failed = store.getFailedTransfers();
     failed.forEach((transfer) => {
+      this.retryNotBefore.delete(transfer.id);
       store.retryTransfer(transfer.id);
     });
     this.persistQueue();
@@ -362,15 +386,41 @@ class TransferManager {
   }
 
   private async processQueue(): Promise<void> {
-    if (this.isProcessing) return;
+    if (this.isProcessing) {
+      this.processQueueRequested = true;
+      return;
+    }
 
     this.isProcessing = true;
 
     try {
-      await this._processQueueInternal();
+      do {
+        this.processQueueRequested = false;
+        await this._processQueueInternal();
+      } while (this.processQueueRequested);
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  private readyPendingTransfers(): TransferItem[] {
+    const now = Date.now();
+    return useTransferStore
+      .getState()
+      .getPendingTransfers()
+      .filter(
+        (transfer) =>
+          (this.retryNotBefore.get(transfer.id) ?? 0) <= now &&
+          !this.isDeferredBookUpload(transfer),
+      );
+  }
+
+  private scheduleRetry(transferId: string, delay: number): void {
+    this.retryNotBefore.set(transferId, Date.now() + delay);
+    setTimeout(() => {
+      this.retryNotBefore.delete(transferId);
+      this.processQueue();
+    }, delay);
   }
 
   private async _processQueueInternal(): Promise<void> {
@@ -380,7 +430,7 @@ class TransferManager {
 
     if (store.isQueuePaused) return;
 
-    const pending = store.getPendingTransfers().filter((t) => !this.isDeferredBookUpload(t));
+    const pending = this.readyPendingTransfers();
     const activeCount = store.getActiveTransfers().length;
     const maxConcurrent = store.maxConcurrent;
 
@@ -401,8 +451,7 @@ class TransferManager {
     // not yet hydrated) don't count — re-looping on them every 100ms
     // would busy-wait; the settings subscription wakes them instead.
     const newStore = useTransferStore.getState();
-    const processable = newStore.getPendingTransfers().filter((t) => !this.isDeferredBookUpload(t));
-    if (processable.length > 0 && !newStore.isQueuePaused) {
+    if (this.readyPendingTransfers().length > 0 && !newStore.isQueuePaused) {
       setTimeout(() => this.processQueue(), 100);
     }
   }
@@ -466,6 +515,10 @@ class TransferManager {
       }
 
       const errorMessage = error instanceof Error ? error.message : _('Unknown error');
+      if (isStaleReplicaDownload(transfer, errorMessage)) {
+        dropStaleReplicaDownload(transfer);
+        return;
+      }
       const currentStore = useTransferStore.getState();
       const currentTransfer = currentStore.transfers[transfer.id];
 
@@ -487,33 +540,9 @@ class TransferManager {
           `Retry ${currentTransfer.retryCount + 1}/${currentTransfer.maxRetries}`,
         );
 
-        setTimeout(() => {
-          this.processQueue();
-        }, delay);
+        this.scheduleRetry(transfer.id, delay);
       } else {
-        // Background work fails quietly. The success path has always honoured
-        // `isBackground`; the failure path did not, so a broken replica sync
-        // fired one toast per file (issue #5675 — sixteen "Failed to download
-        // file" toasts for sixteen fonts). The failure is still recorded on
-        // the transfer, which is what the Transfer Queue panel reads.
-        if (!transfer.isBackground) {
-          if (errorMessage.includes('Not authenticated')) {
-            eventDispatcher.dispatch('toast', {
-              type: 'error',
-              message: _('Please log in to continue'),
-            });
-          } else if (isQuotaError) {
-            this.recordQuotaFailure();
-          } else {
-            const errorMessages = getTransferMessages(transfer, _).failure;
-
-            eventDispatcher.dispatch('toast', {
-              type: 'error',
-              message: errorMessages[transfer.type],
-            });
-          }
-        }
-
+        this.reportFailure(transfer, errorMessage);
         useTransferStore.getState().setTransferStatus(transfer.id, 'failed', errorMessage);
       }
     } finally {
@@ -528,6 +557,36 @@ class TransferManager {
 
       // Continue processing
       setTimeout(() => this.processQueue(), 100);
+    }
+  }
+
+  private reportFailure(transfer: TransferItem, errorMessage: string): void {
+    // Background work fails quietly: the failure is still recorded on the
+    // transfer, which is what the Transfer Queue panel reads (#5675).
+    if (transfer.isBackground) {
+      if (transfer.kind === 'replica') {
+        console.warn('background replica transfer failed', {
+          kind: transfer.replicaKind,
+          replicaId: transfer.replicaId,
+          type: transfer.type,
+          error: errorMessage,
+        });
+      }
+      return;
+    }
+    const _ = this._!;
+    if (errorMessage.includes('Not authenticated')) {
+      eventDispatcher.dispatch('toast', {
+        type: 'error',
+        message: _('Please log in to continue'),
+      });
+    } else if (errorMessage.includes('Insufficient storage quota')) {
+      this.recordQuotaFailure();
+    } else {
+      eventDispatcher.dispatch('toast', {
+        type: 'error',
+        message: getTransferMessages(transfer, _).failure[transfer.type],
+      });
     }
   }
 
@@ -552,7 +611,6 @@ class TransferManager {
           : _('{{count}} uploads failed: insufficient storage quota', { count }),
     });
   }
-
   private async executeBookTransfer(
     transfer: TransferItem,
     progressHandler: (p: ProgressPayload) => void,

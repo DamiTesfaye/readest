@@ -24,6 +24,8 @@ import {
   type CustomFont,
 } from '@/styles/fonts';
 
+const hostOf = (href: string): string => new URL(href, 'https://localhost').hostname;
+
 describe('getFontName', () => {
   it('should strip .ttf extension', () => {
     expect(getFontName('/fonts/Roboto.ttf')).toBe('Roboto');
@@ -331,7 +333,7 @@ describe('mountAdditionalFonts', () => {
 
     // Verify at least one link points to Google Fonts
     const hrefs = Array.from(links).map((l) => l.getAttribute('href') || '');
-    expect(hrefs.some((h) => h.includes('fonts.googleapis.com'))).toBe(true);
+    expect(hrefs.some((h) => hostOf(h) === 'fonts.googleapis.com')).toBe(true);
   });
 
   it('should set crossOrigin on link tags', async () => {
@@ -351,7 +353,7 @@ describe('mountAdditionalFonts', () => {
 
     const links = document.head.querySelectorAll('link');
     const hrefs = Array.from(links).map((l) => l.getAttribute('href') || '');
-    expect(hrefs.some((h) => h.includes('jsdelivr.net'))).toBe(false);
+    expect(hrefs.some((h) => hostOf(h) === 'cdn.jsdelivr.net')).toBe(false);
   });
 
   it('should mount CJK fonts when isCJK is true', async () => {
@@ -371,7 +373,7 @@ describe('mountAdditionalFonts', () => {
     // Should have CJK-specific link tags
     const links = document.head.querySelectorAll('link');
     const hrefs = Array.from(links).map((l) => l.getAttribute('href') || '');
-    expect(hrefs.some((h) => h.includes('jsdelivr.net'))).toBe(true);
+    expect(hrefs.some((h) => hostOf(h) === 'cdn.jsdelivr.net')).toBe(true);
   });
 
   it('should mount CJK fonts when isCJKEnv returns true', async () => {

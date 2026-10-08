@@ -114,6 +114,19 @@ const configWrites = (fs: ReturnType<TestAppService['getFs']>) =>
  * library.json does not list, it extracts the dir (config.json included) and
  * then imports the book file, which had no library row yet.
  */
+const written = new Set<string>();
+
+function trackWrites(fs: ReturnType<TestAppService['getFs']>) {
+  written.clear();
+  fs.writeFile.mockImplementation(async (path: string) => {
+    written.add(path);
+  });
+  fs.copyFile.mockImplementation(async (_src: string, _srcBase: string, dst: string) => {
+    written.add(dst);
+  });
+  fs.exists.mockImplementation(async (path: string) => written.has(path));
+}
+
 describe('importBook config preservation (issue #5716)', () => {
   let service: TestAppService;
 
@@ -122,7 +135,7 @@ describe('importBook config preservation (issue #5716)', () => {
     service = new TestAppService();
     const fs = service.getFs();
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
+    trackWrites(fs);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
     mockPartialMD5.mockResolvedValue(BOOK_HASH);
@@ -133,7 +146,7 @@ describe('importBook config preservation (issue #5716)', () => {
     const fs = service.getFs();
     // The restored dir already holds the user's config; the library does not
     // know about the book yet.
-    fs.exists.mockImplementation(async (path: string) => path === CONFIG_PATH);
+    fs.exists.mockImplementation(async (path: string) => written.has(path) || path === CONFIG_PATH);
 
     const books: Book[] = [];
     const imported = await service.importBook(
@@ -148,7 +161,6 @@ describe('importBook config preservation (issue #5716)', () => {
 
   it('still writes an initial config when the book dir has none', async () => {
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
 
     const books: Book[] = [];
     await service.importBook(

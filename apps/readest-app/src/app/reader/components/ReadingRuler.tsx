@@ -1,10 +1,13 @@
 import clsx from 'clsx';
 import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { IoClose } from 'react-icons/io5';
 import { Insets } from '@/types/misc';
 import { BookFormat, FIXED_LAYOUT_FORMATS, ViewSettings } from '@/types/book';
 import { FoliateView } from '@/types/view';
 import { useEnv } from '@/context/EnvContext';
 import { useReaderStore } from '@/store/readerStore';
+import { useThemeStore } from '@/store/themeStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { saveViewSettings } from '@/helpers/settings';
 import { READING_RULER_COLORS } from '@/services/constants';
 import { throttle } from '@/utils/throttle';
@@ -16,6 +19,7 @@ import {
   calculateReadingRulerPadding,
   calculateReadingRulerSize,
   clampReadingRulerPosition,
+  collectTextLineRects,
   filterVisibleLineBoxes,
   ReadingRulerColumn,
   ReadingRulerLineBox,
@@ -25,6 +29,9 @@ import {
   snapReadingRulerToLines,
   stepReadingRulerPosition,
 } from '../utils/readingRuler';
+
+const HEADER_BAR_HEIGHT = 44;
+const CLOSE_BUTTON_GAP = 8;
 
 type OverlayRect = {
   top: number;
@@ -38,12 +45,15 @@ type OverlayRect = {
 // Map a range's client rects (iframe-content coordinates) to overlay-relative
 // coordinates, accounting for the iframe's offset within the top document
 // (paginated multi-column pages shift the iframe far off-screen horizontally).
-const mapRangeRectsToOverlay = (range: Range, containerRect: DOMRect): OverlayRect[] => {
-  const doc = range.startContainer?.ownerDocument;
+const mapRangeRectsToOverlay = (
+  range: Range,
+  containerRect: DOMRect,
+  doc: Document | null | undefined = range.startContainer?.ownerDocument,
+): OverlayRect[] => {
   const frame = doc?.defaultView?.frameElement?.getBoundingClientRect();
   const fx = frame?.left ?? 0;
   const fy = frame?.top ?? 0;
-  return Array.from(range.getClientRects()).map((r) => ({
+  return collectTextLineRects(range).map((r) => ({
     top: r.top + fy - containerRect.top,
     bottom: r.bottom + fy - containerRect.top,
     left: r.left + fx - containerRect.left,
@@ -140,7 +150,7 @@ const buildScrolledLineBoxes = (
     if (offscreen) continue;
     const range = doc.createRange();
     range.selectNodeContents(doc.body);
-    const mapped = mapRangeRectsToOverlay(range, containerRect);
+    const mapped = mapRangeRectsToOverlay(range, containerRect, doc);
     boxes.push(
       ...buildLineBoxes(mapped, isVertical, rtl, { top: 0, left: 0, right: containerRect.width }),
     );
@@ -223,14 +233,17 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
   color,
   bookFormat,
   viewSettings,
+  gridInsets,
 }) => {
+  const _ = useTranslation();
   const { envConfig } = useEnv();
   const { getProgress, getView } = useReaderStore();
+  const { systemUIVisible, statusBarHeight } = useThemeStore();
   const progress = getProgress(bookKey);
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentPosition, setCurrentPosition] = useState(position);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  // Active column extent (px, overlay-relative) for multi-column layouts; null = full width.
+  // Covered block's horizontal extent (px, overlay-relative) for multi-column layouts; null = full width.
   const [activeColumnRect, setActiveColumnRect] = useState<{ left: number; right: number } | null>(
     null,
   );
@@ -250,8 +263,11 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
   const lastFractionRef = useRef<number | null>(null);
   const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentPositionRef = useRef(position);
+  const coveredBlockRef = useRef<(ReadingRulerLineBox & { dimension: number }) | null>(null);
   const lineBoxesRef = useRef<ReadingRulerLineBox[]>([]);
   const columnsRef = useRef<ReadingRulerColumn[]>([]);
+  const touchOffsetRef = useRef(0);
+  const [fontLoadCount, setFontLoadCount] = useState(0);
   const activeColumnIndexRef = useRef(0);
   // Range on the text at the band's block start. The section DOM survives
   // repagination, so this keeps identifying the same passage across reflows
@@ -304,6 +320,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
         animationTimeoutRef.current = null;
       }
 
+      coveredBlockRef.current = null;
       setShouldAnimate(animate);
       setCurrentPosition(nextPosition);
       currentPositionRef.current = nextPosition;
@@ -401,10 +418,86 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
       const centerPct =
         dimension > 0 ? ((start + end) / 2 / dimension) * 100 : currentPositionRef.current;
       setRulerPosition(centerPct, animate);
+      coveredBlockRef.current = { start, end, dimension };
       captureAnchor(start, end);
     },
     [padding, maxBandSize, setRulerPosition, captureAnchor],
   );
+
+  const getCoveredBlock = useCallback(
+    (dimension: number): ReadingRulerLineBox => {
+      const stored = coveredBlockRef.current;
+      if (stored && stored.dimension === dimension) return { start: stored.start, end: stored.end };
+      const center = (currentPositionRef.current / 100) * dimension;
+      const halfBlock = Math.max(0, (bandSizeRef.current || fallbackRulerSize) / 2 - padding);
+      return { start: center - halfBlock, end: center + halfBlock };
+    },
+    [fallbackRulerSize, padding],
+  );
+
+  const measureLineGeometry = useCallback(
+    (
+      range: Range | null,
+      containerRect: DOMRect,
+    ): { columns: ReadingRulerColumn[]; lineBoxes: ReadingRulerLineBox[] } => {
+      const measure = (): {
+        columns: ReadingRulerColumn[];
+        lineBoxes: ReadingRulerLineBox[];
+      } => {
+        const empty = { columns: [], lineBoxes: [] };
+        if (!supportsLineSnap) return empty;
+        try {
+          if (isMultiColumn) {
+            if (!range) return empty;
+            const columns = buildPaginatedColumns(
+              getView(bookKey),
+              range,
+              containerRect,
+              columnCount,
+              rtl,
+            );
+            return { columns, lineBoxes: [] };
+          }
+          if (viewSettings.scrolled) {
+            return {
+              columns: [],
+              lineBoxes: buildScrolledLineBoxes(getView(bookKey), containerRect, isVertical, rtl),
+            };
+          }
+          if (!range) return empty;
+          return {
+            columns: [],
+            lineBoxes: buildVisibleLineBoxes(range, containerRect, isVertical, rtl),
+          };
+        } catch {
+          return empty;
+        }
+      };
+      const geometry = measure();
+      columnsRef.current = geometry.columns;
+      lineBoxesRef.current = geometry.lineBoxes;
+      return geometry;
+    },
+    [
+      supportsLineSnap,
+      isVertical,
+      isMultiColumn,
+      columnCount,
+      rtl,
+      viewSettings.scrolled,
+      getView,
+      bookKey,
+    ],
+  );
+
+  const contentDoc = progress?.range?.startContainer?.ownerDocument ?? null;
+  useEffect(() => {
+    const fonts = contentDoc?.fonts;
+    if (!fonts) return;
+    const handleFontsLoaded = () => setFontLoadCount((count) => count + 1);
+    fonts.addEventListener('loadingdone', handleFontsLoaded);
+    return () => fonts.removeEventListener('loadingdone', handleFontsLoaded);
+  }, [contentDoc]);
 
   // Track container size for overlay calculations
   useEffect(() => {
@@ -440,103 +533,83 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     cacheLocationRef.current = location;
 
     if (!supportsLineSnap || !range || !containerRect) {
-      lineBoxesRef.current = [];
-      columnsRef.current = [];
       setActiveColumnRect(null);
       return;
     }
-    try {
-      const dimension = isVertical ? containerRect.width : containerRect.height;
-      const center = dimension > 0 ? (currentPositionRef.current / 100) * dimension : 0;
-      // Re-snap anchor: the band's leading edge (block start), not its center.
-      // Snapping 'forward' from the center skips the line the center sits inside,
-      // which would advance the band by one line on every relayout/relocate (e.g.
-      // the settle relocate right after a page turn skipped the new page's line 1).
-      const halfBlock = Math.max(0, (bandSizeRef.current || fallbackRulerSize) / 2 - padding);
-      const anchor = center - halfBlock;
-      if (isMultiColumn) {
-        const cols = buildPaginatedColumns(
-          getView(bookKey),
-          range,
-          containerRect,
-          columnCount,
-          rtl,
-        );
-        columnsRef.current = cols;
-        lineBoxesRef.current = [];
-        const idx = Math.max(0, Math.min(activeColumnIndexRef.current, cols.length - 1));
-        const col = cols[idx];
-        setActiveColumnRect(col ? { left: col.left, right: col.right } : null);
-        if (!locationChanged) {
-          // A resize/relayout keeps the anchored text on screen: re-attach the
-          // band to it. Fall back to the screen-position snap when no anchor
-          // resolves (initial mount, or the text reflowed off the page).
-          const block =
-            resolveAnchorBlock(containerRect) ??
-            snapReadingRulerColumns(idx, anchor, anchor, lines, 'forward', cols);
-          if (block && 'columnIndex' in block && block.columnIndex !== undefined) {
-            activeColumnIndexRef.current = block.columnIndex;
-            const target = cols[block.columnIndex];
-            if (target) setActiveColumnRect({ left: target.left, right: target.right });
-          }
-          if (block) applyBlock(block.start, block.end, dimension, false);
+    const dimension = isVertical ? containerRect.width : containerRect.height;
+    // Re-snap anchor: the covered block's leading edge, not the band center.
+    // Snapping 'forward' from the center skips the line the center sits inside,
+    // which would advance the band by one line on every relayout/relocate (e.g.
+    // the settle relocate right after a page turn skipped the new page's line 1).
+    const anchor = getCoveredBlock(dimension).start;
+    const { columns, lineBoxes } = measureLineGeometry(range, containerRect);
+    if (isMultiColumn) {
+      const idx = Math.max(0, Math.min(activeColumnIndexRef.current, columns.length - 1));
+      const col = columns[idx];
+      if (!col) setActiveColumnRect(null);
+      else setActiveColumnRect((prev) => prev ?? { left: col.left, right: col.right });
+      if (!locationChanged) {
+        // A resize/relayout keeps the anchored text on screen: re-attach the
+        // band to it. Fall back to the screen-position snap when no anchor
+        // resolves (initial mount, or the text reflowed off the page).
+        const block =
+          resolveAnchorBlock(containerRect) ??
+          snapReadingRulerColumns(idx, anchor, anchor, lines, 'forward', columns);
+        if (block && block.columnIndex !== undefined) {
+          activeColumnIndexRef.current = block.columnIndex;
+          const target: { left: number; right: number } | undefined =
+            'left' in block && 'right' in block
+              ? (block as { left: number; right: number })
+              : columns[block.columnIndex];
+          if (target) setActiveColumnRect({ left: target.left, right: target.right });
         }
-      } else {
-        const scrolled = !!viewSettings.scrolled;
-        lineBoxesRef.current = scrolled
-          ? buildScrolledLineBoxes(getView(bookKey), containerRect, isVertical, rtl)
-          : buildVisibleLineBoxes(range, containerRect, isVertical, rtl);
-        columnsRef.current = [];
-        setActiveColumnRect(null);
-        // Position the band against the on-screen lines only, so it lands in view
-        // (the handler uses the unfiltered set to scroll toward off-screen lines).
-        const derivBoxes = scrolled
-          ? filterVisibleLineBoxes(lineBoxesRef.current, dimension)
-          : lineBoxesRef.current;
-        const pending = pendingScrollAlignRef.current;
-        if (pending) {
-          // The view just scrolled because a tap advanced past its edge: put the
-          // band at the start (forward) or end (backward) of the new view.
-          pendingScrollAlignRef.current = null;
-          const block =
-            pending === 'forward'
-              ? snapReadingRulerToLines(-Infinity, -Infinity, lines, 'forward', derivBoxes)
-              : snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', derivBoxes);
-          if (block) {
-            applyBlock(block.start, block.end, dimension, true);
+        if (block) {
+          applyBlock(block.start, block.end, dimension, false);
+        }
+      }
+      return;
+    }
+    setActiveColumnRect(null);
+    const scrolled = !!viewSettings.scrolled;
+    // Position the band against the on-screen lines only, so it lands in view
+    // (the handler uses the unfiltered set to scroll toward off-screen lines).
+    const derivBoxes = scrolled ? filterVisibleLineBoxes(lineBoxes, dimension) : lineBoxes;
+    const pending = pendingScrollAlignRef.current;
+    if (pending) {
+      // The view just scrolled because a tap advanced past its edge: put the
+      // band at the start (forward) or end (backward) of the new view.
+      pendingScrollAlignRef.current = null;
+      const block =
+        pending === 'forward'
+          ? snapReadingRulerToLines(-Infinity, -Infinity, lines, 'forward', derivBoxes)
+          : snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', derivBoxes);
+      if (block) {
+        applyBlock(block.start, block.end, dimension, true);
+        scrolledPlacedRef.current = true;
+        scrolledPlacedDimensionRef.current = dimension;
+      }
+    } else if (!locationChanged) {
+      // In scrolled mode, only snap the band on the initial mount or after the
+      // viewport dimension changes (resize/relayout). A plain scroll fires a
+      // relocate without changing the dimension; re-snapping then would walk
+      // the band down the page as the reader scrolls (issue #4386).
+      const alreadyPlaced =
+        scrolled && scrolledPlacedRef.current && scrolledPlacedDimensionRef.current === dimension;
+      if (!alreadyPlaced) {
+        // Paginated resize/relayout: prefer re-attaching the band to the
+        // anchored text over snapping at the band's old screen position.
+        const block =
+          (!scrolled ? resolveAnchorBlock(containerRect) : null) ??
+          snapReadingRulerToLines(anchor, anchor, lines, 'forward', derivBoxes) ??
+          snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', derivBoxes);
+        if (block) {
+          applyBlock(block.start, block.end, dimension, false);
+          if (scrolled) {
             scrolledPlacedRef.current = true;
             scrolledPlacedDimensionRef.current = dimension;
           }
-        } else if (!locationChanged) {
-          // In scrolled mode, only snap the band on the initial mount or after the
-          // viewport dimension changes (resize/relayout). A plain scroll fires a
-          // relocate without changing the dimension; re-snapping then would walk
-          // the band down the page as the reader scrolls (issue #4386).
-          const alreadyPlaced =
-            scrolled &&
-            scrolledPlacedRef.current &&
-            scrolledPlacedDimensionRef.current === dimension;
-          if (!alreadyPlaced) {
-            // Paginated resize/relayout: prefer re-attaching the band to the
-            // anchored text over snapping at the band's old screen position.
-            const block =
-              (!scrolled ? resolveAnchorBlock(containerRect) : null) ??
-              snapReadingRulerToLines(anchor, anchor, lines, 'forward', derivBoxes) ??
-              snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', derivBoxes);
-            if (block) {
-              applyBlock(block.start, block.end, dimension, false);
-              if (scrolled) {
-                scrolledPlacedRef.current = true;
-                scrolledPlacedDimensionRef.current = dimension;
-              }
-            }
-          }
         }
       }
-    } catch {
-      lineBoxesRef.current = [];
-      columnsRef.current = [];
-      setActiveColumnRect(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -551,9 +624,10 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     columnCount,
     lines,
     viewSettings.scrolled,
-    bookKey,
-    getView,
+    fontLoadCount,
     applyBlock,
+    getCoveredBlock,
+    measureLineGeometry,
     resolveAnchorBlock,
   ]);
 
@@ -641,47 +715,34 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
       // lands on the last line (so reading continues from where it left off).
       const forward = direction === 'forward';
 
+      const { columns, lineBoxes } = measureLineGeometry(range, containerRect);
       if (isMultiColumn) {
-        try {
-          const columns = columnsRef.current;
-          // Forward: first line group of the first column. Backward: last line
-          // group of the last column.
-          const block = forward
-            ? snapReadingRulerColumns(0, -Infinity, -Infinity, lines, 'forward', columns)
-            : snapReadingRulerColumns(
-                columns.length - 1,
-                Infinity,
-                Infinity,
-                lines,
-                'backward',
-                columns,
-              );
-          if (block) {
-            activeColumnIndexRef.current = block.columnIndex;
-            const col = columns[block.columnIndex];
-            if (col) setActiveColumnRect({ left: col.left, right: col.right });
-            applyBlock(block.start, block.end, containerDimension, true);
-            return;
-          }
-        } catch {
-          /* fall through to default offset */
+        // Forward: first line group of the first column. Backward: last line
+        // group of the last column.
+        const block = forward
+          ? snapReadingRulerColumns(0, -Infinity, -Infinity, lines, 'forward', columns)
+          : snapReadingRulerColumns(
+              columns.length - 1,
+              Infinity,
+              Infinity,
+              lines,
+              'backward',
+              columns,
+            );
+        if (block) {
+          activeColumnIndexRef.current = block.columnIndex;
+          setActiveColumnRect({ left: block.left, right: block.right });
+          applyBlock(block.start, block.end, containerDimension, true);
+          return;
         }
-      }
-
-      if (supportsLineSnap && !isMultiColumn && range) {
-        try {
-          const boxes = buildVisibleLineBoxes(range, containerRect, isVertical, rtl);
-          lineBoxesRef.current = boxes;
-          // Forward: first line group from the top. Backward: last line group.
-          const block = forward
-            ? snapReadingRulerToLines(-Infinity, -Infinity, lines, 'forward', boxes)
-            : snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', boxes);
-          if (block) {
-            applyBlock(block.start, block.end, containerDimension, true);
-            return;
-          }
-        } catch {
-          /* fall through to default offset */
+      } else {
+        // Forward: first line group from the top. Backward: last line group.
+        const block = forward
+          ? snapReadingRulerToLines(-Infinity, -Infinity, lines, 'forward', lineBoxes)
+          : snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', lineBoxes);
+        if (block) {
+          applyBlock(block.start, block.end, containerDimension, true);
+          return;
         }
       }
 
@@ -763,11 +824,10 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     viewSettings.marginRightPx,
     fallbackRulerSize,
     lines,
-    supportsLineSnap,
     isMultiColumn,
-    columnCount,
     applyBlock,
     clampPosition,
+    measureLineGeometry,
     setRulerPosition,
     resolveAnchorBlock,
   ]);
@@ -777,6 +837,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
       e.preventDefault();
       e.stopPropagation();
       isDragging.current = true;
+      coveredBlockRef.current = null;
 
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
@@ -891,6 +952,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
             : vx - rect.left
           : vy - rect.top;
         touchInRulerRef.current = rel >= center - half && rel <= center + half;
+        touchOffsetRef.current = rel - center;
         isTouchDraggingRef.current = false;
         return false;
       }
@@ -907,7 +969,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
             if (isDragGesture) {
               isTouchDraggingRef.current = true;
               isDragging.current = true;
-              dragPointerOffsetRef.current = 0;
+              coveredBlockRef.current = null;
               setShouldAnimate(false);
             } else {
               touchInRulerRef.current = false;
@@ -928,7 +990,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
             ? rect.width - (vx - rect.left)
             : vx - rect.left
           : vy - rect.top;
-        const newPos = clampPosition((rel / dim) * 100, dim);
+        const newPos = clampPosition(((rel - touchOffsetRef.current) / dim) * 100, dim);
         setCurrentPosition(newPos);
         currentPositionRef.current = newPos;
         return true;
@@ -968,38 +1030,31 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
 
       if (!dimension) return false;
 
-      // The lines currently covered by the band (block extent, without padding).
-      const center = (currentPositionRef.current / 100) * dimension;
-      const halfBlock = Math.max(0, (bandSizeRef.current || fallbackRulerSize) / 2 - padding);
-      const curStart = center - halfBlock;
-      const curEnd = center + halfBlock;
+      const { start: curStart, end: curEnd } = getCoveredBlock(dimension);
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      const { columns, lineBoxes } = containerRect
+        ? measureLineGeometry(getProgress(bookKey)?.range ?? null, containerRect)
+        : { columns: [], lineBoxes: [] };
 
-      if (isMultiColumn && columnsRef.current.length > 0) {
+      if (isMultiColumn && columns.length > 0) {
         const block = snapReadingRulerColumns(
           activeColumnIndexRef.current,
           curStart,
           curEnd,
           lines,
           detail.direction,
-          columnsRef.current,
+          columns,
         );
         // No next line group in any column this direction: let the page flip.
         if (!block) return false;
         activeColumnIndexRef.current = block.columnIndex;
-        const col = columnsRef.current[block.columnIndex];
-        if (col) setActiveColumnRect({ left: col.left, right: col.right });
+        setActiveColumnRect({ left: block.left, right: block.right });
         applyBlock(block.start, block.end, dimension, true);
         return true;
       }
 
-      if (supportsLineSnap && lineBoxesRef.current.length > 0) {
-        const block = snapReadingRulerToLines(
-          curStart,
-          curEnd,
-          lines,
-          detail.direction,
-          lineBoxesRef.current,
-        );
+      if (lineBoxes.length > 0) {
+        const block = snapReadingRulerToLines(curStart, curEnd, lines, detail.direction, lineBoxes);
         if (!block) {
           // No next line in the loaded geometry: in scrolled mode let the view
           // scroll, then realign the band on the next relocate.
@@ -1055,11 +1110,12 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     lines,
     padding,
     fallbackRulerSize,
-    supportsLineSnap,
     isMultiColumn,
     viewSettings.scrolled,
-    getView,
+    getProgress,
     applyBlock,
+    getCoveredBlock,
+    measureLineGeometry,
     setRulerPosition,
   ]);
 
@@ -1102,6 +1158,27 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerUp,
   };
+
+  const handleClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    saveViewSettings(envConfig, bookKey, 'readingRulerEnabled', false, false, false);
+  };
+  const closeButtonTop =
+    (systemUIVisible ? Math.max(gridInsets.top, statusBarHeight) : gridInsets.top) +
+    HEADER_BAR_HEIGHT +
+    CLOSE_BUTTON_GAP;
+  const closeButton = (
+    <button
+      type='button'
+      onClick={handleClose}
+      className='eink-bordered bg-base-200 text-base-content hover:bg-base-300 pointer-events-auto absolute right-3 flex h-8 sm:hidden w-8 items-center justify-center rounded-full shadow-sm transition-colors'
+      style={{ top: `${closeButtonTop}px` }}
+      aria-label={_('Close')}
+      title={_('Close')}
+    >
+      <IoClose className='h-5 w-5' />
+    </button>
+  );
 
   if (isVertical) {
     // Vertical ruler (for vertical writing mode - moves left/right)
@@ -1161,6 +1238,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
             {...dragHandleProps}
           />
         </div>
+        {closeButton}
       </div>
     );
   }
@@ -1249,6 +1327,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
             {...dragHandleProps}
           />
         </div>
+        {closeButton}
       </div>
     );
   }
@@ -1309,6 +1388,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
           {...dragHandleProps}
         />
       </div>
+      {closeButton}
     </div>
   );
 };

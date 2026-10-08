@@ -1,9 +1,14 @@
-import type { ReplicaRow } from '@/types/replica';
+import type { ManifestFile, ReplicaRow } from '@/types/replica';
 import type { BaseDir, FileSystem } from '@/types/system';
 
 export interface BinaryCapability<T> {
   localBaseDir: BaseDir;
   enumerateFiles(replica: T): { logical: string; lfp: string; byteSize: number }[];
+  isCurrent?(record: T, manifestFiles: readonly ManifestFile[]): boolean;
+  downloadPath?(filename: string, bundleDir: string): string;
+  bundleDirFor?(row: ReplicaRow): string | null;
+  staleWhenMissing?: boolean;
+  onStaleDownload?(replicaId: string, filenames: string[]): void;
 }
 
 export interface LifecycleHooks<T> {

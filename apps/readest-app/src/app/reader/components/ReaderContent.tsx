@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSidebarStore } from '@/store/sidebarStore';
+import { useParallelViewStore } from '@/store/parallelViewStore';
 import { useAndroidGamepadConnection } from '@/hooks/useAndroidGamepadConnection';
 import { useGamepad } from '@/hooks/useGamepad';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -37,6 +38,9 @@ import useBookShortcuts from '../hooks/useBookShortcuts';
 import Spinner from '@/components/Spinner';
 import SideBar from './sidebar/SideBar';
 import Notebook from './notebook/Notebook';
+import MindmapView from './mindmap/MindmapView';
+import { useMindmapActions } from './mindmap/useMindmapActions';
+import { flushMindmapSync } from '@/services/mindmap/sync/lifecycle';
 import LocalSendManager from '@/components/localsend/LocalSendManager';
 import BooksGrid from './BooksGrid';
 import SettingsDialog from '@/components/settings/SettingsDialog';
@@ -46,7 +50,8 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const router = useRouter();
   const searchParams = useSearchParams();
   const { envConfig, appService } = useEnv();
-  const { bookKeys, dismissBook, getNextBookKey } = useBooksManager();
+  const { bookKeys, dismissBook, getNextBookKey, openBookInReader } = useBooksManager();
+  const { unsetParallel } = useParallelViewStore();
   const { sideBarBookKey, setSideBarBookKey } = useSidebarStore();
   const { saveSettings } = useSettingsStore();
   const { getConfig, getBookData, saveConfig } = useBookDataStore();
@@ -62,6 +67,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
   const isInitiating = useRef(false);
   const [loading, setLoading] = useState(false);
   const [errorLoading, setErrorLoading] = useState(false);
+  const mindmapActions = useMindmapActions();
 
   useBookShortcuts({ sideBarBookKey, bookKeys });
   const isAndroidApp = appService?.isAndroidApp === true;
@@ -154,7 +160,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
 
     let unlistenOnCloseWindow: Promise<UnlistenFn>;
     if (appService?.hasWindow) {
-      unlistenOnCloseWindow = tauriHandleOnCloseWindow(handleCloseBooks).catch((error) => {
+      unlistenOnCloseWindow = tauriHandleOnCloseWindow(closeBooks).catch((error) => {
         console.info('Failed to register close-window listener:', error);
         return () => {};
       });
@@ -162,12 +168,12 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
     window.addEventListener('beforeunload', handleCloseBooks);
     eventDispatcher.on('beforereload', handleCloseBooks);
     eventDispatcher.on('close-reader', handleCloseReaderToLibrary);
-    eventDispatcher.on('quit-app', handleCloseBooks);
+    eventDispatcher.on('quit-app', closeBooks);
     return () => {
       window.removeEventListener('beforeunload', handleCloseBooks);
       eventDispatcher.off('beforereload', handleCloseBooks);
       eventDispatcher.off('close-reader', handleCloseReaderToLibrary);
-      eventDispatcher.off('quit-app', handleCloseBooks);
+      eventDispatcher.off('quit-app', closeBooks);
       unlistenOnCloseWindow?.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -225,13 +231,16 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
 
   // Also wired directly to beforeunload/quit-app/window-close, which pass an
   // event object: only a literal `true` keeps TTS alive.
-  const handleCloseBooks = throttle(async (keepTTSAlive?: unknown) => {
+  const closeBooks = async (keepTTSAlive?: unknown) => {
     const settings = useSettingsStore.getState().settings;
-    await Promise.all(
-      bookKeys.map(async (key) => await saveConfigAndCloseBook(key, keepTTSAlive === true)),
-    );
+    await Promise.all([
+      ...bookKeys.map(async (key) => await saveConfigAndCloseBook(key, keepTTSAlive === true)),
+      flushMindmapSync(),
+    ]);
     await saveSettings(envConfig, settings);
-  }, 200);
+  };
+
+  const handleCloseBooks = throttle(closeBooks, 200);
 
   const handleCloseBooksToLibrary = async () => {
     // SPA navigation in the main window (or on web) keeps the webview alive:
@@ -266,7 +275,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       const openWithFiles = (await parseOpenWithFiles(appService)) || [];
       if (appService?.hasWindow) {
         if (openWithFiles.length > 0) {
-          void tauriHandleOnCloseWindow(handleCloseBooks).catch((error) => {
+          void tauriHandleOnCloseWindow(closeBooks).catch((error) => {
             console.info('Failed to register close-window listener:', error);
           });
           return await tauriHandleClose();
@@ -279,6 +288,28 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       saveSettingsAndGoToLibrary();
     }
   };
+
+  const openBookSingleRef = useRef<(bookHash: string) => Promise<void>>(async () => {});
+  openBookSingleRef.current = async (bookHash: string) => {
+    const existing = bookKeys.find((key) => key.startsWith(bookHash));
+    if (existing) {
+      setSideBarBookKey(existing);
+      return;
+    }
+    const previousKeys = [...bookKeys];
+    unsetParallel(previousKeys);
+    await Promise.all(previousKeys.map((key) => saveConfigAndCloseBook(key)));
+    openBookInReader(bookHash);
+  };
+
+  useEffect(() => {
+    const handle = (event: CustomEvent) => {
+      const { bookHash } = event.detail as { bookHash: string };
+      openBookSingleRef.current(bookHash);
+    };
+    eventDispatcher.on('open-book-single', handle);
+    return () => eventDispatcher.off('open-book-single', handle);
+  }, []);
 
   if (!bookKeys || bookKeys.length === 0) return null;
   const bookData = getBookData(bookKeys[0]!);
@@ -305,6 +336,7 @@ const ReaderContent: React.FC<{ ids?: string; settings: SystemSettings }> = ({ i
       />
       {isSettingsDialogOpen && <SettingsDialog bookKey={settingsDialogBookKey} />}
       <Notebook />
+      <MindmapView {...mindmapActions} />
       <LocalSendManager />
       {showDetailsBook && (
         <BookDetailModal

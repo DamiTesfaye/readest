@@ -22,7 +22,14 @@ import { DEFAULT_NEARBY_WORDS } from '@/utils/searchConfig';
 import { clearLibrarySearchHistory, loadLibrarySearchHistory } from './utils/searchHistory';
 import type { LibrarySearchTarget } from '@/types/book';
 import { navigateToLibrary, navigateToLogin, navigateToReader } from '@/utils/nav';
-import { getBookWithUpdatedMetadata, listFormater } from '@/utils/book';
+import AmpleDocumentPromptDialog, {
+  type AmpleDocumentChoice,
+} from '@/app/library/components/AmpleDocumentPromptDialog';
+import {
+  ampleDocumentService,
+  isEligibleForAmpleDocument,
+} from '@/services/ampleDocument/ampleDocumentService';
+import { getBookWithUpdatedMetadata, getDir, listFormater } from '@/utils/book';
 import { getImportErrorMessage } from '@/services/errors';
 import { ingestFile } from '@/services/ingestService';
 import { eventDispatcher } from '@/utils/event';
@@ -87,6 +94,7 @@ import LocalSendManager from '@/components/localsend/LocalSendManager';
 import { BookDetailModal } from '@/components/metadata';
 import { UpdaterWindow } from '@/components/UpdaterWindow';
 import { CatalogDialog } from './components/OPDSDialog';
+import { CatalogManager } from '@/app/opds/components/CatalogManager';
 import { FeedsView } from './components/feeds/FeedsView';
 import AddFeedModal from './components/feeds/AddFeedModal';
 import { fetchAndParseFeed } from '@/services/rss/feedClient';
@@ -106,6 +114,8 @@ import {
 } from './utils/libraryUtils';
 import Spinner from '@/components/Spinner';
 import LibraryHeader from './components/LibraryHeader';
+import LibrarySidebar from './components/LibrarySidebar';
+import LibraryContentHeader from './components/LibraryContentHeader';
 import Bookshelf from './components/Bookshelf';
 import LibraryEmptyState from './components/LibraryEmptyState';
 import ImportMenuPopup from './components/ImportMenuPopup';
@@ -121,7 +131,7 @@ import { ttsSessionManager } from '@/services/tts';
 import { clipPageWithSignInFallback } from '@/services/send/clipSignIn';
 import ClipSignInAlert from '@/components/ClipSignInAlert';
 import useShortcuts from '@/hooks/useShortcuts';
-import { useReplicaPull } from '@/hooks/useReplicaPull';
+import { LIBRARY_REPLICA_KINDS, useReplicaPull } from '@/hooks/useReplicaPull';
 import { useCustomFonts } from '@/hooks/useCustomFonts';
 import DropIndicator from '@/components/DropIndicator';
 import SettingsDialog from '@/components/settings/SettingsDialog';
@@ -197,7 +207,6 @@ const LAST_IMPORT_FOLDER_MIN_SIZE_KEY = 'readest:lastImportFolderMinSizeKB';
  * dialog forces the toggle ON regardless of this value.
  */
 const LAST_IMPORT_FOLDER_READ_IN_PLACE_KEY = 'readest:lastImportFolderReadInPlace';
-
 const LibraryPageWithSearchParams = () => {
   const searchParams = useSearchParams();
   return <LibraryPageContent searchParams={searchParams} />;
@@ -235,12 +244,10 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const isTransferQueueOpen = useTransferStore((state) => state.isTransferQueueOpen);
 
   // Library page pulls user replicas (dictionaries, custom fonts,
-  // background textures, OPDS catalogs, bundled settings). Deferred
+  // background textures, OPDS catalogs, bundled settings, mind maps). Deferred
   // 10s; module-scoped dedup means a later navigation to the reader
   // won't re-pull the same kind.
-  useReplicaPull({
-    kinds: ['dictionary', 'font', 'texture', 'opds_catalog', 'settings'],
-  });
+  useReplicaPull({ kinds: LIBRARY_REPLICA_KINDS });
   // Hydrate the custom-font store from persisted settings so the Font
   // panel sees imported fonts even when opened straight from the
   // library — the replica pull above is auth-gated and the reader's
@@ -307,6 +314,11 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     [key: string]: number | null;
   }>({});
   const [pendingNavigationBookIds, setPendingNavigationBookIds] = useState<string[] | null>(null);
+  const [ampleDocumentPrompt, setAmpleDocumentPrompt] = useState<{
+    extension: string | null;
+    isBatch: boolean;
+    resolve: (choice: AmpleDocumentChoice) => void;
+  } | null>(null);
   const isInitiating = useRef(false);
 
   const iconSize = useResponsiveSize(18);
@@ -666,6 +678,15 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     setShowCatalogManager(true);
   };
 
+  const handleOpenCatalogsPage = () => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('catalogs', 'true');
+    params.delete('q');
+    params.delete('status');
+    params.delete('group');
+    navigateToLibrary(router, params.toString());
+  };
+
   const handleDismissOPDSDialog = () => {
     setShowCatalogManager(false);
     const params = new URLSearchParams(window.location.search);
@@ -863,6 +884,60 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoBooks, libraryLoaded]);
 
+  const askAmpleDocumentChoice = async (paths: string[]): Promise<AmpleDocumentChoice> => {
+    if (!appService) return 'continue';
+    const eligible = paths.filter(isEligibleForAmpleDocument);
+    if (eligible.length === 0) return 'continue';
+    const liveSettings = useSettingsStore.getState().settings;
+    if (!(await ampleDocumentService.isAvailable({ appService, settings: liveSettings }))) {
+      return 'continue';
+    }
+    const extension = eligible.length === 1 ? getFilename(eligible[0]!).split('.').pop()! : null;
+    return new Promise<AmpleDocumentChoice>((resolve) => {
+      setAmpleDocumentPrompt({
+        extension: extension?.toLowerCase() ?? null,
+        isBatch: eligible.length > 1,
+        resolve: (choice) => {
+          setAmpleDocumentPrompt(null);
+          resolve(choice);
+        },
+      });
+    });
+  };
+
+  const convertWithAmpleDocument = async (
+    filePath: string,
+  ): Promise<{ epubPath: string; jsonPath: string; tempDir: string } | null> => {
+    if (!appService) return null;
+    try {
+      const outDir = `ample-document/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await appService.createDir(outDir, 'Temp', true);
+      const absoluteOutDir = await appService.resolveFilePath(outDir, 'Temp');
+      const outputs = await ampleDocumentService.convert(filePath, absoluteOutDir);
+      return { ...outputs, tempDir: outDir };
+    } catch (error) {
+      console.error('AmpleDocument conversion failed:', filePath, error);
+      eventDispatcher.dispatch('toast', {
+        message: _('Could not enhance {{filename}}, importing the original file', {
+          filename: getFilename(filePath),
+        }),
+        timeout: 4000,
+        type: 'warning',
+      });
+      return null;
+    }
+  };
+
+  const saveAmpleDocumentSidecar = async (book: Book, jsonPath: string) => {
+    if (!appService) return;
+    try {
+      const json = await appService.readFile(jsonPath, 'None', 'text');
+      await appService.writeFile(`${getDir(book)}/ample-document.json`, 'Books', json as string);
+    } catch (error) {
+      console.error('Failed to store the AmpleDocument sidecar:', book.hash, error);
+    }
+  };
+
   const importBooks = (
     files: SelectedFile[],
     groupId?: string,
@@ -903,10 +978,27 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     const appBooksPrefix: string | null =
       useSettingsStore.getState().settings.localBooksDir || null;
 
+    const ampleChoice = await askAmpleDocumentChoice(
+      files.map((f) => f.path || (typeof f.file === 'string' ? f.file : '')).filter(Boolean),
+    );
+
     const processFile = async (selectedFile: SelectedFile): Promise<Book | null> => {
-      const file = selectedFile.file || selectedFile.path;
+      let file = selectedFile.file || selectedFile.path;
       if (!file) return null;
       if (!appService) return null;
+      const sourceName = getFilename(typeof file === 'string' ? file : file.name);
+      let ampleDocumentJsonPath: string | null = null;
+      let ampleDocumentTempDir: string | null = null;
+      let forceCopy = false;
+      if (ampleChoice === 'amp' && typeof file === 'string' && isEligibleForAmpleDocument(file)) {
+        const converted = await convertWithAmpleDocument(file);
+        if (converted) {
+          file = converted.epubPath;
+          ampleDocumentJsonPath = converted.jsonPath;
+          ampleDocumentTempDir = converted.tempDir;
+          forceCopy = true;
+        }
+      }
       try {
         const { path, basePath } = selectedFile;
         // `groupId` is treated as a tri-state:
@@ -941,20 +1033,29 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             lookupIndex,
             groupId: resolvedGroupId,
             groupName: resolvedGroupName,
+            forceCopy,
           },
           { appService, settings: liveSettings, isLoggedIn: !!user, appBooksPrefix },
         );
         if (!book) return null;
+        if (ampleDocumentJsonPath) {
+          await saveAmpleDocumentSidecar(book, ampleDocumentJsonPath);
+        }
         successfulImports.push(book.title);
         return book;
       } catch (error) {
-        const filename = typeof file === 'string' ? file : file.name;
-        if (typeof file === 'string') failedPaths.push(file);
-        const baseFilename = getFilename(filename);
+        const originalFile = selectedFile.file || selectedFile.path;
+        if (typeof originalFile === 'string') failedPaths.push(originalFile);
         const errorMessage = error instanceof Error ? _(getImportErrorMessage(error.message)) : '';
-        failedImports.push({ filename: baseFilename, errorMessage });
-        console.error('Failed to import book:', filename, error);
+        failedImports.push({ filename: sourceName, errorMessage });
+        console.error('Failed to import book:', sourceName, error);
         return null;
+      } finally {
+        if (ampleDocumentTempDir && appService) {
+          await appService
+            .deleteDir(ampleDocumentTempDir, 'Temp', true)
+            .catch((error) => console.error('Failed to clean up AmpleDocument output:', error));
+        }
       }
     };
 
@@ -1867,190 +1968,248 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   }
 
   const showBookshelf = libraryLoaded || libraryBooks.length > 0;
+  const showCatalogsView = searchParams?.get('catalogs') === 'true';
+  const catalogSearchQuery = searchParams?.get('q') ?? '';
 
   return (
     <div
       ref={pageRef}
       aria-label={_('Your Library')}
       className={clsx(
-        'library-page text-base-content full-height flex select-none flex-col overflow-hidden',
+        'library-page text-base-content full-height flex select-none flex-row overflow-hidden',
         viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
         appService?.hasRoundedWindow && isRoundedWindow && 'window-border rounded-window',
       )}
     >
-      <div
-        className='relative top-0 z-40 w-full'
-        role='banner'
-        tabIndex={-1}
-        aria-label={_('Library Header')}
-      >
-        <LibraryHeader
-          isSelectMode={isSelectMode}
-          isSelectAll={isSelectAll}
-          onPullLibrary={pullLibrary}
-          onImportBooksFromFiles={handleImportBooksFromFiles}
-          onImportBooksFromDirectory={
-            appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
-          }
-          onImportBookFromUrl={isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined}
-          onImportBookFromNovelUrl={
-            isTauriAppPlatform() ? () => setShowImportNovel(true) : undefined
-          }
-          onOpenCatalogManager={handleShowOPDSDialog}
-          onOpenFeeds={handleShowFeeds}
-          onToggleSelectMode={() => handleSetSelectMode(!isSelectMode)}
-          onSelectAll={handleSelectAll}
-          onDeselectAll={handleDeselectAll}
-          searchQuery={librarySearchQuery}
-          searchTarget={librarySearchTarget}
-          searchConfig={librarySearchConfig}
-          onSearchConfigChange={handleSearchConfigChange}
-          onSearchQueryChange={handleSearchQueryChange}
-          onSearchTargetChange={handleSearchTargetChange}
-        />
-        <progress
-          aria-label={_('Library Search Progress')}
-          aria-hidden={librarySearchProgress != null ? 'false' : 'true'}
-          className={clsx(
-            'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
-            librarySearchProgress != null ? 'opacity-100' : 'opacity-0',
-          )}
-          value={librarySearchProgress ?? 0}
-          max={100}
-        />
-        <progress
-          aria-label={_('Library Sync Progress')}
-          aria-hidden={isSyncing ? 'false' : 'true'}
-          className={clsx(
-            'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
-            isSyncing ? 'opacity-100' : 'opacity-0',
-          )}
-          value={syncProgress * 100}
-          max='100'
-        />
+      <div className='hidden h-full sm:block'>
+        <LibrarySidebar onPullLibrary={pullLibrary} onOpenCatalogManager={handleOpenCatalogsPage} />
       </div>
-      {(loading || isSyncing) && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center'>
-          <Spinner loading />
+      <div className='sm:bg-base-100 flex h-full min-w-0 flex-1 flex-col overflow-hidden'>
+        <div
+          className={clsx('relative top-0 z-40 w-full sm:hidden', showCatalogsView && '!hidden')}
+          role='banner'
+          tabIndex={-1}
+          aria-label={_('Library Header')}
+        >
+          <LibraryHeader
+            isSelectMode={isSelectMode}
+            isSelectAll={isSelectAll}
+            onPullLibrary={pullLibrary}
+            onImportBooksFromFiles={handleImportBooksFromFiles}
+            onImportBooksFromDirectory={
+              appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
+            }
+            onImportBookFromUrl={
+              isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined
+            }
+            onImportBookFromNovelUrl={
+              isTauriAppPlatform() ? () => setShowImportNovel(true) : undefined
+            }
+            onOpenCatalogManager={handleShowOPDSDialog}
+            onOpenFeeds={handleShowFeeds}
+            onToggleSelectMode={() => handleSetSelectMode(!isSelectMode)}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            searchQuery={librarySearchQuery}
+            searchTarget={librarySearchTarget}
+            searchConfig={librarySearchConfig}
+            onSearchConfigChange={handleSearchConfigChange}
+            onSearchQueryChange={handleSearchQueryChange}
+            onSearchTargetChange={handleSearchTargetChange}
+          />
+          <progress
+            aria-label={_('Library Search Progress')}
+            aria-hidden={librarySearchProgress != null ? 'false' : 'true'}
+            className={clsx(
+              'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
+              librarySearchProgress != null ? 'opacity-100' : 'opacity-0',
+            )}
+            value={librarySearchProgress ?? 0}
+            max={100}
+          />
+          <progress
+            aria-label={_('Library Sync Progress')}
+            aria-hidden={isSyncing ? 'false' : 'true'}
+            className={clsx(
+              'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
+              isSyncing ? 'opacity-100' : 'opacity-0',
+            )}
+            value={syncProgress * 100}
+            max='100'
+          />
         </div>
-      )}
-      {librarySearchTarget === 'text' &&
-        !librarySearchQuery.trim() &&
-        librarySearchHistory.length > 0 && (
-          <div className='relative my-1 flex shrink-0 items-center px-4 sm:px-6'>
-            <div className='no-scrollbar not-eink:[mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%_-_12px),transparent)] flex flex-1 gap-1.5 overflow-x-auto'>
-              {librarySearchHistory.map((term) => (
-                <button
-                  key={term}
-                  type='button'
-                  onClick={() => handleSearchQueryApply(term)}
-                  className='bg-base-300/45 hover:bg-base-300/70 text-base-content/70 max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
-                >
-                  <p className='truncate'>{term}</p>
-                </button>
-              ))}
-            </div>
-            <button
-              type='button'
-              onClick={() => {
-                clearLibrarySearchHistory();
-                setLibrarySearchHistory([]);
-              }}
-              title={_('Clear search history')}
-              aria-label={_('Clear search history')}
-              className='text-base-content/50 hover:text-base-content/80 flex h-6 w-8 shrink-0 items-center justify-center'
-            >
-              <MdClose className='h-4 w-4' />
-            </button>
+        <div className={clsx('relative z-40 w-full', showCatalogsView && 'hidden')}>
+          <LibraryContentHeader
+            showImportButton={libraryBooks.some((book) => !book.deletedAt)}
+            isSelectMode={isSelectMode}
+            isSelectAll={isSelectAll}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            onImportBooksFromFiles={handleImportBooksFromFiles}
+            onImportBooksFromDirectory={
+              appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
+            }
+            onImportBookFromUrl={
+              isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined
+            }
+            onImportBookFromNovelUrl={
+              isTauriAppPlatform() ? () => setShowImportNovel(true) : undefined
+            }
+            onOpenCatalogManager={handleShowOPDSDialog}
+            onOpenFeeds={handleShowFeeds}
+          />
+          <progress
+            aria-label={_('Library Search Progress')}
+            aria-hidden={librarySearchProgress != null ? 'false' : 'true'}
+            className={clsx(
+              'progress progress-success absolute bottom-0 left-0 right-0 hidden h-1 transition-opacity duration-200 sm:block',
+              librarySearchProgress != null ? 'opacity-100' : 'opacity-0',
+            )}
+            value={librarySearchProgress ?? 0}
+            max={100}
+          />
+          <progress
+            aria-label={_('Library Sync Progress')}
+            aria-hidden={isSyncing ? 'false' : 'true'}
+            className={clsx(
+              'progress progress-success absolute bottom-0 left-0 right-0 hidden h-1 transition-opacity duration-200 sm:block',
+              isSyncing ? 'opacity-100' : 'opacity-0',
+            )}
+            value={syncProgress * 100}
+            max='100'
+          />
+        </div>
+        {(loading || isSyncing) && (
+          <div className='fixed inset-0 z-50 flex items-center justify-center'>
+            <Spinner loading />
           </div>
         )}
-      {currentGroupPath && (
-        <div
-          className={`transition-all duration-300 ease-in-out ${
-            currentGroupPath ? 'opacity-100' : 'max-h-0 opacity-0'
-          }`}
-        >
-          <div className='flex flex-wrap items-center gap-y-1 px-4 text-base'>
-            <button
-              onClick={() => handleNavigateToPath(undefined)}
-              className='hover:bg-base-300 text-base-content/85 rounded px-2 py-1'
-            >
-              {_('All')}
-            </button>
-            {getBreadcrumbs(currentGroupPath).map((crumb, index, array) => {
-              const isLast = index === array.length - 1;
-              return (
-                <React.Fragment key={index}>
-                  <MdChevronRight size={iconSize} className='text-neutral-content' />
-                  {isLast ? (
-                    <span className='truncate rounded px-2 py-1'>{crumb.name}</span>
-                  ) : (
-                    <button
-                      onClick={() => handleNavigateToPath(crumb.path)}
-                      className='hover:bg-base-300 text-base-content/85 truncate rounded px-2 py-1'
-                    >
-                      {crumb.name}
-                    </button>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {currentVirtualGroup && (
-        <GroupHeader
-          groupBy={currentVirtualGroup.groupBy}
-          groupName={currentVirtualGroup.groupName}
-        />
-      )}
-      {showBookshelf &&
-        (libraryBooks.some((book) => !book.deletedAt) ? (
-          <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
-            <div
-              ref={containerRef}
-              className={clsx(
-                'scroll-container drop-zone flex min-h-0 flex-grow flex-col',
-                isDragging && 'drag-over',
-              )}
-              style={{
-                paddingRight: `${insets.right}px`,
-                paddingLeft: `${insets.left}px`,
-              }}
-            >
-              <DropIndicator />
-              <Bookshelf
-                libraryBooks={libraryBooks}
-                isSelectMode={isSelectMode}
-                isSelectAll={isSelectAll}
-                isSelectNone={isSelectNone}
-                onScrollerRef={handleScrollerRef}
-                handleImportBooks={setImportMenuAnchor}
-                handleBookUpload={handleBookUpload}
-                handleBookDownload={handleBookDownload}
-                handleBookDelete={handleBookDelete('both')}
-                handleBookPurge={handleBookDelete('purge')}
-                handleSetSelectMode={handleSetSelectMode}
-                handleShowDetailsBook={handleShowDetailsBook}
-                handleLibraryNavigation={handleLibraryNavigation}
-                booksTransferProgress={booksTransferProgress}
-                handlePushLibrary={pushLibrary}
-                onSearchContents={() => handleSearchTargetChange('text')}
-                onSearchProgress={setLibrarySearchProgress}
-                contentSearch={
-                  librarySearchTarget === 'text'
-                    ? { query: searchParams?.get('q') ?? '', config: librarySearchConfig }
-                    : null
-                }
-              />
+        {!showCatalogsView &&
+          librarySearchTarget === 'text' &&
+          !librarySearchQuery.trim() &&
+          librarySearchHistory.length > 0 && (
+            <div className='relative my-1 flex shrink-0 items-center px-4 sm:px-6'>
+              <div className='no-scrollbar not-eink:[mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%_-_12px),transparent)] flex flex-1 gap-1.5 overflow-x-auto'>
+                {librarySearchHistory.map((term) => (
+                  <button
+                    key={term}
+                    type='button'
+                    onClick={() => handleSearchQueryApply(term)}
+                    className='bg-base-300/45 hover:bg-base-300/70 text-base-content/70 max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
+                  >
+                    <p className='truncate'>{term}</p>
+                  </button>
+                ))}
+              </div>
+              <button
+                type='button'
+                onClick={() => {
+                  clearLibrarySearchHistory();
+                  setLibrarySearchHistory([]);
+                }}
+                title={_('Clear search history')}
+                aria-label={_('Clear search history')}
+                className='text-base-content/50 hover:text-base-content/80 flex h-6 w-8 shrink-0 items-center justify-center'
+              >
+                <MdClose className='h-4 w-4' />
+              </button>
+            </div>
+          )}
+        {currentGroupPath && (
+          <div
+            className={`transition-all duration-300 ease-in-out ${
+              currentGroupPath ? 'opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className='flex flex-wrap items-center gap-y-1 px-4 text-base'>
+              <button
+                onClick={() => handleNavigateToPath(undefined)}
+                className='hover:bg-base-300 text-base-content/85 rounded px-2 py-1'
+              >
+                {_('All')}
+              </button>
+              {getBreadcrumbs(currentGroupPath).map((crumb, index, array) => {
+                const isLast = index === array.length - 1;
+                return (
+                  <React.Fragment key={index}>
+                    <MdChevronRight size={iconSize} className='text-neutral-content' />
+                    {isLast ? (
+                      <span className='truncate rounded px-2 py-1'>{crumb.name}</span>
+                    ) : (
+                      <button
+                        onClick={() => handleNavigateToPath(crumb.path)}
+                        className='hover:bg-base-300 text-base-content/85 truncate rounded px-2 py-1'
+                      >
+                        {crumb.name}
+                      </button>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
-        ) : (
-          <div className='hero drop-zone h-screen items-center justify-center'>
-            <DropIndicator />
-            <LibraryEmptyState onImport={setImportMenuAnchor} />
+        )}
+        {currentVirtualGroup && (
+          <GroupHeader
+            groupBy={currentVirtualGroup.groupBy}
+            groupName={currentVirtualGroup.groupName}
+          />
+        )}
+        {showCatalogsView && (
+          <div className='min-h-0 flex-grow overflow-y-auto'>
+            <div className='flex justify-center px-6 py-8'>
+              <CatalogManager browseFrom='library-catalogs' searchQuery={catalogSearchQuery} />
+            </div>
           </div>
-        ))}
+        )}
+        {!showCatalogsView &&
+          showBookshelf &&
+          (libraryBooks.some((book) => !book.deletedAt) ? (
+            <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
+              <div
+                ref={containerRef}
+                className={clsx(
+                  'scroll-container drop-zone flex min-h-0 flex-grow flex-col',
+                  isDragging && 'drag-over',
+                )}
+                style={{
+                  paddingRight: `${insets.right}px`,
+                  paddingLeft: `${insets.left}px`,
+                }}
+              >
+                <DropIndicator />
+                <Bookshelf
+                  libraryBooks={libraryBooks}
+                  isSelectMode={isSelectMode}
+                  isSelectAll={isSelectAll}
+                  isSelectNone={isSelectNone}
+                  onScrollerRef={handleScrollerRef}
+                  handleBookUpload={handleBookUpload}
+                  handleBookDownload={handleBookDownload}
+                  handleBookDelete={handleBookDelete('both')}
+                  handleBookPurge={handleBookDelete('purge')}
+                  handleSetSelectMode={handleSetSelectMode}
+                  handleShowDetailsBook={handleShowDetailsBook}
+                  handleLibraryNavigation={handleLibraryNavigation}
+                  booksTransferProgress={booksTransferProgress}
+                  handlePushLibrary={pushLibrary}
+                  onSearchContents={() => handleSearchTargetChange('text')}
+                  onSearchProgress={setLibrarySearchProgress}
+                  contentSearch={
+                    librarySearchTarget === 'text'
+                      ? { query: searchParams?.get('q') ?? '', config: librarySearchConfig }
+                      : null
+                  }
+                />
+              </div>
+            </div>
+          ) : (
+            <div className='hero drop-zone flex-grow items-center justify-center'>
+              <DropIndicator />
+              <LibraryEmptyState onImport={setImportMenuAnchor} />
+            </div>
+          ))}
+      </div>
       {importMenuAnchor && (
         <ImportMenuPopup
           anchor={importMenuAnchor}
@@ -2102,6 +2261,14 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       <CacheManagerWindow />
       {isSettingsDialogOpen && <SettingsDialog bookKey={''} />}
       {showCatalogManager && <CatalogDialog onClose={handleDismissOPDSDialog} />}
+      {ampleDocumentPrompt && (
+        <AmpleDocumentPromptDialog
+          open
+          extension={ampleDocumentPrompt.extension}
+          isBatch={ampleDocumentPrompt.isBatch}
+          onChoose={ampleDocumentPrompt.resolve}
+        />
+      )}
       {showFeeds && <FeedsView onClose={() => setShowFeeds(false)} />}
       <AddFeedModal
         isOpen={showAddFeed}

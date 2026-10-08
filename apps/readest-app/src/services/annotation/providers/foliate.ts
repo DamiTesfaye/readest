@@ -48,7 +48,7 @@ export function mapFoliateColor(color: string | undefined): {
     case 'squiggly':
       return { style: 'squiggly', color: 'red' };
     case 'strikethrough':
-      return { style: 'highlight', color: 'red' };
+      return { style: 'strikethrough', color: 'red' };
     case undefined:
       return { style: 'highlight', color: 'yellow' };
     default:

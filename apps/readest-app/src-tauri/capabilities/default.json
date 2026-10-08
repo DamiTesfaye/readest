@@ -197,6 +197,27 @@
         }
       ]
     },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "ample-document-version",
+          "cmd": "ample-document",
+          "args": ["--version"]
+        },
+        {
+          "name": "ample-document-run",
+          "cmd": "ample-document",
+          "args": [
+            "run",
+            { "validator": "^[^\\u0000]+$" },
+            "--out",
+            { "validator": "^[^\\u0000]+$" },
+            "--skip-epubcheck"
+          ]
+        }
+      ]
+    },
     "biometric:default",
     "haptics:allow-vibrate",
     "haptics:allow-impact-feedback",

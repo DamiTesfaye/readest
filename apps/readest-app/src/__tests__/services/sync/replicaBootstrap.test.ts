@@ -12,6 +12,13 @@ vi.mock('@/store/customTextureStore', () => ({
   useCustomTextureStore: { getState: () => ({ markAvailableByContentId: vi.fn() }) },
 }));
 
+const mindmapRuntime = vi.hoisted(() => ({
+  handleMindmapDownload: vi.fn(async (): Promise<string> => 'merged'),
+  handleMindmapUpload: vi.fn(async () => {}),
+}));
+
+vi.mock('@/services/mindmap/sync/runtime', () => mindmapRuntime);
+
 vi.mock('@/store/customOPDSStore', () => ({
   useCustomOPDSStore: {
     getState: () => ({ applyRemoteCatalog: vi.fn(), softDeleteByContentId: vi.fn() }),
@@ -28,10 +35,21 @@ import {
   getReplicaAdapter,
   listReplicaAdapters,
 } from '@/services/sync/replicaRegistry';
-import { __resetReplicaTransferIntegrationForTests } from '@/services/sync/replicaTransferIntegration';
+import {
+  __resetReplicaTransferIntegrationForTests,
+  startReplicaTransferIntegration,
+} from '@/services/sync/replicaTransferIntegration';
 import { dictionaryAdapter } from '@/services/sync/adapters/dictionary';
+import { mindmapAdapter } from '@/services/sync/adapters/mindmap';
+import type { AppService } from '@/types/system';
+import { eventDispatcher } from '@/utils/event';
+
+vi.mock('@/services/sync/replicaPublish', () => ({
+  publishReplicaManifest: vi.fn(async () => true),
+}));
 
 afterEach(() => {
+  vi.restoreAllMocks();
   clearReplicaAdapters();
   __resetBootstrapForTests();
   __resetReplicaTransferIntegrationForTests();
@@ -46,12 +64,78 @@ describe('bootstrapReplicaAdapters', () => {
   test('is idempotent: calling twice is a no-op (does not throw)', () => {
     bootstrapReplicaAdapters();
     bootstrapReplicaAdapters();
-    expect(listReplicaAdapters()).toHaveLength(5);
+    expect(listReplicaAdapters()).toHaveLength(6);
   });
 
-  test('registers the current allowlist (dictionary, font, texture, opds_catalog, settings)', () => {
+  test('registers the current allowlist (dictionary, font, texture, opds_catalog, settings, mindmap)', () => {
     bootstrapReplicaAdapters();
     const kinds = listReplicaAdapters().map((a) => a.kind);
-    expect(kinds).toEqual(['dictionary', 'font', 'texture', 'opds_catalog', 'settings']);
+    expect(kinds).toEqual(['dictionary', 'font', 'texture', 'opds_catalog', 'settings', 'mindmap']);
+    expect(getReplicaAdapter('mindmap')).toBe(mindmapAdapter);
+  });
+
+  test('routes finished mind map downloads and uploads to the mind map sync runtime', async () => {
+    bootstrapReplicaAdapters();
+    startReplicaTransferIntegration({
+      openFile: async (path: string) => new File(['x'], path),
+    } as unknown as AppService);
+    const files = [{ logical: 'm1.v.json', lfp: 'b/m1/incoming/m1.v.json', byteSize: 1 }];
+    await eventDispatcher.dispatch('replica-transfer-complete', {
+      kind: 'mindmap',
+      replicaId: 'm1',
+      type: 'download',
+      files,
+    });
+    await eventDispatcher.dispatch('replica-transfer-complete', {
+      kind: 'mindmap',
+      replicaId: 'm1',
+      type: 'upload',
+      files,
+    });
+    expect(mindmapRuntime.handleMindmapDownload).toHaveBeenCalledWith('m1', files);
+    expect(mindmapRuntime.handleMindmapUpload).toHaveBeenCalledWith('m1', files);
+  });
+
+  test('warns about a mind map download that did not merge, and only then', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    bootstrapReplicaAdapters();
+    startReplicaTransferIntegration({
+      openFile: async (path: string) => new File(['x'], path),
+    } as unknown as AppService);
+    const files = [{ logical: 'm1.v.json', lfp: 'b/m1/incoming/m1.v.json', byteSize: 1 }];
+    const download = { kind: 'mindmap', replicaId: 'm1', type: 'download', files };
+    await eventDispatcher.dispatch('replica-transfer-complete', download);
+    expect(warn).not.toHaveBeenCalled();
+    mindmapRuntime.handleMindmapDownload.mockResolvedValueOnce('local-unreadable');
+    await eventDispatcher.dispatch('replica-transfer-complete', download);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('mindmap'), {
+      mapId: 'm1',
+      outcome: 'local-unreadable',
+    });
+  });
+
+  test('asks to update the app when a mind map download came from a newer app', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const toasts: unknown[] = [];
+    const onToast = (event: CustomEvent): void => {
+      toasts.push(event.detail);
+    };
+    eventDispatcher.on('toast', onToast);
+    bootstrapReplicaAdapters();
+    startReplicaTransferIntegration({
+      openFile: async (path: string) => new File(['x'], path),
+    } as unknown as AppService);
+    const files = [{ logical: 'm1.v.json', lfp: 'b/m1/incoming/m1.v.json', byteSize: 1 }];
+    mindmapRuntime.handleMindmapDownload.mockResolvedValueOnce('newer-schema');
+    await eventDispatcher.dispatch('replica-transfer-complete', {
+      kind: 'mindmap',
+      replicaId: 'm1',
+      type: 'download',
+      files,
+    });
+    eventDispatcher.off('toast', onToast);
+    expect(toasts).toEqual([
+      { type: 'info', message: 'Update the app to see mind map changes from your other devices' },
+    ]);
   });
 });

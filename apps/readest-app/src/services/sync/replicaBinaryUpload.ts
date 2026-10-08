@@ -60,6 +60,7 @@ export const queueReplicaBinaryUpload = async <T extends ReplicaBinaryRecord>(
   kind: string,
   record: T,
   appService: AppService,
+  options: { isBackground?: boolean } = {},
 ): Promise<string | null> => {
   if (!isSyncCategoryEnabled(kind)) return null;
   if (!record.contentId) return null;
@@ -83,6 +84,7 @@ export const queueReplicaBinaryUpload = async <T extends ReplicaBinaryRecord>(
 
   return transferManager.queueReplicaUpload(kind, record.contentId, record.name, files, base, {
     reincarnation: record.reincarnation,
+    isBackground: options.isBackground,
   });
 };
 

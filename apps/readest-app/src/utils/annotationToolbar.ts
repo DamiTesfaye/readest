@@ -60,6 +60,24 @@ export const getToolbarToolTypes = (
   canShare: boolean,
 ): AnnotationToolType[] => sanitize(items).filter((type) => canShare || type !== 'share');
 
+const POPUP_EXTRA_TOOL_TYPES: AnnotationToolType[] = ['copylink', 'tts'];
+
+export const getPopupExtraToolTypes = (
+  items: AnnotationToolType[] | undefined,
+  canShare: boolean,
+): AnnotationToolType[] =>
+  getToolbarToolTypes(items, canShare).filter((type) => POPUP_EXTRA_TOOL_TYPES.includes(type));
+
+const SELECTION_POPUP_BASE_HEIGHT = 450;
+const SELECTION_POPUP_ROW_HEIGHT = 32;
+
+export const getSelectionPopupHeight = (
+  extraTools: AnnotationToolType[],
+  annotated: boolean,
+): number =>
+  SELECTION_POPUP_BASE_HEIGHT +
+  SELECTION_POPUP_ROW_HEIGHT * (extraTools.length + (annotated ? 1 : 0));
+
 // Hidden tools (the "Available" tray), in canonical order.
 export const getAvailableToolTypes = (
   items: AnnotationToolType[] | undefined,

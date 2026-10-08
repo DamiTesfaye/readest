@@ -27,6 +27,7 @@ import { useAutoFocus } from '@/hooks/useAutoFocus';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useEinkMode } from '@/hooks/useEinkMode';
 import { bookOrbitProgressProvider } from '../hooks/bookOrbitProgressProvider';
+import { useUIAnimationsEnabled } from '@/hooks/useUIAnimationsEnabled';
 import { useKOSync } from '../hooks/useKOSync';
 import { useFileSync } from '../hooks/useFileSync';
 import {
@@ -87,6 +88,7 @@ import { getScrollGapAttr } from '@/utils/webtoon';
 import { useMiddleClickAutoscroll } from '../hooks/useMiddleClickAutoscroll';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useAutoScrollSpeedGesture } from '../hooks/useAutoScrollSpeedGesture';
+import { applyPagingAnimation } from '@/utils/animation';
 import { ParagraphControl } from './paragraph';
 import AutoscrollIndicator from './AutoscrollIndicator';
 import AutoScrollControl from './AutoScrollControl';
@@ -115,6 +117,7 @@ const FoliateViewer: React.FC<{
   const { appService, envConfig } = useEnv();
   const { themeCode, isDarkMode } = useThemeStore();
   const { settings } = useSettingsStore();
+  const uiAnimationsEnabled = useUIAnimationsEnabled();
   const { loadFont, loadCustomFonts, getLoadedFonts, getAvailableFonts } = useCustomFontStore();
   // Per-field selectors — see store/readerProgressStore.ts header for the
   // "destructure-subscribes-the-whole-store" rationale.
@@ -752,11 +755,7 @@ const FoliateViewer: React.FC<{
       if (appService?.isMobileApp) {
         await lockScreenOrientation({ orientation: screenOrientation });
       }
-      if (animated) {
-        view.renderer.setAttribute('animated', '');
-      } else {
-        view.renderer.removeAttribute('animated');
-      }
+      applyPagingAnimation(view.renderer, animated, uiAnimationsEnabled);
       // Arms the foliate CursorAutohider — goes on the view element itself,
       // not the renderer, and is re-checked on every mousemove so the
       // ControlPanel toggle takes effect without recreating the view.
@@ -1019,6 +1018,11 @@ const FoliateViewer: React.FC<{
       doubleClickDisabled.current = !!viewSettings?.disableDoubleClick;
     }
   }, [viewSettings?.disableDoubleClick]);
+
+  useEffect(() => {
+    const renderer = viewRef.current?.renderer;
+    if (renderer) applyPagingAnimation(renderer, !!viewSettings?.animated, uiAnimationsEnabled);
+  }, [viewSettings?.animated, uiAnimationsEnabled]);
 
   useEffect(() => {
     if (viewRef.current && viewRef.current.renderer && viewSettings) {

@@ -321,7 +321,8 @@ export type SyncCategory =
   | 'opds_catalog'
   | 'settings'
   | 'credentials'
-  | 'stats';
+  | 'stats'
+  | 'mindmap';
 
 export const SYNC_CATEGORIES: readonly SyncCategory[] = [
   'book',
@@ -333,6 +334,7 @@ export const SYNC_CATEGORIES: readonly SyncCategory[] = [
   'opds_catalog',
   'settings',
   'stats',
+  'mindmap',
   'credentials',
 ] as const;
 
@@ -418,6 +420,9 @@ export interface SystemSettings {
   savedBookCoverForLockScreen: string;
   savedBookCoverForLockScreenPath: string;
   telemetryEnabled: boolean;
+  uiAnimationsEnabled?: boolean;
+  /** Offer the AmpleDocument import prompt when the `ample-document` CLI is on PATH (desktop only). */
+  ampleDocumentPromptEnabled?: boolean;
   discordRichPresenceEnabled: boolean;
   libraryViewMode: LibraryViewModeType;
   librarySortBy: LibrarySortByType;
