@@ -12,3 +12,11 @@ export const resolveUIAnimationsEnabled = (
 ): boolean => {
   return settings.uiAnimationsEnabled ?? !prefersReducedMotion();
 };
+
+export const applyPagingAnimation = (
+  renderer: Pick<Element, 'toggleAttribute'>,
+  pagingAnimated: boolean,
+  uiAnimationsEnabled: boolean,
+) => {
+  renderer.toggleAttribute('animated', pagingAnimated && uiAnimationsEnabled);
+};

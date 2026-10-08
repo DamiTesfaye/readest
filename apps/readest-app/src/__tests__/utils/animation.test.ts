@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { prefersReducedMotion, resolveUIAnimationsEnabled } from '@/utils/animation';
+import {
+  applyPagingAnimation,
+  prefersReducedMotion,
+  resolveUIAnimationsEnabled,
+} from '@/utils/animation';
 
 const stubMatchMedia = (matches: boolean) => {
   vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches } as MediaQueryList));
@@ -45,5 +49,17 @@ describe('resolveUIAnimationsEnabled', () => {
   it('follows the OS preference when unset: reduce motion off means enabled', () => {
     stubMatchMedia(false);
     expect(resolveUIAnimationsEnabled({})).toBe(true);
+  });
+});
+
+describe('applyPagingAnimation', () => {
+  it('animates page turns only when paging animation and UI animations are both on', () => {
+    const renderer = document.createElement('div');
+    applyPagingAnimation(renderer, true, true);
+    expect(renderer.hasAttribute('animated')).toBe(true);
+    applyPagingAnimation(renderer, true, false);
+    expect(renderer.hasAttribute('animated')).toBe(false);
+    applyPagingAnimation(renderer, false, true);
+    expect(renderer.hasAttribute('animated')).toBe(false);
   });
 });

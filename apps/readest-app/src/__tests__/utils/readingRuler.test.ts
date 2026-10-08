@@ -275,18 +275,35 @@ describe('buildReadingRulerColumns', () => {
         left: 40,
         right: 460,
         lines: [
-          { start: 0, end: 16 },
-          { start: 20, end: 36 },
+          { start: 0, end: 16, left: 40, right: 460 },
+          { start: 20, end: 36, left: 40, right: 460 },
         ],
       },
       {
         left: 540,
         right: 960,
         lines: [
-          { start: 0, end: 16 },
-          { start: 20, end: 36 },
+          { start: 0, end: 16, left: 540, right: 960 },
+          { start: 20, end: 36, left: 540, right: 960 },
         ],
       },
+    ]);
+  });
+
+  it('gives each line the horizontal extent of its own rects', () => {
+    const rects = [rect(0, 590, 16, 300), rect(20, 540, 16, 100), rect(20, 650, 16, 50)];
+    const cols = buildReadingRulerColumns(rects, 2, 1000, false);
+    expect(cols[0]!.lines).toEqual([
+      { start: 0, end: 16, left: 590, right: 890 },
+      { start: 20, end: 36, left: 540, right: 700 },
+    ]);
+  });
+
+  it('drops rects whose center lies outside the overlay', () => {
+    const rects = [colRect(0, 540), rect(20, 1100, 16, 400), rect(40, -600, 16, 400)];
+    const cols = buildReadingRulerColumns(rects, 2, 1000, false);
+    expect(cols).toEqual([
+      { left: 540, right: 960, lines: [{ start: 0, end: 16, left: 540, right: 960 }] },
     ]);
   });
 
@@ -307,7 +324,7 @@ describe('buildReadingRulerColumns', () => {
     const rects = [rect(0, 40, 48, 420), colRect(60, 40), colRect(80, 40), colRect(100, 40)];
     const cols = buildReadingRulerColumns(rects, 2, 1000, false);
     expect(cols).toHaveLength(1);
-    expect(cols[0]!.lines).toEqual([
+    expect(cols[0]!.lines.map(({ start, end }) => ({ start, end }))).toEqual([
       { start: 0, end: 48 },
       { start: 60, end: 76 },
       { start: 80, end: 96 },
@@ -322,14 +339,36 @@ describe('snapReadingRulerColumns', () => {
     {
       left: 40,
       right: 460,
-      lines: [0, 20, 40, 60, 80].map((s) => ({ start: s, end: s + 16 })),
+      lines: [0, 20, 40, 60, 80].map((s) => ({ start: s, end: s + 16, left: 40, right: 460 })),
     },
     {
       left: 540,
       right: 960,
-      lines: [0, 20, 40].map((s) => ({ start: s, end: s + 16 })),
+      lines: [0, 20, 40].map((s) => ({ start: s, end: s + 16, left: 540, right: 960 })),
     },
   ];
+
+  it('returns the horizontal extent of the covered lines only', () => {
+    const ragged = [
+      {
+        left: 500,
+        right: 990,
+        lines: [
+          { start: 0, end: 16, left: 500, right: 600 },
+          { start: 20, end: 36, left: 560, right: 800 },
+          { start: 40, end: 56, left: 560, right: 700 },
+          { start: 60, end: 76, left: 560, right: 990 },
+        ],
+      },
+    ];
+    expect(snapReadingRulerColumns(0, 0, 16, 2, 'forward', ragged)).toEqual({
+      columnIndex: 0,
+      start: 20,
+      end: 56,
+      left: 560,
+      right: 800,
+    });
+  });
 
   it('advances within the active column', () => {
     // col0, current block lines[0..1] => [0,36]; next block lines[2..3] => [40,76].
@@ -337,6 +376,8 @@ describe('snapReadingRulerColumns', () => {
       columnIndex: 0,
       start: 40,
       end: 76,
+      left: 40,
+      right: 460,
     });
   });
 
@@ -346,6 +387,8 @@ describe('snapReadingRulerColumns', () => {
       columnIndex: 1,
       start: 0,
       end: 36,
+      left: 540,
+      right: 960,
     });
   });
 
@@ -360,6 +403,8 @@ describe('snapReadingRulerColumns', () => {
       columnIndex: 0,
       start: 60,
       end: 96,
+      left: 40,
+      right: 460,
     });
   });
 
@@ -491,16 +536,16 @@ describe('snapReadingRulerColumnsToAnchor', () => {
       left: 40,
       right: 360,
       lines: [
-        { start: 100, end: 140 },
-        { start: 200, end: 240 },
+        { start: 100, end: 140, left: 40, right: 360 },
+        { start: 200, end: 240, left: 40, right: 360 },
       ],
     },
     {
       left: 440,
       right: 760,
       lines: [
-        { start: 100, end: 140 },
-        { start: 200, end: 240 },
+        { start: 100, end: 140, left: 440, right: 760 },
+        { start: 200, end: 240, left: 440, right: 760 },
       ],
     },
   ];

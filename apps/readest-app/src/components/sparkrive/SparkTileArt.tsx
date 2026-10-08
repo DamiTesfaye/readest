@@ -5,6 +5,8 @@ import React, { useRef, useState } from 'react';
 import { isSceneMotionAllowed } from '@/components/themescene/sceneAnimations';
 import { canHover, getSparkAnimation, SparkAnimation } from './sparkAnimations';
 import { useSparkRive } from './useSparkRive';
+import SparkTtsArt from './SparkTtsArt';
+import SparkMindmapArt from './SparkMindmapArt';
 
 interface SparkTileArtProps {
   icon: string;
@@ -62,6 +64,8 @@ const SparkCanvasArt: React.FC<SparkCanvasArtProps> = ({
 const SparkTileArt: React.FC<SparkTileArtProps> = (props) => {
   const [motionAllowed] = useState(isSceneMotionAllowed);
   const animation = getSparkAnimation(props.icon);
+  if (props.icon === 'tts' && motionAllowed) return <SparkTtsArt {...props} />;
+  if (props.icon === 'mindmap' && motionAllowed) return <SparkMindmapArt {...props} />;
   if (animation && motionAllowed) return <SparkCanvasArt {...props} animation={animation} />;
   return (
     <img

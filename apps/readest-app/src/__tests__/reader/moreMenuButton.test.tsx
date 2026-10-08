@@ -52,4 +52,14 @@ describe('MoreMenuButton', () => {
     expect(bars).toHaveLength(3);
     bars.forEach((bar) => expect(bar.getAttribute('fill')).toBe('#D9D9D9'));
   });
+
+  it('drops the morph transition when the UI animations setting is off, not only the OS one', () => {
+    renderButton(true);
+
+    const bars = screen.getByRole('button', { name: 'Close' }).querySelectorAll('rect');
+    bars.forEach((bar) => {
+      expect(bar.getAttribute('class')).toContain('anim-off:transition-none');
+      expect(bar.getAttribute('class')).not.toContain('motion-reduce:');
+    });
+  });
 });

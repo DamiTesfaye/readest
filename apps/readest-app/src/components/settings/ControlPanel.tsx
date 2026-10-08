@@ -225,11 +225,6 @@ const ControlPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterRes
 
   useEffect(() => {
     saveViewSettings(envConfig, bookKey, 'animated', animated, false, false);
-    if (animated) {
-      getView(bookKey)?.renderer.setAttribute('animated', '');
-    } else {
-      getView(bookKey)?.renderer.removeAttribute('animated');
-    }
     // Mesh-curl eligibility depends on `animated`.
     applyTurnAttributes();
     // eslint-disable-next-line react-hooks/exhaustive-deps

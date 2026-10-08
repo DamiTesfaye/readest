@@ -179,6 +179,7 @@ describe('ReadingRuler', () => {
     vi.clearAllMocks();
     mockProgress = null;
     mockContents = [];
+    mockColumnCount = 1;
     textRects.clear();
     Range.prototype.getClientRects = function (this: Range) {
       return (textRects.get(this.startContainer) ?? []) as unknown as DOMRectList;
@@ -211,6 +212,50 @@ describe('ReadingRuler', () => {
   afterEach(() => {
     cleanup();
     Reflect.deleteProperty(Range.prototype, 'getClientRects');
+  });
+
+  it('fits the two-column band to the covered lines, ignoring off-screen rects', async () => {
+    mockColumnCount = 2;
+    const line = (top: number, left: number, right: number): RulerTestRect => ({
+      top,
+      bottom: top + 20,
+      left,
+      right,
+      width: right - left,
+      height: 20,
+    });
+    mockProgress = {
+      range: makeTextRange([
+        line(100, 450, 600),
+        line(130, 450, 620),
+        line(160, 420, 780),
+        line(190, 900, 1300),
+      ]),
+      location: 'epubcfi(/6/2!/4/2)',
+      fraction: 0,
+      pageinfo: { current: 0 },
+    };
+
+    const { container } = render(
+      <ReadingRuler
+        bookKey='book-1'
+        isVertical={false}
+        rtl={false}
+        lines={2}
+        position={0}
+        opacity={0.5}
+        color='transparent'
+        bookFormat='EPUB'
+        viewSettings={viewSettings}
+        gridInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      />,
+    );
+
+    await waitFor(() => {
+      const band = container.querySelector('.ruler') as HTMLDivElement;
+      expect(band.style.left).toBe('443px');
+      expect(band.style.width).toBe('184px');
+    });
   });
 
   it('keeps the ruler body pass-through and exposes dedicated drag handles', () => {

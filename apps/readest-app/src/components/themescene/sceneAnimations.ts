@@ -1,3 +1,6 @@
+import { useSettingsStore } from '@/store/settingsStore';
+import { resolveUIAnimationsEnabled } from '@/utils/animation';
+
 export interface SceneAnimation {
   src: string;
   stateMachine: string;
@@ -32,6 +35,5 @@ export const isSceneMotionAllowed = (): boolean => {
   const root = document.documentElement;
   if (root.getAttribute('data-ui-anim') === 'off') return false;
   if (root.getAttribute('data-eink') === 'true') return false;
-  if (typeof window.matchMedia !== 'function') return true;
-  return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return resolveUIAnimationsEnabled(useSettingsStore.getState().settings);
 };

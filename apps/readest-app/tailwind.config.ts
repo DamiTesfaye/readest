@@ -45,6 +45,7 @@ const config: Config = {
       // applyDataTheme). Tailwind's built-in `dark:` follows prefers-color-scheme,
       // which does not track the in-app theme, so branch on the attribute.
       addVariant('theme-dark', 'html[data-theme$="-dark"] &');
+      addVariant('anim-off', 'html[data-ui-anim="off"] &');
     }),
   ],
   daisyui: {

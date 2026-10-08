@@ -50,7 +50,7 @@ const MoreMenuButton: React.FC<MoreMenuButtonProps> = ({
             height={2}
             rx={1}
             fill={iconColor}
-            className='transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none'
+            className='transition-[transform,opacity] duration-300 ease-out anim-off:transition-none'
             style={{
               transformBox: 'fill-box',
               transformOrigin: 'center',

@@ -3,6 +3,8 @@ import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-libra
 import ThemeSceneArt from '@/components/themescene/ThemeSceneArt';
 import { getSceneAnimation, isSceneMotionAllowed } from '@/components/themescene/sceneAnimations';
 import { SCENE_TAP_PLAY_MS, useSceneMotion } from '@/components/themescene/useSceneMotion';
+import { useSettingsStore } from '@/store/settingsStore';
+import type { SystemSettings } from '@/types/settings';
 
 const riveMock = vi.hoisted(() => {
   const hoverFlag = { value: false };
@@ -86,6 +88,14 @@ describe('scene animation config', () => {
     document.documentElement.removeAttribute('data-ui-anim');
     document.documentElement.setAttribute('data-eink', 'true');
     expect(isSceneMotionAllowed()).toBe(false);
+  });
+
+  it('lets the user setting override the OS reduce motion preference', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+    expect(isSceneMotionAllowed()).toBe(false);
+    useSettingsStore.setState({ settings: { uiAnimationsEnabled: true } as SystemSettings });
+    expect(isSceneMotionAllowed()).toBe(true);
+    useSettingsStore.setState({ settings: {} as SystemSettings });
   });
 });
 

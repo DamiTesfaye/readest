@@ -194,7 +194,12 @@ describe('TextInMotionArt', () => {
     ['e-ink is on', () => document.documentElement.setAttribute('data-eink', 'true')],
     [
       'reduced motion is preferred',
-      () => vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') })),
+      () =>
+        vi.stubGlobal('matchMedia', (query: string) => ({
+          matches: query.includes('reduce'),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        })),
     ],
   ])('shows only the static svg when %s', async (_label, applyGate) => {
     applyGate();

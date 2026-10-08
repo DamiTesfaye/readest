@@ -1,8 +1,9 @@
 'use client';
 
 import clsx from 'clsx';
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { isSceneMotionAllowed } from '@/components/themescene/sceneAnimations';
+import { useUIAnimationsEnabled } from '@/hooks/useUIAnimationsEnabled';
 import { getToolbarIconSrc, isColoredIconTheme } from '@/utils/toolbarIcons';
 import { useMotionRive } from './useMotionRive';
 
@@ -43,7 +44,7 @@ const MotionCanvas: React.FC<TextInMotionArtProps & { src: string }> = ({
 };
 
 const TextInMotionArt: React.FC<TextInMotionArtProps> = (props) => {
-  const [motionAllowed] = useState(isSceneMotionAllowed);
+  const motionAllowed = useUIAnimationsEnabled() && isSceneMotionAllowed();
   const src = getToolbarIconSrc('moving-pictures', props.themeName, props.isDarkMode);
   if (!motionAllowed) return <img src={src} alt='' className={ART_CLASS} />;
   return <MotionCanvas {...props} src={src} />;

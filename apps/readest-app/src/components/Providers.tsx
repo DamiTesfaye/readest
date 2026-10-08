@@ -17,7 +17,7 @@ import { useSettingsSync } from '@/hooks/useSettingsSync';
 import { useDefaultIconSize } from '@/hooks/useResponsiveSize';
 import { useBackgroundTexture } from '@/hooks/useBackgroundTexture';
 import { useEinkMode } from '@/hooks/useEinkMode';
-import { useUIAnimationsMode } from '@/hooks/useUIAnimationsMode';
+import { useUIAnimationsMode, useUIAnimationsRootSync } from '@/hooks/useUIAnimationsMode';
 import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { getLocale } from '@/utils/misc';
 import { getDirFromUILanguage } from '@/utils/rtl';
@@ -118,6 +118,7 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
   const [showTelemetryConsent, setShowTelemetryConsent] = useState(false);
   useSafeAreaInsets(); // Initialize safe area insets
   useSettingsSync(); // Adopt global settings broadcast by other windows (#4580)
+  useUIAnimationsRootSync();
 
   useEffect(() => {
     const handlerLanguageChanged = (lng: string) => {

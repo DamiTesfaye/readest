@@ -7,11 +7,20 @@ export interface ReadingRulerLineBox {
   end: number;
 }
 
+export interface ReadingRulerColumnLine extends ReadingRulerLineBox {
+  left: number;
+  right: number;
+}
+
 /** A column of text with its horizontal extent and the line boxes inside it. */
 export interface ReadingRulerColumn {
   left: number;
   right: number;
-  lines: ReadingRulerLineBox[];
+  lines: ReadingRulerColumnLine[];
+}
+
+export interface ReadingRulerColumnBlock extends ReadingRulerColumnLine {
+  columnIndex: number;
 }
 
 type RulerRect = {
@@ -63,26 +72,42 @@ export const collectTextLineRects = (range: Range): DOMRect[] => {
  * Merge sorted-on-input spans into visual lines: spans that overlap by more
  * than half of the smaller span are treated as one line.
  */
-const mergeLineSpans = (spans: ReadingRulerLineBox[]): ReadingRulerLineBox[] => {
-  spans.sort((a, b) => a.start - b.start || a.end - b.end);
+const mergeLineSpans = <T extends ReadingRulerLineBox>(
+  spans: T[],
+  combine: (a: T, b: T) => T,
+): T[] => {
+  const sorted = [...spans].sort((a, b) => a.start - b.start || a.end - b.end);
 
-  const lines: ReadingRulerLineBox[] = [];
-  for (const span of spans) {
+  const lines: T[] = [];
+  for (const span of sorted) {
     const current = lines[lines.length - 1];
     if (current) {
       const overlap = Math.min(current.end, span.end) - Math.max(current.start, span.start);
       const minHeight = Math.min(current.end - current.start, span.end - span.start);
       if (overlap > 0.5 * minHeight) {
-        current.start = Math.min(current.start, span.start);
-        current.end = Math.max(current.end, span.end);
+        lines[lines.length - 1] = combine(current, span);
         continue;
       }
     }
-    lines.push({ start: span.start, end: span.end });
+    lines.push(span);
   }
 
   return lines;
 };
+
+const combineLineBoxes = (a: ReadingRulerLineBox, b: ReadingRulerLineBox): ReadingRulerLineBox => ({
+  start: Math.min(a.start, b.start),
+  end: Math.max(a.end, b.end),
+});
+
+const combineColumnLines = (
+  a: ReadingRulerColumnLine,
+  b: ReadingRulerColumnLine,
+): ReadingRulerColumnLine => ({
+  ...combineLineBoxes(a, b),
+  left: Math.min(a.left, b.left),
+  right: Math.max(a.right, b.right),
+});
 
 /**
  * Convert per-fragment client rects into sorted visual-line spans along the
@@ -115,7 +140,7 @@ export const buildLineBoxes = (
     spans.push({ start, end });
   }
 
-  return mergeLineSpans(spans);
+  return mergeLineSpans(spans, combineLineBoxes);
 };
 
 // Minimum visible fraction of a line for the band to be allowed to cover it.
@@ -127,10 +152,10 @@ const READING_RULER_MIN_VISIBLE_RATIO = 0.5;
  * edge; this confines the band to lines that are actually on screen, while still
  * allowing it to cover a line that is half shown.
  */
-export const filterVisibleLineBoxes = (
-  lineBoxes: ReadingRulerLineBox[],
+export const filterVisibleLineBoxes = <T extends ReadingRulerLineBox>(
+  lineBoxes: T[],
   dimension: number,
-): ReadingRulerLineBox[] => {
+): T[] => {
   if (dimension <= 0) return lineBoxes;
   return lineBoxes.filter((b) => {
     const height = b.end - b.start;
@@ -158,7 +183,8 @@ export const buildReadingRulerColumns = (
   const buckets: RulerRect[][] = Array.from({ length: cols }, () => []);
   for (const r of rects.filter(hasSize)) {
     const center = (r.left + r.right) / 2;
-    const idx = Math.max(0, Math.min(cols - 1, Math.floor(center / colWidth)));
+    if (center < 0 || center > overlayWidth) continue;
+    const idx = Math.min(cols - 1, Math.floor(center / colWidth));
     buckets[idx]!.push(r);
   }
 
@@ -167,13 +193,13 @@ export const buildReadingRulerColumns = (
     if (!bucket.length) continue;
     let left = Infinity;
     let right = -Infinity;
-    const spans: ReadingRulerLineBox[] = [];
+    const spans: ReadingRulerColumnLine[] = [];
     for (const r of bucket) {
       left = Math.min(left, r.left);
       right = Math.max(right, r.right);
-      spans.push({ start: r.top, end: r.bottom });
+      spans.push({ start: r.top, end: r.bottom, left: r.left, right: r.right });
     }
-    const lines = mergeLineSpans(spans);
+    const lines = mergeLineSpans(spans, combineColumnLines);
     if (lines.length) columns.push({ left, right, lines });
   }
 
@@ -301,11 +327,27 @@ export const snapReadingRulerToLines = (
   return block(startIdx, endIdx);
 };
 
+const columnBlock = (
+  columnIndex: number,
+  block: ReadingRulerLineBox,
+  lines: ReadingRulerColumnLine[],
+): ReadingRulerColumnBlock => {
+  const covered = lines.filter((l) => l.start >= block.start && l.end <= block.end);
+  return {
+    columnIndex,
+    start: block.start,
+    end: block.end,
+    left: Math.min(...covered.map((l) => l.left)),
+    right: Math.max(...covered.map((l) => l.right)),
+  };
+};
+
 /**
  * Column-aware snap: advance within the active column; when there is no next
  * line group in it, move to the first/last group of the next/previous column.
- * Returns the target column index and the block extent { start, end } (px), or
- * null when there is no next group anywhere (the caller then flips the page).
+ * Returns the target column index and the block extent { start, end, left,
+ * right } (px), or null when there is no next group anywhere (the caller then
+ * flips the page).
  */
 export const snapReadingRulerColumns = (
   currentColumnIndex: number,
@@ -314,7 +356,7 @@ export const snapReadingRulerColumns = (
   lines: number,
   direction: 'backward' | 'forward',
   columns: ReadingRulerColumn[],
-): { columnIndex: number; start: number; end: number } | null => {
+): ReadingRulerColumnBlock | null => {
   if (columns.length === 0) return null;
 
   const idx = Math.max(0, Math.min(currentColumnIndex, columns.length - 1));
@@ -328,21 +370,21 @@ export const snapReadingRulerColumns = (
     direction,
     col.lines,
   );
-  if (within) return { columnIndex: idx, start: within.start, end: within.end };
+  if (within) return columnBlock(idx, within, col.lines);
 
   if (direction === 'forward') {
     for (let j = idx + 1; j < columns.length; j++) {
       const next = columns[j];
       if (!next) continue;
       const first = snapReadingRulerToLines(-Infinity, -Infinity, lines, 'forward', next.lines);
-      if (first) return { columnIndex: j, start: first.start, end: first.end };
+      if (first) return columnBlock(j, first, next.lines);
     }
   } else {
     for (let j = idx - 1; j >= 0; j--) {
       const prev = columns[j];
       if (!prev) continue;
       const last = snapReadingRulerToLines(Infinity, Infinity, lines, 'backward', prev.lines);
-      if (last) return { columnIndex: j, start: last.start, end: last.end };
+      if (last) return columnBlock(j, last, prev.lines);
     }
   }
 

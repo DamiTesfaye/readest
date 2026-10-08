@@ -243,7 +243,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentPosition, setCurrentPosition] = useState(position);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  // Active column extent (px, overlay-relative) for multi-column layouts; null = full width.
+  // Covered block's horizontal extent (px, overlay-relative) for multi-column layouts; null = full width.
   const [activeColumnRect, setActiveColumnRect] = useState<{ left: number; right: number } | null>(
     null,
   );
@@ -546,7 +546,8 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
     if (isMultiColumn) {
       const idx = Math.max(0, Math.min(activeColumnIndexRef.current, columns.length - 1));
       const col = columns[idx];
-      setActiveColumnRect(col ? { left: col.left, right: col.right } : null);
+      if (!col) setActiveColumnRect(null);
+      else setActiveColumnRect((prev) => prev ?? { left: col.left, right: col.right });
       if (!locationChanged) {
         // A resize/relayout keeps the anchored text on screen: re-attach the
         // band to it. Fall back to the screen-position snap when no anchor
@@ -556,7 +557,10 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
           snapReadingRulerColumns(idx, anchor, anchor, lines, 'forward', columns);
         if (block && block.columnIndex !== undefined) {
           activeColumnIndexRef.current = block.columnIndex;
-          const target = columns[block.columnIndex];
+          const target: { left: number; right: number } | undefined =
+            'left' in block && 'right' in block
+              ? (block as { left: number; right: number })
+              : columns[block.columnIndex];
           if (target) setActiveColumnRect({ left: target.left, right: target.right });
         }
         if (block) {
@@ -727,8 +731,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
             );
         if (block) {
           activeColumnIndexRef.current = block.columnIndex;
-          const col = columns[block.columnIndex];
-          if (col) setActiveColumnRect({ left: col.left, right: col.right });
+          setActiveColumnRect({ left: block.left, right: block.right });
           applyBlock(block.start, block.end, containerDimension, true);
           return;
         }
@@ -1045,8 +1048,7 @@ const ReadingRuler: React.FC<ReadingRulerProps> = ({
         // No next line group in any column this direction: let the page flip.
         if (!block) return false;
         activeColumnIndexRef.current = block.columnIndex;
-        const col = columns[block.columnIndex];
-        if (col) setActiveColumnRect({ left: col.left, right: col.right });
+        setActiveColumnRect({ left: block.left, right: block.right });
         applyBlock(block.start, block.end, dimension, true);
         return true;
       }

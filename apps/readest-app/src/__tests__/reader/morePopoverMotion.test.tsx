@@ -1,10 +1,13 @@
 import React from 'react';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const riveMock = vi.hoisted(() => {
   const hover = { value: false };
-  const instances: Array<{ play: ReturnType<typeof vi.fn> }> = [];
+  const instances: Array<{
+    play: ReturnType<typeof vi.fn>;
+    cleanup: ReturnType<typeof vi.fn>;
+  }> = [];
   class Rive {
     play = vi.fn();
     cleanup = vi.fn();
@@ -45,6 +48,12 @@ vi.mock('@/components/ToolbarPopover', () => ({
 }));
 
 import MorePopover from '@/app/reader/components/MorePopover';
+import { useSettingsStore } from '@/store/settingsStore';
+import type { SystemSettings } from '@/types/settings';
+
+const setUIAnimations = (uiAnimationsEnabled: boolean | undefined) => {
+  useSettingsStore.setState({ settings: { uiAnimationsEnabled } as SystemSettings });
+};
 
 const popover = (overrides: Partial<React.ComponentProps<typeof MorePopover>> = {}) => (
   <MorePopover
@@ -80,6 +89,7 @@ beforeEach(() => {
     vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })),
   );
   document.documentElement.removeAttribute('data-ui-anim');
+  setUIAnimations(undefined);
 });
 
 afterEach(() => {
@@ -139,12 +149,20 @@ describe('MorePopover Moving Pictures tile', () => {
   });
 
   it('shows only the static art when motion is off', async () => {
-    document.documentElement.setAttribute('data-ui-anim', 'off');
+    setUIAnimations(false);
     render(popover());
     await Promise.resolve();
     expect(riveMock.instances).toHaveLength(0);
     expect(tile().querySelector('canvas')).toBeNull();
     expect(tile().querySelector('img[src="/images/toolbar/moving-pictures.svg"]')).toBeTruthy();
+  });
+
+  it('swaps to the static art as soon as the user turns motion off', async () => {
+    render(popover());
+    await waitFor(() => expect(riveMock.instances[0]?.play).toHaveBeenCalled());
+    act(() => setUIAnimations(false));
+    expect(tile().querySelector('canvas')).toBeNull();
+    expect(riveMock.instances[0]?.cleanup).toHaveBeenCalled();
   });
 
   it('shows the coming soon toast and closes on click', () => {

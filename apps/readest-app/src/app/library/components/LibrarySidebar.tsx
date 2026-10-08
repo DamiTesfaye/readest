@@ -81,7 +81,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   </button>
 );
 
-const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCatalogManager }) => {
+const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
   const _ = useTranslation();
   const router = useAppRouter();
   const searchParams = useSearchParams();
@@ -244,7 +244,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
             onClick={toastComingSoon}
           />
         </div>
-        <div className='flex flex-col gap-1'>
+        {/* <div className='flex flex-col gap-1'>
           <span className='text-base-content/50 px-2 [font-family:"Avenir_Next_LT_Pro"] text-xs'>
             {_('Discover')}
           </span>
@@ -261,7 +261,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenCa
             isDarkMode={isDarkMode}
             onClick={toastComingSoon}
           />
-        </div>
+        </div> */}
         <div className='flex flex-col gap-1'>
           <button
             type='button'

@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useUIAnimationsEnabled } from './useUIAnimationsEnabled';
 
 export const useUIAnimationsMode = () => {
   const applyUIAnimationsMode = useCallback((enabled: boolean) => {
@@ -10,4 +11,12 @@ export const useUIAnimationsMode = () => {
   }, []);
 
   return { applyUIAnimationsMode };
+};
+
+export const useUIAnimationsRootSync = () => {
+  const enabled = useUIAnimationsEnabled();
+  const { applyUIAnimationsMode } = useUIAnimationsMode();
+  useEffect(() => {
+    applyUIAnimationsMode(enabled);
+  }, [enabled, applyUIAnimationsMode]);
 };
