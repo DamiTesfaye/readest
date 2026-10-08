@@ -30,11 +30,9 @@ const SPARK_ANIMATIONS: Record<string, SparkAnimation> = {
     hoverProperty: 'hover',
     openTriggers: ['laugh'],
   },
-  gallery: {
-    src: `${RIVE_DIR}/gallery.riv`,
-    stateMachine: 'Gallery',
-    hoverProperty: 'hover',
-    openHoverMs: 2400,
+  margins: {
+    src: `${RIVE_DIR}/margins.riv`,
+    stateMachine: 'Margins',
   },
 };
 

@@ -146,7 +146,7 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
             <span className={TITLE_CLASS}>{_('Discuss')}</span>
             <span className={SUBTITLE_CLASS}>{_('with')}</span>
             <span className='popover-title text-base-content text-xs leading-tight'>
-              {_('Tim & Alice')}
+              {_('Tim & Fini')}
             </span>
             <span className={SUBTITLE_CLASS}>{_('Host-led podcast')}</span>
           </span>
@@ -155,14 +155,14 @@ const SparkPopover: React.FC<SparkPopoverProps> = ({
           type='button'
           className={`${ITEM_CLASS} col-start-3 row-start-2`}
           onClick={handleComingSoon}
-          {...hoverHandlers('gallery')}
+          {...hoverHandlers('margins')}
         >
           <span className='flex h-20 items-center justify-center'>
-            {renderArt('gallery', 'h-12', simpleItems.length + 1)}
+            {renderArt('margins', 'h-[4.5rem]', simpleItems.length + 1)}
           </span>
           <span className='flex flex-col items-center gap-0.5'>
-            <span className={TITLE_CLASS}>{_('Gallery')}</span>
-            <span className={SUBTITLE_CLASS}>{_('Create & browse media')}</span>
+            <span className={TITLE_CLASS}>{_('Margins')}</span>
+            <span className={SUBTITLE_CLASS}>{_('Readers, notes & finds')}</span>
           </span>
         </button>
       </div>

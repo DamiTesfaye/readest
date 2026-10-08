@@ -45,13 +45,13 @@ describe('SparkPopover', () => {
     expect(screen.getByRole('button', { name: /Summarise/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /TTS/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Discuss/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Gallery/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Margins/ })).toBeTruthy();
     expect(screen.getByText('Organise thoughts')).toBeTruthy();
     expect(screen.getByText('Shape your reading experience')).toBeTruthy();
     expect(screen.getByText('Shorten your reading')).toBeTruthy();
     expect(screen.getByText('Read texts aloud')).toBeTruthy();
     expect(screen.getByText('Host-led podcast')).toBeTruthy();
-    expect(screen.getByText('Create & browse media')).toBeTruthy();
+    expect(screen.getByText('Readers, notes & finds')).toBeTruthy();
   });
 
   it('lays the actions out in a three column grid', () => {
@@ -65,12 +65,18 @@ describe('SparkPopover', () => {
     renderPopover();
     const srcOf = (name: RegExp) =>
       screen.getByRole('button', { name }).querySelector('img')?.getAttribute('src');
-    expect(srcOf(/Mindmap/)).toBe('/images/spark/mindmap.svg');
+    expect(
+      screen
+        .getByRole('button', { name: /Mindmap/ })
+        .querySelector('[data-testid="spark-art-mindmap"]'),
+    ).toBeTruthy();
     expect(srcOf(/Mood & Modes/)).toBe('/images/spark/mood-modes.svg');
     expect(srcOf(/Summarise/)).toBe('/images/spark/summarise.svg');
-    expect(srcOf(/TTS/)).toBe('/images/spark/tts.svg');
+    expect(
+      screen.getByRole('button', { name: /TTS/ }).querySelector('[data-testid="spark-art-tts"]'),
+    ).toBeTruthy();
     expect(srcOf(/Discuss/)).toBe('/images/spark/discuss.svg');
-    expect(srcOf(/Gallery/)).toBe('/images/spark/gallery.svg');
+    expect(srcOf(/Margins/)).toBe('/images/spark/margins.svg');
   });
 
   it('styles titles in the action tier and subtitles in the label tier', () => {
@@ -83,7 +89,7 @@ describe('SparkPopover', () => {
     renderPopover();
     const discuss = screen.getByRole('button', { name: /Discuss/ });
     expect(screen.getByText('with')).toBeTruthy();
-    const hosts = screen.getByText('Tim & Alice');
+    const hosts = screen.getByText('Tim & Fini');
     expect(discuss.contains(hosts)).toBe(true);
     expect(hosts.className).toContain('popover-title');
   });
@@ -96,7 +102,7 @@ describe('SparkPopover', () => {
   });
 
   it('shows a coming soon toast and closes for unreleased features', () => {
-    for (const name of [/Mood & Modes/, /Summarise/, /Discuss/, /Gallery/]) {
+    for (const name of [/Mood & Modes/, /Summarise/, /Discuss/, /Margins/]) {
       dispatch.mockReset();
       const props = renderPopover();
       fireEvent.click(screen.getByRole('button', { name }));

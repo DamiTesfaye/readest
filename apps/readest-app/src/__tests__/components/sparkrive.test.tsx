@@ -88,7 +88,7 @@ const tile = (name: RegExp) => screen.getByRole('button', { name });
 const waitForAllLoaded = () =>
   waitFor(() => {
     expect(riveMock.instances).toHaveLength(4);
-    expect(screen.getByTestId('spark-canvas-gallery').parentElement?.className).toContain(
+    expect(screen.getByTestId('spark-canvas-discuss').parentElement?.className).toContain(
       'opacity-100',
     );
   });
@@ -116,7 +116,7 @@ describe('spark animation config', () => {
     expect(getSparkAnimation('mood-modes')?.src).toBe('/rive/spark/mood-n-mode-new.riv');
     expect(getSparkAnimation('summarise')?.src).toBe('/rive/spark/summarize.riv');
     expect(getSparkAnimation('discuss')?.src).toBe('/rive/spark/tim-n-fini.riv');
-    expect(getSparkAnimation('gallery')?.src).toBe('/rive/spark/gallery.riv');
+    expect(getSparkAnimation('margins')?.src).toBe('/rive/spark/margins.riv');
     expect(getSparkAnimation('mindmap')).toBeNull();
     expect(getSparkAnimation('tts')).toBeNull();
   });
@@ -130,7 +130,6 @@ describe('SparkPopover animations on hover devices', () => {
     for (const [name, stateMachine] of [
       [/Summarise/, 'Summarise'],
       [/Discuss/, 'Hosts'],
-      [/Gallery/, 'Gallery'],
     ] as const) {
       fireEvent.pointerEnter(tile(name), { pointerType: 'mouse' });
       expect(riveFor(stateMachine).hoverHistory.at(-1)).toBe(true);
@@ -143,12 +142,12 @@ describe('SparkPopover animations on hover devices', () => {
   it('does not carry a hover into the next open', async () => {
     const { rerender } = render(popover);
     await waitForAllLoaded();
-    fireEvent.pointerEnter(tile(/Gallery/), { pointerType: 'mouse' });
+    fireEvent.pointerEnter(tile(/Summarise/), { pointerType: 'mouse' });
     rerender(popoverWith(false));
     riveMock.instances.length = 0;
     rerender(popover);
     await waitForAllLoaded();
-    expect(riveFor('Gallery').hoverHistory).toEqual([false]);
+    expect(riveFor('Summarise').hoverHistory).toEqual([false]);
   });
 
   it('lets the mood faces handle their own pointer hover', async () => {
@@ -162,8 +161,8 @@ describe('SparkPopover animations on hover devices', () => {
 
   it('shows the static art until the animation loads, then hides it', async () => {
     render(popover);
-    const img = tile(/Gallery/).querySelector('img')!;
-    expect(img.getAttribute('src')).toBe('/images/spark/gallery.svg');
+    const img = tile(/Summarise/).querySelector('img')!;
+    expect(img.getAttribute('src')).toBe('/images/spark/summarise.svg');
     expect(img.className).not.toContain('opacity-0');
     await waitForAllLoaded();
     expect(img.className).toContain('opacity-0');
@@ -178,7 +177,7 @@ describe('SparkPopover animations on hover devices', () => {
     render(popover);
     await waitFor(() => expect(warn).toHaveBeenCalledTimes(4));
     expect(riveMock.instances).toHaveLength(0);
-    expect(tile(/Gallery/).querySelector('img')?.className).not.toContain('opacity-0');
+    expect(tile(/Summarise/).querySelector('img')?.className).not.toContain('opacity-0');
     warn.mockRestore();
   });
 });
@@ -203,16 +202,15 @@ describe('SparkPopover animations on touch devices', () => {
     ]);
     expect(riveFor('Hosts').fired).toEqual(['laugh']);
     expect(riveFor('Summarise').hoverHistory).toEqual([true, false]);
-    expect(riveFor('Gallery').hoverHistory).toEqual([true, false]);
 
     rerender(popover);
-    fireEvent.pointerEnter(tile(/Gallery/), { pointerType: 'touch' });
+    fireEvent.pointerEnter(tile(/Summarise/), { pointerType: 'touch' });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect(riveFor('Hosts').fired).toEqual(['laugh']);
     expect(riveFor('Faces').fired).toHaveLength(5);
-    expect(riveFor('Gallery').hoverHistory).toEqual([true, false]);
+    expect(riveFor('Summarise').hoverHistory).toEqual([true, false]);
   });
 });
 
@@ -222,11 +220,7 @@ describe('SparkPopover static fallback', () => {
     await waitForAllLoaded();
     expect(screen.queryByTestId('spark-canvas-mindmap')).toBeNull();
     expect(screen.queryByTestId('spark-canvas-tts')).toBeNull();
-    expect(
-      tile(/Mindmap/)
-        .querySelector('img')
-        ?.getAttribute('src'),
-    ).toBe('/images/spark/mindmap.svg');
+    expect(tile(/Mindmap/).querySelector('[data-testid="spark-art-mindmap"]')).toBeTruthy();
   });
 
   it.each([
