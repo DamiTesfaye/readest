@@ -9,6 +9,9 @@ export const WEB_RETURN_PATH = '/ampleread-auth/callback';
 const WEB_HANDOFF_KEY = 'ampleread-handoff';
 const SIGN_IN_DEADLINE_MS = 15 * 60_000;
 
+export const isAmpleReadAuthUrl = (url: string): boolean =>
+  url.toLowerCase().startsWith(DEEP_LINK_RETURN);
+
 export interface ReturnCapture {
   returnToBase: string;
   waitForUrl?: () => Promise<string>;
