@@ -186,6 +186,59 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
       `,
     },
   ],
+  margins: [
+    {
+      name: '2026101201_margins_store',
+      sql: `
+        CREATE TABLE IF NOT EXISTS margin_text_links (
+          file_hash TEXT PRIMARY KEY,
+          text_id TEXT NOT NULL,
+          family_id TEXT,
+          language TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_text_map (
+          file_hash TEXT NOT NULL,
+          section_idx INTEGER NOT NULL,
+          runs TEXT NOT NULL,
+          breaks TEXT NOT NULL,
+          skip INTEGER NOT NULL,
+          PRIMARY KEY (file_hash, section_idx)
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_layers (
+          id TEXT PRIMARY KEY,
+          file_hash TEXT NOT NULL,
+          text_id TEXT,
+          anchor TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          rev INTEGER,
+          deleted INTEGER NOT NULL DEFAULT 0,
+          error TEXT,
+          updated_at INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_margin_layers_file ON margin_layers (file_hash);
+
+        CREATE TABLE IF NOT EXISTS margin_outbox (
+          op_id TEXT PRIMARY KEY,
+          layer_id TEXT NOT NULL,
+          method TEXT NOT NULL,
+          body TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_at INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_sync (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          cursor INTEGER NOT NULL
+        );
+      `,
+    },
+  ],
   reedy: [
     {
       name: '2026052601_reedy_init',
