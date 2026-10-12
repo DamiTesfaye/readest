@@ -12,6 +12,7 @@ export interface OutboxOp {
   attempts: number;
   nextAt: number;
   createdAt: number;
+  userId: string | null;
 }
 
 export interface TextLink {
@@ -31,6 +32,7 @@ export interface LayerRow {
   rev: number | null;
   deleted: boolean;
   error?: string | null;
+  userId?: string | null;
 }
 
 type OutboxRecord = {
@@ -41,9 +43,11 @@ type OutboxRecord = {
   attempts: number;
   next_at: number;
   created_at: number;
+  user_id: string | null;
 };
 
 type LayerRecord = {
+  user_id: string | null;
   id: string;
   file_hash: string;
   text_id: string | null;
@@ -136,11 +140,12 @@ export class MarginsStore {
 
   async putLayer(row: LayerRow): Promise<void> {
     await this.db.execute(
-      `INSERT INTO margin_layers (id, file_hash, text_id, anchor, kind, payload, rev, deleted, error, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO margin_layers (id, file_hash, text_id, anchor, kind, payload, rev, deleted, error, updated_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET file_hash = excluded.file_hash, text_id = excluded.text_id,
          anchor = excluded.anchor, kind = excluded.kind, payload = excluded.payload, rev = excluded.rev,
-         deleted = excluded.deleted, error = excluded.error, updated_at = excluded.updated_at`,
+         deleted = excluded.deleted, error = excluded.error, updated_at = excluded.updated_at,
+         user_id = excluded.user_id`,
       [
         row.id,
         row.fileHash,
@@ -152,6 +157,7 @@ export class MarginsStore {
         row.deleted ? 1 : 0,
         row.error ?? null,
         Date.now(),
+        row.userId ?? null,
       ],
     );
   }
@@ -165,7 +171,7 @@ export class MarginsStore {
   }
 
   async getLayer(id: string): Promise<LayerRow | null> {
-    return (await this.layersWhere('id = ?', id))[0] ?? null;
+    return (await this.layersWhere('id = ?', [id]))[0] ?? null;
   }
 
   async fileForText(textId: string): Promise<string | null> {
@@ -176,14 +182,17 @@ export class MarginsStore {
     return rows[0]?.file_hash ?? null;
   }
 
-  layersForFile(fileHash: string): Promise<LayerRow[]> {
-    return this.layersWhere('file_hash = ?', fileHash);
+  layersForFile(fileHash: string, userId: string | null): Promise<LayerRow[]> {
+    return this.layersWhere('file_hash = ? AND (user_id IS ? OR user_id IS NULL)', [
+      fileHash,
+      userId,
+    ]);
   }
 
-  private async layersWhere(where: string, value: string): Promise<LayerRow[]> {
+  private async layersWhere(where: string, values: (string | null)[]): Promise<LayerRow[]> {
     const rows = await this.db.select<LayerRecord>(
-      `SELECT id, file_hash, text_id, anchor, kind, payload, rev, deleted, error FROM margin_layers WHERE ${where}`,
-      [value],
+      `SELECT id, file_hash, text_id, anchor, kind, payload, rev, deleted, error, user_id FROM margin_layers WHERE ${where}`,
+      values,
     );
     return rows.map((r) => ({
       id: r.id,
@@ -195,24 +204,25 @@ export class MarginsStore {
       rev: r.rev === null ? null : Number(r.rev),
       deleted: Number(r.deleted) === 1,
       error: r.error,
+      userId: r.user_id,
     }));
   }
 
   async enqueue(op: Omit<OutboxOp, 'attempts'>): Promise<void> {
     await this.db.execute(
-      'INSERT INTO margin_outbox (op_id, layer_id, method, body, next_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [op.opId, op.layerId, op.method, JSON.stringify(op.body), op.nextAt, op.createdAt],
+      'INSERT INTO margin_outbox (op_id, layer_id, method, body, next_at, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [op.opId, op.layerId, op.method, JSON.stringify(op.body), op.nextAt, op.createdAt, op.userId],
     );
   }
 
-  async dueOps(now: number): Promise<OutboxOp[]> {
+  async dueOps(now: number, userId: string | null): Promise<OutboxOp[]> {
     const rows = await this.db.select<OutboxRecord>(
-      `SELECT op_id, layer_id, method, body, attempts, next_at, created_at FROM margin_outbox o
-       WHERE next_at <= ? AND NOT EXISTS (
+      `SELECT op_id, layer_id, method, body, attempts, next_at, created_at, user_id FROM margin_outbox o
+       WHERE next_at <= ? AND user_id IS ? AND NOT EXISTS (
          SELECT 1 FROM margin_outbox e WHERE e.layer_id = o.layer_id AND e.next_at > ?
            AND (e.created_at < o.created_at OR (e.created_at = o.created_at AND e.op_id < o.op_id)))
        ORDER BY created_at, op_id`,
-      [now, now],
+      [now, userId, now],
     );
     return rows.map((r) => ({
       opId: r.op_id,
@@ -222,6 +232,7 @@ export class MarginsStore {
       attempts: Number(r.attempts),
       nextAt: Number(r.next_at),
       createdAt: Number(r.created_at),
+      userId: r.user_id,
     }));
   }
 
@@ -236,17 +247,23 @@ export class MarginsStore {
     );
   }
 
-  async getCursor(): Promise<number> {
+  async claimUnowned(userId: string): Promise<void> {
+    await this.db.execute('UPDATE margin_layers SET user_id = ? WHERE user_id IS NULL', [userId]);
+    await this.db.execute('UPDATE margin_outbox SET user_id = ? WHERE user_id IS NULL', [userId]);
+  }
+
+  async getCursor(userId: string): Promise<number> {
     const rows = await this.db.select<{ cursor: number }>(
-      'SELECT cursor FROM margin_sync WHERE id = 1',
+      'SELECT cursor FROM margin_sync WHERE user_id = ?',
+      [userId],
     );
     return rows[0] ? Number(rows[0].cursor) : 0;
   }
 
-  async setCursor(rev: number): Promise<void> {
+  async setCursor(userId: string, rev: number): Promise<void> {
     await this.db.execute(
-      'INSERT INTO margin_sync (id, cursor) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET cursor = excluded.cursor',
-      [rev],
+      'INSERT INTO margin_sync (user_id, cursor) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET cursor = excluded.cursor',
+      [userId, rev],
     );
   }
 }

@@ -238,6 +238,26 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
         );
       `,
     },
+    {
+      name: '2026101202_margins_per_account',
+      sql: `
+        ALTER TABLE margin_layers ADD COLUMN user_id TEXT;
+
+        ALTER TABLE margin_outbox ADD COLUMN user_id TEXT;
+
+        DELETE FROM margin_layers
+        WHERE rev IS NOT NULL AND id NOT IN (SELECT layer_id FROM margin_outbox);
+
+        DROP TABLE margin_sync;
+
+        CREATE TABLE margin_sync (
+          user_id TEXT PRIMARY KEY,
+          cursor INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_margin_outbox_user ON margin_outbox (user_id, next_at);
+      `,
+    },
   ],
   reedy: [
     {

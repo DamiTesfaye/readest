@@ -16,12 +16,13 @@ describe('margins store on web', () => {
       body: { kind: 'note' },
       nextAt: 0,
       createdAt: 1,
+      userId: null,
     });
     await first.close();
 
     const second = await WebDatabaseService.open(name);
     await migrate(second, getMigrations('margins'));
-    expect((await MarginsStore.from(second).dueOps(10)).map((o) => o.opId)).toEqual(['op1']);
+    expect((await MarginsStore.from(second).dueOps(10, null)).map((o) => o.opId)).toEqual(['op1']);
     await second.close();
   });
 });

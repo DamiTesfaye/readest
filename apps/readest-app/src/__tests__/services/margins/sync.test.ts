@@ -72,7 +72,7 @@ const book = { hash: 'hash-a', title: 'Alice', author: 'Lewis Carroll' } as Book
 const bookDoc = { metadata: { language: 'en' }, sections: [] } as unknown as BookDoc;
 const appService = {} as AppService;
 
-const putLocalLayer = (id: string, textId: string | null = null) =>
+const putLocalLayer = async (id: string, textId: string | null = null) =>
   currentStore.putLayer({
     id,
     fileHash: 'hash-a',
@@ -82,6 +82,7 @@ const putLocalLayer = (id: string, textId: string | null = null) =>
     payload: {},
     rev: null,
     deleted: false,
+    userId: (await session.getSession())?.me.id ?? null,
   });
 
 const queuePost = async (id: string, textId: string | null = null) => {
@@ -96,11 +97,14 @@ const queuePost = async (id: string, textId: string | null = null) => {
 const sentBody = (call: number) =>
   JSON.parse(session.amplereadFetch.mock.calls[call]![1].body as string);
 
+const signInAs = (id: string | null) =>
+  session.getSession.mockResolvedValue(id ? { tokens: {}, me: { id } } : null);
+
 const freshStore = async () => {
   const db = await NodeDatabaseService.open(':memory:');
   await migrate(db, getMigrations('margins'));
   currentStore = MarginsStore.from(db);
-  session.getSession.mockResolvedValue({ tokens: {}, me: {} });
+  signInAs('usr_a');
   session.amplereadFetch.mockReset();
 };
 
@@ -116,7 +120,7 @@ describe('margins sync', () => {
     await queuePost('lyr_1', 'txt_a');
     session.amplereadFetch.mockRejectedValue(new AmpleReadSignedOutError());
     expect(await flushOutbox(currentStore)).toBe(0);
-    expect(await currentStore.dueOps(Date.now())).toHaveLength(1);
+    expect(await currentStore.dueOps(Date.now(), 'usr_a')).toHaveLength(1);
   });
 
   it('sends ops in order and acks them', async () => {
@@ -132,8 +136,10 @@ describe('margins sync', () => {
     expect(await flushOutbox(currentStore, Number.MAX_SAFE_INTEGER)).toBe(2);
     expect([sentBody(0).id, sentBody(1).id]).toEqual(['lyr_1', 'lyr_2']);
     expect(session.amplereadFetch.mock.calls[0]![0]).toBe('/v1/layers');
-    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER)).toEqual([]);
-    expect((await currentStore.layersForFile('hash-a')).map((l) => l.rev).sort()).toEqual([1, 2]);
+    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a')).toEqual([]);
+    expect((await currentStore.layersForFile('hash-a', 'usr_a')).map((l) => l.rev).sort()).toEqual([
+      1, 2,
+    ]);
   });
 
   it('sends a delete to the layer path without a body', async () => {
@@ -156,7 +162,7 @@ describe('margins sync', () => {
     await flushOutbox(currentStore, now);
     await flushOutbox(currentStore, now + 500);
     expect(session.amplereadFetch).toHaveBeenCalledTimes(1);
-    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER)).toHaveLength(2);
+    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a')).toHaveLength(2);
   });
 
   it('reschedules a 503 with one more attempt', async () => {
@@ -164,7 +170,7 @@ describe('margins sync', () => {
     session.amplereadFetch.mockResolvedValue(json(503, { error: 'unavailable' }));
     const now = Date.now() + 1;
     await flushOutbox(currentStore, now);
-    const [op] = await currentStore.dueOps(Number.MAX_SAFE_INTEGER);
+    const [op] = await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a');
     expect(op!.attempts).toBe(1);
     expect(op!.nextAt).toBe(now + 1_000);
   });
@@ -173,8 +179,10 @@ describe('margins sync', () => {
     await queuePost('lyr_1', 'txt_a');
     session.amplereadFetch.mockResolvedValue(json(422, { error: 'excerpt_too_long' }));
     await flushOutbox(currentStore);
-    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER)).toEqual([]);
-    expect((await currentStore.layersForFile('hash-a'))[0]!.error).toBe('excerpt_too_long');
+    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a')).toEqual([]);
+    expect((await currentStore.layersForFile('hash-a', 'usr_a'))[0]!.error).toBe(
+      'excerpt_too_long',
+    );
   });
 
   it('honours Retry-After on a 429', async () => {
@@ -184,7 +192,9 @@ describe('margins sync', () => {
     );
     const now = Date.now() + 1;
     await flushOutbox(currentStore, now);
-    expect((await currentStore.dueOps(Number.MAX_SAFE_INTEGER))[0]!.nextAt).toBe(now + 30_000);
+    expect((await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a'))[0]!.nextAt).toBe(
+      now + 30_000,
+    );
   });
 
   it('fills a missing anchor textId from the link', async () => {
@@ -199,7 +209,7 @@ describe('margins sync', () => {
     await queuePost('lyr_1');
     await flushOutbox(currentStore);
     expect(session.amplereadFetch).not.toHaveBeenCalled();
-    expect(await currentStore.dueOps(Date.now())).toHaveLength(1);
+    expect(await currentStore.dueOps(Date.now(), 'usr_a')).toHaveLength(1);
   });
 
   it('rewrites the link when a create ack carries another textId', async () => {
@@ -222,8 +232,8 @@ describe('margins sync', () => {
       '/v1/layers/changes?since=0',
       '/v1/layers/changes?since=3',
     ]);
-    expect(await currentStore.getCursor()).toBe(4);
-    expect((await currentStore.layersForFile('hash-a')).map((l) => l.id).sort()).toEqual([
+    expect(await currentStore.getCursor('usr_a')).toBe(4);
+    expect((await currentStore.layersForFile('hash-a', 'usr_a')).map((l) => l.id).sort()).toEqual([
       'lyr_1',
       'lyr_2',
       'lyr_3',
@@ -241,15 +251,95 @@ describe('margins sync', () => {
       }),
     );
     await pullChanges(currentStore);
-    const rows = await currentStore.layersForFile('hash-a');
+    const rows = await currentStore.layersForFile('hash-a', 'usr_a');
     expect(rows.find((l) => l.id === 'lyr_1')!.deleted).toBe(true);
     expect(rows.find((l) => l.id === 'lyr_new')!.rev).toBe(9);
   });
 
   it('queues a write while signed out under local-first', async () => {
-    session.getSession.mockResolvedValue(null);
+    signInAs(null);
     await queueLayerWrite(currentStore, { layerId: 'lyr_1', method: 'DELETE', body: null });
-    expect(await currentStore.dueOps(Date.now())).toHaveLength(1);
+    expect(await currentStore.dueOps(Date.now(), null)).toHaveLength(1);
+  });
+});
+
+describe('margins per account', () => {
+  beforeEach(async () => {
+    await freshStore();
+    await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
+  });
+
+  const feed = (...layers: ReturnType<typeof view>[]) => json(200, { layers, nextCursor: null });
+  const ids = async (userId: string | null) =>
+    (await currentStore.layersForFile('hash-a', userId)).map((l) => l.id).sort();
+
+  it('keeps each account to its own layers and restores them on sign-in', async () => {
+    session.amplereadFetch.mockResolvedValueOnce(feed(view('lyr_a', 1)));
+    await pullChanges(currentStore);
+    signInAs('usr_b');
+    session.amplereadFetch.mockResolvedValueOnce(feed(view('lyr_b', 1)));
+    await pullChanges(currentStore);
+    expect(await ids('usr_b')).toEqual(['lyr_b']);
+    expect(await ids(null)).toEqual([]);
+    expect(await ids('usr_a')).toEqual(['lyr_a']);
+  });
+
+  it('keeps a change cursor per account', async () => {
+    session.amplereadFetch.mockResolvedValueOnce(feed(view('lyr_a', 4)));
+    await pullChanges(currentStore);
+    signInAs('usr_b');
+    session.amplereadFetch.mockResolvedValueOnce(feed(view('lyr_b', 2)));
+    await pullChanges(currentStore);
+    signInAs('usr_a');
+    session.amplereadFetch.mockResolvedValueOnce(feed());
+    await pullChanges(currentStore);
+    expect(session.amplereadFetch.mock.calls.map((c) => c[0])).toEqual([
+      '/v1/layers/changes?since=0',
+      '/v1/layers/changes?since=0',
+      '/v1/layers/changes?since=4',
+    ]);
+    expect(await currentStore.getCursor('usr_b')).toBe(2);
+  });
+
+  it('gives ops queued while signed out to the next account that signs in', async () => {
+    signInAs(null);
+    await queuePost('lyr_1', 'txt_a');
+    signInAs('usr_b');
+    session.amplereadFetch.mockResolvedValueOnce(json(200, view('lyr_1', 1)));
+    expect(await flushOutbox(currentStore)).toBe(1);
+    expect(await ids('usr_b')).toEqual(['lyr_1']);
+    expect(await ids('usr_a')).toEqual([]);
+  });
+
+  it("never sends another account's queued ops", async () => {
+    await queuePost('lyr_1', 'txt_a');
+    signInAs('usr_b');
+    expect(await flushOutbox(currentStore)).toBe(0);
+    expect(session.amplereadFetch).not.toHaveBeenCalled();
+    expect(await ids('usr_b')).toEqual([]);
+    expect(await currentStore.dueOps(Date.now(), 'usr_a')).toHaveLength(1);
+  });
+
+  it('stops flushing when the account changes mid-flush', async () => {
+    await queuePost('lyr_1', 'txt_a');
+    await queuePost('lyr_2', 'txt_a');
+    session.amplereadFetch.mockImplementationOnce(async () => {
+      signInAs('usr_b');
+      return json(200, view('lyr_1', 1));
+    });
+    await flushOutbox(currentStore, Number.MAX_SAFE_INTEGER);
+    expect(session.amplereadFetch).toHaveBeenCalledTimes(1);
+    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a')).toHaveLength(1);
+  });
+
+  it('drops a pulled page when the account changed during the request', async () => {
+    session.amplereadFetch.mockImplementationOnce(async () => {
+      signInAs('usr_b');
+      return feed(view('lyr_a', 1));
+    });
+    await pullChanges(currentStore);
+    expect(await ids('usr_b')).toEqual([]);
+    expect(await currentStore.getCursor('usr_a')).toBe(0);
   });
 });
 

@@ -47,6 +47,8 @@ export const loadLink = async (store: MarginsStore, fileHash: string) => {
   return link;
 };
 
+const currentUserId = async () => (await getSession())?.me.id ?? null;
+
 const backoff = (attempts: number) =>
   Math.min(2 ** attempts * 1000, MAX_BACKOFF_MS) * (0.8 + Math.random() * 0.4);
 
@@ -58,9 +60,10 @@ export const queueLayerWrite = async (
   store: MarginsStore,
   op: { layerId: string; method: OutboxMethod; body: unknown },
 ): Promise<void> => {
-  if (!MARGINS_LOCAL_FIRST && !(await getSession())) throw new AmpleReadSignedOutError();
+  const userId = await currentUserId();
+  if (!MARGINS_LOCAL_FIRST && !userId) throw new AmpleReadSignedOutError();
   const now = (lastQueuedAt = Math.max(Date.now(), lastQueuedAt + 1));
-  await store.enqueue({ ...op, opId: crypto.randomUUID(), nextAt: now, createdAt: now });
+  await store.enqueue({ ...op, opId: crypto.randomUUID(), nextAt: now, createdAt: now, userId });
 };
 
 const withTextId = (body: unknown, textId: string | null) => {
@@ -69,7 +72,7 @@ const withTextId = (body: unknown, textId: string | null) => {
   return textId ? { ...(body as object), anchor: { ...anchor, textId } } : null;
 };
 
-const applyLayer = async (store: MarginsStore, view: LayerView) => {
+const applyLayer = async (store: MarginsStore, view: LayerView, userId: string) => {
   const local = await store.getLayer(view.id);
   if (local?.rev != null && local.rev >= view.rev) return;
   const fileHash =
@@ -91,6 +94,7 @@ const applyLayer = async (store: MarginsStore, view: LayerView) => {
     rev: view.rev,
     deleted: view.deletedAt !== null,
     error: null,
+    userId,
   });
 };
 
@@ -108,10 +112,14 @@ const sendOp = async (store: MarginsStore, op: OutboxOp) => {
 };
 
 export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promise<number> => {
+  const userId = await currentUserId();
+  if (!userId) return 0;
+  await store.claimUnowned(userId);
   let sent = 0;
   const held = new Set<string>();
-  for (const op of await store.dueOps(now)) {
+  for (const op of await store.dueOps(now, userId)) {
     if (held.has(op.layerId)) continue;
+    if ((await currentUserId()) !== userId) return sent;
     let res: Response | null;
     try {
       res = await sendOp(store, op);
@@ -123,7 +131,7 @@ export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promis
     if (!res) {
       held.add(op.layerId);
     } else if (res.ok) {
-      await applyLayer(store, (await res.json()) as LayerView);
+      await applyLayer(store, (await res.json()) as LayerView, userId);
       await store.ack(op.opId);
       sent++;
     } else if (res.status === 429 || res.status >= 500) {
@@ -140,15 +148,18 @@ export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promis
 };
 
 export const pullChanges = async (store: MarginsStore): Promise<number> => {
+  const userId = await currentUserId();
+  if (!userId) return 0;
   let pulled = 0;
-  let since: number | null = await store.getCursor();
+  let since: number | null = await store.getCursor(userId);
   while (since !== null) {
     const res = await amplereadFetch(`/v1/layers/changes?since=${since}`);
     if (!res.ok) throw new Error(`margins pull failed: ${res.status}`);
     const page = (await res.json()) as { layers: LayerView[]; nextCursor: number | null };
-    for (const view of page.layers) await applyLayer(store, view);
+    if ((await currentUserId()) !== userId) return pulled;
+    for (const view of page.layers) await applyLayer(store, view, userId);
     const last = page.layers.at(-1)?.rev;
-    if (last !== undefined) await store.setCursor(last);
+    if (last !== undefined) await store.setCursor(userId, last);
     pulled += page.layers.length;
     since = page.nextCursor;
   }
