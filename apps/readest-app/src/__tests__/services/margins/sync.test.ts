@@ -13,6 +13,13 @@ const session = vi.hoisted(() => ({
   amplereadFetch: vi.fn(),
 }));
 
+const install = vi.hoisted(() => ({ installFetch: vi.fn() }));
+
+vi.mock('@/services/ampleread', () => ({
+  getApiBase: () => 'https://api.test',
+  installFetch: install.installFetch,
+}));
+
 vi.mock('@/services/ampleread/auth/session', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/ampleread/auth/session')>()),
   getSession: session.getSession,
@@ -106,6 +113,7 @@ const freshStore = async () => {
   currentStore = MarginsStore.from(db);
   signInAs('usr_a');
   session.amplereadFetch.mockReset();
+  install.installFetch.mockReset();
 };
 
 describe('margins sync', () => {
@@ -429,10 +437,91 @@ describe('margins book open', () => {
     expect((await currentStore.getTextLink('hash-d'))!.textId).toBe('txt_d');
   });
 
-  it('stops after the fingerprint when signed out', async () => {
-    session.getSession.mockResolvedValue(null);
+  it('matches with the install token when signed out and links a same match', async () => {
+    signInAs(null);
+    install.installFetch.mockResolvedValueOnce(
+      json(200, {
+        matches: [{ textId: 'txt_same', confidence: 0.9, relation: 'same', familyId: 'txt_root' }],
+      }),
+    );
     await onMarginsBookOpen(appService, { ...book, hash: 'hash-e' }, bookDoc);
-    expect(session.amplereadFetch).not.toHaveBeenCalled();
     expect(core.fingerprint).toHaveBeenCalledWith('hash-e');
+    expect(install.installFetch).toHaveBeenCalledTimes(1);
+    expect(install.installFetch.mock.calls[0]![0]).toBe('/v1/texts/match');
+    expect(session.amplereadFetch).not.toHaveBeenCalled();
+    expect(await currentStore.getTextLink('hash-e')).toMatchObject({
+      textId: 'txt_same',
+      familyId: 'txt_root',
+    });
+  });
+
+  it('keeps a signed-out version match as a pending family and registers after sign-in', async () => {
+    signInAs(null);
+    const hashed = { ...book, hash: 'hash-f' };
+    install.installFetch.mockResolvedValueOnce(
+      json(200, {
+        matches: [
+          { textId: 'txt_f1', confidence: 0.8, relation: 'version', familyId: 'txt_froot' },
+        ],
+      }),
+    );
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    expect(await currentStore.getTextLink('hash-f')).toBeNull();
+    expect(inMarginsFamily('hash-f')('txt_f1')).toBe(true);
+    expect(inMarginsFamily('hash-f')('txt_other')).toBe(false);
+
+    signInAs('usr_a');
+    session.amplereadFetch
+      .mockResolvedValueOnce(
+        json(200, {
+          matches: [
+            { textId: 'txt_f1', confidence: 0.8, relation: 'version', familyId: 'txt_froot' },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(json(200, { textId: 'txt_f2' }))
+      .mockImplementation(async () => feedEmpty());
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    expect(JSON.parse(session.amplereadFetch.mock.calls[1]![1].body).versionOf).toBe('txt_f1');
+    expect(await currentStore.getTextLink('hash-f')).toMatchObject({
+      textId: 'txt_f2',
+      familyId: 'txt_froot',
+    });
+    expect(install.installFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing on a signed-out empty match until sign-in, then registers', async () => {
+    signInAs(null);
+    const hashed = { ...book, hash: 'hash-g' };
+    install.installFetch.mockResolvedValue(json(200, { matches: [] }));
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    expect(install.installFetch).toHaveBeenCalledTimes(1);
+    expect(session.amplereadFetch).not.toHaveBeenCalled();
+    expect(await currentStore.getTextLink('hash-g')).toBeNull();
+
+    signInAs('usr_a');
+    session.amplereadFetch
+      .mockResolvedValueOnce(json(200, { matches: [] }))
+      .mockResolvedValueOnce(json(200, { textId: 'txt_g' }))
+      .mockImplementation(async () => feedEmpty());
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    expect(session.amplereadFetch.mock.calls[1]![0]).toBe('/v1/texts');
+    expect((await currentStore.getTextLink('hash-g'))!.textId).toBe('txt_g');
+  });
+
+  it('retries a failed signed-out match on the next open', async () => {
+    signInAs(null);
+    const hashed = { ...book, hash: 'hash-h' };
+    install.installFetch
+      .mockResolvedValueOnce(json(503, { error: 'unavailable' }))
+      .mockResolvedValueOnce(
+        json(200, {
+          matches: [{ textId: 'txt_h', confidence: 0.95, relation: 'same', familyId: 'txt_h' }],
+        }),
+      );
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    expect((await currentStore.getTextLink('hash-h'))!.textId).toBe('txt_h');
   });
 });

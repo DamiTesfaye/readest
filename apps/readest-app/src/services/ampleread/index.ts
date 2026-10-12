@@ -96,3 +96,30 @@ export const getDownloadUrl = async (workId: string, assetId: string): Promise<s
   }
   return `${getApiBase()}/v1/assets/${encodeURIComponent(assetId)}/download`;
 };
+
+const INSTALL_TOKEN_KEY = 'ampleread-install-token';
+const INSTALL_HEADER = 'x-ampleread-install';
+
+const mintInstallToken = async (): Promise<string> => {
+  const { installToken } = await fetchJson<{ installToken?: string }>('/v1/bootstrap');
+  if (!installToken) throw new Error('AmpleRead bootstrap did not mint an install token');
+  localStorage.setItem(INSTALL_TOKEN_KEY, installToken);
+  return installToken;
+};
+
+const getInstallToken = async (fresh: boolean): Promise<string> => {
+  if (isTauriAppPlatform()) return invokeTauri<string>('ampleread_install_token', { fresh });
+  return (!fresh && localStorage.getItem(INSTALL_TOKEN_KEY)) || mintInstallToken();
+};
+
+/// Signed-out calls (text matching) identify the install, not a user. A 401
+/// means the server pruned the token, so mint a fresh one and retry once.
+export const installFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
+  const send = (token: string) => {
+    const headers = new Headers(init.headers);
+    headers.set(INSTALL_HEADER, token);
+    return fetch(`${getApiBase()}${path}`, { ...init, headers });
+  };
+  const first = await send(await getInstallToken(false));
+  return first.status === 401 ? send(await getInstallToken(true)) : first;
+};

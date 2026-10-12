@@ -1,4 +1,5 @@
 import type { BookDoc } from '@/libs/document';
+import { installFetch } from '@/services/ampleread';
 import { AmpleReadHttpError, amplereadFetch, getSession } from '@/services/ampleread/auth/session';
 import type { Book } from '@/types/book';
 import type { AppService } from '@/types/system';
@@ -13,6 +14,7 @@ type TextMatch = { textId: string; confidence: number; relation: string; familyI
 
 const prepared = new Map<string, Promise<Fingerprint>>();
 const linking = new Map<string, Promise<void>>();
+const pendingFamily = new Map<string, string>();
 const ready = new Map<string, { promise: Promise<void>; resolve: () => void }>();
 
 const readyFor = (fileHash: string) => {
@@ -31,11 +33,9 @@ export const inMarginsFamily =
   (fileHash: string) =>
   (textId: string | null): boolean => {
     const link = cachedLink(fileHash);
+    const familyId = link?.familyId ?? pendingFamily.get(fileHash);
     return (
-      !!textId &&
-      !!link?.familyId &&
-      textId !== link.textId &&
-      familyCache.get(textId) === link.familyId
+      !!textId && !!familyId && textId !== link?.textId && familyCache.get(textId) === familyId
     );
   };
 
@@ -59,8 +59,8 @@ const prepare = (store: MarginsStore, book: Book, bookDoc: BookDoc) =>
     return core.fingerprint(book.hash);
   });
 
-const post = async <T>(path: string, body: unknown): Promise<T> => {
-  const res = await amplereadFetch(path, {
+const post = async <T>(path: string, body: unknown, signedIn = true): Promise<T> => {
+  const res = await (signedIn ? amplereadFetch : installFetch)(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -75,13 +75,20 @@ const post = async <T>(path: string, body: unknown): Promise<T> => {
   return res.json() as Promise<T>;
 };
 
-const link = async (store: MarginsStore, book: Book, bookDoc: BookDoc, sections: Fingerprint) => {
+const link = async (
+  store: MarginsStore,
+  book: Book,
+  bookDoc: BookDoc,
+  sections: Fingerprint,
+  signedIn: boolean,
+) => {
   if (await loadLink(store, book.hash)) return;
   const language = getPrimaryLanguage(bookDoc.metadata.language);
-  const { matches } = await post<{ matches: TextMatch[] }>('/v1/texts/match', {
-    sections,
-    language,
-  });
+  const { matches } = await post<{ matches: TextMatch[] }>(
+    '/v1/texts/match',
+    { sections, language },
+    signedIn,
+  );
   for (const m of matches) familyCache.set(m.textId, m.familyId);
   const top = matches[0];
   if (top?.relation === 'same') {
@@ -89,6 +96,11 @@ const link = async (store: MarginsStore, book: Book, bookDoc: BookDoc, sections:
     return;
   }
   const version = top?.relation === 'version' ? top : null;
+  if (!signedIn) {
+    // Registering needs an account; a later signed-in open re-matches and registers.
+    if (version) pendingFamily.set(book.hash, version.familyId);
+    return;
+  }
   const { textId } = await post<{ textId: string }>('/v1/texts', {
     sections,
     language,
@@ -96,6 +108,7 @@ const link = async (store: MarginsStore, book: Book, bookDoc: BookDoc, sections:
     versionOf: version?.textId ?? null,
   });
   await saveLink(store, book.hash, textId, language, version?.familyId ?? textId);
+  pendingFamily.delete(book.hash);
 };
 
 export const onMarginsBookOpen = async (
@@ -107,9 +120,11 @@ export const onMarginsBookOpen = async (
   try {
     const store = await openMarginsStore(appService);
     const sections = await prepare(store, book, bookDoc);
-    if (!(await getSession())) return;
-    await memo(linking, book.hash, () => link(store, book, bookDoc, sections));
-    await syncMargins(store);
+    const signedIn = !!(await getSession());
+    await memo(linking, `${book.hash}:${signedIn}`, () =>
+      link(store, book, bookDoc, sections, signedIn),
+    );
+    if (signedIn) await syncMargins(store);
   } catch (error) {
     console.error('Margins: book open failed', error);
   }
