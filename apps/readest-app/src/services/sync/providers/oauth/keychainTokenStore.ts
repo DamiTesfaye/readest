@@ -16,30 +16,30 @@ import {
 import { FileSyncError } from '@/services/sync/file/provider';
 import type { TokenSet } from './tokenEndpoint';
 
-export interface TokenPersistence {
-  load(): Promise<TokenSet | null>;
-  save(tokens: TokenSet): Promise<void>;
+export interface TokenPersistence<T = TokenSet> {
+  load(): Promise<T | null>;
+  save(tokens: T): Promise<void>;
   clear(): Promise<void>;
 }
 
-export class KeychainTokenPersistence implements TokenPersistence {
+export class KeychainTokenPersistence<T = TokenSet> implements TokenPersistence<T> {
   constructor(
     private readonly key: string,
     private readonly label: string,
   ) {}
 
-  async load(): Promise<TokenSet | null> {
+  async load(): Promise<T | null> {
     try {
       const res = await getSecureItem({ key: this.key });
       if (res.error || !res.value) return null;
-      return JSON.parse(res.value) as TokenSet;
+      return JSON.parse(res.value) as T;
     } catch (err) {
       console.warn(`[${this.label}] token load failed`, err);
       return null;
     }
   }
 
-  async save(tokens: TokenSet): Promise<void> {
+  async save(tokens: T): Promise<void> {
     const res = await setSecureItem({ key: this.key, value: JSON.stringify(tokens) });
     if (!res.success) {
       throw new FileSyncError(
@@ -58,14 +58,14 @@ export class KeychainTokenPersistence implements TokenPersistence {
   }
 }
 
-export const createKeychainTokenPersistence = async (
+export const createKeychainTokenPersistence = async <T = TokenSet>(
   key: string,
   label: string,
-): Promise<TokenPersistence | null> => {
+): Promise<TokenPersistence<T> | null> => {
   if (!isTauriAppPlatform()) return null;
   try {
     const res = await isSyncKeychainAvailable();
-    if (res.available) return new KeychainTokenPersistence(key, label);
+    if (res.available) return new KeychainTokenPersistence<T>(key, label);
   } catch (err) {
     console.warn(`[${label}] keychain probe threw`, err);
   }

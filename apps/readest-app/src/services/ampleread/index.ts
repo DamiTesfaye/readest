@@ -16,7 +16,8 @@ export type {
 
 const DEFAULT_API_BASE = 'https://api.ampleread.com';
 
-const getApiBase = (): string => process.env['NEXT_PUBLIC_AMPLEREAD_API_BASE'] ?? DEFAULT_API_BASE;
+export const getApiBase = (): string =>
+  process.env['NEXT_PUBLIC_AMPLEREAD_API_BASE'] ?? DEFAULT_API_BASE;
 
 const invokeTauri = async <T>(command: string, args?: Record<string, unknown>): Promise<T> => {
   const { invoke } = await import('@tauri-apps/api/core');
