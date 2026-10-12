@@ -56,7 +56,7 @@ const isSkipped = (doc: Document) =>
     epubTypes(el).some((t) => SKIP_TYPES.includes(t)),
   ) || Array.from(doc.querySelectorAll('nav')).some((el) => epubTypes(el).includes('toc'));
 
-const firstIndex = (nodes: Node[], test: (node: Node) => boolean) => {
+export const firstIndex = (nodes: Node[], test: (node: Node) => boolean) => {
   let lo = 0;
   let hi = nodes.length;
   while (lo < hi) {
