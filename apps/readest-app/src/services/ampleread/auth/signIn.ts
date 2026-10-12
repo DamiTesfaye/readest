@@ -83,17 +83,29 @@ export const completeHandoff = async (
   );
 };
 
-export const signInWithProvider = async (provider: 'google' | 'apple'): Promise<StoredSession> => {
+const untilAborted = (signal: AbortSignal): Promise<never> =>
+  new Promise((_, reject) => {
+    if (signal.aborted) reject(signal.reason);
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  });
+
+export const signInWithProvider = async (
+  provider: 'google' | 'apple',
+  signal: AbortSignal = new AbortController().signal,
+): Promise<StoredSession> => {
   const platform = currentPlatform();
   const capture = await returnToFor(platform);
   try {
     const handoff = await newHandoff(capture.returnToBase);
-    const redirectUrl = await captureRedirect(
-      platform,
-      buildStartUrl(provider, platform, handoff.returnTo, handoff.challenge),
-      handoff,
-      capture,
-    );
+    const redirectUrl = await Promise.race([
+      captureRedirect(
+        platform,
+        buildStartUrl(provider, platform, handoff.returnTo, handoff.challenge),
+        handoff,
+        capture,
+      ),
+      untilAborted(signal),
+    ]);
     return await completeHandoff(redirectUrl, handoff);
   } finally {
     await capture.dispose();

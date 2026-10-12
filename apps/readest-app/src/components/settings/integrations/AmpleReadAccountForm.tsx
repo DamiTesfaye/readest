@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getSession, onSessionChange, type StoredSession } from '@/services/ampleread/auth/session';
 import {
@@ -33,6 +33,8 @@ const AmpleReadAccountForm: React.FC<AmpleReadAccountFormProps> = ({ onBack }) =
   const [pending, setPending] = useState<HandoffRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [signInAbort, setSignInAbort] = useState<AbortController | null>(null);
+  const signInAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getSession().then(setSession);
@@ -45,11 +47,22 @@ const AmpleReadAccountForm: React.FC<AmpleReadAccountFormProps> = ({ onBack }) =
     try {
       await action();
     } catch (err) {
-      setError(errorMessage(err));
+      if ((err as Error | null)?.name !== 'AbortError') setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
   };
+
+  const handleProvider = (provider: 'google' | 'apple') => {
+    const controller = new AbortController();
+    signInAbortRef.current = controller;
+    setSignInAbort(controller);
+    return run(() => signInWithProvider(provider, controller.signal)).finally(() =>
+      setSignInAbort(null),
+    );
+  };
+
+  useEffect(() => () => signInAbortRef.current?.abort(), []);
 
   const handleSendCode = () =>
     run(async () => {
@@ -94,7 +107,7 @@ const AmpleReadAccountForm: React.FC<AmpleReadAccountFormProps> = ({ onBack }) =
           <button
             type='button'
             disabled={busy}
-            onClick={() => run(() => signInWithProvider('google'))}
+            onClick={() => handleProvider('google')}
             className={SECONDARY_CLASS}
           >
             {_('Continue with Google')}
@@ -102,11 +115,16 @@ const AmpleReadAccountForm: React.FC<AmpleReadAccountFormProps> = ({ onBack }) =
           <button
             type='button'
             disabled={busy}
-            onClick={() => run(() => signInWithProvider('apple'))}
+            onClick={() => handleProvider('apple')}
             className={SECONDARY_CLASS}
           >
             {_('Continue with Apple')}
           </button>
+          {signInAbort && (
+            <button type='button' onClick={() => signInAbort.abort()} className={SECONDARY_CLASS}>
+              {_('Cancel')}
+            </button>
+          )}
 
           <form
             className='space-y-1.5'
