@@ -164,10 +164,26 @@ export class MarginsStore {
     ]);
   }
 
-  async layersForFile(fileHash: string): Promise<LayerRow[]> {
+  async getLayer(id: string): Promise<LayerRow | null> {
+    return (await this.layersWhere('id = ?', id))[0] ?? null;
+  }
+
+  async fileForText(textId: string): Promise<string | null> {
+    const rows = await this.db.select<{ file_hash: string }>(
+      'SELECT file_hash FROM margin_text_links WHERE text_id = ? ORDER BY updated_at DESC LIMIT 1',
+      [textId],
+    );
+    return rows[0]?.file_hash ?? null;
+  }
+
+  layersForFile(fileHash: string): Promise<LayerRow[]> {
+    return this.layersWhere('file_hash = ?', fileHash);
+  }
+
+  private async layersWhere(where: string, value: string): Promise<LayerRow[]> {
     const rows = await this.db.select<LayerRecord>(
-      'SELECT id, file_hash, text_id, anchor, kind, payload, rev, deleted, error FROM margin_layers WHERE file_hash = ?',
-      [fileHash],
+      `SELECT id, file_hash, text_id, anchor, kind, payload, rev, deleted, error FROM margin_layers WHERE ${where}`,
+      [value],
     );
     return rows.map((r) => ({
       id: r.id,

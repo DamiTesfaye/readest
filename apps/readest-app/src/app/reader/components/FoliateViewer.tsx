@@ -30,6 +30,7 @@ import { bookOrbitProgressProvider } from '../hooks/bookOrbitProgressProvider';
 import { useUIAnimationsEnabled } from '@/hooks/useUIAnimationsEnabled';
 import { useKOSync } from '../hooks/useKOSync';
 import { useFileSync } from '../hooks/useFileSync';
+import { useMarginsBookOpen } from '../hooks/useMarginsBookOpen';
 import {
   applyFixedlayoutStyles,
   applyImageStyle,
@@ -186,6 +187,7 @@ const FoliateViewer: React.FC<{
   const { syncState, conflictDetails, resolveWithLocal, resolveWithRemote } = useKOSync(bookKey);
   const bookOrbitSync = useKOSync(bookKey, bookOrbitProgressProvider);
   useFileSync(bookKey);
+  useMarginsBookOpen(bookKey, bookDoc);
   useTextTranslation(bookKey, viewRef.current);
 
   // Coalesce setProgress writes within a single animation frame.
