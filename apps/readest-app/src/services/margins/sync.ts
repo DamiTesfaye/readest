@@ -9,6 +9,7 @@ import type { Anchor } from './types';
 export const MARGINS_LOCAL_FIRST = true;
 
 const MAX_BACKOFF_MS = 15 * 60_000;
+let lastQueuedAt = 0;
 
 export interface LayerView {
   id: string;
@@ -58,7 +59,7 @@ export const queueLayerWrite = async (
   op: { layerId: string; method: OutboxMethod; body: unknown },
 ): Promise<void> => {
   if (!MARGINS_LOCAL_FIRST && !(await getSession())) throw new AmpleReadSignedOutError();
-  const now = Date.now();
+  const now = (lastQueuedAt = Math.max(Date.now(), lastQueuedAt + 1));
   await store.enqueue({ ...op, opId: crypto.randomUUID(), nextAt: now, createdAt: now });
 };
 
