@@ -8,6 +8,7 @@ interface SparkMindmapArtProps {
   imgClassName: string;
   hovered: boolean;
   openDelayMs: number;
+  colored: boolean;
 }
 
 const TOUCH_PLAY_MS = 1500;
@@ -75,6 +76,7 @@ const SparkMindmapArt: React.FC<SparkMindmapArtProps> = ({
   imgClassName,
   hovered,
   openDelayMs,
+  colored,
 }) => {
   const [hoverDevice] = useState(canHover);
   const touchPlaying = useTouchOpenPlay(hoverDevice, openDelayMs);
@@ -109,7 +111,7 @@ const SparkMindmapArt: React.FC<SparkMindmapArtProps> = ({
             if (!active) setSettling(false);
           }}
         >
-          <path d={PIECE_PATH} fill='#ED7230' />
+          <path d={PIECE_PATH} fill={colored ? '#ED7230' : '#D9D9D9'} />
         </g>
       </g>
       <path d={HEAD_OUTLINE_PATH} fill='#FCFCFC' />
@@ -118,7 +120,7 @@ const SparkMindmapArt: React.FC<SparkMindmapArtProps> = ({
           data-testid='spark-mindmap-head'
           style={swinging ? { ...HEAD_ORIGIN, ...loop('spark-mindmap-swell', 3) } : HEAD_ORIGIN}
         >
-          <path d={HEAD_PATH} fill='#F4B008' />
+          <path d={HEAD_PATH} fill={colored ? '#F4B008' : '#474A57'} />
         </g>
       </g>
     </svg>

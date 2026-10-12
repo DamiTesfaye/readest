@@ -133,6 +133,20 @@ const persistAmbientIsDarkMode = (isDark: boolean) => {
   }
 };
 
+const NIGHT_THEME = 'starry-night';
+const MODE_BEFORE_NIGHT_KEY = 'themeModeBeforeNight';
+
+const resolveNightThemeMode = (from: string, to: string, mode: ThemeMode): ThemeMode => {
+  if (from === to || typeof window === 'undefined' || !localStorage) return mode;
+  if (to === NIGHT_THEME) {
+    localStorage.setItem(MODE_BEFORE_NIGHT_KEY, mode);
+    return 'dark';
+  }
+  const before = localStorage.getItem(MODE_BEFORE_NIGHT_KEY);
+  localStorage.removeItem(MODE_BEFORE_NIGHT_KEY);
+  return isValidThemeMode(before) ? before : mode;
+};
+
 const applyDataTheme = (themeColor: string, isDarkMode: boolean) => {
   document.documentElement.setAttribute(
     'data-theme',
@@ -248,6 +262,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     setThemeMode: (mode) => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeMode', mode);
+        localStorage.removeItem(MODE_BEFORE_NIGHT_KEY);
       }
       const isDarkMode = getEffectiveDarkMode(
         get().themeColor,
@@ -261,8 +276,10 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       syncAmbientLightSubscription(mode);
     },
     setThemeColor: (color) => {
+      const mode = resolveNightThemeMode(get().themeColor, color, get().themeMode);
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeColor', color);
+        localStorage.setItem('themeMode', mode);
         // Swatches are derived from the theme's own background, so a stored
         // slot means nothing once the theme changes.
         localStorage.removeItem('themeBackground');
@@ -270,13 +287,15 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       applyBackgroundOverride(color, null);
       const isDarkMode = getEffectiveDarkMode(
         color,
-        get().themeMode,
+        mode,
         get().systemIsDarkMode,
         get().ambientIsDarkMode,
       );
+      const modeChanged = mode !== get().themeMode;
       applyDataTheme(color, isDarkMode);
-      set({ themeColor: color, themeBackground: null, isDarkMode });
+      set({ themeColor: color, themeMode: mode, themeBackground: null, isDarkMode });
       set({ themeCode: getThemeCode() });
+      if (modeChanged) syncAmbientLightSubscription(mode);
     },
     setThemeBackground: (background) => {
       if (typeof window !== 'undefined' && localStorage) {

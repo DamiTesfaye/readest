@@ -30,7 +30,16 @@ interface SparkRiveOptions {
   hoverDevice: boolean;
   hovered: boolean;
   openDelayMs: number;
+  colored: boolean;
 }
+
+const applyPalette = (rive: RiveInstance, animation: SparkAnimation, colored: boolean) => {
+  if (!animation.palette) return;
+  const palette = colored ? animation.palette.colored : animation.palette.muted;
+  for (const [name, [r, g, b]] of Object.entries(palette)) {
+    rive.viewModelInstance?.color(name)?.rgb(r, g, b);
+  }
+};
 
 const setHover = (rive: RiveInstance, animation: SparkAnimation, value: boolean) => {
   if (!animation.hoverProperty) return;
@@ -56,9 +65,11 @@ const playOpenReaction = (rive: RiveInstance, animation: SparkAnimation, delayMs
 
 export const useSparkRive = (
   canvasRef: RefObject<HTMLCanvasElement | null>,
-  { animation, hoverDevice, hovered, openDelayMs }: SparkRiveOptions,
+  { animation, hoverDevice, hovered, openDelayMs, colored }: SparkRiveOptions,
 ): boolean => {
   const riveRef = useRef<RiveInstance | null>(null);
+  const coloredRef = useRef(colored);
+  coloredRef.current = colored;
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -75,13 +86,16 @@ export const useSparkRive = (
       const rive = new Rive({
         canvas,
         buffer,
-        autoplay: true,
-        autoBind: true,
-        stateMachines: animation.stateMachine,
+        autoplay: !animation.stillUntilHovered,
+        autoBind: Boolean(
+          animation.hoverProperty || animation.openTriggers?.length || animation.palette,
+        ),
+        stateMachine: animation.stateMachine,
         shouldDisableRiveListeners: !(hoverDevice && animation.nativeHover),
         layout: new Layout({ fit: Fit.Contain, alignment: Alignment.Center }),
         onLoad: () => {
           if (disposed) return;
+          applyPalette(rive, animation, coloredRef.current);
           rive.resizeDrawingSurfaceToCanvas();
           setIsLoaded(true);
         },
@@ -102,10 +116,21 @@ export const useSparkRive = (
   }, [canvasRef, animation, hoverDevice]);
 
   useEffect(() => {
+    if (riveRef.current && isLoaded) applyPalette(riveRef.current, animation, colored);
+  }, [animation, colored, isLoaded]);
+
+  useEffect(() => {
     const rive = riveRef.current;
     if (!rive || !isLoaded || !hoverDevice) return;
     setHover(rive, animation, hovered);
   }, [animation, hoverDevice, hovered, isLoaded]);
+
+  useEffect(() => {
+    const rive = riveRef.current;
+    if (!rive || !isLoaded || !animation.stillUntilHovered) return;
+    if (hovered) rive.play(animation.stateMachine);
+    else rive.pause(animation.stateMachine);
+  }, [animation, hovered, isLoaded]);
 
   useEffect(() => {
     const rive = riveRef.current;

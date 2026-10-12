@@ -8,12 +8,16 @@ const riveMock = vi.hoisted(() => {
     hoverHistory: boolean[];
     fired: string[];
     cleanup: ReturnType<typeof vi.fn>;
+    play: ReturnType<typeof vi.fn>;
+    pause: ReturnType<typeof vi.fn>;
   }> = [];
   class Rive {
     options: Record<string, unknown>;
     hoverHistory: boolean[] = [];
     fired: string[] = [];
     cleanup = vi.fn();
+    play = vi.fn();
+    pause = vi.fn();
     resizeDrawingSurfaceToCanvas = vi.fn();
     viewModelInstance = {
       boolean: (name: string) => {
@@ -29,6 +33,7 @@ const riveMock = vi.hoisted(() => {
         };
       },
       trigger: (name: string) => ({ trigger: () => this.fired.push(name) }),
+      color: () => ({ rgb: vi.fn() }),
     };
     constructor(options: Record<string, unknown>) {
       this.options = options;
@@ -48,12 +53,24 @@ vi.mock('@rive-app/canvas', () => ({
 }));
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
 vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch: vi.fn() } }));
+vi.mock('@/context/EnvContext', () => ({ useEnv: () => ({ envConfig: { env: 'test' } }) }));
+vi.mock('@/store/themeStore', () => ({
+  useThemeStore: () => ({ themeColor: 'default', isDarkMode: false }),
+}));
+vi.mock('@/store/readerStore', () => ({
+  useReaderStore: () => ({ getViewSettings: () => ({ readingRulerEnabled: false }) }),
+}));
+vi.mock('@/store/settingsStore', () => {
+  const state = { settings: { readerQuickPicks: [null, null, null] } };
+  return { useSettingsStore: Object.assign(() => state, { getState: () => state }) };
+});
+vi.mock('@/components/motionrive/TextInMotionArt', () => ({ default: () => <span /> }));
 vi.mock('@/components/ToolbarPopover', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
     isOpen ? <div>{children}</div> : null,
 }));
 
-import SparkPopover from '@/app/reader/components/SparkPopover';
+import MorePopover from '@/app/reader/components/MorePopover';
 import { getSparkAnimation } from '@/components/sparkrive/sparkAnimations';
 
 class ResizeObserverStub {
@@ -66,22 +83,30 @@ const stubMedia = ({ hover = true, reducedMotion = false } = {}) => {
     matches:
       (query === '(hover: hover)' && hover) ||
       (query === '(prefers-reduced-motion: reduce)' && reducedMotion),
+    addEventListener: () => {},
+    removeEventListener: () => {},
   }));
 };
 
 const popoverWith = (isOpen: boolean) => (
-  <SparkPopover
+  <MorePopover
     bookKey='book-1'
     isOpen={isOpen}
     anchorEl={document.body}
     onClose={vi.fn()}
+    onGoHome={vi.fn()}
+    onOpenLibrary={vi.fn()}
+    onOpenContents={vi.fn()}
+    onOpenThemeFonts={vi.fn()}
+    onOpenBooknotes={vi.fn()}
+    onOpenAnnotations={vi.fn()}
     onToggleTTS={vi.fn()}
   />
 );
 const popover = popoverWith(true);
 
 const riveFor = (stateMachine: string) =>
-  riveMock.instances.find((rive) => rive.options['stateMachines'] === stateMachine)!;
+  riveMock.instances.find((rive) => rive.options['stateMachine'] === stateMachine)!;
 
 const tile = (name: RegExp) => screen.getByRole('button', { name });
 
@@ -122,7 +147,7 @@ describe('spark animation config', () => {
   });
 });
 
-describe('SparkPopover animations on hover devices', () => {
+describe('More popover spark animations on hover devices', () => {
   it('plays each tile reaction while hovered and settles on leave', async () => {
     render(popover);
     await waitForAllLoaded();
@@ -148,6 +173,19 @@ describe('SparkPopover animations on hover devices', () => {
     rerender(popover);
     await waitForAllLoaded();
     expect(riveFor('Summarise').hoverHistory).toEqual([false]);
+  });
+
+  it('holds the mood faces still until the row is hovered', async () => {
+    render(popover);
+    await waitForAllLoaded();
+    const faces = riveFor('Faces');
+    expect(faces.options['autoplay']).toBe(false);
+    expect(riveFor('Summarise').options['autoplay']).toBe(true);
+    expect(faces.play).not.toHaveBeenCalled();
+    fireEvent.pointerEnter(tile(/Mood & Modes/), { pointerType: 'mouse' });
+    expect(faces.play).toHaveBeenCalledWith('Faces');
+    fireEvent.pointerLeave(tile(/Mood & Modes/), { pointerType: 'mouse' });
+    expect(faces.pause).toHaveBeenLastCalledWith('Faces');
   });
 
   it('lets the mood faces handle their own pointer hover', async () => {
@@ -182,7 +220,7 @@ describe('SparkPopover animations on hover devices', () => {
   });
 });
 
-describe('SparkPopover animations on touch devices', () => {
+describe('More popover spark animations on touch devices', () => {
   it('plays each reaction once when the popover opens', async () => {
     stubMedia({ hover: false });
     vi.useFakeTimers();
@@ -193,13 +231,8 @@ describe('SparkPopover animations on touch devices', () => {
     });
 
     expect(riveFor('Faces').options['shouldDisableRiveListeners']).toBe(true);
-    expect(riveFor('Faces').fired).toEqual([
-      'yellowTap',
-      'blueTap',
-      'purpleTap',
-      'redTap',
-      'greenTap',
-    ]);
+    expect(riveFor('Faces').fired).toEqual([]);
+    expect(riveFor('Faces').play).not.toHaveBeenCalled();
     expect(riveFor('Hosts').fired).toEqual(['laugh']);
     expect(riveFor('Summarise').hoverHistory).toEqual([true, false]);
 
@@ -209,12 +242,12 @@ describe('SparkPopover animations on touch devices', () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect(riveFor('Hosts').fired).toEqual(['laugh']);
-    expect(riveFor('Faces').fired).toHaveLength(5);
+    expect(riveFor('Faces').fired).toHaveLength(0);
     expect(riveFor('Summarise').hoverHistory).toEqual([true, false]);
   });
 });
 
-describe('SparkPopover static fallback', () => {
+describe('More popover spark static fallback', () => {
   it('never animates mindmap or TTS', async () => {
     render(popover);
     await waitForAllLoaded();
@@ -229,9 +262,9 @@ describe('SparkPopover static fallback', () => {
     ['reduced motion is requested', () => stubMedia({ reducedMotion: true })],
   ])('shows only static art when %s', (_label, disableMotion) => {
     disableMotion();
-    const { container } = render(popover);
+    render(popover);
     expect(screen.queryAllByTestId(/spark-canvas-/)).toHaveLength(0);
-    expect(container.querySelectorAll('img')).toHaveLength(6);
+    expect(document.querySelectorAll('img[src^="/images/spark/"]')).toHaveLength(6);
     expect(fetch).not.toHaveBeenCalled();
   });
 });

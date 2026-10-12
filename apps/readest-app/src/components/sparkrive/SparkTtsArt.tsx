@@ -8,6 +8,7 @@ interface SparkTtsArtProps {
   imgClassName: string;
   hovered: boolean;
   openDelayMs: number;
+  colored: boolean;
 }
 
 const TOUCH_PLAY_MS = 1500;
@@ -96,6 +97,16 @@ const EAR_PATHS: ReadonlyArray<readonly [string, string]> = [
   ],
 ];
 
+const MUTED_FILLS: Record<string, string> = {
+  '#5CBDE0': '#999999',
+  '#E3D5FF': '#D9D9D9',
+  '#F4B008': '#474A57',
+  '#D3B1A9': '#D9D9D9',
+  '#C6A49D': '#B1B9C0',
+  '#EAC6BB': '#FCFCFC',
+  '#765D5A': '#474A57',
+};
+
 const spinStyle = (origin: string, seconds: number): CSSProperties => ({
   transformBox: 'view-box',
   transformOrigin: origin,
@@ -161,7 +172,13 @@ const useTouchOpenPlay = (hoverDevice: boolean, openDelayMs: number): boolean =>
   return playing;
 };
 
-const SparkTtsArt: React.FC<SparkTtsArtProps> = ({ imgClassName, hovered, openDelayMs }) => {
+const SparkTtsArt: React.FC<SparkTtsArtProps> = ({
+  imgClassName,
+  hovered,
+  openDelayMs,
+  colored,
+}) => {
+  const paint = (fill: string) => (colored ? fill : (MUTED_FILLS[fill] ?? fill));
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const maskId = `spark-tts-mask-${uid}`;
   const clipId = `spark-tts-clip-${uid}`;
@@ -189,7 +206,7 @@ const SparkTtsArt: React.FC<SparkTtsArtProps> = ({ imgClassName, hovered, openDe
       className={clsx(imgClassName, 'w-auto')}
     >
       <style>{KEYFRAMES}</style>
-      <path d={BADGE_PATH} fill='#5CBDE0' />
+      <path d={BADGE_PATH} fill={paint('#5CBDE0')} />
       <mask
         id={maskId}
         style={{ maskType: 'alpha' }}
@@ -209,7 +226,7 @@ const SparkTtsArt: React.FC<SparkTtsArtProps> = ({ imgClassName, hovered, openDe
           boostSeconds={10.3}
           active={active}
         >
-          <path d={LILAC_PATH} fill='#E3D5FF' />
+          <path d={LILAC_PATH} fill={paint('#E3D5FF')} />
         </SpinLayer>
         <SpinLayer
           name='sun'
@@ -218,7 +235,7 @@ const SparkTtsArt: React.FC<SparkTtsArtProps> = ({ imgClassName, hovered, openDe
           boostSeconds={20}
           active={active}
         >
-          <path d={SUN_PATH} fill='#F4B008' />
+          <path d={SUN_PATH} fill={paint('#F4B008')} />
         </SpinLayer>
         <g
           data-testid='spark-tts-ear'
@@ -230,7 +247,7 @@ const SparkTtsArt: React.FC<SparkTtsArtProps> = ({ imgClassName, hovered, openDe
         >
           <g clipPath={`url(#${clipId})`}>
             {EAR_PATHS.map(([fill, d]) => (
-              <path key={d} d={d} fill={fill} />
+              <path key={d} d={d} fill={paint(fill)} />
             ))}
           </g>
         </g>

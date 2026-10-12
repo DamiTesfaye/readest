@@ -60,7 +60,7 @@ const SearchBarRive: React.FC<SearchBarRiveProps> = ({
         buffer,
         artboard: ARTBOARD,
         autoplay: true,
-        stateMachines: STATE_MACHINE,
+        stateMachine: STATE_MACHINE,
         layout: new Layout({ fit: Fit.Contain, alignment: Alignment.BottomCenter }),
         onLoad: () => {
           if (disposed) return;

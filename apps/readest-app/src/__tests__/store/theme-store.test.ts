@@ -152,14 +152,49 @@ describe('themeStore', () => {
 
     test('a card theme follows themeMode instead of pinning a mood', () => {
       useThemeStore.setState({ themeMode: 'light' });
-      useThemeStore.getState().setThemeColor('starry-night');
+      useThemeStore.getState().setThemeColor('ocean-wave');
       expect(useThemeStore.getState().isDarkMode).toBe(false);
-      expect(document.documentElement.getAttribute('data-theme')).toBe('starry-night-light');
+      expect(document.documentElement.getAttribute('data-theme')).toBe('ocean-wave-light');
 
       useThemeStore.setState({ themeMode: 'dark' });
-      useThemeStore.getState().setThemeColor('starry-night');
+      useThemeStore.getState().setThemeColor('ocean-wave');
       expect(useThemeStore.getState().isDarkMode).toBe(true);
+      expect(document.documentElement.getAttribute('data-theme')).toBe('ocean-wave-dark');
+    });
+
+    test('starry night switches to dark mode and the next theme restores the prior mode', () => {
+      useThemeStore.setState({ themeMode: 'light' });
+      useThemeStore.getState().setThemeColor('starry-night');
+      expect(useThemeStore.getState().themeMode).toBe('dark');
       expect(document.documentElement.getAttribute('data-theme')).toBe('starry-night-dark');
+
+      useThemeStore.getState().setThemeColor('paper');
+      expect(useThemeStore.getState().themeMode).toBe('light');
+      expect(document.documentElement.getAttribute('data-theme')).toBe('paper-light');
+    });
+
+    test('starry night keeps dark mode dark after leaving it', () => {
+      useThemeStore.setState({ themeMode: 'dark' });
+      useThemeStore.getState().setThemeColor('starry-night');
+      useThemeStore.getState().setThemeColor('forest-pond');
+      expect(useThemeStore.getState().themeMode).toBe('dark');
+    });
+
+    test('reselecting starry night keeps the mode to restore', () => {
+      useThemeStore.setState({ themeMode: 'auto' });
+      useThemeStore.getState().setThemeColor('starry-night');
+      expect(localStorage.getItem('themeMode')).toBe('dark');
+      useThemeStore.getState().setThemeColor('starry-night');
+      useThemeStore.getState().setThemeColor('default');
+      expect(useThemeStore.getState().themeMode).toBe('auto');
+    });
+
+    test('a mode picked while on starry night is kept after leaving it', () => {
+      useThemeStore.setState({ themeMode: 'light' });
+      useThemeStore.getState().setThemeColor('starry-night');
+      useThemeStore.getState().setThemeMode('auto');
+      useThemeStore.getState().setThemeColor('paper');
+      expect(useThemeStore.getState().themeMode).toBe('auto');
     });
 
     test('selecting a card theme leaves themeMode untouched', () => {

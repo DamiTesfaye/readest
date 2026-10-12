@@ -1136,6 +1136,28 @@ body.atmosphere #atmosphere-overlay {
   animation: none;
 }
 
+@keyframes quick-pick-wobble {
+  0%,
+  100% {
+    transform: rotate(-2deg) translateY(0.4px);
+  }
+  50% {
+    transform: rotate(2deg) translateY(-0.4px);
+  }
+}
+.quick-pick-wobble {
+  animation: quick-pick-wobble 0.26s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-pick-wobble {
+    animation: none;
+  }
+}
+[data-eink='true'] .quick-pick-wobble {
+  animation: none;
+}
+
 /*
  * Suppress the daisyUI / browser focus ring on text inputs and
  * textareas. The element's own border (input-bordered, textarea-bordered)

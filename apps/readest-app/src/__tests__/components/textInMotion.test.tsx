@@ -101,7 +101,7 @@ describe('TextInMotionArt', () => {
     renderArt();
     const rive = await loadedInstance();
     expect(fetch).toHaveBeenCalledWith('/rive/moving-pictures.riv');
-    expect(rive.options['stateMachines']).toBe('Motion');
+    expect(rive.options['stateMachine']).toBe('Motion');
     expect(rive.options['autoBind']).toBe(true);
     expect(rive.options['autoplay']).toBe(false);
     expect(rive.options['shouldDisableRiveListeners']).toBe(true);

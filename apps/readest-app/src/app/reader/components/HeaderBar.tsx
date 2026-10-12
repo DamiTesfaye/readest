@@ -8,6 +8,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useSidebarStore } from '@/store/sidebarStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTrafficLightStore } from '@/store/trafficLightStore';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
@@ -31,16 +32,22 @@ import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/Annot
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
 import MoreMenuButton from './MoreMenuButton';
 import PinnedMoreMenuButton from './PinnedMoreMenuButton';
-import SparkPopover from './SparkPopover';
-import AmpleCloudIcon from './AmpleCloudIcon';
+import QuickPickSlots from './QuickPickSlots';
+import { useMoreActions } from '../hooks/useMoreActions';
 import { getToolbarSidePanelPlacement, getToolbarStackedPanelPlacement } from '@/utils/popover';
 import type { Rect } from '@/utils/sel';
 import { eventDispatcher } from '@/utils/event';
 import { getChromeColor, getContrastHex } from '@/styles/themes';
-import { getToolbarIconColor, getToolbarIconSrc } from '@/utils/toolbarIcons';
-import { saveViewSettings } from '@/helpers/settings';
+import { getToolbarIconColor, getToolbarIconSrc, isColoredIconTheme } from '@/utils/toolbarIcons';
+import { saveSysSettings, saveViewSettings } from '@/helpers/settings';
+import { normalizeQuickPicks, placeQuickPick, type QuickPickId } from '@/utils/quickPicks';
+
+const START_SLOT_INDICES = [3];
+const END_SLOT_INDICES = [0, 1, 2];
 
 const THEME_FONTS_WIDTH = 300;
+
+type SidePanel = 'themeFonts' | 'booknotes' | 'annotations';
 
 interface HeaderBarProps {
   bookKey: string;
@@ -86,15 +93,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isThemeFontsOpen, setIsThemeFontsOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
-  const [isTocOpen, setIsTocOpen] = useState(false);
-  const tocAnchorRef = useRef<HTMLButtonElement>(null);
+  const [tocAnchorEl, setTocAnchorEl] = useState<HTMLElement | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const libraryAnchorRef = useRef<HTMLButtonElement>(null);
-  const [isSparkOpen, setIsSparkOpen] = useState(false);
-  const sparkAnchorRef = useRef<HTMLButtonElement>(null);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
   const [sidePanelAnchorRect, setSidePanelAnchorRect] = useState<Rect | null>(null);
+  const [slotAnchorEl, setSlotAnchorEl] = useState<HTMLElement | null>(null);
+  const [isArranging, setIsArranging] = useState(false);
+  const { settings } = useSettingsStore();
+  const quickPicks = normalizeQuickPicks(settings.readerQuickPicks);
   const [headerWidth, setHeaderWidth] = useState(0);
   const view = getView(bookKey);
 
@@ -110,27 +117,55 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const chromeColor = getChromeColor(themeColor, isDarkMode);
   const chromeTextColor = chromeColor ? getContrastHex(chromeColor) : undefined;
 
-  const handleToggleToc = () => {
-    setIsTocOpen((prev) => !prev);
+  const openContents = (anchor: HTMLElement | null) => {
+    setIsMoreOpen(false);
+    setTocAnchorEl(anchor);
+    handleToggleDropdown(true);
   };
 
-  const handleToggleLibrary = () => {
-    const next = !isLibraryOpen;
-    setIsLibraryOpen(next);
-    handleToggleDropdown(next);
+  const handleCloseContents = () => {
+    setTocAnchorEl(null);
+    handleToggleDropdown(false);
+  };
+
+  const handleOpenLibrary = () => {
+    setSlotAnchorEl(null);
+    setIsMoreOpen(false);
+    setIsLibraryOpen(true);
+    handleToggleDropdown(true);
   };
 
   const handleCloseLibrary = () => {
     setIsLibraryOpen(false);
+    setSlotAnchorEl(null);
     handleToggleDropdown(false);
   };
 
-  const openSidePanel = (panel: 'themeFonts' | 'booknotes' | 'annotations', anchorRect: Rect) => {
-    setSidePanelAnchorRect(anchorRect);
+  const showSidePanel = (panel: SidePanel) => {
     setIsThemeFontsOpen(panel === 'themeFonts');
     setIsBooknotesOpen(panel === 'booknotes');
     setIsAnnotationsOpen(panel === 'annotations');
+    handleToggleDropdown(true);
+  };
+
+  const openSidePanel = (panel: SidePanel, anchorRect: Rect) => {
+    setSlotAnchorEl(null);
+    setSidePanelAnchorRect(anchorRect);
     setIsMoreOpen(true);
+    showSidePanel(panel);
+  };
+
+  const openSidePanelFromSlot = (panel: SidePanel) => (slot: HTMLElement) => {
+    setSlotAnchorEl(slot);
+    setSidePanelAnchorRect(null);
+    setIsMoreOpen(false);
+    showSidePanel(panel);
+  };
+
+  const openLibraryFromSlot = (slot: HTMLElement) => {
+    setSlotAnchorEl(slot);
+    setIsMoreOpen(false);
+    setIsLibraryOpen(true);
     handleToggleDropdown(true);
   };
 
@@ -140,6 +175,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const handleCloseBooknotes = () => {
     setIsBooknotesOpen(false);
+    setSlotAnchorEl(null);
     setIsMoreOpen(false);
     handleToggleDropdown(false);
   };
@@ -150,6 +186,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const handleCloseAnnotations = () => {
     setIsAnnotationsOpen(false);
+    setSlotAnchorEl(null);
     setIsMoreOpen(false);
     handleToggleDropdown(false);
   };
@@ -159,23 +196,13 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
   };
 
-  const handleToggleSpark = () => {
-    const next = !isSparkOpen;
-    setIsSparkOpen(next);
-    handleToggleDropdown(next);
-  };
-
-  const handleCloseSpark = () => {
-    setIsSparkOpen(false);
-    handleToggleDropdown(false);
-  };
-
   const handleThemeFontsOpen = (anchorRect: Rect) => {
     openSidePanel('themeFonts', anchorRect);
   };
 
   const handleThemeFontsClose = () => {
     setIsThemeFontsOpen(false);
+    setSlotAnchorEl(null);
     setIsMoreOpen(false);
     handleToggleDropdown(false);
   };
@@ -237,6 +264,32 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
+  const slotActions = useMoreActions({
+    bookKey,
+    anchorEl: null,
+    onDone: () => {},
+    onOpenLibrary: openLibraryFromSlot,
+    onOpenContents: openContents,
+    onOpenThemeFonts: openSidePanelFromSlot('themeFonts'),
+    onOpenAnnotations: openSidePanelFromSlot('annotations'),
+    onOpenBooknotes: openSidePanelFromSlot('booknotes'),
+    onToggleTTS: handleToggleTTS,
+  });
+
+  const handlePlaceQuickPick = (id: QuickPickId, index: number) => {
+    saveSysSettings(envConfig, 'readerQuickPicks', placeQuickPick(quickPicks, id, index));
+  };
+
+  const handleRemoveQuickPick = (index: number) => {
+    saveSysSettings(
+      envConfig,
+      'readerQuickPicks',
+      quickPicks.map((slot, i) => (i === index ? null : slot)),
+    );
+  };
+
+  const panelAnchorEl = slotAnchorEl ?? moreAnchorRef.current;
+
   useEffect(() => {
     if (!appService?.hasTrafficLight) return;
 
@@ -274,7 +327,17 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const isHeaderCompact = headerWidth > 0 && headerWidth < 350;
   const insets = window.innerWidth < 640 ? screenInsets : gridInsets;
-  const isHeaderVisible = hoveredBookKey === bookKey || isDropdownOpen;
+  const quickPickSlotProps = {
+    slots: quickPicks,
+    actions: slotActions,
+    colored: isColoredIconTheme(themeColor, isDarkMode),
+    isArranging,
+    onPlace: handlePlaceQuickPick,
+    onArrangeChange: setIsArranging,
+    onRemove: handleRemoveQuickPick,
+  };
+
+  const isHeaderVisible = hoveredBookKey === bookKey || isDropdownOpen || isArranging;
   const isMobile = appService?.isMobile || window.innerWidth < 640;
   const viewSettings = getViewSettings(bookKey);
   const triggerHeight = viewSettings ? getHeaderTriggerHeight(gridInsets.top, viewSettings) : 0;
@@ -363,47 +426,6 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
       >
         <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2 sm:bg-transparent'>
           <div className='no-scrollbar flex h-full min-w-0 items-center gap-x-4 overflow-x-auto max-[350px]:gap-x-2'>
-            <div className='hidden items-center gap-x-3 sm:flex'>
-              <button
-                ref={tocAnchorRef}
-                title={_('Contents')}
-                aria-expanded={isTocOpen}
-                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={handleToggleToc}
-              >
-                <img
-                  src={getToolbarIconSrc('book-toc', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-6 w-auto object-contain'
-                />
-              </button>
-              <button
-                ref={libraryAnchorRef}
-                title={_('Library')}
-                aria-expanded={isLibraryOpen}
-                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={handleToggleLibrary}
-              >
-                <img
-                  src={getToolbarIconSrc('library', themeColor, isDarkMode)}
-                  alt=''
-                  className='h-5 w-auto object-contain'
-                />
-              </button>
-              <button
-                ref={sparkAnchorRef}
-                title={_('Spark')}
-                aria-expanded={isSparkOpen}
-                className='btn btn-ghost hover:bg-transparent h-8 min-h-8 w-8 p-0'
-                onClick={handleToggleSpark}
-              >
-                <AmpleCloudIcon
-                  themeName={themeColor}
-                  isDarkMode={isDarkMode}
-                  visible={isHeaderVisible}
-                />
-              </button>
-            </div>
             <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
               <button
                 title={_('Go home')}
@@ -419,6 +441,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               <BookmarkToggler bookKey={bookKey} />
               <TranslationToggler bookKey={bookKey} />
             </div>
+          </div>
+          <div className='hidden items-center sm:flex'>
+            <QuickPickSlots {...quickPickSlotProps} indices={START_SLOT_INDICES} />
           </div>
         </div>
 
@@ -445,6 +470,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
         <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2 sm:bg-transparent'>
           <div className='hidden items-center gap-x-3 sm:flex'>
+            <QuickPickSlots {...quickPickSlotProps} indices={END_SLOT_INDICES} />
             <MoreMenuButton
               ref={moreAnchorRef}
               isReadingRulerActive={isReadingRulerActive}
@@ -460,50 +486,48 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             anchorEl={moreAnchorRef.current}
             onClose={handleCloseMore}
             onGoHome={onGoToLibrary}
+            onOpenLibrary={handleOpenLibrary}
+            onOpenContents={() => openContents(moreAnchorRef.current)}
             onOpenThemeFonts={handleThemeFontsOpen}
             onOpenBooknotes={handleOpenBooknotes}
             onOpenAnnotations={handleOpenAnnotations}
+            onToggleTTS={handleToggleTTS}
+            isArranging={isArranging}
+            onArrangeChange={setIsArranging}
           />
           <ToolbarPopover
             isOpen={isThemeFontsOpen}
-            anchorEl={moreAnchorRef.current}
+            anchorEl={panelAnchorEl}
             width={THEME_FONTS_WIDTH}
-            getPlacement={getThemeFontsPlacement}
+            getPlacement={slotAnchorEl ? undefined : getThemeFontsPlacement}
             onClose={handleThemeFontsClose}
           >
             <ThemeFontsPanel bookKey={bookKey} />
           </ToolbarPopover>
           <TocPopover
             bookKey={bookKey}
-            isOpen={isTocOpen}
-            anchorEl={tocAnchorRef.current}
-            onClose={() => setIsTocOpen(false)}
+            isOpen={tocAnchorEl !== null}
+            anchorEl={tocAnchorEl}
+            onClose={handleCloseContents}
           />
           <LibraryPopover
             bookKey={bookKey}
             isOpen={isLibraryOpen}
-            anchorEl={libraryAnchorRef.current}
+            anchorEl={panelAnchorEl}
             onClose={handleCloseLibrary}
-          />
-          <SparkPopover
-            bookKey={bookKey}
-            isOpen={isSparkOpen}
-            anchorEl={sparkAnchorRef.current}
-            onClose={handleCloseSpark}
-            onToggleTTS={handleToggleTTS}
           />
           <BooknotesPopover
             bookKey={bookKey}
             isOpen={isBooknotesOpen}
-            anchorEl={moreAnchorRef.current}
-            getPlacement={getBooknotesPlacement}
+            anchorEl={panelAnchorEl}
+            getPlacement={slotAnchorEl ? undefined : getBooknotesPlacement}
             onClose={handleCloseBooknotes}
           />
           <AnnotationsPopover
             bookKey={bookKey}
             isOpen={isAnnotationsOpen}
-            anchorEl={moreAnchorRef.current}
-            getPlacement={getAnnotationsPlacement}
+            anchorEl={panelAnchorEl}
+            getPlacement={slotAnchorEl ? undefined : getAnnotationsPlacement}
             onClose={handleCloseAnnotations}
           />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>

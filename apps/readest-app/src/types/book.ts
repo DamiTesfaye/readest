@@ -332,6 +332,7 @@ export interface ViewConfig {
   paragraphMode: ParagraphModeConfig;
 
   readingRulerEnabled: boolean;
+  movingPicturesEnabled: boolean;
   readingRulerLines: number;
   readingRulerPosition: number;
   readingRulerOpacity: number;

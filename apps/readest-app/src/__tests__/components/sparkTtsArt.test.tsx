@@ -18,8 +18,14 @@ const stubMedia = ({ hover = true, reducedMotion = false } = {}) => {
   }));
 };
 
-const ttsArt = (hovered = false, openDelayMs = 0) => (
-  <SparkTileArt icon='tts' imgClassName='h-[4.5rem]' hovered={hovered} openDelayMs={openDelayMs} />
+const ttsArt = (hovered = false, openDelayMs = 0, colored = true) => (
+  <SparkTileArt
+    icon='tts'
+    imgClassName='h-[4.5rem]'
+    hovered={hovered}
+    openDelayMs={openDelayMs}
+    colored={colored}
+  />
 );
 
 const styleOf = (testId: string) => (screen.getByTestId(testId) as unknown as SVGElement).style;
@@ -40,12 +46,15 @@ afterEach(() => {
 });
 
 describe('TTS spark art', () => {
-  it('draws the same artwork as the static svg', () => {
-    const source = fs.readFileSync(path.join(process.cwd(), 'public/images/spark/tts.svg'), 'utf8');
+  it.each([
+    ['tts.svg', true],
+    ['tts-muted.svg', false],
+  ])('draws the same artwork as %s', (file, colored) => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'public/images/spark', file), 'utf8');
     const sourcePaths = [...source.matchAll(/<path d="([^"]+)" fill="([^"]+)"/g)].map(
       ([, d, fill]) => `${fill} ${d}`,
     );
-    const { container } = render(ttsArt());
+    const { container } = render(ttsArt(false, 0, colored));
     const renderedPaths = [...container.querySelectorAll('path')].map(
       (node) => `${node.getAttribute('fill')} ${node.getAttribute('d')}`,
     );

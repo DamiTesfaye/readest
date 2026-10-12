@@ -8,22 +8,22 @@ import {
 import { getChromeColor } from '@/styles/themes';
 
 describe('toolbar icon variants', () => {
-  it('renders colored icons only on the Neue Paper light appearance', () => {
+  it('renders colored icons on every light appearance', () => {
     expect(isColoredIconTheme('paper', false)).toBe(true);
     expect(isColoredIconTheme('default', false)).toBe(true);
+    expect(isColoredIconTheme('desert-sunset', false)).toBe(true);
+    expect(isColoredIconTheme('my-custom-theme', false)).toBe(true);
   });
 
-  it('renders muted icons for Neue Paper dark and every other theme', () => {
+  it('renders muted icons on every dark appearance', () => {
     expect(isColoredIconTheme('paper', true)).toBe(false);
     expect(isColoredIconTheme('default', true)).toBe(false);
-    expect(isColoredIconTheme('desert-sunset', false)).toBe(false);
     expect(isColoredIconTheme('ocean-wave', true)).toBe(false);
-    expect(isColoredIconTheme('my-custom-theme', false)).toBe(false);
   });
 
   it('maps icon names to the right asset path per variant', () => {
     expect(getToolbarIconSrc('library', 'paper', false)).toBe('/images/toolbar/library.svg');
-    expect(getToolbarIconSrc('library', 'starry-night', false)).toBe(
+    expect(getToolbarIconSrc('library', 'starry-night', true)).toBe(
       '/images/toolbar/library-muted.svg',
     );
     expect(getToolbarIconSrc('bookmarks-notes', 'paper', true)).toBe(
@@ -35,7 +35,7 @@ describe('toolbar icon variants', () => {
     expect(getThemeFontsTriggerSrc('small', 'paper', false)).toBe(
       '/images/theme-fonts/paper-small.svg',
     );
-    expect(getThemeFontsTriggerSrc('large', 'cherry-bloom', false)).toBe(
+    expect(getThemeFontsTriggerSrc('large', 'cherry-bloom', true)).toBe(
       '/images/theme-fonts/muted-large.svg',
     );
   });
@@ -63,6 +63,6 @@ describe('getToolbarIconColor', () => {
   it('matches the fill of the colored and muted toolbar icon files', () => {
     expect(getToolbarIconColor('paper', false)).toBe('#000000');
     expect(getToolbarIconColor('paper', true)).toBe('#D9D9D9');
-    expect(getToolbarIconColor('sepia', false)).toBe('#D9D9D9');
+    expect(getToolbarIconColor('sepia', false)).toBe('#000000');
   });
 });

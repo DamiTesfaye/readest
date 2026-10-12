@@ -103,7 +103,7 @@ describe('AmpleCloudIcon', () => {
     renderIcon();
     const rive = await loadedInstance();
     expect(fetch).toHaveBeenCalledWith('/rive/ample-cloud.riv');
-    expect(rive.options['stateMachines']).toBe('Cloud');
+    expect(rive.options['stateMachine']).toBe('Cloud');
     expect(rive.options['autoBind']).toBe(true);
     expect(rive.options['shouldDisableRiveListeners']).toBe(true);
     expect(rive.play).toHaveBeenCalled();

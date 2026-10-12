@@ -445,6 +445,7 @@ export const DEFAULT_VIEW_CONFIG: ViewConfig = {
   paragraphMode: DEFAULT_PARAGRAPH_MODE_CONFIG,
 
   readingRulerEnabled: false,
+  movingPicturesEnabled: false,
   readingRulerLines: 2,
   readingRulerPosition: 33,
   readingRulerOpacity: 0.5,

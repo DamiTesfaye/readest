@@ -84,7 +84,7 @@ export function useRiveFile({
       buffer,
       autoplay: true,
       ...(artboard ? { artboard } : {}),
-      ...(target?.kind === 'stateMachine' ? { stateMachines: target.name } : {}),
+      ...(target?.kind === 'stateMachine' ? { stateMachine: target.name } : {}),
       ...(target?.kind === 'animation' ? { animations: target.name } : {}),
       layout: new Layout({ fit, alignment }),
       onLoad: () => {
@@ -162,7 +162,7 @@ export function useRiveFile({
       if (!rive) return;
       rive.reset({
         artboard: artboard ?? undefined,
-        stateMachines: target?.kind === 'stateMachine' ? target.name : undefined,
+        stateMachine: target?.kind === 'stateMachine' ? target.name : undefined,
         animations: target?.kind === 'animation' ? target.name : undefined,
         autoplay: true,
       });

@@ -64,7 +64,7 @@ describe('SearchBarRive', () => {
     await screen.findByTestId('search-pup-hit-area');
     expect(fetch).toHaveBeenCalledWith('/rive/christmas-searchbox.riv');
     expect(riveMock.instances[0]!.options['artboard']).toBe('pup claude work  2');
-    expect(riveMock.instances[0]!.options['stateMachines']).toBe('State Machine 1');
+    expect(riveMock.instances[0]!.options['stateMachine']).toBe('State Machine 1');
   });
 
   it('drives searchHover from hasResults', async () => {

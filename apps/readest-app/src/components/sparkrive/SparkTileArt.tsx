@@ -13,7 +13,11 @@ interface SparkTileArtProps {
   imgClassName: string;
   hovered: boolean;
   openDelayMs: number;
+  colored: boolean;
 }
+
+const staticSrc = (icon: string, colored: boolean) =>
+  `/images/spark/${icon}${colored ? '' : '-muted'}.svg`;
 
 interface SparkCanvasArtProps extends SparkTileArtProps {
   animation: SparkAnimation;
@@ -24,17 +28,24 @@ const SparkCanvasArt: React.FC<SparkCanvasArtProps> = ({
   imgClassName,
   hovered,
   openDelayMs,
+  colored,
   animation,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoverDevice] = useState(canHover);
-  const isLoaded = useSparkRive(canvasRef, { animation, hoverDevice, hovered, openDelayMs });
+  const isLoaded = useSparkRive(canvasRef, {
+    animation,
+    hoverDevice,
+    hovered,
+    openDelayMs,
+    colored,
+  });
   const nativePointer = hoverDevice && animation.nativeHover;
 
   return (
     <span className='relative inline-flex'>
       <img
-        src={`/images/spark/${icon}.svg`}
+        src={staticSrc(icon, colored)}
         alt=''
         className={clsx(
           imgClassName,
@@ -47,6 +58,7 @@ const SparkCanvasArt: React.FC<SparkCanvasArtProps> = ({
         className={clsx(
           'absolute inset-0 transition-opacity duration-200',
           !nativePointer && 'pointer-events-none',
+          animation.mutedGrayscale && !colored && 'grayscale',
           isLoaded ? 'opacity-100' : 'opacity-0',
         )}
       >
@@ -69,7 +81,7 @@ const SparkTileArt: React.FC<SparkTileArtProps> = (props) => {
   if (animation && motionAllowed) return <SparkCanvasArt {...props} animation={animation} />;
   return (
     <img
-      src={`/images/spark/${props.icon}.svg`}
+      src={staticSrc(props.icon, props.colored)}
       alt=''
       className={clsx(props.imgClassName, 'w-auto object-contain')}
     />

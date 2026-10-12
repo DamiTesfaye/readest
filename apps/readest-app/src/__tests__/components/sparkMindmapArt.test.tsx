@@ -12,9 +12,17 @@ const stubMedia = ({ hover = true, reducedMotion = false } = {}) => {
   }));
 };
 
-const art = (hovered: boolean, openDelayMs = 0) => (
-  <SparkMindmapArt imgClassName='h-14' hovered={hovered} openDelayMs={openDelayMs} />
+const art = (hovered: boolean, openDelayMs = 0, colored = true) => (
+  <SparkMindmapArt
+    imgClassName='h-14'
+    hovered={hovered}
+    openDelayMs={openDelayMs}
+    colored={colored}
+  />
 );
+
+const fills = (container: HTMLElement) =>
+  [...container.querySelectorAll('path')].map((node) => node.getAttribute('fill'));
 
 const piece = () => screen.getByTestId('spark-mindmap-piece');
 const head = () => screen.getByTestId('spark-mindmap-head');
@@ -100,9 +108,23 @@ describe('SparkMindmapArt on touch devices', () => {
   });
 });
 
+describe('SparkMindmapArt palette', () => {
+  it('paints the coloured piece and head', () => {
+    const { container } = render(art(false));
+    expect(fills(container)).toEqual(['#ED7230', '#FCFCFC', '#F4B008']);
+  });
+
+  it('paints the muted greys and switches live', () => {
+    const { container, rerender } = render(art(false, 0, false));
+    expect(fills(container)).toEqual(['#D9D9D9', '#FCFCFC', '#474A57']);
+    rerender(art(false, 0, true));
+    expect(fills(container)).toEqual(['#ED7230', '#FCFCFC', '#F4B008']);
+  });
+});
+
 describe('SparkTileArt mindmap', () => {
   const tileArt = (
-    <SparkTileArt icon='mindmap' imgClassName='h-14' hovered={false} openDelayMs={0} />
+    <SparkTileArt icon='mindmap' imgClassName='h-14' hovered={false} openDelayMs={0} colored />
   );
 
   it('renders the animated mindmap art when motion is allowed', () => {

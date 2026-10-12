@@ -42,6 +42,7 @@ vi.mock('@/store/readerStore', () => ({
 }));
 vi.mock('@/helpers/settings', () => ({ saveViewSettings: vi.fn() }));
 vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch } }));
+vi.mock('@/components/sparkrive/SparkTileArt', () => ({ default: () => <span /> }));
 vi.mock('@/components/ToolbarPopover', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
     isOpen ? <div>{children}</div> : null,
@@ -65,11 +66,14 @@ const popover = (overrides: Partial<React.ComponentProps<typeof MorePopover>> = 
     onOpenThemeFonts={vi.fn()}
     onOpenBooknotes={vi.fn()}
     onOpenAnnotations={vi.fn()}
+    onOpenLibrary={vi.fn()}
+    onOpenContents={vi.fn()}
+    onToggleTTS={vi.fn()}
     {...overrides}
   />
 );
 
-const tile = () => screen.getByRole('button', { name: 'Moving Pictures' });
+const tile = () => screen.getByRole('checkbox', { name: /Moving Pictures/ }).closest('label')!;
 
 beforeEach(() => {
   riveMock.instances.length = 0;
@@ -98,11 +102,11 @@ afterEach(() => {
 });
 
 describe('MorePopover Moving Pictures tile', () => {
-  it('sits right of Reading Ruler in Reading Tools with the art, the label and the beta tag', () => {
+  it('precedes Reading Ruler in Augment your reading with the art, the label and the beta tag', () => {
     render(popover());
-    const row = screen.getByText('Reading Tools').nextElementSibling as HTMLElement;
-    const buttons = Array.from(row.querySelectorAll('button'));
-    expect(buttons.map((b) => b.textContent)).toEqual(['Reading Ruler', 'Moving Pictures']);
+    const ruler = screen.getByRole('checkbox', { name: /Reading Ruler/ }).closest('label');
+    expect(tile().nextElementSibling).toBe(ruler);
+    expect(screen.getByText('Augment your reading').parentElement?.contains(tile())).toBe(true);
     expect(tile().querySelector('img[src="/images/toolbar/moving-pictures.svg"]')).toBeTruthy();
     expect(tile().querySelector('img[src="/images/toolbar/beta-tag.svg"]')).toBeTruthy();
     expect(screen.getByText('Moving Pictures').className).toContain('popover-action-label');
@@ -163,13 +167,5 @@ describe('MorePopover Moving Pictures tile', () => {
     act(() => setUIAnimations(false));
     expect(tile().querySelector('canvas')).toBeNull();
     expect(riveMock.instances[0]?.cleanup).toHaveBeenCalled();
-  });
-
-  it('shows the coming soon toast and closes on click', () => {
-    const onClose = vi.fn();
-    render(popover({ onClose }));
-    fireEvent.click(tile());
-    expect(dispatch).toHaveBeenCalledWith('toast', { type: 'info', message: 'Coming soon' });
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -164,13 +164,19 @@ describe('ThemeSceneArt', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('skips view model binding for scenes without a hover property', async () => {
+    render(<ThemeSceneArt themeName='ocean-wave' active />);
+    await waitFor(() => expect(riveMock.instances[0]).toBeTruthy());
+    expect(riveMock.instances[0]!.options['autoBind']).toBe(false);
+  });
+
   it('plays while active and rewinds to rest after release', async () => {
     const { rerender } = render(<ThemeSceneArt themeName='starry-night' active />);
     await waitFor(() => expect(riveMock.instances[0]?.play).toHaveBeenCalled());
     const rive = riveMock.instances[0]!;
     expect(fetch).toHaveBeenCalledWith('/rive/theme-cards/starry-night.riv');
     expect(rive.options['autoplay']).toBe(false);
-    expect(rive.options['stateMachines']).toBe('Hover');
+    expect(rive.options['stateMachine']).toBe('Hover');
     expect(riveMock.hoverFlag.value).toBe(true);
     expect(screen.getByTestId('theme-scene-canvas').className).toContain('opacity-100');
 
@@ -180,7 +186,7 @@ describe('ThemeSceneArt', () => {
     expect(screen.getByTestId('theme-scene-canvas').className).toContain('opacity-0');
     act(() => vi.advanceTimersByTime(300));
     expect(rive.reset).toHaveBeenCalledWith({
-      stateMachines: 'Hover',
+      stateMachine: 'Hover',
       autoplay: false,
       autoBind: true,
     });

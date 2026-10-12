@@ -1,9 +1,8 @@
-const COLORED_ICON_THEMES = new Set(['paper', 'default']);
 const COLORED_ICON_FILL = '#000000';
 const MUTED_ICON_FILL = '#D9D9D9';
 
-export const isColoredIconTheme = (themeName: string, isDarkMode: boolean): boolean => {
-  return !isDarkMode && COLORED_ICON_THEMES.has(themeName);
+export const isColoredIconTheme = (_themeName: string, isDarkMode: boolean): boolean => {
+  return !isDarkMode;
 };
 
 export const getToolbarIconSrc = (icon: string, themeName: string, isDarkMode: boolean): string => {

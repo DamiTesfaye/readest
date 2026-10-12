@@ -102,7 +102,7 @@ const CloudCanvas: React.FC<CloudCanvasProps> = ({ src, colored, visible }) => {
         buffer,
         autoplay: false,
         autoBind: true,
-        stateMachines: STATE_MACHINE,
+        stateMachine: STATE_MACHINE,
         shouldDisableRiveListeners: true,
         layout: new Layout({ fit: Fit.Contain, alignment: Alignment.Center }),
         onLoad: () => {

@@ -55,8 +55,8 @@ const SceneCanvas: React.FC<SceneCanvasProps> = ({ scene, active }) => {
         canvas,
         buffer,
         autoplay: false,
-        autoBind: true,
-        stateMachines: scene.stateMachine,
+        autoBind: Boolean(scene.hoverProperty),
+        stateMachine: scene.stateMachine,
         shouldDisableRiveListeners: true,
         layout: new Layout({ fit: Fit.Cover, alignment: Alignment.Center }),
         onLoad: () => {
@@ -91,9 +91,9 @@ const SceneCanvas: React.FC<SceneCanvasProps> = ({ scene, active }) => {
     setHoverFlag(rive, scene, false);
     const rewind = setTimeout(() => {
       rive.reset({
-        stateMachines: scene.stateMachine,
+        stateMachine: scene.stateMachine,
         autoplay: false,
-        autoBind: true,
+        autoBind: Boolean(scene.hoverProperty),
       });
     }, FADE_OUT_MS);
     return () => clearTimeout(rewind);
