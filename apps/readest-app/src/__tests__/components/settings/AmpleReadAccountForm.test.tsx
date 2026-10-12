@@ -58,4 +58,25 @@ describe('AmpleReadAccountForm', () => {
       'Sign-in was cancelled.',
     );
   });
+
+  it('cancels a pending browser sign-in and frees the form', async () => {
+    session.getSession.mockResolvedValue(null);
+    let signal: AbortSignal | undefined;
+    signIn.signInWithProvider.mockImplementation(
+      (_provider: string, s: AbortSignal) =>
+        new Promise((_, reject) => {
+          signal = s;
+          s.addEventListener('abort', () => reject(s.reason));
+        }),
+    );
+    render(<AmpleReadAccountForm onBack={() => {}} />);
+    const google = await screen.findByRole('button', { name: /Google/ });
+    expect(screen.queryByRole('button', { name: /Cancel/ })).toBeNull();
+    fireEvent.click(google);
+    fireEvent.click(await screen.findByRole('button', { name: /Cancel/ }));
+    expect(signal?.aborted).toBe(true);
+    await waitFor(() => expect(google).toHaveProperty('disabled', false));
+    expect(screen.queryByRole('button', { name: /Cancel/ })).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });
