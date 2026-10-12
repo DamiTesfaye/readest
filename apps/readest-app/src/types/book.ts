@@ -83,6 +83,11 @@ export interface ImportBookOptions {
   lookupIndex?: BookLookupIndex;
 }
 
+export interface AmpleReadProvenance {
+  workId: string;
+  editionId: string;
+}
+
 export interface Book {
   // if Book is a remote book we just lazy load the book content via url
   url?: string;
@@ -145,6 +150,7 @@ export interface Book {
   // metadata), so a page-turn that wins whole-row LWW on updatedAt cannot
   // clobber a metadata edit (mirrors readingStatusUpdatedAt / coverUpdatedAt).
   metadataUpdatedAt?: number | null;
+  ampleread?: AmpleReadProvenance;
 }
 
 export interface BookGroupType {

@@ -22,6 +22,7 @@ use tauri_plugin_fs::FsExt;
 
 #[cfg(desktop)]
 use tauri::{Listener, Url};
+mod ampleread;
 mod clip_url;
 mod dir_scanner;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
@@ -445,6 +446,12 @@ pub fn run() {
             nightly_update::verify_update_signature,
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
             nightly_update::install_nightly_update,
+            ampleread::sync::ampleread_explore,
+            ampleread::sync::ampleread_work_detail,
+            ampleread::sync::ampleread_refresh,
+            ampleread::sync::ampleread_track_event,
+            ampleread::sync::ampleread_flush_events,
+            ampleread::sync::ampleread_download_url,
         ])
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
@@ -541,6 +548,38 @@ pub fn run() {
                 app.manage(discord_client);
             }
             app.manage(localsend::LocalSendState::default());
+
+            {
+                use ampleread::store::Store;
+                use ampleread::sync::{api_base, EngineHandle, ReqwestCatalogHttp, SyncEngine};
+
+                let data_dir = app
+                    .path()
+                    .app_data_dir()
+                    .unwrap_or_else(|_| std::env::temp_dir());
+                if let Err(e) = std::fs::create_dir_all(&data_dir) {
+                    log::error!("Failed to create ampleread data dir: {e}");
+                }
+                let db_path = data_dir.join("ampleread.sqlite");
+                let engine = match Store::open(&db_path) {
+                    Ok(store) => {
+                        let base = api_base();
+                        let http = ReqwestCatalogHttp::new(base.clone());
+                        match SyncEngine::for_api_base(http, store, &base) {
+                            Ok(engine) => Some(engine),
+                            Err(e) => {
+                                log::error!("Failed to key ampleread mirror to {base}: {e}");
+                                None
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to open ampleread store: {e}");
+                        None
+                    }
+                };
+                app.manage(EngineHandle::new(engine));
+            }
 
             #[cfg(desktop)]
             {
