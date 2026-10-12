@@ -30,6 +30,7 @@ export class AmpleReadHttpError extends Error {
 
 const STORAGE_KEY = 'ampleread-session';
 const REFRESH_LOCK = 'ampleread-session-refresh';
+const REFRESH_RESEND_WINDOW_MS = 30_000;
 const listeners = new Set<(s: StoredSession | null) => void>();
 let keychain: Promise<TokenPersistence<StoredSession> | null> | null = null;
 let fallbackChain: Promise<unknown> = Promise.resolve();
@@ -80,6 +81,22 @@ const withLock = <T>(fn: () => Promise<T>): Promise<T> => {
   return next;
 };
 
+const postRefresh = async (body: string): Promise<Response> => {
+  const post = () =>
+    fetch(`${getApiBase()}/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+    });
+  const sentAt = Date.now();
+  try {
+    return await post();
+  } catch (error) {
+    if (Date.now() - sentAt > REFRESH_RESEND_WINDOW_MS) throw error;
+    return post();
+  }
+};
+
 const refreshFrom = (failedAccess: string): Promise<StoredSession> =>
   withLock(async () => {
     const stored = await getSession();
@@ -89,14 +106,9 @@ const refreshFrom = (failedAccess: string): Promise<StoredSession> =>
       await clearSession();
       throw new AmpleReadSignedOutError();
     }
-    const res = await fetch(`${getApiBase()}/v1/auth/refresh`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        refreshToken: stored.tokens.refreshToken,
-        appVersion: getAppVersion(),
-      }),
-    });
+    const res = await postRefresh(
+      JSON.stringify({ refreshToken: stored.tokens.refreshToken, appVersion: getAppVersion() }),
+    );
     if (res.status === 401) {
       await clearSession();
       throw new AmpleReadSignedOutError();

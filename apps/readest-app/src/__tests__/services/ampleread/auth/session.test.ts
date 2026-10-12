@@ -104,12 +104,36 @@ describe('amplereadFetch', () => {
     expect((await getSession())?.tokens.refreshToken).toBe('r1');
   });
 
-  it('keeps the pair on a network error during refresh', async () => {
+  it('keeps the pair when the refresh and its one re-send both fail on the network', async () => {
     fetchMock
       .mockResolvedValueOnce(invalidToken())
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockRejectedValueOnce(new TypeError('Failed to fetch'));
     await expect(amplereadFetch('/v1/me')).rejects.toThrow('Failed to fetch');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect((await getSession())?.tokens.refreshToken).toBe('r1');
+  });
+
+  it('re-sends a refresh whose response was lost, with the same refresh token', async () => {
+    fetchMock
+      .mockResolvedValueOnce(invalidToken())
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(json(200, session('a2', 'r2').tokens))
+      .mockResolvedValueOnce(json(200, {}));
+    expect((await amplereadFetch('/v1/me')).status).toBe(200);
+    expect(JSON.parse(String(fetchMock.mock.calls[2]![1]!.body)).refreshToken).toBe('r1');
+    expect((await getSession())?.tokens.refreshToken).toBe('r2');
+  });
+
+  it('does not re-send a lost refresh more than 30 s after sending it', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(0);
+    fetchMock.mockResolvedValueOnce(invalidToken()).mockImplementationOnce(async () => {
+      now.mockReturnValue(30_001);
+      throw new TypeError('Failed to fetch');
+    });
+    await expect(amplereadFetch('/v1/me')).rejects.toThrow('Failed to fetch');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    now.mockRestore();
   });
 
   it('does not refresh at the absolute end of the session', async () => {
