@@ -207,8 +207,12 @@ export class MarginsStore {
 
   async dueOps(now: number): Promise<OutboxOp[]> {
     const rows = await this.db.select<OutboxRecord>(
-      'SELECT op_id, layer_id, method, body, attempts, next_at, created_at FROM margin_outbox WHERE next_at <= ? ORDER BY created_at, op_id',
-      [now],
+      `SELECT op_id, layer_id, method, body, attempts, next_at, created_at FROM margin_outbox o
+       WHERE next_at <= ? AND NOT EXISTS (
+         SELECT 1 FROM margin_outbox e WHERE e.layer_id = o.layer_id AND e.next_at > ?
+           AND (e.created_at < o.created_at OR (e.created_at = o.created_at AND e.op_id < o.op_id)))
+       ORDER BY created_at, op_id`,
+      [now, now],
     );
     return rows.map((r) => ({
       opId: r.op_id,

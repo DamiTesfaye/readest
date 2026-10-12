@@ -144,6 +144,21 @@ describe('margins sync', () => {
     expect([path, init.method, init.body]).toEqual(['/v1/layers/lyr_9', 'DELETE', undefined]);
   });
 
+  it('holds later ops on a layer while its earlier op waits to retry', async () => {
+    await queuePost('lyr_1', 'txt_a');
+    await queueLayerWrite(currentStore, {
+      layerId: 'lyr_1',
+      method: 'PATCH',
+      body: { payload: { text: 'edit' } },
+    });
+    session.amplereadFetch.mockResolvedValue(json(503, { error: 'unavailable' }));
+    const now = Date.now() + 1;
+    await flushOutbox(currentStore, now);
+    await flushOutbox(currentStore, now + 500);
+    expect(session.amplereadFetch).toHaveBeenCalledTimes(1);
+    expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER)).toHaveLength(2);
+  });
+
   it('reschedules a 503 with one more attempt', async () => {
     await queuePost('lyr_1', 'txt_a');
     session.amplereadFetch.mockResolvedValue(json(503, { error: 'unavailable' }));
