@@ -1,6 +1,9 @@
 import clsx from 'clsx';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getSession } from '@/services/ampleread/auth/session';
+import { addLocalAsset, downscale, uploadAssets } from '@/services/margins/assets';
 import { useTranslator } from '@/hooks/useTranslator';
 import { quotaState } from '@/services/margins/clip';
 import {
@@ -21,7 +24,9 @@ import {
   translationMax,
   validatePayload,
 } from '@/services/margins/payload';
+import { openMarginsStore } from '@/services/margins/store';
 import type { Anchor, Quote } from '@/services/margins/types';
+import DrawingPad from './DrawingPad';
 import {
   basicStickers,
   ElementView,
@@ -51,6 +56,24 @@ const NUDGE_FAR = 0.05;
 const PREPARE_TIMEOUT_MS = 20_000;
 const NEW_FRAME: Frame = { x: 0.5, y: 0.78, w: 0.7, r: 0 };
 const STICKER_FRAME: Frame = { x: 0.8, y: 0.2, w: 0.2, r: 0 };
+const ART_FRAME: Frame = { x: 0.5, y: 0.7, w: 0.5, r: 0 };
+const IMAGE_TYPES = 'image/png,image/jpeg,image/svg+xml';
+const TOO_COMPLEX = [
+  'svg_too_complex',
+  'asset_too_large',
+  'image_undecodable',
+  'unsupported_media_type',
+];
+
+const chooseFile = () =>
+  new Promise<File | null>((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = IMAGE_TYPES;
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.addEventListener('cancel', () => resolve(null));
+    input.click();
+  });
 
 const round = (v: number) => Math.round(v * 1e4) / 1e4;
 const clamp = (v: number, lo: number, hi: number) => round(Math.min(hi, Math.max(lo, v)));
@@ -103,6 +126,7 @@ function ComposeSurface({
   onDiscard,
 }: ComposeSurfaceProps) {
   const _ = useTranslation();
+  const { appService } = useEnv();
   const { translate } = useTranslator({});
   const io = useRef<ComposeIO>(null!);
   const [controller] = useState(() =>
@@ -127,7 +151,8 @@ function ComposeSurface({
   const anchorState = useAnchor(anchor);
   const cardRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
-  const [picker, setPicker] = useState<'sticker' | null>(null);
+  const [picker, setPicker] = useState<'sticker' | 'draw' | null>(null);
+  const [artError, setArtError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -152,8 +177,44 @@ function ComposeSurface({
         source: 'hand',
       }),
     pickSticker: () => setPicker('sticker'),
-    pickImage: async () => null,
-    startDrawing: () => {},
+    pickImage: async () => {
+      const file = await chooseFile();
+      if (file) await addArt(file, 'upload').catch(() => setArtError(tooComplex));
+      return file;
+    },
+    startDrawing: () => setPicker('draw'),
+  };
+
+  const tooComplex = _('This image is too large or complex. Try a smaller file.');
+
+  const uploadNow = async (ref: string) => {
+    const userId = (await getSession())?.me.id;
+    if (!userId || !appService) return;
+    const store = await openMarginsStore(appService);
+    const body = { payload: { elements: [{ kind: 'artwork', asset: ref }] } };
+    const result = await uploadAssets(store, body, userId).catch(() => null);
+    if (!result || !('error' in result)) return;
+    if (TOO_COMPLEX.includes(result.error)) setArtError(tooComplex);
+    else if (result.error === 'asset_quota_exceeded') {
+      setArtError(_("You've used your space for Margin art. Delete some art to add more."));
+    }
+  };
+
+  const addArt = async (
+    file: Blob,
+    source: 'upload' | 'drawing',
+    size?: { width: number; height: number },
+  ) => {
+    if (!appService) return;
+    setArtError(null);
+    const store = await openMarginsStore(appService);
+    const sized = size ? { blob: file, ...size } : await downscale(file as File);
+    const asset = await addLocalAsset(store, sized.blob, {
+      width: sized.width,
+      height: sized.height,
+    });
+    add({ id: newElementId(), kind: 'artwork', frame: ART_FRAME, asset, alt: '', source });
+    void uploadNow(asset);
   };
 
   const live = quoteText(quote, liveQuoteText);
@@ -296,6 +357,7 @@ function ComposeSurface({
           className='input input-bordered input-sm w-full'
           aria-label={_('Describe this image')}
           placeholder={_('Describe this image')}
+          autoFocus={!e.alt}
           value={e.alt}
           onChange={(ev) => update(e.id, { alt: ev.target.value } as Partial<Element>)}
         />
@@ -430,9 +492,20 @@ function ComposeSurface({
             ))}
           </div>
         )}
-        {(blocker || waiting) && (
+        {picker === 'draw' && (
+          <DrawingPad
+            onCancel={() => setPicker(null)}
+            onDone={(svg, size) => {
+              setPicker(null);
+              addArt(new Blob([svg], { type: 'image/svg+xml' }), 'drawing', size).catch(() =>
+                setArtError(tooComplex),
+              );
+            }}
+          />
+        )}
+        {(blocker || waiting || artError) && (
           <p className='text-xs opacity-80' aria-live='polite'>
-            {blocker ?? waiting}
+            {blocker ?? waiting ?? artError}
           </p>
         )}
         {confirmDiscard ? (
