@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   navigateToReader: vi.fn(),
   router: {},
   viewPostInPlace: vi.fn(async () => 'placed'),
+  on: true,
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -28,7 +29,7 @@ vi.mock('@/services/margins/store', () => ({
   openMarginsStore: async () => ({ allLayers: async () => h.layers }),
 }));
 vi.mock('@/services/margins/public/flag', () => ({
-  useMarginsPublic: () => true,
+  useMarginsPublic: () => h.on,
   marginsPublicEnabled: async () => true,
 }));
 vi.mock('@/services/margins/public/api', () => ({ publicApi: { myPosts: h.myPosts } }));
@@ -80,6 +81,7 @@ const mount = async (bookKey: string | null) => {
 beforeEach(() => {
   vi.clearAllMocks();
   h.layers = [row];
+  h.on = true;
 });
 
 afterEach(cleanup);
@@ -180,5 +182,12 @@ describe('PublicMarginsHost', () => {
     screen.getByText('post pst_a');
     await act(() => eventDispatcher.dispatch('margins-open-post', { postId: 'pst_b' }));
     screen.getByText('post pst_b');
+  });
+
+  it('opens nothing while public Margins are off', async () => {
+    h.on = false;
+    render(<PublicMarginsHost bookKey={null} postId='pst_a' />);
+    await act(async () => {});
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

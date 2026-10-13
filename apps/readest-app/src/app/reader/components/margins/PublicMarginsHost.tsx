@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getSession } from '@/services/ampleread/auth/session';
 import type { PostView } from '@/services/margins/public/api';
 import { MARGINS_OPEN_PASSAGE_EVENT, type OpenPassage } from '@/services/margins/public/badges';
+import { useMarginsPublic } from '@/services/margins/public/flag';
 import { MARGINS_OPEN_POST_EVENT } from '@/services/margins/public/openPost';
 import { currentPost, refreshMyPosts, useMyPosts } from '@/services/margins/public/myPosts';
 import { type LayerRow, openMarginsStore } from '@/services/margins/store';
@@ -38,6 +39,7 @@ const PublicMarginsHost = ({ bookKey, postId }: PublicMarginsHostProps) => {
   const _ = useTranslation();
   const { appService } = useEnv();
   const router = useRouter();
+  const on = useMarginsPublic();
   const [passage, setPassage] = useState<OpenPassage | null>(null);
   const [single, setSingle] = useState<string | null>(null);
 
@@ -117,6 +119,8 @@ const PublicMarginsHost = ({ bookKey, postId }: PublicMarginsHostProps) => {
       })
       .catch(() => console.error('Margins: view in place failed'));
   };
+
+  if (!on) return null;
 
   return (
     <>
