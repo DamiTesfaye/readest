@@ -1,7 +1,11 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { enterPlay, toast } = vi.hoisted(() => ({ enterPlay: vi.fn(), toast: vi.fn() }));
+const { enterPlay, toast, viewSettings } = vi.hoisted(() => ({
+  enterPlay: vi.fn(),
+  toast: vi.fn(),
+  viewSettings: { current: {} as Record<string, unknown> },
+}));
 const host = document.createElement('div');
 const view = { renderer: {} } as { renderer: object; parentElement?: HTMLElement };
 Object.defineProperty(view, 'parentElement', { get: () => host });
@@ -13,7 +17,12 @@ vi.mock('@/services/margins/context', () => ({
   marginsContext: () => ({ ready: Promise.resolve() }),
 }));
 vi.mock('@/store/readerStore', () => ({
-  useReaderStore: { getState: () => ({ getView: () => view }) },
+  useReaderStore: {
+    getState: () => ({ getView: () => view, getViewSettings: () => viewSettings.current }),
+  },
+}));
+vi.mock('@/store/settingsStore', () => ({
+  useSettingsStore: { getState: () => ({ settings: { globalViewSettings: {} } }) },
 }));
 vi.mock('@/store/bookDataStore', () => ({
   useBookDataStore: { getState: () => ({ getBookData: () => ({ book: {}, bookDoc: {} }) }) },
@@ -84,6 +93,24 @@ describe('PlaySurface', () => {
     await act(() => eventDispatcher.dispatch('margins-play-exit', { bookKey: 'b1' }));
     expect(session!.exit).toHaveBeenCalled();
     expect(screen.queryByRole('toolbar')).toBeNull();
+  });
+
+  it('notes that play shows the original text while text transforms are on', async () => {
+    enterPlay.mockImplementation(async (args: { onExit: () => void }) => fakeSession(args.onExit));
+    const note = "Play shows the book's original text, without your text changes";
+    viewSettings.current = {
+      convertChineseVariant: 'none',
+      proofreadRules: [{ enabled: true, pattern: 'x', onlyForTTS: true }],
+    };
+    const { unmount } = render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    expect(screen.queryByText(note)).toBeNull();
+    unmount();
+    viewSettings.current = { convertChineseVariant: 's2t' };
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    expect(screen.getByText(note)).toBeTruthy();
+    viewSettings.current = {};
   });
 
   it('says why play is unavailable and stays in read mode', async () => {

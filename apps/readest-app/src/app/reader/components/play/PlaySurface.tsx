@@ -15,6 +15,7 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useCustomFontStore } from '@/store/customFontStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useReaderProgressStore } from '@/store/readerProgressStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { eventDispatcher } from '@/utils/event';
 import { MARGINS_OPEN_PANEL_EVENT } from '../margins/ClipSheet';
 
@@ -50,6 +51,17 @@ const PlainToolbar = ({ play, tools }: { play: PlayTools; tools: readonly PlayTo
         </button>
       ))}
     </div>
+  );
+};
+
+const transformsText = (bookKey: string) => {
+  const settings = useReaderStore.getState().getViewSettings(bookKey);
+  const global = useSettingsStore.getState().settings?.globalViewSettings?.proofreadRules ?? [];
+  return (
+    (settings?.convertChineseVariant ?? 'none') !== 'none' ||
+    [...global, ...(settings?.proofreadRules ?? [])].some(
+      (r) => r.enabled && !r.deletedAt && r.pattern.trim() && !r.onlyForTTS,
+    )
   );
 };
 
@@ -150,6 +162,7 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
   const [session, setSession] = useState<PlaySession | null>(null);
   const [standInSeen, setStandInSeen] = useState(false);
   const [keeping, setKeeping] = useState(false);
+  const [rawText, setRawText] = useState(false);
   const sessionRef = useRef<PlaySession | null>(null);
   const entering = useRef(false);
 
@@ -200,6 +213,7 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
       try {
         const next = await start(event.detail?.layerId);
         sessionRef.current = next;
+        setRawText(transformsText(bookKey));
         setSession(next);
       } catch (error) {
         const reason = error instanceof PlayUnavailable ? reasons[error.reason] : undefined;
@@ -232,19 +246,28 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
   const showStandIn = session.tools.state.font === 'standIn' && !standInSeen;
   return (
     <>
-      {showStandIn && (
-        <div
-          role='status'
-          className='bg-base-200 absolute left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded px-3 py-1 text-xs'
-        >
-          {_('Play uses a stand-in font')}
-          <button
-            type='button'
-            className='btn btn-ghost btn-xs'
-            onClick={() => setStandInSeen(true)}
-          >
-            {_('Dismiss')}
-          </button>
+      {(showStandIn || rawText) && (
+        <div className='absolute left-1/2 top-4 z-50 flex -translate-x-1/2 flex-col items-center gap-1'>
+          {showStandIn && (
+            <div
+              role='status'
+              className='bg-base-200 flex items-center gap-2 rounded px-3 py-1 text-xs'
+            >
+              {_('Play uses a stand-in font')}
+              <button
+                type='button'
+                className='btn btn-ghost btn-xs'
+                onClick={() => setStandInSeen(true)}
+              >
+                {_('Dismiss')}
+              </button>
+            </div>
+          )}
+          {rawText && (
+            <p role='status' className='bg-base-200 rounded px-3 py-1 text-xs'>
+              {_("Play shows the book's original text, without your text changes")}
+            </p>
+          )}
         </div>
       )}
       {keeping && (
