@@ -19,8 +19,20 @@ export interface LayerView {
   kind: string;
   payload: unknown;
   rev: number;
+  createdAt: string;
   deletedAt: string | null;
 }
+
+const changeListeners = new Set<() => void>();
+
+export const onMarginsChanged = (listener: () => void): (() => void) => {
+  changeListeners.add(listener);
+  return () => changeListeners.delete(listener);
+};
+
+export const notifyMarginsChanged = (): void => {
+  for (const listener of [...changeListeners]) listener();
+};
 
 const linkCache = new Map<string, Pick<TextLink, 'textId' | 'familyId'>>();
 export const familyCache = new Map<string, string>();
@@ -96,6 +108,7 @@ const applyLayer = async (store: MarginsStore, view: LayerView, userId: string) 
     deleted: view.deletedAt !== null,
     error: null,
     userId,
+    createdAt: Date.parse(view.createdAt) || undefined,
   });
 };
 
@@ -117,17 +130,19 @@ export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promis
   if (!userId) return 0;
   await store.claimUnowned(userId);
   let sent = 0;
+  let marked = 0;
   const held = new Set<string>();
   for (const op of await store.dueOps(now, userId)) {
     if (held.has(op.layerId)) continue;
-    if ((await currentUserId()) !== userId) return sent;
+    if ((await currentUserId()) !== userId) break;
     let res: Response | null;
     try {
       res = await sendOp(store, op);
     } catch (error) {
-      if (error instanceof AmpleReadSignedOutError) return sent;
-      await store.reschedule(op.opId, now + backoff(op.attempts));
-      return sent;
+      if (!(error instanceof AmpleReadSignedOutError)) {
+        await store.reschedule(op.opId, now + backoff(op.attempts));
+      }
+      break;
     }
     if (!res) {
       held.add(op.layerId);
@@ -139,12 +154,14 @@ export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promis
       const retryAfter = Number(res.headers.get('retry-after'));
       const delay = res.status === 429 && retryAfter > 0 ? retryAfter * 1000 : backoff(op.attempts);
       await store.reschedule(op.opId, now + delay);
-      return sent;
+      break;
     } else {
       await store.markLayerError(op.layerId, await errorCode(res));
       await store.ack(op.opId);
+      marked++;
     }
   }
+  if (sent + marked > 0) notifyMarginsChanged();
   return sent;
 };
 
@@ -169,6 +186,7 @@ export const pullChanges = async (store: MarginsStore): Promise<number> => {
     since = page.nextCursor;
   }
   await ensureTexts(store, textIds);
+  if (pulled > 0) notifyMarginsChanged();
   return pulled;
 };
 

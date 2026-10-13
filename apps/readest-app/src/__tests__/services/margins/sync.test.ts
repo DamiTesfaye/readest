@@ -249,6 +249,17 @@ describe('margins sync', () => {
     ]);
   });
 
+  it('takes createdAt from the pulled layer', async () => {
+    await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
+    session.amplereadFetch.mockResolvedValueOnce(
+      json(200, { layers: [view('lyr_1', 1)], nextCursor: null }),
+    );
+    await pullChanges(currentStore);
+    expect((await currentStore.getLayer('lyr_1'))?.createdAt).toBe(
+      Date.parse('2026-10-12T00:00:00Z'),
+    );
+  });
+
   it('applies a pulled delete and keeps a newer local rev', async () => {
     await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
     await putLocalLayer('lyr_1', 'txt_a');
