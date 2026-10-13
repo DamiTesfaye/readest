@@ -123,6 +123,66 @@ describe('margins service', () => {
     expect(await store.getLayer(id)).toMatchObject({ kind: 'note', payload: withNote('second') });
   });
 
+  const echoDuring = (during: () => Promise<void>) => {
+    session.amplereadFetch.mockImplementationOnce(async (_path: string, init: RequestInit) => {
+      await during();
+      const body = JSON.parse(init.body as string);
+      return json(200, {
+        ...body,
+        textId: 'txt_a',
+        rev: 4,
+        createdAt: '2026-10-13T00:00:00Z',
+        deletedAt: null,
+      });
+    });
+  };
+
+  it('an edit during an in-flight POST is sent as a PATCH, not lost to the echo', async () => {
+    const id = await saveMargin(store, {
+      fileHash: 'hash-a',
+      anchor: anchor('txt_a'),
+      envelope: withNote('first'),
+    });
+    echoDuring(() => editMargin(store, id, { envelope: withNote('second') }));
+    await flushOutbox(store);
+    expect(await store.getLayer(id)).toMatchObject({ rev: 4, payload: withNote('second') });
+    echo(5);
+    await flushOutbox(store, Date.now() + 1000);
+    expect(calls()[1]).toMatchObject({
+      path: `/v1/layers/${id}`,
+      method: 'PATCH',
+      body: { payload: withNote('second') },
+    });
+  });
+
+  it('a delete during an in-flight POST is sent as a DELETE, not revived by the echo', async () => {
+    const id = await saveMargin(store, {
+      fileHash: 'hash-a',
+      anchor: anchor('txt_a'),
+      envelope: withNote('first'),
+    });
+    echoDuring(() => scheduleDelete(store, id, 0).flush());
+    await flushOutbox(store);
+    expect((await store.getLayer(id))?.deleted).toBe(true);
+    session.amplereadFetch.mockResolvedValueOnce(
+      json(200, {
+        ...{
+          id,
+          textId: 'txt_a',
+          anchor: anchor('txt_a'),
+          kind: 'note',
+          payload: withNote('first'),
+        },
+        rev: 5,
+        createdAt: '2026-10-13T00:00:00Z',
+        deletedAt: '2026-10-13T00:00:01Z',
+      }),
+    );
+    await flushOutbox(store, Date.now() + 1000);
+    expect(calls()[1]).toMatchObject({ path: `/v1/layers/${id}`, method: 'DELETE' });
+    expect((await store.getLayer(id))?.deleted).toBe(true);
+  });
+
   it('retrying a refused, never-stored Margin queues a POST', async () => {
     const id = await saveMargin(store, {
       fileHash: 'hash-a',

@@ -329,6 +329,14 @@ export class MarginsStore {
     return result.rowsAffected > 0;
   }
 
+  async queuedBody(opId: string): Promise<unknown> {
+    const rows = await this.db.select<{ body: string }>(
+      'SELECT body FROM margin_outbox WHERE op_id = ?',
+      [opId],
+    );
+    return rows[0] ? JSON.parse(rows[0].body) : undefined;
+  }
+
   async dropQueued(layerId: string): Promise<void> {
     await this.db.execute('DELETE FROM margin_outbox WHERE layer_id = ?', [layerId]);
   }

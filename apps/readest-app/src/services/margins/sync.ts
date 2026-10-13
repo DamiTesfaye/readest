@@ -126,6 +126,24 @@ const sendOp = async (store: MarginsStore, op: OutboxOp, userId: string) => {
   });
 };
 
+const settle = async (store: MarginsStore, op: OutboxOp, view: LayerView, userId: string) => {
+  const current = op.method === 'POST' ? await store.queuedBody(op.opId) : op.body;
+  if (current === undefined) {
+    await queueLayerWrite(store, { layerId: op.layerId, method: 'DELETE', body: null });
+    return;
+  }
+  if (JSON.stringify(current) === JSON.stringify(op.body)) {
+    await applyLayer(store, view, userId);
+    await store.ack(op.opId);
+    return;
+  }
+  const local = await store.getLayer(op.layerId);
+  if (local) await store.putLayer({ ...local, rev: view.rev });
+  const { id: _id, ...patch } = current as { id: string };
+  await store.ack(op.opId);
+  await queueLayerWrite(store, { layerId: op.layerId, method: 'PATCH', body: patch });
+};
+
 export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promise<number> => {
   const userId = await currentUserId();
   if (!userId) return 0;
@@ -153,8 +171,7 @@ export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promis
       await store.ack(op.opId);
       marked++;
     } else if (res.ok) {
-      await applyLayer(store, (await res.json()) as LayerView, userId);
-      await store.ack(op.opId);
+      await settle(store, op, (await res.json()) as LayerView, userId);
       sent++;
     } else if (res.status === 429 || res.status >= 500) {
       const retryAfter = Number(res.headers.get('retry-after'));
