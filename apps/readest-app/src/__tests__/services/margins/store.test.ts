@@ -38,6 +38,13 @@ describe('MarginsStore', () => {
     expect((await store.dueOps(1000, 'usr_a')).map((o) => o.opId)).toEqual(['a']);
   });
 
+  it('lists every linked text once', async () => {
+    await store.setTextLink('h1', 'txt_1', 'en');
+    await store.setTextLink('h2', 'txt_1', 'en');
+    await store.setTextLink('h3', 'txt_2', 'en');
+    expect((await store.allTextIds()).sort()).toEqual(['txt_1', 'txt_2']);
+  });
+
   it('round-trips the text map', async () => {
     expect(await store.getTextMap('h')).toBeNull();
     const sections = [

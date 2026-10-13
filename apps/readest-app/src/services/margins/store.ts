@@ -154,6 +154,13 @@ export class MarginsStore {
     );
   }
 
+  async allTextIds(): Promise<string[]> {
+    const rows = await this.db.select<{ text_id: string }>(
+      'SELECT DISTINCT text_id FROM margin_text_links',
+    );
+    return rows.map((r) => r.text_id);
+  }
+
   async getTextMap(fileHash: string): Promise<SectionInput[] | null> {
     const rows = await this.db.select<{ runs: string; breaks: string; skip: number }>(
       'SELECT runs, breaks, skip FROM margin_text_map WHERE file_hash = ? ORDER BY section_idx',
