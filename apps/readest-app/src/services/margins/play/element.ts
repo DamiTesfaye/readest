@@ -58,8 +58,9 @@ export const validatePlayElement = (raw: unknown, anchorLen: number): string | n
   const el = raw as PlayElement;
   const alt = typeof el.alt === 'string' ? scalars(el.alt) : 0;
   if (alt < 1 || alt > PLAY_ALT_MAX) return 'alt';
+  if (el.shapes != null && !Array.isArray(el.shapes)) return 'shapes';
   const shapes = el.shapes ?? [];
-  if (shapes.some((s) => s.type !== 'circle' && s.type !== 'polygon')) return 'unknown';
+  if (shapes.some((s) => s?.type !== 'circle' && s?.type !== 'polygon')) return 'unknown';
   if (shapes.length > MAX_SHAPES) return 'shapes';
   const points = shapes.reduce((n, s) => n + (s.type === 'polygon' ? s.pts.length : 0), 0);
   const badPolygon = shapes.some(

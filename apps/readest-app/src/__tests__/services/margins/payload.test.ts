@@ -66,6 +66,23 @@ describe('payload', () => {
         { id: 'a', kind: 'artwork', frame, asset: local, alt: 'A cat', source: 'drawing' },
       ],
     };
+    const newer = {
+      ...emptyEnvelope(),
+      elements: [
+        {
+          id: 'p1',
+          kind: 'play',
+          frame,
+          contract: 'displace',
+          alt: 'A drawn shape',
+          shapes: [{ id: 's1', type: 'asset', asset: 'ast_x', pad: 0 }],
+        },
+      ],
+    };
+    expect(validatePayload(newer, 'play', 10, true).ok).toBe(false);
+    expect(validatePayload(newer, 'play', 10, true, false).ok).toBe(true);
+    const broken = { ...newer, elements: [{ ...newer.elements[0], shapes: 'x' }] };
+    expect(validatePayload(broken, 'play', 10, true, false).ok).toBe(false);
     expect(validatePayload(art, 'artwork', 10, true).ok).toBe(false);
     expect(validatePayload(art, 'artwork', 10, true, false)).toEqual({
       ok: true,

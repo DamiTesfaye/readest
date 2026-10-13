@@ -243,8 +243,13 @@ export const validatePayload = (
       id = e.data.id;
     } else if (k === 'play') {
       const e = play.safeParse(raw);
-      if (!e.success || validatePlayElement(e.data, Infinity) !== null) return fail;
-      id = e.data.id;
+      if (e.success && validatePlayElement(e.data, Infinity) === null) id = e.data.id;
+      else {
+        const newer = unknownKind.safeParse(raw);
+        if (knownOnly || !newer.success || validatePlayElement(raw, Infinity) !== 'unknown')
+          return fail;
+        id = newer.data.id;
+      }
     } else {
       const e = unknownKind.safeParse(raw);
       if (knownOnly || !e.success) return fail;
