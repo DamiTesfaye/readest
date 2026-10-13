@@ -66,6 +66,7 @@ const popover = (overrides: Partial<React.ComponentProps<typeof MorePopover>> = 
     onOpenThemeFonts={vi.fn()}
     onOpenBooknotes={vi.fn()}
     onOpenAnnotations={vi.fn()}
+    onOpenMargins={vi.fn()}
     onOpenLibrary={vi.fn()}
     onOpenContents={vi.fn()}
     onToggleTTS={vi.fn()}
