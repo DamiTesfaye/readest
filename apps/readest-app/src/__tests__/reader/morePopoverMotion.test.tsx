@@ -138,9 +138,13 @@ describe('MorePopover Moving Pictures tile', () => {
     const { rerender } = render(popover());
     await waitFor(() => expect(riveMock.instances[0]?.play).toHaveBeenCalled());
     fireEvent.pointerEnter(tile(), { pointerType: 'mouse' });
+    const opened = riveMock.instances.length;
     rerender(popover({ isOpen: false }));
     rerender(popover({ isOpen: true }));
-    await waitFor(() => expect(riveMock.instances[1]?.play).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(riveMock.instances.length).toBeGreaterThanOrEqual(opened * 2);
+      for (const r of riveMock.instances.slice(opened)) expect(r.play).toHaveBeenCalled();
+    });
     expect(riveMock.hover.value).toBe(false);
   });
 

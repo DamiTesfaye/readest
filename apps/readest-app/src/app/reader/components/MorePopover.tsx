@@ -119,6 +119,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
       label: _('Augment your reading'),
       ids: [
         'margins',
+        'play',
         'mindmap',
         'discuss',
         'summarise',

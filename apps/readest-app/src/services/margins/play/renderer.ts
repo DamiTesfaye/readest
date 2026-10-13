@@ -33,23 +33,30 @@ export interface FrameArgs {
   cache: GlyphCache;
   color: string;
   bodies: readonly Body[];
+  bodyGlyphs: Float32Array;
   bodyGlyph: (canon: number) => number;
-  cluster: (i: number) => string;
+  cluster: (canon: number, len: number) => string;
   shapes: Path2D[];
   shapeColor: string;
 }
 
-const drawGlyph = (ctx: CanvasRenderingContext2D, a: FrameArgs, i: number, at: DOMMatrix) => {
-  const size = a.glyphs[i + 3]!;
-  const path = a.cache.get(a.glyphs[i + 5]!, a.glyphs[i + 6]!);
+const drawGlyph = (
+  ctx: CanvasRenderingContext2D,
+  a: FrameArgs,
+  g: Float32Array,
+  i: number,
+  at: DOMMatrix,
+) => {
+  const size = g[i + 3]!;
+  const path = a.cache.get(g[i + 5]!, g[i + 6]!);
   if (path) {
-    ctx.setTransform(at.scale(size * a.glyphs[i + 4]!, size));
+    ctx.setTransform(at.scale(size * g[i + 4]!, size));
     ctx.fill(path);
     return;
   }
   ctx.setTransform(at);
   ctx.font = `${size}px sans-serif`;
-  ctx.fillText(a.cluster(i), 0, 0);
+  ctx.fillText(a.cluster(g[i + 7]!, g[i + 8]!), 0, 0);
 };
 
 export const drawFrame = (ctx: CanvasRenderingContext2D, a: FrameArgs) => {
@@ -58,14 +65,20 @@ export const drawFrame = (ctx: CanvasRenderingContext2D, a: FrameArgs) => {
   for (let i = 0; i < a.glyphs.length; i += STRIDE) {
     if (!(a.glyphs[i + 9]! & 1)) continue;
     const k = (i / STRIDE) * 2;
-    drawGlyph(ctx, a, i, base.translate(a.current[k]!, a.current[k + 1]!));
+    drawGlyph(ctx, a, a.glyphs, i, base.translate(a.current[k]!, a.current[k + 1]!));
   }
   for (const b of a.bodies) {
     const i = a.bodyGlyph(b.canon);
     if (i < 0) continue;
-    drawGlyph(ctx, a, i, base.translate(b.x, b.y).rotate((b.ang * 180) / Math.PI));
+    const at = base
+      .translate(b.x + b.w / 2, b.y)
+      .rotate((b.ang * 180) / Math.PI)
+      .translate(-b.w / 2, b.h * 0.35);
+    drawGlyph(ctx, a, a.bodyGlyphs, i, at);
   }
   ctx.setTransform(base);
   ctx.fillStyle = a.shapeColor;
+  ctx.globalAlpha = 0.3;
   for (const p of a.shapes) ctx.fill(p);
+  ctx.globalAlpha = 1;
 };

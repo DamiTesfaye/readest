@@ -59,7 +59,7 @@ export const loadPlayEngine = (): Promise<PlayEngine> =>
   (shared ??= (async () => {
     const module = await WebAssembly.compileStreaming(fetch(`${VENDOR}/margin_play_wasm_bg.wasm`));
     return createPlayEngine(async (i) => {
-      const url = `${VENDOR}/margin_play_wasm.js?i=${i}`;
+      const url = new URL(`${VENDOR}/margin_play_wasm.js?i=${i}`, location.href).href;
       const glue = await import(
         /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ url
       );

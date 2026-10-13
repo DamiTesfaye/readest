@@ -53,7 +53,11 @@ export const playWindow = async (
 ): Promise<PlayWindowText> => {
   const [start, end] = await rangeToCanonical(ctx, index, range);
   const section = await ctx.core.canonicalSection(ctx.book.hash, index);
-  return { start, end, text: utf8Slice(new TextEncoder().encode(section.text), start, end) };
+  return {
+    start,
+    end,
+    text: utf8Slice(new TextEncoder().encode(section.text), start, end),
+  };
 };
 
 export const pageBox = (range: Range, frame: DOMRect, origin = { left: 0, top: 0 }): Box => {
@@ -129,4 +133,50 @@ export const pageSpec = (a: {
     runs: a.runs,
     fixed: a.fixed,
   };
+};
+
+const BLOCK = 'p,div,blockquote,li,h1,h2,h3,h4,h5,h6';
+
+export const styleRuns = async (
+  ctx: BridgeContext,
+  index: number,
+  range: Range,
+  window: PlayWindowText,
+): Promise<StyleRunJson[]> => {
+  const doc = range.startContainer.ownerDocument!;
+  const view = doc.defaultView!;
+  const base = (range.startContainer.parentElement?.closest(BLOCK) ?? doc.body) as Element;
+  const baseSize = px(view.getComputedStyle(base).fontSize) || 16;
+  const baseAlign = runAlign(view.getComputedStyle(base).textAlign);
+  const walker = doc.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT);
+  const runs: StyleRunJson[] = [];
+  const limit = window.end - window.start;
+  for (let n: Node | null = walker.currentNode; n; n = walker.nextNode()) {
+    const el = n.parentElement;
+    if (n.nodeType !== Node.TEXT_NODE || !el || !n.nodeValue?.trim() || !range.intersectsNode(n))
+      continue;
+    const s = view.getComputedStyle(el);
+    const align = runAlign(view.getComputedStyle(el.closest(BLOCK) ?? doc.body).textAlign);
+    const italic = s.fontStyle !== 'normal';
+    const bold = Number(s.fontWeight) >= 600;
+    const sizeRatio = px(s.fontSize) / baseSize || 1;
+    if (!italic && !bold && Math.abs(sizeRatio - 1) < 0.01 && align === baseAlign) continue;
+    const part = doc.createRange();
+    part.selectNodeContents(n);
+    if (n === range.startContainer) part.setStart(n, range.startOffset);
+    if (n === range.endContainer) part.setEnd(n, range.endOffset);
+    const [a, b] = await rangeToCanonical(ctx, index, part).catch(() => [0, 0] as const);
+    const start = Math.max(0, a - window.start);
+    const end = Math.min(limit, b - window.start);
+    if (end > start)
+      runs.push({
+        start,
+        end,
+        italic,
+        bold,
+        sizeRatio,
+        align: align === baseAlign ? null : align,
+      });
+  }
+  return runs;
 };

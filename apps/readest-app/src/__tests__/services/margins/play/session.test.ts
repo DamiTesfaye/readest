@@ -9,6 +9,7 @@ import {
   removeShape,
   undo,
   unitFor,
+  wordSpanAt,
 } from '@/services/margins/play/session';
 
 const TEXT = 'Begin the morning by saying to thyself. I shall meet with the busy-body.';
@@ -50,5 +51,18 @@ describe('play session', () => {
     expect(unitFor('glyph', 'كتاب')).toBe('word');
     expect(unitFor('glyph', 'book')).toBe('glyph');
     expect(unitFor('line', 'كتاب')).toBe('line');
+  });
+});
+
+describe('play spans', () => {
+  it('skips spans that overlap ones already taken and finds the word under a byte', () => {
+    const last = lastSentenceSpan(TEXT, 0, enc(TEXT))!;
+    expect(lastSentenceSpan(TEXT, 0, enc(TEXT), [last])).toEqual([
+      0,
+      enc('Begin the morning by saying to thyself.'),
+    ]);
+    expect(nextWordSpan(TEXT, 0, 0, 'word', [[0, 5]])).toEqual([6, 9]);
+    expect(wordSpanAt(TEXT, 100, 107)).toEqual([106, 109]);
+    expect(wordSpanAt(TEXT, 100, 105)).toBeNull();
   });
 });

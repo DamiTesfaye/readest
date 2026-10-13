@@ -102,24 +102,42 @@ const byteSpans = (text: string, re: RegExp, windowStart: number): [number, numb
     return [s, s + enc.encode(m[0]).length];
   });
 
+type Span = [number, number];
+
+const free =
+  (taken: readonly Span[]) =>
+  ([s, e]: Span) =>
+    !taken.some(([a, b]) => a < e && s < b);
+
+const WORD = /[\p{L}\p{N}][\p{L}\p{N}\p{M}'’-]*/gu;
+
 export const nextWordSpan = (
   text: string,
   windowStart: number,
   after: number,
   unit: Unit,
-): [number, number] | null => {
-  const re = unit === 'line' ? /[^\n]+/g : /[\p{L}\p{N}][\p{L}\p{N}\p{M}'’-]*/gu;
-  return byteSpans(text, re, windowStart).find(([s]) => s >= after) ?? null;
+  taken: readonly Span[] = [],
+): Span | null => {
+  const re = unit === 'line' ? /[^\n]+/g : WORD;
+  return (
+    byteSpans(text, re, windowStart)
+      .filter(free(taken))
+      .find(([s]) => s >= after) ?? null
+  );
 };
+
+export const wordSpanAt = (text: string, windowStart: number, byte: number): Span | null =>
+  byteSpans(text, WORD, windowStart).find(([s, e]) => s <= byte && byte < e) ?? null;
 
 export const lastSentenceSpan = (
   text: string,
   windowStart: number,
   visibleEnd: number,
-): [number, number] | null => {
-  const spans = byteSpans(text, /[^\s.!?][^.!?\n]*[.!?]+["’”)]*/g, windowStart).filter(
-    ([, e]) => e <= visibleEnd,
-  );
+  taken: readonly Span[] = [],
+): Span | null => {
+  const spans = byteSpans(text, /[^\s.!?][^.!?\n]*[.!?]+["’”)]*/g, windowStart)
+    .filter(([, e]) => e <= visibleEnd)
+    .filter(free(taken));
   return spans[spans.length - 1] ?? null;
 };
 

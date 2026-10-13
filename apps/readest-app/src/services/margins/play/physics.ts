@@ -85,10 +85,15 @@ const merge = (gs: Glyph[], room: number): Glyph[] => {
   });
 };
 
-export const detachBodies = (world: World, glyphs: Glyph[], reduced: boolean): World => {
+export const detachBodies = (
+  world: World,
+  glyphs: Glyph[],
+  reduced: boolean,
+  max = MAX_BODIES,
+): World => {
   const rand = mulberry32(world.seed);
   let floor = world.floor;
-  const added = merge(glyphs, MAX_BODIES - world.bodies.length).map((g, k): Body => {
+  const added = merge(glyphs, max - world.bodies.length).map((g, k): Body => {
     const [a, b, c] = [rand(), rand(), rand()];
     const body: Body = {
       ...g,
