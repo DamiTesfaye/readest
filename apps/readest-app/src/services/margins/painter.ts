@@ -186,6 +186,17 @@ export const createPainter = (o: {
   const placed = new Map<string, Placement>();
   const drawn = new Map<number, Set<string>>();
   const queues = new Map<number, Promise<unknown>>();
+  const ranges = new Map<string, Range>();
+
+  const rangeFor = async (index: number, start: number, end: number) => {
+    const key = `${index}:${start}:${end}`;
+    const hit = ranges.get(key);
+    if (hit?.startContainer.ownerDocument?.defaultView) return hit;
+    const range = await o.liveRange(index, start, end);
+    if (range) ranges.set(key, range);
+    else ranges.delete(key);
+    return range;
+  };
 
   const resolveOne = async (row: LayerRow) => {
     const key = cacheKey(row);
@@ -214,7 +225,7 @@ export const createPainter = (o: {
     const members: Member[] = [];
     for (const [id, p] of placed) {
       if (p.kind === 'placed' && p.section === index) {
-        const range = await o.liveRange(index, p.start, p.end);
+        const range = await rangeFor(index, p.start, p.end);
         if (range) members.push({ id, range, step: p.step, start: p.start });
       } else if (p.kind === 'gap' && p.section === index && display === 'full') {
         const range = await gapRange(index, p.at);

@@ -206,4 +206,26 @@ describe('margins painter', () => {
     expect(marginIdsOfKey('margins:cluster:a,b')).toEqual(['a', 'b']);
     expect(marginIdsOfKey('margins:a')).toEqual(['a']);
   });
+
+  it('reuses live ranges while their document is alive', async () => {
+    const p = document.createElement('p');
+    p.textContent = 'live text in the page';
+    document.body.append(p);
+    const liveRange = vi.fn(async () => {
+      const r = document.createRange();
+      r.selectNodeContents(p);
+      r.getClientRects = () => [] as unknown as DOMRectList;
+      return r;
+    });
+    const painter = createPainter({
+      resolve: async () => ({ kind: 'placed', section: 0, start: 0, end: 4, step: 1 }),
+      liveRange,
+    });
+    await painter.resolveAll([row('a')]);
+    const { overlayer } = fakeOverlayer();
+    await painter.drawSection(0, overlayer, 'full');
+    await painter.drawSection(0, overlayer, 'markers');
+    expect(liveRange).toHaveBeenCalledTimes(1);
+    p.remove();
+  });
 });
