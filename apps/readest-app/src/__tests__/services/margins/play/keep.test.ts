@@ -49,6 +49,10 @@ describe('keep span', () => {
   it('is null with nothing to keep', () => {
     expect(keepSpan({ detached: [], shapeLines: [], canonical })).toBeNull();
   });
+
+  it('is null when the only span is longer than the cap', () => {
+    expect(keepSpan({ detached: [[10, 3500]], shapeLines: [], canonical })).toBeNull();
+  });
 });
 
 describe('keep', () => {

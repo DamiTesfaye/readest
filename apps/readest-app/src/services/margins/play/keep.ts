@@ -36,6 +36,7 @@ export const keepSpan = (a: { detached: Span[]; shapeLines: Span[]; canonical: U
     capEnd += enc.encode(ch).length;
   }
   const kept = all.filter(([, e]) => e <= capEnd);
+  if (kept.length === 0) return null;
   return {
     start,
     end: Math.max(...kept.map(([, e]) => e)),
