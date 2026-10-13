@@ -99,7 +99,18 @@ import ModalPortal from '@/components/ModalPortal';
 import { SelectedFile, useFileSelector } from '@/hooks/useFileSelector';
 import { parseMrexpt } from '@/utils/mrexpt';
 import { canClip } from '@/services/margins/clip';
-import ClipSheet from '../margins/ClipSheet';
+import ClipSheet, { type ClipCompose } from '../margins/ClipSheet';
+import ComposeSurface from '../margins/ComposeSurface';
+import { saveMargin } from '@/services/margins/margins';
+import { openMarginsStore } from '@/services/margins/store';
+import {
+  emptyEnvelope,
+  type Envelope,
+  NOTE_MAX,
+  QUOTE_MAX,
+  scalars,
+} from '@/services/margins/payload';
+import { newElementId } from '@/services/margins/compose/registry';
 import {
   convertMrexptEntriesToBookNotes,
   mergeImportedBookNotes,
@@ -167,6 +178,9 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     index: number;
     note?: string;
   } | null>(null);
+  const [marginCompose, setMarginCompose] = useState<(ClipCompose & { initial: Envelope }) | null>(
+    null,
+  );
   const [translationEpoch, setTranslationEpoch] = useState(0);
   const [showAnnotPopup, setShowAnnotPopup] = useState(false);
   const [showDictionaryPopup, setShowDictionaryPopup] = useState(false);
@@ -2002,6 +2016,24 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           onDismiss={handleDismissPopupAndSelection}
         />
       )}
+      {marginCompose && (
+        <ComposeSurface
+          initial={marginCompose.initial}
+          quote={null}
+          liveQuoteText={marginCompose.range.toString()}
+          capped={marginCompose.capped}
+          quoteCost={Math.min(scalars(marginCompose.range.toString()), QUOTE_MAX)}
+          used={marginCompose.used}
+          anchor={marginCompose.anchor}
+          onDiscard={() => setMarginCompose(null)}
+          onSave={async (envelope, anchor) => {
+            if (!appService || !bookData.book) return;
+            const store = await openMarginsStore(appService);
+            await saveMargin(store, { fileHash: bookData.book.hash, anchor, envelope });
+            setMarginCompose(null);
+          }}
+        />
+      )}
       {marginClip && (
         <ClipSheet
           bookKey={bookKey}
@@ -2009,7 +2041,21 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           index={marginClip.index}
           prefillNote={marginClip.note}
           onClose={() => setMarginClip(null)}
-          onCompose={() => setMarginClip(null)}
+          onCompose={(o) => {
+            setMarginClip(null);
+            const initial = emptyEnvelope();
+            if (o.prefillNote) {
+              initial.elements = [
+                {
+                  id: newElementId(),
+                  kind: 'note',
+                  frame: { x: 0.5, y: 0.8, w: 0.8, r: 0 },
+                  text: [...o.prefillNote].slice(0, NOTE_MAX).join(''),
+                },
+              ];
+            }
+            setMarginCompose({ ...o, initial });
+          }}
         />
       )}
       {showProofreadPopup && trianglePosition && proofreadPopupPosition && selection && (
