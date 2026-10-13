@@ -251,7 +251,13 @@ describe('margins sync', () => {
   it('applies a pulled delete and keeps a newer local rev', async () => {
     await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
     await putLocalLayer('lyr_1', 'txt_a');
-    await currentStore.putLayer({ ...view('lyr_new', 9), fileHash: 'hash-a', deleted: false });
+    await currentStore.putLayer({
+      ...view('lyr_new', 9),
+      fileHash: 'hash-a',
+      deleted: false,
+      createdAt: 9,
+      updatedAt: 9,
+    });
     session.amplereadFetch.mockResolvedValueOnce(
       json(200, {
         layers: [view('lyr_1', 1, 'txt_a', '2026-10-12T01:00:00Z'), view('lyr_new', 5)],

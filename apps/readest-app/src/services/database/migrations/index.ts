@@ -258,6 +258,36 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
         CREATE INDEX IF NOT EXISTS idx_margin_outbox_user ON margin_outbox (user_id, next_at);
       `,
     },
+    {
+      name: '2026101203_margins_b',
+      sql: `
+        ALTER TABLE margin_layers ADD COLUMN created_at INTEGER;
+
+        CREATE INDEX IF NOT EXISTS idx_margin_layers_text ON margin_layers (text_id);
+
+        CREATE TABLE IF NOT EXISTS margin_texts (
+          text_id TEXT PRIMARY KEY,
+          family_id TEXT,
+          capped INTEGER NOT NULL DEFAULT 1,
+          language TEXT,
+          title TEXT,
+          author TEXT,
+          fetched_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_assets (
+          local_id TEXT PRIMARY KEY,
+          user_id TEXT,
+          remote_id TEXT UNIQUE,
+          mime TEXT NOT NULL,
+          data TEXT,
+          sha256 TEXT NOT NULL,
+          width INTEGER NOT NULL,
+          height INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `,
+    },
   ],
   reedy: [
     {

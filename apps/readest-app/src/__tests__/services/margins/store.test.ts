@@ -152,4 +152,109 @@ describe('MarginsStore', () => {
     expect((await migrated.dueOps(10, null)).map((o) => o.opId)).toEqual(['op1', 'op2']);
     expect(await migrated.getCursor('usr_a')).toBe(0);
   });
+
+  it('keeps unsynced rows across the B migration', async () => {
+    const fresh = await NodeDatabaseService.open(':memory:');
+    const all = getMigrations('margins');
+    await migrate(
+      fresh,
+      all.filter((m) => m.name !== '2026101203_margins_b'),
+    );
+    const s = MarginsStore.from(fresh);
+    await s.enqueue(op('a', 1));
+    await fresh.execute(
+      `INSERT INTO margin_layers (id, file_hash, text_id, anchor, kind, payload, rev, deleted, updated_at)
+       VALUES ('lyr_a', 'h', NULL, '{}', 'clip', '{}', NULL, 0, 7)`,
+    );
+    await migrate(fresh, all);
+    const after = MarginsStore.from(fresh);
+    expect((await after.dueOps(10, 'usr_a')).map((o) => o.opId)).toEqual(['a']);
+    expect(await after.getLayer('lyr_a')).toMatchObject({ kind: 'clip', updatedAt: 7 });
+  });
+
+  it('reads layers by file or family text, scoped to the account', async () => {
+    const put = (
+      id: string,
+      fileHash: string,
+      textId: string | null,
+      userId: string | null,
+      createdAt: number,
+    ) =>
+      store.putLayer({
+        id,
+        fileHash,
+        textId,
+        anchor: {} as Anchor,
+        kind: 'clip',
+        payload: {},
+        rev: null,
+        deleted: false,
+        userId,
+        createdAt,
+      });
+    await put('a', 'h1', null, 'u1', 1);
+    await put('b', 'h2', 'txt_v2', 'u1', 2);
+    await put('c', 'h3', 'txt_other', 'u1', 3);
+    await put('d', 'h1', null, 'u2', 4);
+    await put('e', 'h2', 'txt_v2', null, 5);
+    const ids = async (u: string | null) =>
+      (await store.layersForReader('h1', ['txt_v1', 'txt_v2'], u)).map((l) => l.id).sort();
+    expect(await ids('u1')).toEqual(['a', 'b', 'e']);
+    expect((await store.layersForReader('h1', [], 'u1')).map((l) => l.id)).toEqual(['a']);
+    expect((await store.allLayers('u1')).map((l) => l.id)).toEqual(['e', 'c', 'b', 'a']);
+    await put('a', 'h1', null, 'u1', 99);
+    expect((await store.getLayer('a'))?.createdAt).toBe(1);
+  });
+
+  it('stores texts and finds a family', async () => {
+    await store.putText({
+      textId: 'txt_1',
+      familyId: 'txt_1',
+      capped: false,
+      language: 'en',
+      title: 'Meditations',
+      author: null,
+      fetchedAt: 1,
+    });
+    await store.putText({
+      textId: 'txt_2',
+      familyId: 'txt_1',
+      capped: true,
+      language: 'en',
+      title: null,
+      author: null,
+      fetchedAt: 1,
+    });
+    expect(await store.getText('txt_1')).toMatchObject({ capped: false, title: 'Meditations' });
+    expect(await store.getText('txt_none')).toBeNull();
+    expect((await store.familyTextIds('txt_1')).sort()).toEqual(['txt_1', 'txt_2']);
+  });
+
+  it('claims unowned assets and maps remote ids', async () => {
+    await store.putAsset({
+      localId: 'l1',
+      userId: null,
+      remoteId: null,
+      mime: 'image/svg+xml',
+      data: 'PHN2Zy8+',
+      sha256: 'x',
+      width: 1,
+      height: 1,
+      createdAt: 1,
+    });
+    await store.claimUnowned('u1');
+    expect((await store.getAsset('l1'))?.userId).toBe('u1');
+    await store.setAssetRemote('l1', 'ast_1');
+    expect((await store.assetByRemote('ast_1'))?.localId).toBe('l1');
+    expect(await store.assetByRemote('ast_none')).toBeNull();
+  });
+
+  it('rewrites a queued POST instead of queueing a second one', async () => {
+    await store.enqueue({ ...op('p', 1), layerId: 'lyr_x' });
+    expect(await store.replaceQueuedPost('lyr_x', { kind: 'note' })).toBe(true);
+    expect((await store.dueOps(10, 'usr_a'))[0]!.body).toEqual({ kind: 'note' });
+    expect(await store.replaceQueuedPost('lyr_none', {})).toBe(false);
+    await store.dropQueued('lyr_x');
+    expect(await store.dueOps(10, 'usr_a')).toEqual([]);
+  });
 });
