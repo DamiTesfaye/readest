@@ -16,6 +16,7 @@ export interface DownloadAndImportParams {
   downloadUrl?: string;
   headers?: Record<string, string>;
   mediaType?: string;
+  skipSslVerification?: boolean;
   onProgress?: DownloadProgress;
   decorate?: (book: Book) => Book;
   onImported?: (book: Book) => Promise<void> | void;
@@ -30,6 +31,7 @@ const cacheFilenameFor = (url: string, mediaType?: string): string => {
 
 const downloadToCache = async (params: DownloadAndImportParams): Promise<string> => {
   const { appService, url, downloadUrl, headers, mediaType, onProgress } = params;
+  const skipSslVerification = params.skipSslVerification ?? false;
   const dstFilePath = await appService.resolveFilePath(cacheFilenameFor(url, mediaType), 'Cache');
   const responseHeaders = await downloadFile({
     appService,
@@ -38,7 +40,7 @@ const downloadToCache = async (params: DownloadAndImportParams): Promise<string>
     url: downloadUrl ?? url,
     headers,
     singleThreaded: true,
-    skipSslVerification: true,
+    skipSslVerification,
     onProgress,
   });
   const probedFilename = await probeFilename(responseHeaders);

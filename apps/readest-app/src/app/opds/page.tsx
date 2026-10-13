@@ -591,6 +591,7 @@ export default function BrowserPage() {
             downloadUrl,
             headers,
             mediaType: parsed?.mediaType,
+            skipSslVerification: true,
             onProgress,
             onImported: async (book) => {
               if (publication) {
