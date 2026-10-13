@@ -73,9 +73,9 @@ const readError = async (res: Response): Promise<ErrorBody | null> =>
     .json()
     .catch(() => null)) as ErrorBody | null;
 
-const withLock = <T>(fn: () => Promise<T>): Promise<T> => {
+const withLock = async <T>(fn: () => Promise<T>): Promise<T> => {
   if (typeof navigator !== 'undefined' && navigator.locks)
-    return navigator.locks.request(REFRESH_LOCK, fn);
+    return await navigator.locks.request(REFRESH_LOCK, fn);
   const next = fallbackChain.then(fn, fn);
   fallbackChain = next.catch(() => {});
   return next;
