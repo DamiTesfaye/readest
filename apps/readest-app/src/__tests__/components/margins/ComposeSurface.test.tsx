@@ -77,6 +77,21 @@ describe('ComposeSurface', () => {
     ]);
   });
 
+  it('sizes the translation limit from the stored quote once the anchor resolves', async () => {
+    const translation = {
+      id: 't1',
+      kind: 'translation',
+      frame,
+      mode: 'translation',
+      lang: 'fr',
+      text: 'x'.repeat(250),
+      source: 'hand',
+    } as Element;
+    renderSurface({ initial: withElements(translation), quoteCost: 300 });
+    await act(async () => {});
+    expect(save().disabled).toBe(true);
+  });
+
   it('disables Save above 16 KiB of envelope', async () => {
     const big = 'é'.repeat(2000);
     renderSurface({

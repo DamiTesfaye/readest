@@ -19,6 +19,7 @@ import {
   type Frame,
   leadKind,
   PAYLOAD_MAX,
+  quoteCost as costOf,
   scalars,
   type TranslationElement,
   translationMax,
@@ -218,20 +219,21 @@ function ComposeSurface({
   };
 
   const live = quoteText(quote, liveQuoteText);
+  const cost = anchorState.value ? costOf(anchorState.value.quote) : quoteCost;
   const translations = envelope.elements
     .filter((e): e is TranslationElement => e.kind === 'translation')
     .reduce((sum, e) => sum + scalars(e.text), 0);
   const quota = quotaState({
     capped,
     used,
-    cost: quoteCost + (capped ? translations : 0),
-    quoteChars: quoteCost,
+    cost: cost + (capped ? translations : 0),
+    quoteChars: cost,
   });
   const tooBig = envelopeBytes(envelope) > PAYLOAD_MAX;
   const missingAlt = envelope.elements.some(
     (e) => e.kind === 'artwork' && !(e as ArtworkElement).alt.trim(),
   );
-  const valid = validatePayload(envelope, leadKind(envelope), quoteCost, capped, false).ok;
+  const valid = validatePayload(envelope, leadKind(envelope), cost, capped, false).ok;
 
   const blocker = tooBig
     ? _('This Margin is too long to keep. Shorten a note or translation.')
@@ -383,7 +385,7 @@ function ComposeSurface({
               {_('Suggest')}
             </button>
             <span className='text-xs opacity-70'>
-              {scalars(e.text)} / {translationMax(quoteCost, capped)}
+              {scalars(e.text)} / {translationMax(cost, capped)}
             </span>
           </div>
           {(quota.kind === 'near' || quota.kind === 'over') && (
