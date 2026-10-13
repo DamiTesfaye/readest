@@ -24,6 +24,7 @@ export interface AnchorPlacement {
   confidence: number;
   reason?: string;
   notInThisVersion?: { near: Range | null };
+  canonical?: [number, number];
 }
 
 type RawSection = { doc: Document; nodes: Node[]; canonical: Uint8Array };
@@ -166,6 +167,23 @@ const canonicalToLive = async (
   return { node: point.node, offset };
 };
 
+export const liveRange = async (
+  ctx: BridgeContext,
+  section: number,
+  start: number,
+  end: number,
+): Promise<Range | null> => {
+  const live = ctx.liveDoc(section);
+  if (!live) return null;
+  const from = await canonicalToLive(ctx, section, live, start);
+  const to = await canonicalToLive(ctx, section, live, end, true);
+  if (!from || !to) return null;
+  const range = live.createRange();
+  range.setStart(from.node, from.offset);
+  range.setEnd(to.node, to.offset);
+  return range;
+};
+
 export const createAnchor = async (
   ctx: BridgeContext,
   liveRange: Range,
@@ -236,18 +254,11 @@ export const resolveAnchor = async (
       notInThisVersion: { near },
     };
   }
-  const live = ctx.liveDoc(result.section);
-  const placement = {
+  return {
     sectionIndex: result.section,
     step: result.step,
     confidence: result.confidence,
+    canonical: [result.start, result.end],
+    range: await liveRange(ctx, result.section, result.start, result.end),
   };
-  if (!live) return { ...placement, range: null };
-  const start = await canonicalToLive(ctx, result.section, live, result.start);
-  const end = await canonicalToLive(ctx, result.section, live, result.end, true);
-  if (!start || !end) return { ...placement, range: null };
-  const range = live.createRange();
-  range.setStart(start.node, start.offset);
-  range.setEnd(end.node, end.offset);
-  return { ...placement, range };
 };
