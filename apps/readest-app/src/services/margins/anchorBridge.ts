@@ -23,7 +23,7 @@ export interface AnchorPlacement {
   step: 1 | 2 | 3 | null;
   confidence: number;
   reason?: string;
-  notInThisVersion?: { near: Range | null };
+  notInThisVersion?: { near: Range | null; at: number | null };
   canonical?: [number, number];
 }
 
@@ -251,7 +251,7 @@ export const resolveAnchor = async (
       sectionIndex: section,
       step: null,
       confidence: result.confidence,
-      notInThisVersion: { near },
+      notInThisVersion: { near, at: section === null ? null : at },
     };
   }
   return {

@@ -251,6 +251,7 @@ describe('anchor bridge', () => {
     expect(placed.sectionIndex).toBe(i);
     expect(placed.notInThisVersion?.near).toBeInstanceOf(Range);
     expect(placed.notInThisVersion?.near?.collapsed).toBe(true);
+    expect(placed.notInThisVersion?.at).toEqual(expect.any(Number));
     expect(placed.canonical).toBeUndefined();
   });
 
