@@ -137,6 +137,11 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
     eventDispatcher.dispatch('rsvp-start', { bookKey });
   };
 
+  const handlePlay = () => {
+    setIsDropdownOpen?.(false);
+    eventDispatcher.dispatch('margins-play-enter', { bookKey });
+  };
+
   const toggleAutoScroll = () => {
     setIsDropdownOpen?.(false);
     eventDispatcher.dispatch('autoscroll-toggle', { bookKey });
@@ -491,6 +496,12 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         label={_('Speed Reading Mode')}
         shortcut='Shift+V'
         onClick={handleStartRSVP}
+        disabled={bookData.isFixedLayout}
+      />
+
+      <MenuItem
+        label={_('Play with this page')}
+        onClick={handlePlay}
         disabled={bookData.isFixedLayout}
       />
 

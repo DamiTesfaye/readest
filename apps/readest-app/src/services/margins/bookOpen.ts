@@ -8,9 +8,16 @@ import { getMarginsCore } from './marginsClient';
 import { openMarginsStore, type MarginsStore } from './store';
 import { cachedLink, familyCache, loadLink, saveLink, syncMargins } from './sync';
 import { buildTextMap } from './textMap';
+import { rememberMatches } from './texts';
 
 type Fingerprint = (string[] | null)[];
-type TextMatch = { textId: string; confidence: number; relation: string; familyId: string };
+type TextMatch = {
+  textId: string;
+  confidence: number;
+  relation: string;
+  familyId: string;
+  capped: boolean;
+};
 
 const prepared = new Map<string, Promise<Fingerprint>>();
 const linking = new Map<string, Promise<void>>();
@@ -90,6 +97,7 @@ const link = async (
     signedIn,
   );
   for (const m of matches) familyCache.set(m.textId, m.familyId);
+  await rememberMatches(store, matches);
   const top = matches[0];
   if (top?.relation === 'same') {
     await saveLink(store, book.hash, top.textId, language, top.familyId);
@@ -108,6 +116,15 @@ const link = async (
     versionOf: version?.textId ?? null,
   });
   await saveLink(store, book.hash, textId, language, version?.familyId ?? textId);
+  await store.putText({
+    textId,
+    familyId: version?.familyId ?? textId,
+    capped: true,
+    language,
+    title: book.title,
+    author: book.author,
+    fetchedAt: Date.now(),
+  });
   pendingFamily.delete(book.hash);
 };
 

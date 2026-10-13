@@ -9,6 +9,7 @@ import { loadEnvFile } from './vitest.env.mts';
 const env = { ...loadEnvFile('.env'), ...loadEnvFile('.env.web'), CI: process.env['CI'] ?? '' };
 
 const MINDMAP_PERF_TEST = 'src/__tests__/app/reader/components/mindmap/mindmapCanvas.browser.test.tsx';
+const PLAY_SURFACE_TEST = 'src/__tests__/services/margins/play/surface.browser.test.ts';
 
 const contextOptions = {
   viewport: { width: 1920, height: 1080 },
@@ -90,6 +91,16 @@ export default defineConfig({
         test: {
           name: 'chromium',
           include: ['src/**/*.browser.test.ts', 'src/**/*.browser.test.tsx'],
+          exclude: [PLAY_SURFACE_TEST],
+          browser: { instances: [{ browser: 'chromium' }] },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'chromium-play-surface',
+          include: [PLAY_SURFACE_TEST],
+          sequence: { groupOrder: 2 },
           browser: { instances: [{ browser: 'chromium' }] },
         },
       },

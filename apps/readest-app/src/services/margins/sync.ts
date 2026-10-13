@@ -4,6 +4,8 @@ import {
   getSession,
 } from '@/services/ampleread/auth/session';
 import type { MarginsStore, OutboxMethod, OutboxOp, TextLink } from './store';
+import { AssetRetryError, errorCode, uploadAssets } from './assets';
+import { ensureTexts } from './texts';
 import type { Anchor } from './types';
 
 export const MARGINS_LOCAL_FIRST = true;
@@ -16,10 +18,23 @@ export interface LayerView {
   textId: string;
   anchor: Anchor;
   kind: string;
+  contract: string;
   payload: unknown;
   rev: number;
+  createdAt: string;
   deletedAt: string | null;
 }
+
+const changeListeners = new Set<() => void>();
+
+export const onMarginsChanged = (listener: () => void): (() => void) => {
+  changeListeners.add(listener);
+  return () => changeListeners.delete(listener);
+};
+
+export const notifyMarginsChanged = (): void => {
+  for (const listener of [...changeListeners]) listener();
+};
 
 const linkCache = new Map<string, Pick<TextLink, 'textId' | 'familyId'>>();
 export const familyCache = new Map<string, string>();
@@ -51,10 +66,6 @@ const currentUserId = async () => (await getSession())?.me.id ?? null;
 
 const backoff = (attempts: number) =>
   Math.min(2 ** attempts * 1000, MAX_BACKOFF_MS) * (0.8 + Math.random() * 0.4);
-
-const errorCode = async (res: Response) =>
-  ((await res.json().catch(() => null)) as { error?: string } | null)?.error ??
-  `http_${res.status}`;
 
 export const queueLayerWrite = async (
   store: MarginsStore,
@@ -90,19 +101,25 @@ const applyLayer = async (store: MarginsStore, view: LayerView, userId: string) 
     textId: view.textId,
     anchor: view.anchor,
     kind: view.kind,
+    contract: view.contract,
     payload: view.payload,
     rev: view.rev,
     deleted: view.deletedAt !== null,
     error: null,
     userId,
+    createdAt: Date.parse(view.createdAt) || undefined,
   });
 };
 
-const sendOp = async (store: MarginsStore, op: OutboxOp) => {
+const sendOp = async (store: MarginsStore, op: OutboxOp, userId: string) => {
   const layer = await store.getLayer(op.layerId);
   const link = layer ? await store.getTextLink(layer.fileHash) : null;
-  const body = op.method === 'DELETE' ? undefined : withTextId(op.body, link?.textId ?? null);
-  if (body === null) return null;
+  const linked = op.method === 'DELETE' ? undefined : withTextId(op.body, link?.textId ?? null);
+  if (linked === null) return null;
+  const prepared =
+    linked === undefined ? { body: undefined } : await uploadAssets(store, linked, userId);
+  if ('error' in prepared) return prepared;
+  const { body } = prepared;
   const path = op.method === 'POST' ? '/v1/layers' : `/v1/layers/${encodeURIComponent(op.layerId)}`;
   return amplereadFetch(path, {
     method: op.method,
@@ -111,39 +128,69 @@ const sendOp = async (store: MarginsStore, op: OutboxOp) => {
   });
 };
 
+const settle = async (store: MarginsStore, op: OutboxOp, view: LayerView, userId: string) => {
+  const current = op.method === 'POST' ? await store.queuedBody(op.opId) : op.body;
+  if (current === undefined) {
+    await queueLayerWrite(store, { layerId: op.layerId, method: 'DELETE', body: null });
+    return;
+  }
+  if (JSON.stringify(current) === JSON.stringify(op.body)) {
+    await applyLayer(store, view, userId);
+    await store.ack(op.opId);
+    return;
+  }
+  const local = await store.getLayer(op.layerId);
+  if (local) await store.putLayer({ ...local, rev: view.rev });
+  const { id: _id, ...patch } = current as { id: string; contract?: string };
+  await store.ack(op.opId);
+  await queueLayerWrite(store, {
+    layerId: op.layerId,
+    method: 'PATCH',
+    body: { ...patch, contract: patch.contract ?? 'overlay' },
+  });
+};
+
 export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promise<number> => {
   const userId = await currentUserId();
   if (!userId) return 0;
   await store.claimUnowned(userId);
   let sent = 0;
+  let marked = 0;
   const held = new Set<string>();
   for (const op of await store.dueOps(now, userId)) {
     if (held.has(op.layerId)) continue;
-    if ((await currentUserId()) !== userId) return sent;
-    let res: Response | null;
+    if ((await currentUserId()) !== userId) break;
+    let res: Awaited<ReturnType<typeof sendOp>>;
     try {
-      res = await sendOp(store, op);
+      res = await sendOp(store, op, userId);
     } catch (error) {
-      if (error instanceof AmpleReadSignedOutError) return sent;
-      await store.reschedule(op.opId, now + backoff(op.attempts));
-      return sent;
+      if (!(error instanceof AmpleReadSignedOutError)) {
+        const wait = error instanceof AssetRetryError ? error.retryAfterMs : undefined;
+        await store.reschedule(op.opId, now + (wait ?? backoff(op.attempts)));
+      }
+      break;
     }
     if (!res) {
       held.add(op.layerId);
-    } else if (res.ok) {
-      await applyLayer(store, (await res.json()) as LayerView, userId);
+    } else if ('error' in res) {
+      await store.markLayerError(op.layerId, res.error);
       await store.ack(op.opId);
+      marked++;
+    } else if (res.ok) {
+      await settle(store, op, (await res.json()) as LayerView, userId);
       sent++;
     } else if (res.status === 429 || res.status >= 500) {
       const retryAfter = Number(res.headers.get('retry-after'));
       const delay = res.status === 429 && retryAfter > 0 ? retryAfter * 1000 : backoff(op.attempts);
       await store.reschedule(op.opId, now + delay);
-      return sent;
+      break;
     } else {
       await store.markLayerError(op.layerId, await errorCode(res));
       await store.ack(op.opId);
+      marked++;
     }
   }
+  if (sent + marked > 0) notifyMarginsChanged();
   return sent;
 };
 
@@ -151,18 +198,24 @@ export const pullChanges = async (store: MarginsStore): Promise<number> => {
   const userId = await currentUserId();
   if (!userId) return 0;
   let pulled = 0;
+  const textIds: string[] = [];
   let since: number | null = await store.getCursor(userId);
   while (since !== null) {
     const res = await amplereadFetch(`/v1/layers/changes?since=${since}`);
     if (!res.ok) throw new Error(`margins pull failed: ${res.status}`);
     const page = (await res.json()) as { layers: LayerView[]; nextCursor: number | null };
     if ((await currentUserId()) !== userId) return pulled;
-    for (const view of page.layers) await applyLayer(store, view, userId);
+    for (const view of page.layers) {
+      await applyLayer(store, view, userId);
+      textIds.push(view.textId);
+    }
     const last = page.layers.at(-1)?.rev;
     if (last !== undefined) await store.setCursor(userId, last);
     pulled += page.layers.length;
     since = page.nextCursor;
   }
+  await ensureTexts(store, textIds);
+  if (pulled > 0) notifyMarginsChanged();
   return pulled;
 };
 

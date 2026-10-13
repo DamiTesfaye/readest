@@ -4,7 +4,12 @@ import * as CFI from 'foliate-js/epubcfi.js';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { DocumentLoader, type BookDoc } from '@/libs/document';
 import { transformTTSSectionDocument } from '@/services/tts/transformDoc';
-import { createAnchor, resolveAnchor, type BridgeContext } from '@/services/margins/anchorBridge';
+import {
+  createAnchor,
+  liveRange,
+  resolveAnchor,
+  type BridgeContext,
+} from '@/services/margins/anchorBridge';
 import { buildTextMap } from '@/services/margins/textMap';
 import type { MarginsCore } from '@/services/margins/marginsClient';
 import type { MarginsStore } from '@/services/margins/store';
@@ -113,6 +118,17 @@ describe('anchor bridge', () => {
     expect(placed.step).toBe(1);
     expect(placed.sectionIndex).toBe(i);
     expect(placed.range?.toString()).toBe(quote);
+  });
+
+  it('reports canonical offsets that map back to the same live range', async () => {
+    const { ctx, docs } = await open('alice', alice, async (_, raw) => raw);
+    const quote = 'very tired of sitting';
+    const i = sectionWith(docs, quote);
+    const placed = await resolveAnchor(ctx, await createAnchor(ctx, textRange(docs[i]!, quote), i));
+    const [start, end] = placed.canonical!;
+    expect(end).toBeGreaterThan(start);
+    expect((await liveRange(ctx, i, start, end))?.toString()).toBe(placed.range?.toString());
+    expect(await liveRange({ ...ctx, liveDoc: () => null }, i, start, end)).toBeNull();
   });
 
   it('survives a proofread insertion in the live text node', async () => {
@@ -235,6 +251,8 @@ describe('anchor bridge', () => {
     expect(placed.sectionIndex).toBe(i);
     expect(placed.notInThisVersion?.near).toBeInstanceOf(Range);
     expect(placed.notInThisVersion?.near?.collapsed).toBe(true);
+    expect(placed.notInThisVersion?.at).toEqual(expect.any(Number));
+    expect(placed.canonical).toBeUndefined();
   });
 
   it('waits for the book to be ready before touching the core', async () => {

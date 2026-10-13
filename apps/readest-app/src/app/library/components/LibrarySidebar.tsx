@@ -51,6 +51,7 @@ interface SidebarNavItemProps {
   active?: boolean;
   isDarkMode: boolean;
   iconClassName?: string;
+  iconSrc?: string;
   onClick: () => void;
 }
 
@@ -60,6 +61,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   active = false,
   isDarkMode,
   iconClassName = 'h-4',
+  iconSrc,
   onClick,
 }) => (
   <button
@@ -73,7 +75,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
     )}
   >
     <img
-      src={getHomepageIconSrc(icon, isDarkMode, active)}
+      src={iconSrc ?? getHomepageIconSrc(icon, isDarkMode, active)}
       alt=''
       aria-hidden
       className={clsx('w-6 object-contain', iconClassName)}
@@ -97,7 +99,8 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
   const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
   const catalogsActive = searchParams?.get('catalogs') === 'true';
   const exploreActive = searchParams?.get('explore') === 'true';
-  const discoverActive = catalogsActive || exploreActive;
+  const marginsActive = searchParams?.get('margins') === 'true';
+  const discoverActive = catalogsActive || exploreActive || marginsActive;
 
   const navigateWithParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -156,8 +159,18 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
       if (discoverActive) {
         params.delete('catalogs');
         params.delete('explore');
+        params.delete('margins');
         params.delete('q');
       }
+    });
+  };
+
+  const handleOpenMargins = () => {
+    navigateWithParams((params) => {
+      params.set('margins', 'true');
+      params.delete('catalogs');
+      params.delete('explore');
+      params.delete('q');
     });
   };
 
@@ -246,6 +259,19 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
             isDarkMode={isDarkMode}
             iconClassName='h-5'
             onClick={toastComingSoon}
+          />
+        </div>
+        <div className='flex flex-col gap-1'>
+          <span className='text-base-content/50 px-2 [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+            {_('Margins')}
+          </span>
+          <SidebarNavItem
+            icon='margins'
+            iconSrc='/images/spark/margins.svg'
+            label={_('Your Margins')}
+            active={marginsActive}
+            isDarkMode={isDarkMode}
+            onClick={handleOpenMargins}
           />
         </div>
         <div className='flex flex-col gap-1'>

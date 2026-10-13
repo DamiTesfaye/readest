@@ -23,6 +23,7 @@ export interface MoreActionHandlers {
   onOpenContents: (target: HTMLElement) => void;
   onOpenThemeFonts: (target: HTMLElement) => void;
   onOpenAnnotations: (target: HTMLElement) => void;
+  onOpenMargins: (target: HTMLElement) => void;
   onOpenBooknotes: (target: HTMLElement) => void;
   onToggleTTS: () => void;
 }
@@ -35,6 +36,7 @@ export const useMoreActions = ({
   onOpenContents,
   onOpenThemeFonts,
   onOpenAnnotations,
+  onOpenMargins,
   onOpenBooknotes,
   onToggleTTS,
 }: MoreActionHandlers): Record<QuickPickId, MoreAction> => {
@@ -105,7 +107,15 @@ export const useMoreActions = ({
     margins: {
       title: _('Margins'),
       subtitle: _('Readers, notes & finds'),
-      run: comingSoon,
+      run: onOpenMargins,
+    },
+    play: {
+      title: _('Play'),
+      subtitle: _('Text in motion'),
+      run: () => {
+        eventDispatcher.dispatch('margins-play-enter', { bookKey });
+        onDone();
+      },
     },
     mindmap: {
       title: _('Mindmap'),

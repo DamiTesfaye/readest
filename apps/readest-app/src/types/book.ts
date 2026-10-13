@@ -30,6 +30,7 @@ export interface UserHighlightColor {
   label?: string;
 }
 export type ReadingRulerColor = 'transparent' | 'yellow' | 'green' | 'blue' | 'rose';
+export type MarginsDisplay = 'full' | 'markers' | 'quiet';
 
 export interface ParagraphModeConfig {
   enabled: boolean;
@@ -339,6 +340,7 @@ export interface ViewConfig {
 
   readingRulerEnabled: boolean;
   movingPicturesEnabled: boolean;
+  marginsDisplay: MarginsDisplay;
   readingRulerLines: number;
   readingRulerPosition: number;
   readingRulerOpacity: number;

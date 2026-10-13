@@ -66,7 +66,7 @@ const view = (id: string, rev: number, textId = 'txt_a', deletedAt: string | nul
   textId,
   anchor: anchor(textId),
   kind: 'note',
-  contract: 'v1',
+  contract: 'overlay',
   payload: { text: id },
   visibility: 'private',
   rev,
@@ -239,6 +239,7 @@ describe('margins sync', () => {
     expect(session.amplereadFetch.mock.calls.map((c) => c[0])).toEqual([
       '/v1/layers/changes?since=0',
       '/v1/layers/changes?since=3',
+      '/v1/texts/txt_a',
     ]);
     expect(await currentStore.getCursor('usr_a')).toBe(4);
     expect((await currentStore.layersForFile('hash-a', 'usr_a')).map((l) => l.id).sort()).toEqual([
@@ -248,10 +249,35 @@ describe('margins sync', () => {
     ]);
   });
 
+  it('stores the pulled contract', async () => {
+    await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
+    const play = { ...view('lyr_p', 1), kind: 'play', contract: 'displace' };
+    session.amplereadFetch.mockResolvedValueOnce(json(200, { layers: [play], nextCursor: null }));
+    await pullChanges(currentStore);
+    expect((await currentStore.getLayer('lyr_p'))?.contract).toBe('displace');
+  });
+
+  it('takes createdAt from the pulled layer', async () => {
+    await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
+    session.amplereadFetch.mockResolvedValueOnce(
+      json(200, { layers: [view('lyr_1', 1)], nextCursor: null }),
+    );
+    await pullChanges(currentStore);
+    expect((await currentStore.getLayer('lyr_1'))?.createdAt).toBe(
+      Date.parse('2026-10-12T00:00:00Z'),
+    );
+  });
+
   it('applies a pulled delete and keeps a newer local rev', async () => {
     await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
     await putLocalLayer('lyr_1', 'txt_a');
-    await currentStore.putLayer({ ...view('lyr_new', 9), fileHash: 'hash-a', deleted: false });
+    await currentStore.putLayer({
+      ...view('lyr_new', 9),
+      fileHash: 'hash-a',
+      deleted: false,
+      createdAt: 9,
+      updatedAt: 9,
+    });
     session.amplereadFetch.mockResolvedValueOnce(
       json(200, {
         layers: [view('lyr_1', 1, 'txt_a', '2026-10-12T01:00:00Z'), view('lyr_new', 5)],
@@ -301,7 +327,10 @@ describe('margins per account', () => {
     signInAs('usr_a');
     session.amplereadFetch.mockResolvedValueOnce(feed());
     await pullChanges(currentStore);
-    expect(session.amplereadFetch.mock.calls.map((c) => c[0])).toEqual([
+    const feedCalls = session.amplereadFetch.mock.calls
+      .map((c) => c[0] as string)
+      .filter((path) => path.startsWith('/v1/layers'));
+    expect(feedCalls).toEqual([
       '/v1/layers/changes?since=0',
       '/v1/layers/changes?since=0',
       '/v1/layers/changes?since=4',
@@ -379,6 +408,11 @@ describe('margins book open', () => {
       textId: 'txt_new',
       familyId: 'txt_new',
     });
+    expect(await currentStore.getText('txt_new')).toMatchObject({
+      capped: true,
+      familyId: 'txt_new',
+      title: 'Alice',
+    });
   });
 
   it('links a same match without registering', async () => {
@@ -386,7 +420,13 @@ describe('margins book open', () => {
       .mockResolvedValueOnce(
         json(200, {
           matches: [
-            { textId: 'txt_same', confidence: 0.9, relation: 'same', familyId: 'txt_root' },
+            {
+              textId: 'txt_same',
+              confidence: 0.9,
+              relation: 'same',
+              familyId: 'txt_root',
+              capped: false,
+            },
           ],
         }),
       )
@@ -395,6 +435,10 @@ describe('margins book open', () => {
     expect(session.amplereadFetch.mock.calls.map((c) => c[0])).not.toContain('/v1/texts');
     expect(await currentStore.getTextLink('hash-b')).toMatchObject({
       textId: 'txt_same',
+      familyId: 'txt_root',
+    });
+    expect(await currentStore.getText('txt_same')).toMatchObject({
+      capped: false,
       familyId: 'txt_root',
     });
   });

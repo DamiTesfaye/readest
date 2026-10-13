@@ -23,7 +23,8 @@ export interface AnchorPlacement {
   step: 1 | 2 | 3 | null;
   confidence: number;
   reason?: string;
-  notInThisVersion?: { near: Range | null };
+  notInThisVersion?: { near: Range | null; at: number | null };
+  canonical?: [number, number];
 }
 
 type RawSection = { doc: Document; nodes: Node[]; canonical: Uint8Array };
@@ -129,7 +130,7 @@ const liveToCanonical = async (
   return ctx.core.fromRaw(ctx.book.hash, index, run, utf16);
 };
 
-const rangeToCanonical = async (ctx: BridgeContext, index: number, range: Range) => {
+export const rangeToCanonical = async (ctx: BridgeContext, index: number, range: Range) => {
   const start = await liveToCanonical(ctx, index, range.startContainer, range.startOffset, false);
   const end = await liveToCanonical(ctx, index, range.endContainer, range.endOffset, true);
   const { canonical } = await rawSection(ctx, index);
@@ -166,6 +167,23 @@ const canonicalToLive = async (
   return { node: point.node, offset };
 };
 
+export const liveRange = async (
+  ctx: BridgeContext,
+  section: number,
+  start: number,
+  end: number,
+): Promise<Range | null> => {
+  const live = ctx.liveDoc(section);
+  if (!live) return null;
+  const from = await canonicalToLive(ctx, section, live, start);
+  const to = await canonicalToLive(ctx, section, live, end, true);
+  if (!from || !to) return null;
+  const range = live.createRange();
+  range.setStart(from.node, from.offset);
+  range.setEnd(to.node, to.offset);
+  return range;
+};
+
 export const createAnchor = async (
   ctx: BridgeContext,
   liveRange: Range,
@@ -180,6 +198,23 @@ export const createAnchor = async (
     end,
     capped: ctx.capped,
     file: { fileHash: ctx.book.hash, cfi },
+  });
+};
+
+export const createAnchorAt = async (
+  ctx: BridgeContext,
+  sectionIndex: number,
+  start: number,
+  end: number,
+): Promise<Anchor> => {
+  await ctx.ready;
+  const range = await liveRange(ctx, sectionIndex, start, end);
+  return ctx.core.buildAnchor(ctx.book.hash, {
+    section: sectionIndex,
+    start,
+    end,
+    capped: ctx.capped,
+    file: range ? { fileHash: ctx.book.hash, cfi: ctx.getCFI(sectionIndex, range) } : undefined,
   });
 };
 
@@ -233,21 +268,14 @@ export const resolveAnchor = async (
       sectionIndex: section,
       step: null,
       confidence: result.confidence,
-      notInThisVersion: { near },
+      notInThisVersion: { near, at: section === null ? null : at },
     };
   }
-  const live = ctx.liveDoc(result.section);
-  const placement = {
+  return {
     sectionIndex: result.section,
     step: result.step,
     confidence: result.confidence,
+    canonical: [result.start, result.end],
+    range: await liveRange(ctx, result.section, result.start, result.end),
   };
-  if (!live) return { ...placement, range: null };
-  const start = await canonicalToLive(ctx, result.section, live, result.start);
-  const end = await canonicalToLive(ctx, result.section, live, result.end, true);
-  if (!start || !end) return { ...placement, range: null };
-  const range = live.createRange();
-  range.setStart(start.node, start.offset);
-  range.setEnd(end.node, end.offset);
-  return { ...placement, range };
 };
