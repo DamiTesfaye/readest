@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   session: null as unknown,
   library: [] as { hash: string; title: string; coverImageUrl?: string }[],
   scheduleDelete: vi.fn(() => ({ undo: vi.fn(), flush: vi.fn() })),
+  flag: false,
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -44,7 +45,15 @@ vi.mock('@/store/libraryStore', () => {
   return { useLibraryStore };
 });
 
+vi.mock('@/services/margins/public/flag', () => ({ useMarginsPublic: () => h.flag }));
+vi.mock('@/services/margins/public/api', async (orig) => ({
+  ...(await orig<typeof import('@/services/margins/public/api')>()),
+  publicApi: { myPosts: async () => [] },
+}));
+
 import MarginsView from '@/app/library/components/MarginsView';
+import { MARGINS_PUBLISH_EVENT } from '@/app/reader/components/margins/PublishSheet';
+import { eventDispatcher } from '@/utils/event';
 
 const row = (id: string, createdAt: number, o: Partial<LayerRow> = {}): LayerRow => ({
   id,
@@ -75,6 +84,7 @@ beforeEach(() => {
   ];
   h.session = { me: { id: 'u1' } };
   h.library = [{ hash: 'alice', title: 'Alice in Wonderland', coverImageUrl: 'blob:alice' }];
+  h.flag = false;
   vi.clearAllMocks();
 });
 
@@ -128,5 +138,18 @@ describe('MarginsView', () => {
     h.session = null;
     await renderView();
     screen.getByText('Sign in to keep your Margins on all your devices.');
+  });
+
+  it('offers Publish on each Margin only while the flag is on', async () => {
+    await renderView();
+    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull();
+    cleanup();
+    h.flag = true;
+    const spy = vi.spyOn(eventDispatcher, 'dispatch');
+    await renderView();
+    const alice = screen.getAllByRole('region')[0]!;
+    fireEvent.click(within(alice).getAllByRole('button', { name: 'Publish' })[0]!);
+    expect(spy).toHaveBeenCalledWith(MARGINS_PUBLISH_EVENT, { layerId: 'a2' });
+    spy.mockRestore();
   });
 });

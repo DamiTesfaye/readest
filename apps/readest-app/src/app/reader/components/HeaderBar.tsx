@@ -30,6 +30,7 @@ import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
 import MarginsPopover, { MARGINS_POPOVER_WIDTH } from './margins/MarginsPopover';
+import PublicMarginsHost from './margins/PublicMarginsHost';
 import { MARGINS_OPEN_PANEL_EVENT } from './margins/ClipSheet';
 import { MARGINS_OPEN_CARD_EVENT } from '../hooks/useMarginsPainter';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
@@ -585,6 +586,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             focusId={marginsFocusId}
             onClose={handleCloseMargins}
           />
+          <PublicMarginsHost bookKey={bookKey} />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
             {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
             <NotebookToggler bookKey={bookKey} />

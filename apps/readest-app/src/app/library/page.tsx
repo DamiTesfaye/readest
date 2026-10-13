@@ -26,6 +26,7 @@ import type { LayerRow } from '@/services/margins/store';
 import { requestMarginOpen } from '@/app/reader/hooks/useMarginsPainter';
 import MarginsRail from './components/MarginsRail';
 import MarginsView from './components/MarginsView';
+import PublicMarginsHost from '@/app/reader/components/margins/PublicMarginsHost';
 import AmpleDocumentPromptDialog, {
   type AmpleDocumentChoice,
 } from '@/app/library/components/AmpleDocumentPromptDialog';
@@ -2398,6 +2399,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         onImport={handleImportNovelFile}
       />
       <ClipSignInAlert />
+      <PublicMarginsHost bookKey={null} />
       <Toast />
     </div>
   );

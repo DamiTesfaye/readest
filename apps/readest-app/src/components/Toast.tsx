@@ -4,6 +4,10 @@ import { useThemeStore } from '@/store/themeStore';
 import { eventDispatcher } from '@/utils/event';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
+export interface ToastAction {
+  label: string;
+  onClick(): void;
+}
 
 export const Toast = () => {
   const { safeAreaInsets } = useThemeStore();
@@ -12,6 +16,7 @@ export const Toast = () => {
   const [toastTimeout, setToastTimeout] = useState(5000);
   const [messageClass, setMessageClass] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [action, setAction] = useState<ToastAction | null>(null);
   const toastDismissTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toastClassMap = {
@@ -93,6 +98,7 @@ export const Toast = () => {
   const handleShowToast = async (event: CustomEvent) => {
     const { message, type = 'info', timeout, className = '', callback = null } = event.detail;
     setToastMessage(message);
+    setAction(event.detail.action ?? null);
     setToastType(type);
     if (timeout) setToastTimeout(timeout);
     if (callback && typeof callback === 'function') {
@@ -160,6 +166,19 @@ export const Toast = () => {
               </React.Fragment>
             ))}
           </span>
+
+          {action && (
+            <button
+              type='button'
+              className='btn btn-ghost btn-sm flex-shrink-0'
+              onClick={() => {
+                action.onClick();
+                handleDismiss();
+              }}
+            >
+              {action.label}
+            </button>
+          )}
 
           {/* Close button */}
           <button

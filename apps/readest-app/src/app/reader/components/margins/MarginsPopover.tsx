@@ -17,6 +17,7 @@ import {
 } from '@/services/margins/margins';
 import type { Placement } from '@/services/margins/painter';
 import { type Envelope, quoteCost } from '@/services/margins/payload';
+import { publicStateOf, unpublishPost, useMyPosts } from '@/services/margins/public/myPosts';
 import { type LayerRow, type MarginsStore, openMarginsStore } from '@/services/margins/store';
 import { cachedLink } from '@/services/margins/sync';
 import { readerTextIds } from '@/services/margins/texts';
@@ -31,6 +32,7 @@ import { getMarginsPainter, MARGINS_PLACED_EVENT } from '../../hooks/useMarginsP
 import { useMarginsQuota } from './ClipSheet';
 import ComposeSurface from './ComposeSurface';
 import MarginCard, { isEnvelope, storedQuote } from './MarginCard';
+import { MARGINS_PUBLISH_EVENT } from './PublishSheet';
 
 export const MARGINS_POPOVER_WIDTH = 340;
 const MAX_POPOVER_HEIGHT = 520;
@@ -102,6 +104,7 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
   const [deleted, setDeleted] = useState<{ undo(): void } | null>(null);
   const [editing, setEditing] = useState<{ row: LayerRow; anchor: Promise<Anchor> } | null>(null);
   const cards = useRef(new Map<string, HTMLDivElement>());
+  const { posts } = useMyPosts();
 
   useEffect(() => setDisplay(saved), [saved]);
 
@@ -204,6 +207,7 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
     const p = placedOf(row);
     const placed = p?.kind === 'placed' ? p : null;
     const fail = () => console.error('Margins: panel action failed');
+    const publicState = publicStateOf(row, posts);
     return (
       <li key={row.id}>
         {p?.kind === 'detached' && (
@@ -232,6 +236,20 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
                   onClose();
                   eventDispatcher.dispatch('margins-play-enter', { bookKey, layerId: row.id });
                 }
+              : undefined
+          }
+          publicState={publicState}
+          onPublish={() =>
+            eventDispatcher.dispatch(MARGINS_PUBLISH_EVENT, { layerId: row.id, bookKey })
+          }
+          onUnpublish={
+            appService && 'post' in publicState
+              ? () =>
+                  void unpublishPost(
+                    (m) => appService.ask(m),
+                    _('Remove this Margin from public view?'),
+                    publicState.post,
+                  ).catch(fail)
               : undefined
           }
         />

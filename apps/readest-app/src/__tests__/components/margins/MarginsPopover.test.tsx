@@ -2,7 +2,9 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Placement } from '@/services/margins/painter';
 import type { LayerRow } from '@/services/margins/store';
+import { PublicApiError } from '@/services/margins/public/api';
 import type { Anchor } from '@/services/margins/types';
+import { eventDispatcher } from '@/utils/event';
 
 const h = vi.hoisted(() => ({
   rows: [] as LayerRow[],
@@ -15,6 +17,11 @@ const h = vi.hoisted(() => ({
   editMargin: vi.fn(async () => {}),
   scheduleDelete: vi.fn(() => ({ undo: vi.fn(), flush: vi.fn() })),
   createAnchor: vi.fn(async () => ({ quote: { exact: 'new' } })),
+  flag: false,
+  myPosts: [] as unknown[],
+  appeal: vi.fn(),
+  unpublish: vi.fn(async () => ({})),
+  ask: vi.fn(async () => true),
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -23,7 +30,7 @@ vi.mock('@/hooks/useTranslation', () => ({
 }));
 vi.mock('@/hooks/useTranslator', () => ({ useTranslator: () => ({ translate: vi.fn() }) }));
 vi.mock('@/context/EnvContext', () => {
-  const env = { envConfig: {}, appService: {} };
+  const env = { envConfig: {}, appService: { ask: h.ask } };
   return { useEnv: () => env };
 });
 vi.mock('@/components/ToolbarPopover', () => ({
@@ -79,6 +86,18 @@ vi.mock('@/app/reader/hooks/useMarginsPainter', () => ({
   MARGINS_PLACED_EVENT: 'margins-placed',
 }));
 
+vi.mock('@/services/margins/public/flag', () => ({ useMarginsPublic: () => h.flag }));
+vi.mock('@/services/margins/public/api', async (orig) => ({
+  ...(await orig<typeof import('@/services/margins/public/api')>()),
+  publicApi: {
+    myPosts: async () => h.myPosts,
+    appeal: h.appeal,
+    unpublish: h.unpublish,
+    counterNotice: vi.fn(),
+  },
+}));
+
+import { MARGINS_PUBLISH_EVENT } from '@/app/reader/components/margins/PublishSheet';
 import MarginsPopover from '@/app/reader/components/margins/MarginsPopover';
 
 const row = (id: string, quote: string, o: Partial<LayerRow> = {}): LayerRow => ({
@@ -115,6 +134,8 @@ beforeEach(() => {
   ]);
   h.session = { me: { id: 'u1' } };
   h.display = 'full';
+  h.flag = false;
+  h.myPosts = [];
   vi.clearAllMocks();
 });
 
@@ -215,5 +236,138 @@ describe('MarginsPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     const handle = h.scheduleDelete.mock.results[0]!.value as { undo: () => void };
     expect(handle.undo).toHaveBeenCalled();
+  });
+});
+
+describe('MarginsPopover public state', () => {
+  const later = new Date(Date.now() + 86_400_000).toISOString();
+  const earlier = new Date(Date.now() - 86_400_000).toISOString();
+  const mine = (o: Record<string, unknown> = {}) => ({
+    id: 'pst1',
+    layerId: 'early',
+    version: 1,
+    layerRev: 1,
+    status: 'live',
+    reason: null,
+    statusChangedAt: earlier,
+    appealUntil: null,
+    counterNoticeUntil: null,
+    cardUrl: null,
+    appealState: 'none',
+    noticeWork: null,
+    ...o,
+  });
+  const card = () => screen.getAllByRole('listitem')[0]!;
+
+  beforeEach(() => {
+    h.flag = true;
+    h.rows = [row('early', 'early passage')];
+    h.placements = new Map([['early', { kind: 'placed', section: 1, start: 0, end: 5, step: 1 }]]);
+  });
+
+  it('offers Publish on a private Margin and dispatches the publish event', async () => {
+    const spy = vi.spyOn(eventDispatcher, 'dispatch');
+    await open();
+    fireEvent.click(within(card()).getByRole('button', { name: 'Publish' }));
+    expect(spy).toHaveBeenCalledWith(MARGINS_PUBLISH_EVENT, { layerId: 'early', bookKey: 'b1' });
+    spy.mockRestore();
+  });
+
+  it('shows republish when the layer rev is newer', async () => {
+    h.rows = [row('early', 'early passage', { rev: 3 })];
+    h.myPosts = [mine({ layerRev: 2 })];
+    await open();
+    within(card()).getByRole('button', { name: 'Changes not public · Republish' });
+  });
+
+  it('shows Public and Unpublish on a live post, and asks before unpublishing', async () => {
+    h.myPosts = [mine()];
+    await open();
+    within(card()).getByText('Public');
+    await act(async () =>
+      fireEvent.click(within(card()).getByRole('button', { name: 'Unpublish' })),
+    );
+    expect(h.ask).toHaveBeenCalledWith('Remove this Margin from public view?');
+    expect(h.unpublish).toHaveBeenCalledWith('pst1');
+  });
+
+  it('shows Under review on a hidden post', async () => {
+    h.myPosts = [mine({ status: 'hidden' })];
+    await open();
+    within(card()).getByText('Under review');
+  });
+
+  it('offers a counter-notice after a copyright removal', async () => {
+    h.myPosts = [
+      mine({
+        status: 'removed',
+        reason: 'copyright',
+        noticeWork: 'Moby-Dick',
+        counterNoticeUntil: later,
+      }),
+    ];
+    await open();
+    within(card()).getByText('Removed after a copyright notice about Moby-Dick');
+    fireEvent.click(within(card()).getByRole('button', { name: 'Counter-notice' }));
+    within(card()).getByLabelText('Signature');
+  });
+
+  it.each([
+    ['spam', 'Removed: spam'],
+    ['harassment', 'Removed: harassment'],
+    ['sexual', 'Removed: sexual content'],
+    ['violence_self_harm', 'Removed: violence or self-harm'],
+    ['misinformation', 'Removed: misinformation'],
+    ['impersonation', 'Removed: impersonation'],
+    ['off topic', 'Removed by a moderator'],
+  ])('explains a %s removal in plain words', async (reason, copy) => {
+    h.myPosts = [mine({ status: 'removed', reason, appealUntil: later })];
+    await open();
+    within(card()).getByText(copy);
+    within(card()).getByRole('button', { name: 'Appeal' });
+  });
+
+  it('sends an appeal and reports a second one', async () => {
+    h.myPosts = [mine({ status: 'removed', reason: 'spam', appealUntil: later })];
+    h.appeal.mockRejectedValue(new PublicApiError(409, 'already_appealed', null, null));
+    await open();
+    fireEvent.click(within(card()).getByRole('button', { name: 'Appeal' }));
+    fireEvent.change(within(card()).getByLabelText('Why should this Margin come back?'), {
+      target: { value: 'It is my own words.' },
+    });
+    await act(async () =>
+      fireEvent.click(within(card()).getByRole('button', { name: 'Send appeal' })),
+    );
+    expect(h.appeal).toHaveBeenCalledWith('pst1', 'It is my own words.');
+    within(card()).getByText("You've already appealed this removal.");
+  });
+
+  it.each([
+    ['pending', 'Appeal sent'],
+    ['denied', 'Appeal declined'],
+  ])('shows the %s appeal state', async (appealState, copy) => {
+    h.myPosts = [mine({ status: 'removed', reason: 'spam', appealUntil: later, appealState })];
+    await open();
+    within(card()).getByText(copy);
+    expect(within(card()).queryByRole('button', { name: 'Appeal' })).toBeNull();
+  });
+
+  it('never shows the csam code or a way to contest it', async () => {
+    h.myPosts = [
+      mine({ status: 'removed', reason: 'csam', appealUntil: later, counterNoticeUntil: later }),
+    ];
+    await open();
+    within(card()).getByText('Removed for violating our rules');
+    expect(card().textContent).not.toContain('csam');
+    expect(within(card()).queryByRole('button', { name: 'Appeal' })).toBeNull();
+    expect(within(card()).queryByRole('button', { name: 'Counter-notice' })).toBeNull();
+  });
+
+  it('shows nothing public while the flag is off', async () => {
+    h.flag = false;
+    h.myPosts = [mine()];
+    await open();
+    expect(within(card()).queryByRole('button', { name: 'Publish' })).toBeNull();
+    expect(within(card()).queryByText('Public')).toBeNull();
   });
 });
