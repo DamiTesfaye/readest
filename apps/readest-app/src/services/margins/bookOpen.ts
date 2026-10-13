@@ -82,20 +82,32 @@ const post = async <T>(path: string, body: unknown, signedIn = true): Promise<T>
   return res.json() as Promise<T>;
 };
 
+const reportedKey = (fileHash: string, userId: string) =>
+  `margins-lengths-reported:${fileHash}:${userId}`;
+
 const link = async (
   store: MarginsStore,
   book: Book,
   bookDoc: BookDoc,
   sections: Fingerprint,
-  signedIn: boolean,
+  userId: string | null,
 ) => {
-  if (await loadLink(store, book.hash)) return;
+  const signedIn = userId !== null;
   const language = getPrimaryLanguage(bookDoc.metadata.language);
+  const sectionLengths = () => getMarginsCore().sectionLengths(book.hash, sections.length);
+  if (await loadLink(store, book.hash)) {
+    if (!userId || localStorage.getItem(reportedKey(book.hash, userId))) return;
+    await post('/v1/texts/match', { sections, language, sectionLengths: await sectionLengths() });
+    localStorage.setItem(reportedKey(book.hash, userId), '1');
+    return;
+  }
+  const lengths = await sectionLengths();
   const { matches } = await post<{ matches: TextMatch[] }>(
     '/v1/texts/match',
-    { sections, language },
+    { sections, language, sectionLengths: lengths },
     signedIn,
   );
+  if (userId) localStorage.setItem(reportedKey(book.hash, userId), '1');
   for (const m of matches) familyCache.set(m.textId, m.familyId);
   await rememberMatches(store, matches);
   const top = matches[0];
@@ -114,6 +126,7 @@ const link = async (
     language,
     meta: { title: book.title, author: book.author },
     versionOf: version?.textId ?? null,
+    sectionLengths: lengths,
   });
   await saveLink(store, book.hash, textId, language, version?.familyId ?? textId);
   await store.putText({
@@ -137,11 +150,11 @@ export const onMarginsBookOpen = async (
   try {
     const store = await openMarginsStore(appService);
     const sections = await prepare(store, book, bookDoc);
-    const signedIn = !!(await getSession());
-    await memo(linking, `${book.hash}:${signedIn}`, () =>
-      link(store, book, bookDoc, sections, signedIn),
+    const userId = (await getSession())?.me.id ?? null;
+    await memo(linking, `${book.hash}:${userId}`, () =>
+      link(store, book, bookDoc, sections, userId),
     );
-    if (signedIn) await syncMargins(store);
+    if (userId) await syncMargins(store);
   } catch (error) {
     console.error('Margins: book open failed', error);
   }
