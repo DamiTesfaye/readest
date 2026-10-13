@@ -4,6 +4,7 @@ import {
   getSession,
 } from '@/services/ampleread/auth/session';
 import type { MarginsStore, OutboxMethod, OutboxOp, TextLink } from './store';
+import { AssetRetryError, errorCode, uploadAssets } from './assets';
 import { ensureTexts } from './texts';
 import type { Anchor } from './types';
 
@@ -65,10 +66,6 @@ const currentUserId = async () => (await getSession())?.me.id ?? null;
 const backoff = (attempts: number) =>
   Math.min(2 ** attempts * 1000, MAX_BACKOFF_MS) * (0.8 + Math.random() * 0.4);
 
-const errorCode = async (res: Response) =>
-  ((await res.json().catch(() => null)) as { error?: string } | null)?.error ??
-  `http_${res.status}`;
-
 export const queueLayerWrite = async (
   store: MarginsStore,
   op: { layerId: string; method: OutboxMethod; body: unknown },
@@ -112,11 +109,15 @@ const applyLayer = async (store: MarginsStore, view: LayerView, userId: string) 
   });
 };
 
-const sendOp = async (store: MarginsStore, op: OutboxOp) => {
+const sendOp = async (store: MarginsStore, op: OutboxOp, userId: string) => {
   const layer = await store.getLayer(op.layerId);
   const link = layer ? await store.getTextLink(layer.fileHash) : null;
-  const body = op.method === 'DELETE' ? undefined : withTextId(op.body, link?.textId ?? null);
-  if (body === null) return null;
+  const linked = op.method === 'DELETE' ? undefined : withTextId(op.body, link?.textId ?? null);
+  if (linked === null) return null;
+  const prepared =
+    linked === undefined ? { body: undefined } : await uploadAssets(store, linked, userId);
+  if ('error' in prepared) return prepared;
+  const { body } = prepared;
   const path = op.method === 'POST' ? '/v1/layers' : `/v1/layers/${encodeURIComponent(op.layerId)}`;
   return amplereadFetch(path, {
     method: op.method,
@@ -135,17 +136,22 @@ export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promis
   for (const op of await store.dueOps(now, userId)) {
     if (held.has(op.layerId)) continue;
     if ((await currentUserId()) !== userId) break;
-    let res: Response | null;
+    let res: Awaited<ReturnType<typeof sendOp>>;
     try {
-      res = await sendOp(store, op);
+      res = await sendOp(store, op, userId);
     } catch (error) {
       if (!(error instanceof AmpleReadSignedOutError)) {
-        await store.reschedule(op.opId, now + backoff(op.attempts));
+        const wait = error instanceof AssetRetryError ? error.retryAfterMs : undefined;
+        await store.reschedule(op.opId, now + (wait ?? backoff(op.attempts)));
       }
       break;
     }
     if (!res) {
       held.add(op.layerId);
+    } else if ('error' in res) {
+      await store.markLayerError(op.layerId, res.error);
+      await store.ack(op.opId);
+      marked++;
     } else if (res.ok) {
       await applyLayer(store, (await res.json()) as LayerView, userId);
       await store.ack(op.opId);
