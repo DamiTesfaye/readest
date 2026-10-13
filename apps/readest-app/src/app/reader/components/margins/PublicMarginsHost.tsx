@@ -1,12 +1,20 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { getSession } from '@/services/ampleread/auth/session';
+import type { PostView } from '@/services/margins/public/api';
+import { MARGINS_OPEN_PASSAGE_EVENT, type OpenPassage } from '@/services/margins/public/badges';
 import { currentPost, refreshMyPosts, useMyPosts } from '@/services/margins/public/myPosts';
 import { type LayerRow, openMarginsStore } from '@/services/margins/store';
 import { eventDispatcher } from '@/utils/event';
 import { navigateToReader } from '@/utils/nav';
-import { MARGINS_OPEN_CARD_EVENT, requestMarginOpen } from '../../hooks/useMarginsPainter';
+import {
+  MARGINS_OPEN_CARD_EVENT,
+  requestMarginOpen,
+  viewPostInPlace,
+} from '../../hooks/useMarginsPainter';
+import PassageSheet from './PassageSheet';
 import PublishSheet, { MARGINS_PUBLISH_EVENT, MARGINS_SHORTEN_EVENT } from './PublishSheet';
 
 export const offerPublish = (layerId: string, message: string, label: string, bookKey?: string) =>
@@ -20,8 +28,10 @@ export const offerPublish = (layerId: string, message: string, label: string, bo
   });
 
 const PublicMarginsHost = ({ bookKey }: { bookKey: string | null }) => {
+  const _ = useTranslation();
   const { appService } = useEnv();
   const router = useRouter();
+  const [passage, setPassage] = useState<OpenPassage | null>(null);
   const { posts } = useMyPosts();
   const [row, setRow] = useState<LayerRow | null>(null);
   const owned = useRef<string | null>(null);
@@ -67,15 +77,48 @@ const PublicMarginsHost = ({ bookKey }: { bookKey: string | null }) => {
     };
   }, [appService, bookKey, router]);
 
-  if (!row) return null;
+  useEffect(() => {
+    if (bookKey === null) return;
+    const onPassage = (e: CustomEvent<OpenPassage>) => {
+      if (e.detail?.bookKey === bookKey) setPassage(e.detail);
+    };
+    eventDispatcher.on(MARGINS_OPEN_PASSAGE_EVENT, onPassage);
+    return () => eventDispatcher.off(MARGINS_OPEN_PASSAGE_EVENT, onPassage);
+  }, [bookKey]);
+
+  const viewInPlace = (post: PostView | null) => {
+    if (bookKey === null) return;
+    viewPostInPlace(bookKey, post)
+      .then((found) => {
+        if (found === 'missing')
+          eventDispatcher.dispatch('toast', {
+            message: _("This passage isn't in your copy."),
+            type: 'info',
+          });
+      })
+      .catch(() => console.error('Margins: view in place failed'));
+  };
+
   return (
-    <PublishSheet
-      key={row.id}
-      row={row}
-      existing={currentPost(row.id, posts)}
-      onClose={() => setRow(null)}
-      onPublished={() => void refreshMyPosts()}
-    />
+    <>
+      {row && (
+        <PublishSheet
+          key={row.id}
+          row={row}
+          existing={currentPost(row.id, posts)}
+          onClose={() => setRow(null)}
+          onPublished={() => void refreshMyPosts()}
+        />
+      )}
+      {passage && (
+        <PassageSheet
+          key={`${passage.section}:${passage.start}:${passage.end}`}
+          {...passage}
+          onClose={() => setPassage(null)}
+          onViewInPlace={viewInPlace}
+        />
+      )}
+    </>
   );
 };
 

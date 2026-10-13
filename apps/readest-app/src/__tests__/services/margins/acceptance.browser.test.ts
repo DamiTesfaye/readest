@@ -11,7 +11,12 @@ import {
   type BridgeContext,
 } from '@/services/margins/anchorBridge';
 import { getMarginsCore } from '@/services/margins/marginsClient';
-import { createPainter, placementOf, type PainterOverlayer } from '@/services/margins/painter';
+import {
+  createPainter,
+  POSTS_KEY_PREFIX,
+  placementOf,
+  type PainterOverlayer,
+} from '@/services/margins/painter';
 import type { LayerRow, MarginsStore } from '@/services/margins/store';
 import { buildTextMap } from '@/services/margins/textMap';
 import type { SectionInput } from '@/services/margins/types';
@@ -33,6 +38,7 @@ const memoryStore = () => {
 
 const ON_CI = Boolean(process.env['CI']);
 const DRAW_50_BUDGET_MS = ON_CI ? 24 : 8;
+const BADGE_BUDGET_MS = ON_CI ? 6 : 2;
 
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -201,6 +207,46 @@ describe('margins acceptance gates (M-R2)', () => {
     );
     expect(keys.length).toBeGreaterThan(0);
     expect(median(times)).toBeLessThanOrEqual(DRAW_50_BUDGET_MS);
+  }, 60000);
+
+  it(`badges add at most ${BADGE_BUDGET_MS} ms to drawing a 50-cluster section (median of 10)`, async ({
+    annotate,
+  }) => {
+    const fifty = bySection.get(busiest)!.slice(0, SECTION_MARGINS);
+    const { painter, overlayer } = await openAt(busiest);
+    await painter.resolveAll(fifty);
+    const layer = overlayer as unknown as PainterOverlayer;
+    const timeDraws = async () => {
+      const times: number[] = [];
+      for (let i = 0; i < 10; i++) {
+        const t = performance.now();
+        await painter.drawSection(busiest, layer, 'full');
+        times.push(performance.now() - t);
+      }
+      return median(times);
+    };
+    const without = await timeDraws();
+    const clusters = fifty.flatMap((r) => {
+      const p = painter.placements().get(r.id);
+      return p?.kind === 'placed'
+        ? [
+            {
+              start: p.start,
+              end: p.end,
+              count: 3,
+              key: `${POSTS_KEY_PREFIX}${busiest}:${p.start}:${p.end}`,
+            },
+          ]
+        : [];
+    });
+    expect(clusters).toHaveLength(SECTION_MARGINS);
+    painter.setPostClusters(busiest, clusters);
+    const withBadges = await timeDraws();
+    await annotate(
+      `[margins-perf] badges: drawSection median without ${without.toFixed(2)} ms, ` +
+        `with 50 clusters ${withBadges.toFixed(2)} ms`,
+    );
+    expect(withBadges - without).toBeLessThanOrEqual(BADGE_BUDGET_MS);
   }, 60000);
 
   it('adds at most 2 ms to a page turn (median of 20)', async ({ annotate }) => {

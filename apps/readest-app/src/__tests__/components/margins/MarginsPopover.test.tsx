@@ -11,7 +11,13 @@ const h = vi.hoisted(() => ({
   placements: new Map<string, Placement>(),
   session: null as unknown,
   display: 'full' as string,
-  view: { goTo: vi.fn(async () => {}), getCFI: vi.fn(() => 'epubcfi(/6/4!/4/2)') },
+  view: {
+    goTo: vi.fn(async () => {}),
+    getCFI: vi.fn(() => 'epubcfi(/6/4!/4/2)'),
+    renderer: { getContents: () => [{ index: 1 }, { index: 2 }] },
+  },
+  clusters: new Map<number, unknown[]>(),
+  openPassage: vi.fn(),
   saveViewSettings: vi.fn(),
   retryMargin: vi.fn(async () => {}),
   editMargin: vi.fn(async () => {}),
@@ -60,7 +66,8 @@ vi.mock('@/services/margins/store', () => ({
     assetByRemote: async () => null,
   }),
 }));
-vi.mock('@/services/margins/sync', () => ({ cachedLink: () => null }));
+vi.mock('@/services/margins/sync', () => ({ cachedLink: () => ({ textId: 'txt1' }) }));
+vi.mock('@/services/margins/public/badges', () => ({ openPassage: h.openPassage }));
 vi.mock('@/services/margins/texts', () => ({ readerTextIds: async () => [] }));
 vi.mock('@/services/margins/context', () => ({
   marginsContext: () => ({}),
@@ -82,7 +89,7 @@ vi.mock('@/services/margins/margins', () => ({
   scheduleDelete: h.scheduleDelete,
 }));
 vi.mock('@/app/reader/hooks/useMarginsPainter', () => ({
-  getMarginsPainter: () => ({ placements: () => h.placements }),
+  getMarginsPainter: () => ({ placements: () => h.placements, postClusters: () => h.clusters }),
   MARGINS_PLACED_EVENT: 'margins-placed',
 }));
 
@@ -136,6 +143,7 @@ beforeEach(() => {
   h.display = 'full';
   h.flag = false;
   h.myPosts = [];
+  h.clusters = new Map();
   vi.clearAllMocks();
 });
 
@@ -369,5 +377,22 @@ describe('MarginsPopover public state', () => {
     await open();
     expect(within(card()).queryByRole('button', { name: 'Publish' })).toBeNull();
     expect(within(card()).queryByText('Public')).toBeNull();
+  });
+
+  it('lists the post badges of the open sections as buttons', async () => {
+    h.clusters = new Map([
+      [1, [{ start: 0, end: 4, count: 3, key: 'margins-posts:1:0:4' }]],
+      [7, [{ start: 0, end: 4, count: 9, key: 'margins-posts:7:0:4' }]],
+    ]);
+    await open();
+    const list = screen.getByRole('region', { name: 'Public Margins' });
+    const buttons = within(list).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual(['3 takes']);
+    expect(buttons[0]!.getAttribute('tabindex')).toBeNull();
+    fireEvent.click(buttons[0]!);
+    expect(h.openPassage).toHaveBeenCalledWith(
+      { bookKey: 'b1', fileHash: 'h1', textId: 'txt1' },
+      'margins-posts:1:0:4',
+    );
   });
 });

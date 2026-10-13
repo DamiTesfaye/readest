@@ -125,6 +125,39 @@ export const useErrorCopy = () => {
           : _("This Margin couldn't sync. Edit it to try again.");
 };
 
+export const EnvelopeView = ({
+  envelope,
+  quote,
+  onPlay,
+  assetSource,
+}: {
+  envelope: Envelope;
+  quote: string;
+  onPlay?(): void;
+  assetSource?: (ref: string) => Promise<string | null>;
+}) => (
+  <div
+    className='relative w-full overflow-hidden rounded-lg'
+    style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
+  >
+    <MarginsMotionStyle />
+    <blockquote className='font-serif text-xs' style={frameStyle(envelope.quote.frame)}>
+      {quote}
+    </blockquote>
+    {envelope.elements.map((e) => (
+      <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
+        <ElementView
+          element={e}
+          selected={false}
+          editable={false}
+          onPlay={onPlay}
+          assetSource={assetSource}
+        />
+      </div>
+    ))}
+  </div>
+);
+
 const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCard(
   {
     row,
@@ -162,22 +195,7 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
       <p className='text-base-content/85 line-clamp-3 font-serif text-xs leading-relaxed'>
         {quote}
       </p>
-      {expanded && envelope && (
-        <div
-          className='relative w-full overflow-hidden rounded-lg'
-          style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
-        >
-          <MarginsMotionStyle />
-          <blockquote className='font-serif text-xs' style={frameStyle(envelope.quote.frame)}>
-            {quote}
-          </blockquote>
-          {envelope.elements.map((e) => (
-            <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
-              <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
-            </div>
-          ))}
-        </div>
-      )}
+      {expanded && envelope && <EnvelopeView envelope={envelope} quote={quote} onPlay={onPlay} />}
       {fuzzy && (
         <p className='text-base-content/70 text-xs'>
           {_('This Margin moved slightly.')}{' '}

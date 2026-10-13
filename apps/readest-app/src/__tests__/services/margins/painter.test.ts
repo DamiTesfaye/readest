@@ -3,10 +3,13 @@ import {
   cacheKey,
   createPainter,
   drawMargin,
+  drawPostBadge,
   marginIdsOfKey,
+  POSTS_KEY_PREFIX,
   placementOf,
   type PainterOverlayer,
   type Placement,
+  VIEW_KEY_PREFIX,
 } from '@/services/margins/painter';
 import type { LayerRow } from '@/services/margins/store';
 import type { Anchor } from '@/services/margins/types';
@@ -26,12 +29,15 @@ const row = (id: string, o: Partial<LayerRow> = {}): LayerRow => ({
 });
 
 const fakeOverlayer = () => {
-  const added = new Map<string, { range: Range; opts: Record<string, unknown> }>();
+  const added = new Map<
+    string,
+    { range: Range; opts: Record<string, unknown>; draw: (...a: never[]) => unknown }
+  >();
   const calls = { add: 0, remove: [] as string[] };
   const overlayer: PainterOverlayer = {
-    add(key, range, _draw, opts) {
+    add(key, range, draw, opts) {
       calls.add++;
-      added.set(key, { range, opts: opts as Record<string, unknown> });
+      added.set(key, { range, opts: opts as Record<string, unknown>, draw });
     },
     remove(key) {
       calls.remove.push(key);
@@ -227,5 +233,44 @@ describe('margins painter', () => {
     await painter.drawSection(0, overlayer, 'markers');
     expect(liveRange).toHaveBeenCalledTimes(1);
     p.remove();
+  });
+
+  describe('public Margins', () => {
+    const cluster = { start: 0, end: 3, count: 4, key: `${POSTS_KEY_PREFIX}3:0:3` };
+    const view = { postId: 'pst1', section: 3, start: 4, end: 7 };
+
+    it('draws post badges in full and markers but not in quiet, only on their section', async () => {
+      const { painter } = setup({});
+      painter.setPostClusters(3, [cluster]);
+      const { overlayer, added } = fakeOverlayer();
+      expect(await painter.drawSection(3, overlayer, 'full')).toEqual([cluster.key]);
+      expect(added.get(cluster.key)!.draw).toBe(drawPostBadge);
+      expect(added.get(cluster.key)!.opts).toMatchObject({ count: 4 });
+      expect(await painter.drawSection(3, overlayer, 'markers')).toEqual([cluster.key]);
+      expect(await painter.drawSection(3, overlayer, 'quiet')).toEqual([]);
+      expect(await painter.drawSection(2, fakeOverlayer().overlayer, 'full')).toEqual([]);
+    });
+
+    it('draws View in place in every display, quiet included, until cleared', async () => {
+      const { painter } = setup({});
+      painter.setViewInPlace(view);
+      const { overlayer, added } = fakeOverlayer();
+      for (const display of ['full', 'markers', 'quiet'] as const) {
+        expect(await painter.drawSection(3, overlayer, display)).toEqual([
+          `${VIEW_KEY_PREFIX}pst1`,
+        ]);
+      }
+      expect(added.get(`${VIEW_KEY_PREFIX}pst1`)!.draw).toBe(drawMargin);
+      painter.setViewInPlace(null);
+      expect(await painter.drawSection(3, overlayer, 'full')).toEqual([]);
+      expect(added.size).toBe(0);
+    });
+
+    it('draws a hidden badge whose only text is the count', () => {
+      const rect = { left: 10, top: 20, right: 60, bottom: 30, width: 50, height: 10 } as DOMRect;
+      const g = drawPostBadge([rect], { count: 12 });
+      expect(g.getAttribute('aria-hidden')).toBe('true');
+      expect(g.textContent).toBe('12');
+    });
   });
 });

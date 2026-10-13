@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   requestMarginOpen: vi.fn(),
   navigateToReader: vi.fn(),
   router: {},
+  viewPostInPlace: vi.fn(async () => 'placed'),
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -33,7 +34,24 @@ vi.mock('@/services/margins/public/flag', () => ({
 vi.mock('@/services/margins/public/api', () => ({ publicApi: { myPosts: h.myPosts } }));
 vi.mock('@/app/reader/hooks/useMarginsPainter', () => ({
   requestMarginOpen: h.requestMarginOpen,
+  viewPostInPlace: h.viewPostInPlace,
   MARGINS_OPEN_CARD_EVENT: 'margins-open-card',
+}));
+vi.mock('@/app/reader/components/margins/PassageSheet', () => ({
+  default: ({
+    sectionLen,
+    onViewInPlace,
+  }: {
+    sectionLen: number;
+    onViewInPlace(p: unknown): void;
+  }) => (
+    <div role='dialog' aria-label='passage'>
+      {`len ${sectionLen}`}
+      <button type='button' onClick={() => onViewInPlace({ id: 'pst1' })}>
+        View in place
+      </button>
+    </div>
+  ),
 }));
 vi.mock('@/app/reader/components/margins/PublishSheet', async (orig) => ({
   ...(await orig<typeof import('@/app/reader/components/margins/PublishSheet')>()),
@@ -129,5 +147,27 @@ describe('PublicMarginsHost', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Publish' })));
     expect(publish.mock.calls[0]![0].detail).toEqual({ layerId: 'lay1', bookKey: 'b1' });
     eventDispatcher.off(MARGINS_PUBLISH_EVENT, publish);
+  });
+
+  it('opens the passage sheet for its own book and views a post in place', async () => {
+    const toast = vi.fn();
+    eventDispatcher.on('toast', toast);
+    await mount('b1');
+    const passage = { textId: 'txt1', section: 3, sectionLen: 900, start: 1, end: 9 };
+    await act(() =>
+      eventDispatcher.dispatch('margins-open-passage', { ...passage, bookKey: 'b2' }),
+    );
+    expect(screen.queryByRole('dialog', { name: 'passage' })).toBeNull();
+    await act(() =>
+      eventDispatcher.dispatch('margins-open-passage', { ...passage, bookKey: 'b1' }),
+    );
+    screen.getByText('len 900');
+    h.viewPostInPlace.mockResolvedValueOnce('missing');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'View in place' })));
+    expect(h.viewPostInPlace).toHaveBeenCalledWith('b1', { id: 'pst1' });
+    expect(toast.mock.calls[0]![0].detail).toMatchObject({
+      message: "This passage isn't in your copy.",
+    });
+    eventDispatcher.off('toast', toast);
   });
 });

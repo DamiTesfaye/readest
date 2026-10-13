@@ -22,6 +22,7 @@ export interface ElementViewProps {
   editable: boolean;
   onChange?(patch: Partial<Element>): void;
   onPlay?(): void;
+  assetSource?: (ref: string) => Promise<string | null>;
 }
 
 export const GROUND_STYLE: Record<Ground, { background: string; color: string }> = {
@@ -72,26 +73,34 @@ export const basicStickers = stickers.map((s) => ({
   label: s.label,
 }));
 
-export const useMarginAssetUrl = (ref: string | null) => {
+export const useMarginAssetUrl = (
+  ref: string | null,
+  source?: (ref: string) => Promise<string | null>,
+) => {
   const { appService } = useEnv();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!appService || !ref) return;
+    if (!ref || (!source && !appService)) return;
     let live = true;
-    openMarginsStore(appService)
-      .then((store) => assetUrl(store, ref))
+    (source ? source(ref) : openMarginsStore(appService!).then((store) => assetUrl(store, ref)))
       .then((u) => live && setUrl(u))
       .catch(() => console.error('Margins: art could not load'));
     return () => {
       live = false;
     };
-  }, [appService, ref]);
+  }, [appService, ref, source]);
   return url;
 };
 
-const Artwork = ({ element }: { element: ArtworkElement }) => {
+const Artwork = ({
+  element,
+  assetSource,
+}: {
+  element: ArtworkElement;
+  assetSource?: ElementViewProps['assetSource'];
+}) => {
   const _ = useTranslation();
-  const url = useMarginAssetUrl(element.asset);
+  const url = useMarginAssetUrl(element.asset, assetSource);
   return url ? (
     <img src={url} alt={element.alt} className='block w-full' draggable={false} />
   ) : (
@@ -135,7 +144,14 @@ const NeedsNewer = ({ ring }: { ring: string }) => {
   );
 };
 
-export function ElementView({ element, selected, editable, onChange, onPlay }: ElementViewProps) {
+export function ElementView({
+  element,
+  selected,
+  editable,
+  onChange,
+  onPlay,
+  assetSource,
+}: ElementViewProps) {
   const _ = useTranslation();
   const ring = clsx(selected && 'ring-2 ring-[#5B3DF5] ring-offset-1');
   switch (element.kind) {
@@ -179,7 +195,7 @@ export function ElementView({ element, selected, editable, onChange, onPlay }: E
     case 'artwork':
       return (
         <div className={ring}>
-          <Artwork element={element as ArtworkElement} />
+          <Artwork element={element as ArtworkElement} assetSource={assetSource} />
         </div>
       );
     case 'sticker': {
