@@ -220,6 +220,12 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --prefer-offline && pnpm setup-vendors
 
+      - name: margin-core wasm size gate
+        run: test $(gzip -9c packages/margin-core-wasm/dist/web/margin_core_wasm_bg.wasm | wc -c) -le 307200
+
+      - name: margin-play wasm size gate
+        run: test $(gzip -9c packages/margin-play-wasm/dist/web/margin_play_wasm_bg.wasm | wc -c) -le 1572864
+
       # Playwright is only needed by the browser tests, which run on shard 1.
       - name: cache playwright browsers
         if: matrix.shard == 1

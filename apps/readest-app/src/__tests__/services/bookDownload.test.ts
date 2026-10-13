@@ -83,13 +83,20 @@ describe('downloadAndImportBook', () => {
         url,
         headers: { Accept: '*/*' },
         singleThreaded: true,
-        skipSslVerification: true,
+        skipSslVerification: false,
       }),
     );
     expect(appService.importBook).toHaveBeenCalledWith('/cache/uid.epub', expect.any(Array));
     const { setLibrary } = useLibraryStore.getState();
     expect(setLibrary).toHaveBeenCalledWith([importedBook]);
     expect(appService.saveLibraryBooks).toHaveBeenCalledWith([importedBook]);
+  });
+
+  test('skips TLS verification only when the caller opts in', async () => {
+    await downloadAndImportBook({ appService: makeAppService(), url, skipSslVerification: true });
+    expect(mockDownloadFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ skipSslVerification: true }),
+    );
   });
 
   test('fetches from downloadUrl when it differs from the canonical url', async () => {

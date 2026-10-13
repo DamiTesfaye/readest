@@ -73,6 +73,7 @@ const renderPopover = (overrides: Partial<React.ComponentProps<typeof MorePopove
     onOpenThemeFonts: vi.fn(),
     onOpenBooknotes: vi.fn(),
     onOpenAnnotations: vi.fn(),
+    onOpenMargins: vi.fn(),
     onOpenLibrary: vi.fn(),
     onOpenContents: vi.fn(),
     onToggleTTS: vi.fn(),
@@ -147,6 +148,7 @@ describe('MorePopover', () => {
       'Annotations',
       'Bookmarks & Notes',
       'Margins',
+      'Play',
       'Mindmap',
       'Discuss with Tim & Fini',
       'Summarise',
@@ -264,7 +266,7 @@ describe('MorePopover', () => {
   });
 
   it('shows a coming soon toast and closes for unreleased spark features', () => {
-    for (const name of [/Mood & Modes/, /Summarise/, /Discuss/, /Margins/]) {
+    for (const name of [/Mood & Modes/, /Summarise/, /Discuss/]) {
       dispatch.mockReset();
       const props = renderPopover();
       fireEvent.click(screen.getByRole('button', { name }));
@@ -406,7 +408,7 @@ describe('MorePopover', () => {
     act(() => vi.advanceTimersByTime(150));
     expect(playing('contents')).toBe('true');
     expect(playing('theme-fonts')).toBe('false');
-    expect(screen.getByTestId('spark-art-mindmap').getAttribute('data-delay')).toBe('900');
+    expect(screen.getByTestId('spark-art-mindmap').getAttribute('data-delay')).toBe('1050');
   });
 
   it('opens the Theme & Fonts popover while staying open itself', () => {
@@ -421,6 +423,20 @@ describe('MorePopover', () => {
     fireEvent.click(screen.getByRole('button', { name: /Bookmarks & Notes/ }));
     expect(props.onOpenBooknotes).toHaveBeenCalledTimes(1);
     expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  it('opens the Margins panel from the Margins tile', () => {
+    const props = renderPopover();
+    fireEvent.click(screen.getByRole('button', { name: /^Margins/ }));
+    expect(props.onOpenMargins).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalledWith('toast', expect.anything());
+  });
+
+  it('enters play on the current page from the Play tile', () => {
+    const props = renderPopover();
+    fireEvent.click(screen.getByRole('button', { name: /^Play/ }));
+    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'book-1' });
+    expect(props.onClose).toHaveBeenCalled();
   });
 
   it('opens the Annotations popover while staying open itself', () => {

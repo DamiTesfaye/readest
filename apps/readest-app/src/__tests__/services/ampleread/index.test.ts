@@ -14,6 +14,7 @@ import {
   getDownloadUrl,
   getExplore,
   getWorkDetail,
+  installFetch,
   isNotFoundError,
   refresh,
   trackEvent,
@@ -241,5 +242,78 @@ describe('ampleread service on web platform', () => {
 
     expect(url).toBe('https://api.ampleread.com/v1/assets/as_1/download');
     expect(mockInvoke).not.toHaveBeenCalled();
+  });
+});
+
+describe('installFetch', () => {
+  const reply = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const installHeader = (init: RequestInit) => new Headers(init.headers).get('x-ampleread-install');
+
+  beforeEach(() => localStorage.clear());
+
+  test('web mints a token on bootstrap once, stores it and sends it', async () => {
+    mockIsTauriAppPlatform.mockReturnValue(false);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(reply(200, { installToken: 'tok_1' }))
+      .mockResolvedValue(reply(200, { matches: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await installFetch('/v1/texts/match', { method: 'POST' });
+    const res = await installFetch('/v1/texts/match', { method: 'POST' });
+
+    expect(res.status).toBe(200);
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
+      'https://api.ampleread.com/v1/bootstrap',
+      'https://api.ampleread.com/v1/texts/match',
+      'https://api.ampleread.com/v1/texts/match',
+    ]);
+    expect(installHeader(fetchMock.mock.calls[2]![1])).toBe('tok_1');
+    expect(localStorage.getItem('ampleread-install-token')).toBe('tok_1');
+  });
+
+  test('web re-mints once on a 401 and retries', async () => {
+    mockIsTauriAppPlatform.mockReturnValue(false);
+    localStorage.setItem('ampleread-install-token', 'tok_old');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(reply(401, { error: 'invalid_token' }))
+      .mockResolvedValueOnce(reply(200, { installToken: 'tok_new' }))
+      .mockResolvedValueOnce(reply(200, { matches: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await installFetch('/v1/texts/match', { method: 'POST' });
+
+    expect(res.status).toBe(200);
+    expect(installHeader(fetchMock.mock.calls[0]![1])).toBe('tok_old');
+    expect(fetchMock.mock.calls[1]![0]).toBe('https://api.ampleread.com/v1/bootstrap');
+    expect(installHeader(fetchMock.mock.calls[2]![1])).toBe('tok_new');
+  });
+
+  test('web throws when bootstrap mints nothing', async () => {
+    mockIsTauriAppPlatform.mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(200, {})));
+
+    await expect(installFetch('/v1/texts/match')).rejects.toThrow(/install token/);
+  });
+
+  test('tauri takes the engine token and asks for a fresh one on a 401', async () => {
+    mockIsTauriAppPlatform.mockReturnValue(true);
+    mockInvoke.mockResolvedValueOnce('tok_engine').mockResolvedValueOnce('tok_fresh');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(reply(401, { error: 'invalid_token' }))
+      .mockResolvedValueOnce(reply(200, { matches: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await installFetch('/v1/texts/match', { method: 'POST' });
+
+    expect(mockInvoke.mock.calls).toEqual([
+      ['ampleread_install_token', { fresh: false }],
+      ['ampleread_install_token', { fresh: true }],
+    ]);
+    expect(installHeader(fetchMock.mock.calls[1]![1])).toBe('tok_fresh');
+    expect(localStorage.getItem('ampleread-install-token')).toBeNull();
   });
 });

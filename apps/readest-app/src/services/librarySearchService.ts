@@ -223,7 +223,7 @@ const makeFuzzyExcerpt = (
 // prepareSearchSection awaits loadTextWalker() first.
 type TextWalker = typeof import('foliate-js/text-walker.js')['textWalker'];
 let textWalker: TextWalker | null = null;
-const loadTextWalker = async (): Promise<TextWalker> =>
+export const loadTextWalker = async (): Promise<TextWalker> =>
   (textWalker ??= (await import('foliate-js/text-walker.js')).textWalker);
 
 interface PreparedSearchSection {
@@ -278,7 +278,7 @@ const closeBook = async (book: SearchableBookDoc | null, file: File | null) => {
   }
 };
 
-const makeAcceptNode = (book: Book) =>
+export const makeAcceptNode = (book: Book) =>
   createRejectFilter({
     tags: book.primaryLanguage?.startsWith('ja') ? ['rt'] : [],
     attributes: ['cfi-inert'],

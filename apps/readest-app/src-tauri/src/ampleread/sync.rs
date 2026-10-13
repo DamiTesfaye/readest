@@ -962,6 +962,20 @@ pub(crate) async fn ampleread_flush_events(
 }
 
 #[tauri::command]
+pub(crate) async fn ampleread_install_token(
+    state: tauri::State<'_, EngineHandle>,
+    fresh: bool,
+) -> Result<String, String> {
+    let engine = state.engine()?;
+    let token = if fresh {
+        engine.remint_install_token().await
+    } else {
+        engine.ensure_install_token().await
+    };
+    token.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub(crate) async fn ampleread_download_url(
     state: tauri::State<'_, EngineHandle>,
     work_id: String,

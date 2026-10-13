@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { IconType } from 'react-icons';
 import { IoIosBuild } from 'react-icons/io';
 import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import { PiNotePencil } from 'react-icons/pi';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { Position } from '@/utils/sel';
 import { BookNote, HighlightColor, HighlightStyle } from '@/types/book';
@@ -68,6 +69,8 @@ interface AnnotationPopupProps {
   popupWidth: number;
   popupHeight: number;
   canShare: boolean;
+  canMargin: boolean;
+  onMargin: () => void;
   onSelectStyle: (style: HighlightStyle) => void;
   onSelectColor: (color: HighlightColor) => void;
   onBookmark: () => void;
@@ -98,6 +101,8 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
   popupWidth,
   popupHeight,
   canShare,
+  canMargin,
+  onMargin,
   onSelectStyle,
   onSelectColor,
   onBookmark,
@@ -260,6 +265,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
             <div className='flex flex-col'>
               {actionRow('bookmark-outline', _('Bookmark page'), onBookmark)}
               {actionRow('add-note-outline', _('Add note'), onAddNote)}
+              {canMargin && actionRow(reactIcon(PiNotePencil), _('Margin'), onMargin)}
               {annotatedStyle !== null &&
                 actionRow(reactIcon(RiDeleteBinLine), _('Delete'), onDelete)}
             </div>

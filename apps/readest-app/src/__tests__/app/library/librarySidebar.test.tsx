@@ -173,6 +173,36 @@ describe('LibrarySidebar', () => {
   //   expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
   // });
 
+  it('has a Margins section between Library and Discover that opens Your Margins', () => {
+    renderSidebar();
+    const heading = screen.getByText('Margins');
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(labels.indexOf('Your Margins')).toBeGreaterThan(labels.indexOf('Shared'));
+    expect(labels.indexOf('Your Margins')).toBeLessThan(labels.indexOf('Explore'));
+    expect(heading.className).toBe(screen.getByText('Library').className);
+    searchString = 'explore=true&catalogs=true';
+    cleanup();
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Your Margins' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).toContain('margins=true');
+    expect(navigatedTo).not.toContain('explore=');
+    expect(navigatedTo).not.toContain('catalogs=');
+  });
+
+  it('marks Your Margins current in the margins view and leaves it for a status', () => {
+    searchString = 'margins=true';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Your Margins' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Finished' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).not.toContain('margins=');
+    expect(navigatedTo).toContain('status=finished');
+  });
+
   it('lists Explore in Discover after Shared', () => {
     renderSidebar();
     const labels = screen.getAllByRole('button').map((button) => button.textContent);

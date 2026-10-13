@@ -34,6 +34,7 @@ interface MorePopoverProps {
   onOpenThemeFonts: (anchorRect: Rect) => void;
   onOpenBooknotes: (anchorRect: Rect) => void;
   onOpenAnnotations: (anchorRect: Rect) => void;
+  onOpenMargins: (anchorRect: Rect) => void;
   onToggleTTS: () => void;
   isArranging?: boolean;
   onArrangeChange?: (isArranging: boolean) => void;
@@ -74,6 +75,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
   onOpenThemeFonts,
   onOpenBooknotes,
   onOpenAnnotations,
+  onOpenMargins,
   onToggleTTS,
   isArranging = false,
   onArrangeChange,
@@ -98,6 +100,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
     onOpenContents: () => onOpenContents(),
     onOpenThemeFonts: (target) => onOpenThemeFonts(target.getBoundingClientRect()),
     onOpenAnnotations: (target) => onOpenAnnotations(target.getBoundingClientRect()),
+    onOpenMargins: (target) => onOpenMargins(target.getBoundingClientRect()),
     onOpenBooknotes: (target) => onOpenBooknotes(target.getBoundingClientRect()),
     onToggleTTS,
   });
@@ -116,6 +119,7 @@ const MorePopover: React.FC<MorePopoverProps> = ({
       label: _('Augment your reading'),
       ids: [
         'margins',
+        'play',
         'mindmap',
         'discuss',
         'summarise',

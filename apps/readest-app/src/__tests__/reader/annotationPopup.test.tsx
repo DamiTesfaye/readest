@@ -40,6 +40,8 @@ const renderPopup = (overrides: Partial<React.ComponentProps<typeof AnnotationPo
     popupWidth: 280,
     popupHeight: 460,
     canShare: true,
+    canMargin: false,
+    onMargin: vi.fn(),
     onSelectStyle: vi.fn(),
     onSelectColor: vi.fn(),
     onBookmark: vi.fn(),
@@ -79,6 +81,16 @@ afterEach(() => {
 });
 
 describe('AnnotationPopup', () => {
+  it('offers the Margin row only when the selection can clip', () => {
+    const onMargin = vi.fn();
+    renderPopup({ onMargin });
+    expect(screen.queryByRole('button', { name: 'Margin' })).toBeNull();
+    cleanup();
+    renderPopup({ canMargin: true, onMargin });
+    fireEvent.click(screen.getByRole('button', { name: 'Margin' }));
+    expect(onMargin).toHaveBeenCalledTimes(1);
+  });
+
   it('renders the four styles in underline, highlight, squiggly, strikethrough order', () => {
     renderPopup();
     const styleButtons = screen.getAllByRole('button', { name: /style$/ });
