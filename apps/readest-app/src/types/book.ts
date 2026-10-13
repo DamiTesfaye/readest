@@ -30,6 +30,7 @@ export interface UserHighlightColor {
   label?: string;
 }
 export type ReadingRulerColor = 'transparent' | 'yellow' | 'green' | 'blue' | 'rose';
+export type MarginsDisplay = 'full' | 'markers' | 'quiet';
 
 export interface ParagraphModeConfig {
   enabled: boolean;
@@ -81,6 +82,11 @@ export interface ImportBookOptions {
   inPlace?: boolean;
   /** Pre-built lookup index for O(1) dedup during batch imports. */
   lookupIndex?: BookLookupIndex;
+}
+
+export interface AmpleReadProvenance {
+  workId: string;
+  editionId: string;
 }
 
 export interface Book {
@@ -145,6 +151,7 @@ export interface Book {
   // metadata), so a page-turn that wins whole-row LWW on updatedAt cannot
   // clobber a metadata edit (mirrors readingStatusUpdatedAt / coverUpdatedAt).
   metadataUpdatedAt?: number | null;
+  ampleread?: AmpleReadProvenance;
 }
 
 export interface BookGroupType {
@@ -333,6 +340,7 @@ export interface ViewConfig {
 
   readingRulerEnabled: boolean;
   movingPicturesEnabled: boolean;
+  marginsDisplay: MarginsDisplay;
   readingRulerLines: number;
   readingRulerPosition: number;
   readingRulerOpacity: number;

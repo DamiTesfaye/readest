@@ -446,6 +446,7 @@ export const DEFAULT_VIEW_CONFIG: ViewConfig = {
 
   readingRulerEnabled: false,
   movingPicturesEnabled: false,
+  marginsDisplay: 'full',
   readingRulerLines: 2,
   readingRulerPosition: 33,
   readingRulerOpacity: 0.5,

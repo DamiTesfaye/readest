@@ -128,6 +128,13 @@ jobs:
         with:
           targets: ${{ matrix.config.rust_target }}
 
+      - name: load the ampleread-backend read key
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AMPLEREAD_BACKEND_DEPLOY_KEY }}
+      - name: fetch git dependencies through the ssh agent
+        shell: bash
+        run: echo 'CARGO_NET_GIT_FETCH_WITH_CLI=true' >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3 # v2
         with:
           key: nightly-${{ matrix.config.os }}-${{ matrix.config.release }}-${{ matrix.config.arch }}-cargo

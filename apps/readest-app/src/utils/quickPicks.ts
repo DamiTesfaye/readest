@@ -5,6 +5,7 @@ export const QUICK_PICK_IDS = [
   'annotations',
   'bookmarks',
   'margins',
+  'play',
   'mindmap',
   'discuss',
   'summarise',

@@ -1,0 +1,11 @@
+[
+  {"name":"collapse whitespace","tokens":["  Hello,\t\n world  "],"canonical":"Hello, world","match":"hello, world"},
+  {"name":"block break","tokens":["One.",null,"Two."],"canonical":"One.\nTwo.","match":"one.\ntwo."},
+  {"name":"leading and doubled breaks","tokens":[null,"A",null,null,"B"],"canonical":"A\nB","match":"a\nb"},
+  {"name":"soft hyphen and zero width","tokens":["re­ad​ing﻿"],"canonical":"reading","match":"reading"},
+  {"name":"NFC","tokens":["é"],"canonical":"é","match":"é"},
+  {"name":"NFC across a dropped mark","tokens":["e​́"],"canonical":"é","match":"é"},
+  {"name":"quotes dashes ligatures","tokens":["“ﬁne” — it’s"],"canonical":"“ﬁne” — it’s","match":"\"fine\" - it's"},
+  {"name":"space across runs","tokens":["end ","  start"],"canonical":"end start","match":"end start"},
+  {"name":"astral passes through","tokens":["𝐀 x"],"canonical":"𝐀 x","match":"𝐀 x"}
+]

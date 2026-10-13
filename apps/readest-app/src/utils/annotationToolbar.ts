@@ -68,7 +68,7 @@ export const getPopupExtraToolTypes = (
 ): AnnotationToolType[] =>
   getToolbarToolTypes(items, canShare).filter((type) => POPUP_EXTRA_TOOL_TYPES.includes(type));
 
-const SELECTION_POPUP_BASE_HEIGHT = 450;
+const SELECTION_POPUP_BASE_HEIGHT = 482;
 const SELECTION_POPUP_ROW_HEIGHT = 32;
 
 export const getSelectionPopupHeight = (

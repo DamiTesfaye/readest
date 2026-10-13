@@ -22,6 +22,10 @@ import { DEFAULT_NEARBY_WORDS } from '@/utils/searchConfig';
 import { clearLibrarySearchHistory, loadLibrarySearchHistory } from './utils/searchHistory';
 import type { LibrarySearchTarget } from '@/types/book';
 import { navigateToLibrary, navigateToLogin, navigateToReader } from '@/utils/nav';
+import type { LayerRow } from '@/services/margins/store';
+import { requestMarginOpen } from '@/app/reader/hooks/useMarginsPainter';
+import MarginsRail from './components/MarginsRail';
+import MarginsView from './components/MarginsView';
 import AmpleDocumentPromptDialog, {
   type AmpleDocumentChoice,
 } from '@/app/library/components/AmpleDocumentPromptDialog';
@@ -99,6 +103,7 @@ import { FeedsView } from './components/feeds/FeedsView';
 import AddFeedModal from './components/feeds/AddFeedModal';
 import { fetchAndParseFeed } from '@/services/rss/feedClient';
 import { createFeedBook, ensureFeedBookCover } from '@/services/rss/feedBook';
+import ExplorePage from '@/app/explore/page';
 import { MigrateDataWindow } from './components/MigrateDataWindow';
 import { BackupWindow } from './components/BackupWindow';
 import { CacheManagerWindow } from './components/CacheManagerWindow';
@@ -681,10 +686,39 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const handleOpenCatalogsPage = () => {
     const params = new URLSearchParams(searchParams?.toString());
     params.set('catalogs', 'true');
+    params.delete('explore');
+    params.delete('margins');
     params.delete('q');
     params.delete('status');
     params.delete('group');
     navigateToLibrary(router, params.toString());
+  };
+
+  const handleOpenExplorePage = () => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('explore', 'true');
+    params.delete('catalogs');
+    params.delete('margins');
+    params.delete('q');
+    params.delete('status');
+    params.delete('group');
+    navigateToLibrary(router, params.toString());
+  };
+
+  const handleOpenMarginsPage = () => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('margins', 'true');
+    params.delete('catalogs');
+    params.delete('explore');
+    params.delete('q');
+    params.delete('status');
+    params.delete('group');
+    navigateToLibrary(router, params.toString());
+  };
+
+  const handleOpenMargin = (row: LayerRow, bookHash: string) => {
+    requestMarginOpen(bookHash, row.id);
+    navigateToReader(router, [bookHash]);
   };
 
   const handleDismissOPDSDialog = () => {
@@ -1969,6 +2003,10 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
 
   const showBookshelf = libraryLoaded || libraryBooks.length > 0;
   const showCatalogsView = searchParams?.get('catalogs') === 'true';
+  const showExploreView = !showCatalogsView && searchParams?.get('explore') === 'true';
+  const showMarginsView =
+    !showCatalogsView && !showExploreView && searchParams?.get('margins') === 'true';
+  const showDiscoverView = showCatalogsView || showExploreView || showMarginsView;
   const catalogSearchQuery = searchParams?.get('q') ?? '';
 
   return (
@@ -1982,11 +2020,15 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       )}
     >
       <div className='hidden h-full sm:block'>
-        <LibrarySidebar onPullLibrary={pullLibrary} onOpenCatalogManager={handleOpenCatalogsPage} />
+        <LibrarySidebar
+          onPullLibrary={pullLibrary}
+          onOpenCatalogManager={handleOpenCatalogsPage}
+          onOpenExplore={handleOpenExplorePage}
+        />
       </div>
       <div className='sm:bg-base-100 flex h-full min-w-0 flex-1 flex-col overflow-hidden'>
         <div
-          className={clsx('relative top-0 z-40 w-full sm:hidden', showCatalogsView && '!hidden')}
+          className={clsx('relative top-0 z-40 w-full sm:hidden', showDiscoverView && '!hidden')}
           role='banner'
           tabIndex={-1}
           aria-label={_('Library Header')}
@@ -2038,7 +2080,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             max='100'
           />
         </div>
-        <div className={clsx('relative z-40 w-full', showCatalogsView && 'hidden')}>
+        <div className={clsx('relative z-40 w-full', showDiscoverView && 'hidden')}>
           <LibraryContentHeader
             showImportButton={libraryBooks.some((book) => !book.deletedAt)}
             isSelectMode={isSelectMode}
@@ -2162,7 +2204,17 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             </div>
           </div>
         )}
-        {!showCatalogsView &&
+        {showExploreView && (
+          <div className='min-h-0 flex-grow overflow-y-auto'>
+            <ExplorePage />
+          </div>
+        )}
+        {showMarginsView && (
+          <div className='min-h-0 flex-grow overflow-y-auto'>
+            <MarginsView onOpenMargin={handleOpenMargin} />
+          </div>
+        )}
+        {!showDiscoverView &&
           showBookshelf &&
           (libraryBooks.some((book) => !book.deletedAt) ? (
             <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
@@ -2210,6 +2262,11 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             </div>
           ))}
       </div>
+      {!showDiscoverView && (
+        <div className='bg-base-100 hidden h-full w-80 shrink-0 overflow-y-auto xl:block'>
+          <MarginsRail onSeeAll={handleOpenMarginsPage} onOpenMargin={handleOpenMargin} />
+        </div>
+      )}
       {importMenuAnchor && (
         <ImportMenuPopup
           anchor={importMenuAnchor}

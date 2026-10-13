@@ -29,6 +29,9 @@ import TocPopover from './TocPopover';
 import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
+import MarginsPopover, { MARGINS_POPOVER_WIDTH } from './margins/MarginsPopover';
+import { MARGINS_OPEN_PANEL_EVENT } from './margins/ClipSheet';
+import { MARGINS_OPEN_CARD_EVENT } from '../hooks/useMarginsPainter';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
 import MoreMenuButton from './MoreMenuButton';
 import PinnedMoreMenuButton from './PinnedMoreMenuButton';
@@ -47,7 +50,7 @@ const END_SLOT_INDICES = [0, 1, 2];
 
 const THEME_FONTS_WIDTH = 300;
 
-type SidePanel = 'themeFonts' | 'booknotes' | 'annotations';
+type SidePanel = 'themeFonts' | 'booknotes' | 'annotations' | 'margins';
 
 interface HeaderBarProps {
   bookKey: string;
@@ -97,6 +100,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
+  const [isMarginsOpen, setIsMarginsOpen] = useState(false);
+  const [marginsFocusId, setMarginsFocusId] = useState<string | null>(null);
   const [sidePanelAnchorRect, setSidePanelAnchorRect] = useState<Rect | null>(null);
   const [slotAnchorEl, setSlotAnchorEl] = useState<HTMLElement | null>(null);
   const [isArranging, setIsArranging] = useState(false);
@@ -145,6 +150,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     setIsThemeFontsOpen(panel === 'themeFonts');
     setIsBooknotesOpen(panel === 'booknotes');
     setIsAnnotationsOpen(panel === 'annotations');
+    setIsMarginsOpen(panel === 'margins');
     handleToggleDropdown(true);
   };
 
@@ -191,6 +197,33 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
+  const handleOpenMargins = (anchorRect: Rect) => {
+    setMarginsFocusId(null);
+    openSidePanel('margins', anchorRect);
+  };
+
+  const handleCloseMargins = () => {
+    setIsMarginsOpen(false);
+    setMarginsFocusId(null);
+    setSlotAnchorEl(null);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  useEffect(() => {
+    const open = (e: CustomEvent) => {
+      if (e.detail?.bookKey !== bookKey || !moreAnchorRef.current) return;
+      setMarginsFocusId(e.detail.ids?.[0] ?? null);
+      openSidePanelFromSlot('margins')(moreAnchorRef.current);
+    };
+    eventDispatcher.on(MARGINS_OPEN_CARD_EVENT, open);
+    eventDispatcher.on(MARGINS_OPEN_PANEL_EVENT, open);
+    return () => {
+      eventDispatcher.off(MARGINS_OPEN_CARD_EVENT, open);
+      eventDispatcher.off(MARGINS_OPEN_PANEL_EVENT, open);
+    };
+  });
+
   const handleToggleTTS = () => {
     const ttsEnabled = getViewState(bookKey)?.ttsEnabled;
     eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
@@ -235,6 +268,18 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     [sidePanelPointerY],
   );
 
+  const getMarginsPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        MARGINS_POPOVER_WIDTH,
+        sidePanelPointerY,
+      ),
+    [sidePanelPointerY],
+  );
+
   const getBooknotesPlacement = useCallback(
     (anchorRect: Rect, viewport: Rect) =>
       sidePanelAnchorRect
@@ -272,6 +317,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     onOpenContents: openContents,
     onOpenThemeFonts: openSidePanelFromSlot('themeFonts'),
     onOpenAnnotations: openSidePanelFromSlot('annotations'),
+    onOpenMargins: openSidePanelFromSlot('margins'),
     onOpenBooknotes: openSidePanelFromSlot('booknotes'),
     onToggleTTS: handleToggleTTS,
   });
@@ -491,6 +537,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             onOpenThemeFonts={handleThemeFontsOpen}
             onOpenBooknotes={handleOpenBooknotes}
             onOpenAnnotations={handleOpenAnnotations}
+            onOpenMargins={handleOpenMargins}
             onToggleTTS={handleToggleTTS}
             isArranging={isArranging}
             onArrangeChange={setIsArranging}
@@ -529,6 +576,14 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             anchorEl={panelAnchorEl}
             getPlacement={slotAnchorEl ? undefined : getAnnotationsPlacement}
             onClose={handleCloseAnnotations}
+          />
+          <MarginsPopover
+            bookKey={bookKey}
+            isOpen={isMarginsOpen}
+            anchorEl={panelAnchorEl}
+            getPlacement={slotAnchorEl ? undefined : getMarginsPlacement}
+            focusId={marginsFocusId}
+            onClose={handleCloseMargins}
           />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
             {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}

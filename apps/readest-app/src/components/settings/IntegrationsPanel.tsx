@@ -17,6 +17,7 @@ import {
   RiGoogleLine,
   RiMicrosoftLine,
   RiAppleLine,
+  RiUser3Line,
 } from 'react-icons/ri';
 import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
@@ -37,6 +38,7 @@ import { isICloudSupportedPlatform } from '@/services/sync/providers/icloud/buil
 import { getICloudContainerStatus } from '@/utils/bridge';
 import { navigateToLogin, navigateToProfile } from '@/utils/nav';
 import BookOrbitForm from './integrations/BookOrbitForm';
+import AmpleReadAccountForm from './integrations/AmpleReadAccountForm';
 import KOSyncForm from './integrations/KOSyncForm';
 import ReadwiseForm from './integrations/ReadwiseForm';
 import HardcoverForm from './integrations/HardcoverForm';
@@ -66,6 +68,7 @@ import SubPageHeader from './SubPageHeader';
 import { BoxedList, NavigationRow, SectionTitle, SettingLabel, Tips } from './primitives';
 
 type SubPage =
+  | 'ampleread'
   | 'kosync'
   | 'bookorbit'
   | 'webdav'
@@ -226,6 +229,12 @@ const IntegrationsPanel: React.FC = () => {
     return (
       <div className='my-4 w-full'>
         <LocalSendForm onBack={() => setSubPage(null)} />
+      </div>
+    );
+  if (subPage === 'ampleread')
+    return (
+      <div className='my-4 w-full'>
+        <AmpleReadAccountForm onBack={() => setSubPage(null)} />
       </div>
     );
   if (subPage === 'bookorbit')
@@ -561,6 +570,12 @@ const IntegrationsPanel: React.FC = () => {
         <SectionTitle className='mb-2'>{_('Reading Sync')}</SectionTitle>
         <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
           <div className='divide-base-200 divide-y'>
+            <IntegrationRow
+              icon={RiUser3Line}
+              title={_('AmpleRead account')}
+              status={_('Sign in or manage your account')}
+              onClick={() => setSubPage('ampleread')}
+            />
             <IntegrationRow
               icon={RiBookOpenLine}
               title={_('KOReader')}

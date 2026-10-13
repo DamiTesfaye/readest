@@ -132,10 +132,10 @@ describe('getPopupExtraToolTypes', () => {
 
 describe('getSelectionPopupHeight', () => {
   test('fits the fixed sections and the Advanced settings row', () => {
-    expect(getSelectionPopupHeight([], false)).toBe(450);
+    expect(getSelectionPopupHeight([], false)).toBe(482);
   });
 
   test('grows by one row per extra tool and for the Delete row', () => {
-    expect(getSelectionPopupHeight(['copylink', 'tts'], true)).toBe(450 + 3 * 32);
+    expect(getSelectionPopupHeight(['copylink', 'tts'], true)).toBe(482 + 3 * 32);
   });
 });

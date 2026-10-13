@@ -186,6 +186,115 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
       `,
     },
   ],
+  margins: [
+    {
+      name: '2026101201_margins_store',
+      sql: `
+        CREATE TABLE IF NOT EXISTS margin_text_links (
+          file_hash TEXT PRIMARY KEY,
+          text_id TEXT NOT NULL,
+          family_id TEXT,
+          language TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_text_map (
+          file_hash TEXT NOT NULL,
+          section_idx INTEGER NOT NULL,
+          runs TEXT NOT NULL,
+          breaks TEXT NOT NULL,
+          skip INTEGER NOT NULL,
+          PRIMARY KEY (file_hash, section_idx)
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_layers (
+          id TEXT PRIMARY KEY,
+          file_hash TEXT NOT NULL,
+          text_id TEXT,
+          anchor TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          rev INTEGER,
+          deleted INTEGER NOT NULL DEFAULT 0,
+          error TEXT,
+          updated_at INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_margin_layers_file ON margin_layers (file_hash);
+
+        CREATE TABLE IF NOT EXISTS margin_outbox (
+          op_id TEXT PRIMARY KEY,
+          layer_id TEXT NOT NULL,
+          method TEXT NOT NULL,
+          body TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_at INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_sync (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          cursor INTEGER NOT NULL
+        );
+      `,
+    },
+    {
+      name: '2026101202_margins_per_account',
+      sql: `
+        ALTER TABLE margin_layers ADD COLUMN user_id TEXT;
+
+        ALTER TABLE margin_outbox ADD COLUMN user_id TEXT;
+
+        DELETE FROM margin_layers
+        WHERE rev IS NOT NULL AND id NOT IN (SELECT layer_id FROM margin_outbox);
+
+        DROP TABLE margin_sync;
+
+        CREATE TABLE margin_sync (
+          user_id TEXT PRIMARY KEY,
+          cursor INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_margin_outbox_user ON margin_outbox (user_id, next_at);
+      `,
+    },
+    {
+      name: '2026101203_margins_b',
+      sql: `
+        ALTER TABLE margin_layers ADD COLUMN created_at INTEGER;
+
+        CREATE INDEX IF NOT EXISTS idx_margin_layers_text ON margin_layers (text_id);
+
+        CREATE TABLE IF NOT EXISTS margin_texts (
+          text_id TEXT PRIMARY KEY,
+          family_id TEXT,
+          capped INTEGER NOT NULL DEFAULT 1,
+          language TEXT,
+          title TEXT,
+          author TEXT,
+          fetched_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS margin_assets (
+          local_id TEXT PRIMARY KEY,
+          user_id TEXT,
+          remote_id TEXT UNIQUE,
+          mime TEXT NOT NULL,
+          data TEXT,
+          sha256 TEXT NOT NULL,
+          width INTEGER NOT NULL,
+          height INTEGER NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `,
+    },
+    {
+      name: '2026101210_margins_contract',
+      sql: `
+        ALTER TABLE margin_layers ADD COLUMN contract TEXT NOT NULL DEFAULT 'overlay';
+      `,
+    },
+  ],
   reedy: [
     {
       name: '2026052601_reedy_init',

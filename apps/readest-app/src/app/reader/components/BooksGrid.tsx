@@ -27,6 +27,7 @@ import HintInfo from './HintInfo';
 import ReadingRuler from './ReadingRuler';
 import DoubleBorder from './DoubleBorder';
 import ReadingStatsTracker from './ReadingStatsTracker';
+import PlaySurface from './play/PlaySurface';
 
 interface BooksGridProps {
   bookKeys: string[];
@@ -277,6 +278,7 @@ const BookCellInner: React.FC<BookCellProps> = ({
         />
       )}
       <ReadingStatsTracker bookKey={bookKey} />
+      <PlaySurface bookKey={bookKey} />
     </div>
   );
 };
