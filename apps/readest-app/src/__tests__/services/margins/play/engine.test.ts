@@ -29,6 +29,26 @@ describe('play engine', () => {
     expect(engine.fontBytes).toBe(serif.length);
   });
 
+  it("keeps a page's faces on one instance across a re-instantiation", async () => {
+    const added: number[][] = [];
+    const engine = createPlayEngine(async (i) => {
+      added[i] = [];
+      return {
+        add_font: (b: Uint8Array) => {
+          added[i]!.push(b.length);
+          return 'F';
+        },
+      } as unknown as PlayGlue;
+    });
+    await engine.addFont('a', new Uint8Array(FONT_BUDGET / 2));
+    await engine.addFont('b', new Uint8Array(FONT_BUDGET / 2 - 10));
+    await engine.addFonts([
+      { key: 'italic', bytes: new Uint8Array(5) },
+      { key: 'regular', bytes: new Uint8Array(20) },
+    ]);
+    expect(added[1]).toEqual([5, 20]);
+  });
+
   it('recreates_instance_past_font_budget', async () => {
     const l = loader();
     const engine = createPlayEngine(l.load);

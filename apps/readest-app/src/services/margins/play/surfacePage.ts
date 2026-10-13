@@ -73,11 +73,16 @@ const loadFont = async (
       fetchBytes,
     });
     if (f.bytes.length > FACE_MAX) throw new PlayUnavailable('font');
-    if (f.tier === 'standIn' && styled) {
-      for (const key of STAND_IN_FACES[standInFor(cssFamily)].slice(1))
-        await engine.addFont(key, await fetchBytes(`${VENDOR_FONTS}/${key}.ttf`));
-    }
-    return { ...f, family: await engine.addFont(f.key, f.bytes) };
+    const extra =
+      f.tier === 'standIn' && styled
+        ? await Promise.all(
+            STAND_IN_FACES[standInFor(cssFamily)]
+              .slice(1)
+              .map(async (key) => ({ key, bytes: await fetchBytes(`${VENDOR_FONTS}/${key}.ttf`) })),
+          )
+        : [];
+    const families = await engine.addFonts([...extra, { key: f.key, bytes: f.bytes }]);
+    return { ...f, family: families[families.length - 1]! };
   };
   const font =
     (await add(customFonts).catch((e: unknown) => {

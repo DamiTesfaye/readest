@@ -20,6 +20,7 @@ export interface PlayEngine {
   readonly glue: PlayGlue;
   readonly fontBytes: number;
   addFont(key: string, bytes: Uint8Array): Promise<string>;
+  addFonts(faces: { key: string; bytes: Uint8Array }[]): Promise<string[]>;
 }
 
 export const createPlayEngine = (load: (instance: number) => Promise<PlayGlue>): PlayEngine => {
@@ -27,6 +28,21 @@ export const createPlayEngine = (load: (instance: number) => Promise<PlayGlue>):
   let glue: PlayGlue | null = null;
   let loaded = new Map<string, { size: number; family: string }>();
   const total = () => [...loaded.values()].reduce((n, f) => n + f.size, 0);
+  const reset = () => {
+    instance++;
+    glue = null;
+    loaded = new Map();
+  };
+  const addFont = async (key: string, bytes: Uint8Array) => {
+    if (bytes.length > FACE_MAX) throw new Error('face over 16 MB');
+    const known = loaded.get(key);
+    if (known) return known.family;
+    if (total() + bytes.length > FONT_BUDGET) reset();
+    glue ??= await load(instance);
+    const family = glue.add_font(bytes);
+    loaded.set(key, { size: bytes.length, family });
+    return family;
+  };
   return {
     get glue() {
       if (!glue) throw new Error('play engine not loaded');
@@ -35,19 +51,13 @@ export const createPlayEngine = (load: (instance: number) => Promise<PlayGlue>):
     get fontBytes() {
       return total();
     },
-    async addFont(key, bytes) {
-      if (bytes.length > FACE_MAX) throw new Error('face over 16 MB');
-      const known = loaded.get(key);
-      if (known) return known.family;
-      if (total() + bytes.length > FONT_BUDGET) {
-        instance++;
-        glue = null;
-        loaded = new Map();
-      }
-      glue ??= await load(instance);
-      const family = glue.add_font(bytes);
-      loaded.set(key, { size: bytes.length, family });
-      return family;
+    addFont,
+    async addFonts(faces) {
+      const fresh = faces.filter((f) => !loaded.has(f.key));
+      if (total() + fresh.reduce((n, f) => n + f.bytes.length, 0) > FONT_BUDGET) reset();
+      const families: string[] = [];
+      for (const f of faces) families.push(await addFont(f.key, f.bytes));
+      return families;
     },
   };
 };
