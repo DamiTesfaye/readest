@@ -226,6 +226,14 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
           onDelete={() => withStore((store) => setDeleted(scheduleDelete(store, row.id)))}
           onRetry={() => withStore((store) => retryMargin(store, row.id))}
           onKeepHere={placed ? () => void keepHere(row, placed).catch(fail) : undefined}
+          onPlay={
+            placed
+              ? () => {
+                  onClose();
+                  eventDispatcher.dispatch('margins-play-enter', { bookKey, layerId: row.id });
+                }
+              : undefined
+          }
         />
       </li>
     );

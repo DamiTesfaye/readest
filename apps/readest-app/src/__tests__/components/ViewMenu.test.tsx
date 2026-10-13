@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ViewMenu from '@/app/reader/components/ViewMenu';
+import { eventDispatcher } from '@/utils/event';
 
 const mockView = {
   book: { dir: undefined as string | undefined },
@@ -164,5 +165,22 @@ describe('ViewMenu right-to-left pages toggle', () => {
       expect(mockView.book.dir).toBe('ltr');
       expect(mockRecreateViewer).toHaveBeenCalledWith(expect.anything(), 'book-1');
     });
+  });
+});
+
+describe('ViewMenu play entry', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('enters play on the current page and closes the menu', () => {
+    mockBookData.isFixedLayout = false;
+    const dispatch = vi.spyOn(eventDispatcher, 'dispatch').mockResolvedValue(undefined);
+    const setIsDropdownOpen = vi.fn();
+    render(<ViewMenu bookKey='book-1' setIsDropdownOpen={setIsDropdownOpen} />);
+    fireEvent.click(screen.getByText('Play with this page'));
+    expect(setIsDropdownOpen).toHaveBeenCalledWith(false);
+    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'book-1' });
   });
 });

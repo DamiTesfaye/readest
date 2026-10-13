@@ -215,6 +215,66 @@ describe('margins service', () => {
     ]);
   });
 
+  it('a play Margin carries its contract, and loses it with its play element', async () => {
+    const play = {
+      ...emptyEnvelope(),
+      elements: [
+        {
+          id: 'p1',
+          kind: 'play',
+          frame: { x: 0.5, y: 0.6, w: 0.8, r: 0 },
+          contract: 'detach',
+          alt: 'loose words',
+          detach: { unit: 'word', spans: [[0, 5]], sink: 'floor', seed: 1 },
+        },
+      ],
+    } as Envelope;
+    const id = await saveMargin(store, {
+      fileHash: 'hash-a',
+      anchor: anchor('txt_a'),
+      envelope: play,
+    });
+    expect(await store.getLayer(id)).toMatchObject({ kind: 'play', contract: 'detach' });
+    expect((await store.dueOps(Date.now() + 1000, 'usr_a'))[0]!.body).toMatchObject({
+      kind: 'play',
+      contract: 'detach',
+    });
+    echo(3);
+    await flushOutbox(store);
+    await editMargin(store, id, { envelope: withNote('later') });
+    expect((await store.dueOps(Date.now() + 1000, 'usr_a'))[0]!.body).toMatchObject({
+      kind: 'note',
+      contract: 'overlay',
+    });
+    expect(await store.getLayer(id)).toMatchObject({ contract: 'overlay' });
+  });
+
+  it('removing the play element during an in-flight POST sends the overlay contract', async () => {
+    const play = {
+      ...emptyEnvelope(),
+      elements: [
+        {
+          id: 'p1',
+          kind: 'play',
+          frame: { x: 0.5, y: 0.6, w: 0.8, r: 0 },
+          contract: 'detach',
+          alt: 'loose words',
+          detach: { unit: 'word', spans: [[0, 5]], sink: 'floor', seed: 1 },
+        },
+      ],
+    } as Envelope;
+    const id = await saveMargin(store, {
+      fileHash: 'hash-a',
+      anchor: anchor('txt_a'),
+      envelope: play,
+    });
+    echoDuring(() => editMargin(store, id, { envelope: withNote('later') }));
+    await flushOutbox(store);
+    const ops = await store.dueOps(Date.now() + 1000, 'usr_a');
+    expect(ops.map((o) => o.method)).toEqual(['PATCH']);
+    expect(ops[0]!.body).toMatchObject({ kind: 'note', contract: 'overlay' });
+  });
+
   it('editing a synced Margin queues a PATCH', async () => {
     const id = await saveMargin(store, {
       fileHash: 'hash-a',

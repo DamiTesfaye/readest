@@ -23,6 +23,7 @@ export interface MarginCardProps {
   onDelete(): void;
   onRetry?(): void;
   onKeepHere?(): void;
+  onPlay?(): void;
 }
 
 const QUOTA_ERRORS = ['excerpt_too_long', 'excerpt_quota_exceeded'];
@@ -56,7 +57,19 @@ export const useErrorCopy = () => {
 };
 
 const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCard(
-  { row, placement, quoteText, expanded, onGoTo, onOpen, onEdit, onDelete, onRetry, onKeepHere },
+  {
+    row,
+    placement,
+    quoteText,
+    expanded,
+    onGoTo,
+    onOpen,
+    onEdit,
+    onDelete,
+    onRetry,
+    onKeepHere,
+    onPlay,
+  },
   ref,
 ) {
   const _ = useTranslation();
@@ -88,7 +101,7 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
           </blockquote>
           {envelope.elements.map((e) => (
             <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
-              <ElementView element={e} selected={false} editable={false} />
+              <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
             </div>
           ))}
         </div>

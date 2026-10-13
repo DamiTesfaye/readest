@@ -28,6 +28,7 @@ export interface LayerRow {
   textId: string | null;
   anchor: Anchor;
   kind: string;
+  contract?: string;
   payload: unknown;
   rev: number | null;
   deleted: boolean;
@@ -99,6 +100,7 @@ type LayerRecord = {
   text_id: string | null;
   anchor: string;
   kind: string;
+  contract: string;
   payload: string;
   rev: number | null;
   deleted: number;
@@ -188,10 +190,11 @@ export class MarginsStore {
 
   async putLayer(row: LayerRow): Promise<void> {
     await this.db.execute(
-      `INSERT INTO margin_layers (id, file_hash, text_id, anchor, kind, payload, rev, deleted, error, updated_at, user_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO margin_layers (id, file_hash, text_id, anchor, kind, payload, rev, deleted, error, updated_at, user_id, created_at, contract)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET file_hash = excluded.file_hash, text_id = excluded.text_id,
          anchor = excluded.anchor, kind = excluded.kind, payload = excluded.payload, rev = excluded.rev,
+         contract = excluded.contract,
          deleted = excluded.deleted, error = excluded.error, updated_at = excluded.updated_at,
          user_id = excluded.user_id,
          created_at = coalesce(margin_layers.created_at, excluded.created_at)`,
@@ -208,6 +211,7 @@ export class MarginsStore {
         Date.now(),
         row.userId ?? null,
         row.createdAt ?? Date.now(),
+        row.contract ?? 'overlay',
       ],
     );
   }
@@ -262,7 +266,7 @@ export class MarginsStore {
     orderBy?: string,
   ): Promise<LayerRow[]> {
     const rows = await this.db.select<LayerRecord>(
-      `SELECT id, file_hash, text_id, anchor, kind, payload, rev, deleted, error, user_id, created_at, updated_at
+      `SELECT id, file_hash, text_id, anchor, kind, contract, payload, rev, deleted, error, user_id, created_at, updated_at
        FROM margin_layers WHERE ${where}${orderBy ? ` ORDER BY ${orderBy}` : ''}`,
       values,
     );
@@ -272,6 +276,7 @@ export class MarginsStore {
       textId: r.text_id,
       anchor: JSON.parse(r.anchor),
       kind: r.kind,
+      contract: r.contract,
       payload: JSON.parse(r.payload),
       rev: r.rev === null ? null : Number(r.rev),
       deleted: Number(r.deleted) === 1,

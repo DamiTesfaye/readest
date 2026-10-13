@@ -18,6 +18,7 @@ export interface LayerView {
   textId: string;
   anchor: Anchor;
   kind: string;
+  contract: string;
   payload: unknown;
   rev: number;
   createdAt: string;
@@ -100,6 +101,7 @@ const applyLayer = async (store: MarginsStore, view: LayerView, userId: string) 
     textId: view.textId,
     anchor: view.anchor,
     kind: view.kind,
+    contract: view.contract,
     payload: view.payload,
     rev: view.rev,
     deleted: view.deletedAt !== null,
@@ -139,9 +141,13 @@ const settle = async (store: MarginsStore, op: OutboxOp, view: LayerView, userId
   }
   const local = await store.getLayer(op.layerId);
   if (local) await store.putLayer({ ...local, rev: view.rev });
-  const { id: _id, ...patch } = current as { id: string };
+  const { id: _id, ...patch } = current as { id: string; contract?: string };
   await store.ack(op.opId);
-  await queueLayerWrite(store, { layerId: op.layerId, method: 'PATCH', body: patch });
+  await queueLayerWrite(store, {
+    layerId: op.layerId,
+    method: 'PATCH',
+    body: { ...patch, contract: patch.contract ?? 'overlay' },
+  });
 };
 
 export const flushOutbox = async (store: MarginsStore, now = Date.now()): Promise<number> => {

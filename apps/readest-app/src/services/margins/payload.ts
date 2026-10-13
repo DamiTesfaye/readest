@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type PlayElement, validatePlayElement } from './play/element';
 import type { Quote } from './types';
 
 export const PAYLOAD_MAX = 16 * 1024;
@@ -11,7 +12,9 @@ export const AGGREGATE_MAX = 3000;
 export const QUOTE_MAX = 300;
 export const TRANSLATION_UNCAPPED_MAX = 6000;
 
-export const KINDS = ['clip', 'note', 'translation', 'artwork', 'sticker'] as const;
+export const KINDS = ['clip', 'note', 'translation', 'artwork', 'sticker', 'play'] as const;
+
+export type Contract = 'overlay' | 'displace' | 'detach';
 
 export type Ground = 'paper' | 'ink' | 'lime';
 export type Motion = 'rise' | 'drift' | 'breathe';
@@ -87,6 +90,11 @@ export const envelopeBytes = (e: Envelope): number =>
 
 export const leadKind = (e: Envelope): string => e.elements[0]?.kind ?? 'clip';
 
+export const contractOf = (e: Envelope): Contract => {
+  const plays = e.elements.filter((x) => x.kind === 'play');
+  return plays.length === 1 ? (plays[0] as unknown as PlayElement).contract : 'overlay';
+};
+
 export const emptyEnvelope = (): Envelope => ({
   v: 1,
   ground: 'paper',
@@ -150,6 +158,44 @@ const sticker = z.strictObject({
   sticker: z.string().regex(/^[a-z0-9-]{1,32}\/[a-z0-9-]{1,32}$/),
 });
 
+const em = z.number();
+const u32 = z
+  .number()
+  .int()
+  .min(0)
+  .max(2 ** 32 - 1);
+
+const play = z.strictObject({
+  id: base.id,
+  kind: z.literal('play'),
+  frame,
+  contract: z.string(),
+  alt: z.string(),
+  shapes: z
+    .array(
+      z.discriminatedUnion('type', [
+        z.strictObject({ id: z.string(), type: z.literal('circle'), r: em, pad: em }),
+        z.strictObject({
+          id: z.string(),
+          type: z.literal('polygon'),
+          pts: z.array(z.tuple([em, em])),
+          pad: em,
+        }),
+      ]),
+    )
+    .nullish(),
+  poses: z.array(z.strictObject({ shape: z.string(), x: em, y: em, rot: em })).nullish(),
+  shapeMotion: z.string().nullish(),
+  detach: z
+    .strictObject({
+      unit: z.string(),
+      spans: z.array(z.tuple([u32, u32])),
+      sink: z.string(),
+      seed: u32,
+    })
+    .nullish(),
+});
+
 const unknownKind = z.looseObject({ id: base.id, kind: z.string() });
 
 export type PayloadCheck =
@@ -195,6 +241,15 @@ export const validatePayload = (
       const e = sticker.safeParse(raw);
       if (!e.success) return fail;
       id = e.data.id;
+    } else if (k === 'play') {
+      const e = play.safeParse(raw);
+      if (e.success && validatePlayElement(e.data, Infinity) === null) id = e.data.id;
+      else {
+        const newer = unknownKind.safeParse(raw);
+        if (knownOnly || !newer.success || validatePlayElement(raw, Infinity) !== 'unknown')
+          return fail;
+        id = newer.data.id;
+      }
     } else {
       const e = unknownKind.safeParse(raw);
       if (knownOnly || !e.success) return fail;

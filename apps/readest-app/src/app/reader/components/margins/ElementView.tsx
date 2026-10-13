@@ -12,6 +12,7 @@ import type {
   StickerElement,
   TranslationElement,
 } from '@/services/margins/payload';
+import { type PlayElement, validatePlayElement } from '@/services/margins/play/element';
 import { openMarginsStore } from '@/services/margins/store';
 import stickers from '../../../../../public/margins/stickers/basic.json';
 
@@ -20,6 +21,7 @@ export interface ElementViewProps {
   selected: boolean;
   editable: boolean;
   onChange?(patch: Partial<Element>): void;
+  onPlay?(): void;
 }
 
 export const GROUND_STYLE: Record<Ground, { background: string; color: string }> = {
@@ -105,7 +107,35 @@ const Artwork = ({ element }: { element: ArtworkElement }) => {
 
 const textClass = 'w-full bg-transparent text-sm leading-snug';
 
-export function ElementView({ element, selected, editable, onChange }: ElementViewProps) {
+const Play = ({ element, onPlay }: { element: PlayElement; onPlay?(): void }) => {
+  const _ = useTranslation();
+  return (
+    <div
+      role='group'
+      aria-label={element.alt}
+      className='bg-base-100/80 flex items-center gap-2 rounded p-2 text-xs'
+    >
+      <span className='badge badge-sm shrink-0'>{_('Play')}</span>
+      <span className='line-clamp-2 flex-1'>{element.alt}</span>
+      {onPlay && (
+        <button type='button' className='btn btn-xs shrink-0' onClick={onPlay}>
+          {_('Play')}
+        </button>
+      )}
+    </div>
+  );
+};
+
+const NeedsNewer = ({ ring }: { ring: string }) => {
+  const _ = useTranslation();
+  return (
+    <p className={clsx('rounded border border-dashed p-2 text-xs opacity-70', ring)}>
+      {_('This part needs a newer AmpleRead')}
+    </p>
+  );
+};
+
+export function ElementView({ element, selected, editable, onChange, onPlay }: ElementViewProps) {
   const _ = useTranslation();
   const ring = clsx(selected && 'ring-2 ring-[#5B3DF5] ring-offset-1');
   switch (element.kind) {
@@ -164,12 +194,16 @@ export function ElementView({ element, selected, editable, onChange }: ElementVi
         />
       );
     }
-    default:
-      return (
-        <p className={clsx('rounded border border-dashed p-2 text-xs opacity-70', ring)}>
-          {_('This part needs a newer AmpleRead')}
-        </p>
+    case 'play':
+      return validatePlayElement(element, Infinity) === 'unknown' ? (
+        <NeedsNewer ring={ring} />
+      ) : (
+        <div className={ring}>
+          <Play element={element as unknown as PlayElement} onPlay={onPlay} />
+        </div>
       );
+    default:
+      return <NeedsNewer ring={ring} />;
   }
 }
 

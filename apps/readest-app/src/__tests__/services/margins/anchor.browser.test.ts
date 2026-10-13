@@ -1,7 +1,13 @@
 import * as CFI from 'foliate-js/epubcfi.js';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { DocumentLoader, type BookDoc } from '@/libs/document';
-import { createAnchor, resolveAnchor, type BridgeContext } from '@/services/margins/anchorBridge';
+import {
+  createAnchor,
+  createAnchorAt,
+  rangeToCanonical,
+  resolveAnchor,
+  type BridgeContext,
+} from '@/services/margins/anchorBridge';
 import { getMarginsCore } from '@/services/margins/marginsClient';
 import type { MarginsStore } from '@/services/margins/store';
 import { buildTextMap } from '@/services/margins/textMap';
@@ -113,5 +119,15 @@ describe('margins anchor across re-open', () => {
       [QUOTE, 1],
     ]);
     expect(widths[2]).toBeLessThan(widths[0]! / 1.5);
+  }, 60000);
+
+  it('anchors canonical offsets that resolve at step 1', async () => {
+    const index = await sectionIndex();
+    const { ctx, doc } = await openAt(index, 16, 1);
+    const [start, end] = await rangeToCanonical(ctx, index, textRange(doc, QUOTE));
+    const anchor = await createAnchorAt(ctx, index, start, end);
+    expect(anchor.quote).toEqual({ exact: QUOTE });
+    const placed = await resolveAnchor(ctx, anchor);
+    expect([placed.range?.toString(), placed.step]).toEqual([QUOTE, 1]);
   }, 60000);
 });
