@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
     renderer: { getContents: () => [{ index: 1 }, { index: 2 }] },
   },
   clusters: new Map<number, unknown[]>(),
-  openPassage: vi.fn(),
+  openPassage: vi.fn(async () => {}),
   saveViewSettings: vi.fn(),
   retryMargin: vi.fn(async () => {}),
   editMargin: vi.fn(async () => {}),
