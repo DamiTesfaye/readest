@@ -113,6 +113,49 @@ export interface TrendingRequest {
   owned: string[];
 }
 
+export interface QueueReport {
+  reason: string;
+  text: string | null;
+  established: boolean;
+  createdAt: string;
+}
+
+export interface QueueNotice {
+  id: string;
+  work: string;
+  claimantName: string;
+  claimantEmail: string;
+  state: string;
+  restoreAfter: string | null;
+  counter: Record<string, unknown> | null;
+}
+
+export interface QueueItem {
+  kind: 'csam' | 'notice' | 'appeal' | 'report' | 'none';
+  post: PostView | null;
+  postId: string;
+  status: string;
+  cardAsset: string | null;
+  reports: QueueReport[];
+  notices: QueueNotice[];
+  appeal: string | null;
+  creator: {
+    handle: string;
+    posts: number;
+    upheldReports: number;
+    accountAgeDays: number;
+    suspensions: number;
+  };
+  text: { title: string | null; titleVerified: boolean; capped: boolean; license: string | null };
+  createdAt: string;
+}
+
+export interface AdminAction {
+  action: string;
+  reason?: string;
+  days?: number | null;
+}
+
 export const REPORT_REASONS = [
   'spam',
   'harassment',
@@ -240,6 +283,9 @@ export const publicApi = {
     callJson<MyPost>(`/v1/posts/${seg(postId)}/counter-notice`, withBody('POST', body)),
   appeal: (postId: string, text: string) =>
     callJson<MyPost>(`/v1/posts/${seg(postId)}/appeal`, withBody('POST', { text })),
+  adminQueue: () => callJson<QueueItem[]>('/v1/admin/queue'),
+  adminAction: (postId: string, body: AdminAction) =>
+    callJson<QueueItem>(`/v1/admin/posts/${seg(postId)}/actions`, withBody('POST', body)),
   postAssetUrl: async (postId: string, assetRef: string): Promise<string | null> => {
     const key = `${postId}/${assetRef}`;
     const cached = assetUrls.get(key);
