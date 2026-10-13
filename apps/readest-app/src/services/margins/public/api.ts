@@ -143,7 +143,7 @@ const send = async (path: string, init: RequestInit, signedOutOk: boolean) => {
   return installFetch(path, init);
 };
 
-const call = async (path: string, init: RequestInit = {}, signedOutOk = false) => {
+export const call = async (path: string, init: RequestInit = {}, signedOutOk = false) => {
   const res = await send(path, init, signedOutOk);
   if (res.ok) return res;
   const body = (await res.json().catch(() => null)) as ErrorJson;
