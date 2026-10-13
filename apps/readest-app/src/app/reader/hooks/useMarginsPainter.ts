@@ -25,6 +25,12 @@ const painters = new Map<string, MarginsPainter>();
 export const getMarginsPainter = (bookKey: string): MarginsPainter | null =>
   painters.get(bookKey) ?? null;
 
+const pendingOpen = new Map<string, string>();
+
+export const requestMarginOpen = (fileHash: string, layerId: string): void => {
+  pendingOpen.set(fileHash, layerId);
+};
+
 export const MARGINS_PLACED_EVENT = 'margins-placed';
 export const MARGINS_OPEN_CARD_EVENT = 'margins-open-card';
 export const CLIP_PREVIEW_KEY = `${MARGIN_KEY_PREFIX}clip-preview`;
@@ -80,6 +86,16 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
         load().catch(() => console.error('Margins: painter reload failed'));
       });
       await load();
+      const target = pendingOpen.get(book.hash);
+      if (!target || cancelled) return;
+      pendingOpen.delete(book.hash);
+      const placed = painter.placements().get(target);
+      if (placed?.kind === 'placed') {
+        await view.goTo(placed.section);
+        const range = await liveRange(ctx, placed.section, placed.start, placed.end);
+        if (range) await view.goTo(view.getCFI(placed.section, range));
+      }
+      eventDispatcher.dispatch(MARGINS_OPEN_CARD_EVENT, { bookKey, ids: [target] });
     })().catch(() => console.error('Margins: painter failed'));
     return () => {
       cancelled = true;
