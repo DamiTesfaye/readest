@@ -113,6 +113,10 @@ const nextConfig = {
         source: '/s/:token',
         destination: '/s?token=:token',
       },
+      {
+        source: '/m/:id',
+        destination: '/m?id=:id',
+      },
     ];
   },
   async headers() {
