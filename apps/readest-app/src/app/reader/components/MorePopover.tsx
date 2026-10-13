@@ -223,7 +223,10 @@ const MorePopover: React.FC<MorePopoverProps> = ({
           key={id}
           type='button'
           className={ROW_CLASS}
-          onClick={(event) => action.run(event.currentTarget)}
+          onClick={(event) => {
+            anchorEl?.focus({ preventScroll: true });
+            action.run(event.currentTarget);
+          }}
           {...hoverHandlers(id)}
           {...dragHandlers(id)}
         >
