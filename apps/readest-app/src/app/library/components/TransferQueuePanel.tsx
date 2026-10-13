@@ -5,7 +5,6 @@ import {
   MdRefresh,
   MdPause,
   MdPlayArrow,
-  MdCloudUpload,
   MdCloudDownload,
   MdCheckCircle,
   MdError,
@@ -26,6 +25,7 @@ import {
   isFailedLikeTransfer,
   useTransferStore,
 } from '@/store/transferStore';
+import { UploadIcon } from '@/components/UploadIcon';
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -74,7 +74,7 @@ const StatusIcon: React.FC<{
     case 'pending':
     default:
       return type === 'upload' ? (
-        <MdCloudUpload className='text-primary' size={size} />
+        <UploadIcon className='text-primary' size={size} />
       ) : type === 'delete' ? (
         <MdDeleteSweep className='text-primary' size={size} />
       ) : (
@@ -268,7 +268,7 @@ const TransferQueuePanel: React.FC = () => {
                 title={_('Upload All')}
                 aria-label={_('Upload All')}
               >
-                <MdCloudUpload size={iconSize} />
+                <UploadIcon size={iconSize} />
                 <span className='text-xs'>{booksToUpload.length}</span>
               </button>
             )}

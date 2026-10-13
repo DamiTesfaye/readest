@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLineBoxes,
   buildReadingRulerColumns,
   calculateReadingRulerPadding,
   calculateReadingRulerSize,
   clampReadingRulerPosition,
+  collectTextLineRects,
   FIXED_LAYOUT_READING_RULER_LINE_HEIGHT,
   filterVisibleLineBoxes,
   getReadingRulerMoveDirection,
@@ -152,21 +153,18 @@ describe('buildLineBoxes', () => {
     expect(buildLineBoxes(rects, true, false, container)).toEqual([{ start: 24, end: 40 }]);
   });
 
-  it('drops multi-line block rects so paragraphs are not merged into one box', () => {
-    // Range.getClientRects() includes the <p> border box (h=160) alongside its
-    // 4 line boxes; the tall block rect must be discarded, not merged.
+  it('keeps heading lines that are much taller than the body lines', () => {
     const rects = [
-      rect(0, 10, 16, 400),
-      rect(20, 10, 16, 400),
-      rect(40, 10, 16, 400),
+      rect(0, 10, 48, 400),
       rect(60, 10, 16, 400),
-      rect(0, 10, 160, 400), // the paragraph block box
+      rect(80, 10, 16, 400),
+      rect(100, 10, 16, 400),
     ];
     expect(buildLineBoxes(rects, false, false, container)).toEqual([
-      { start: 0, end: 16 },
-      { start: 20, end: 36 },
-      { start: 40, end: 56 },
+      { start: 0, end: 48 },
       { start: 60, end: 76 },
+      { start: 80, end: 96 },
+      { start: 100, end: 116 },
     ]);
   });
 });
@@ -277,18 +275,35 @@ describe('buildReadingRulerColumns', () => {
         left: 40,
         right: 460,
         lines: [
-          { start: 0, end: 16 },
-          { start: 20, end: 36 },
+          { start: 0, end: 16, left: 40, right: 460 },
+          { start: 20, end: 36, left: 40, right: 460 },
         ],
       },
       {
         left: 540,
         right: 960,
         lines: [
-          { start: 0, end: 16 },
-          { start: 20, end: 36 },
+          { start: 0, end: 16, left: 540, right: 960 },
+          { start: 20, end: 36, left: 540, right: 960 },
         ],
       },
+    ]);
+  });
+
+  it('gives each line the horizontal extent of its own rects', () => {
+    const rects = [rect(0, 590, 16, 300), rect(20, 540, 16, 100), rect(20, 650, 16, 50)];
+    const cols = buildReadingRulerColumns(rects, 2, 1000, false);
+    expect(cols[0]!.lines).toEqual([
+      { start: 0, end: 16, left: 590, right: 890 },
+      { start: 20, end: 36, left: 540, right: 700 },
+    ]);
+  });
+
+  it('drops rects whose center lies outside the overlay', () => {
+    const rects = [colRect(0, 540), rect(20, 1100, 16, 400), rect(40, -600, 16, 400)];
+    const cols = buildReadingRulerColumns(rects, 2, 1000, false);
+    expect(cols).toEqual([
+      { left: 540, right: 960, lines: [{ start: 0, end: 16, left: 540, right: 960 }] },
     ]);
   });
 
@@ -305,21 +320,15 @@ describe('buildReadingRulerColumns', () => {
     expect(cols[0]!.lines).toHaveLength(1); // both rects share top 0 -> one line
   });
 
-  it('drops multi-line block rects inside a column', () => {
-    const rects = [
-      colRect(0, 40),
-      colRect(20, 40),
-      colRect(40, 40),
-      colRect(60, 40),
-      rect(0, 40, 160, 420), // paragraph block box in column 0
-    ];
+  it('keeps heading lines inside a column', () => {
+    const rects = [rect(0, 40, 48, 420), colRect(60, 40), colRect(80, 40), colRect(100, 40)];
     const cols = buildReadingRulerColumns(rects, 2, 1000, false);
     expect(cols).toHaveLength(1);
-    expect(cols[0]!.lines).toEqual([
-      { start: 0, end: 16 },
-      { start: 20, end: 36 },
-      { start: 40, end: 56 },
+    expect(cols[0]!.lines.map(({ start, end }) => ({ start, end }))).toEqual([
+      { start: 0, end: 48 },
       { start: 60, end: 76 },
+      { start: 80, end: 96 },
+      { start: 100, end: 116 },
     ]);
   });
 });
@@ -330,14 +339,36 @@ describe('snapReadingRulerColumns', () => {
     {
       left: 40,
       right: 460,
-      lines: [0, 20, 40, 60, 80].map((s) => ({ start: s, end: s + 16 })),
+      lines: [0, 20, 40, 60, 80].map((s) => ({ start: s, end: s + 16, left: 40, right: 460 })),
     },
     {
       left: 540,
       right: 960,
-      lines: [0, 20, 40].map((s) => ({ start: s, end: s + 16 })),
+      lines: [0, 20, 40].map((s) => ({ start: s, end: s + 16, left: 540, right: 960 })),
     },
   ];
+
+  it('returns the horizontal extent of the covered lines only', () => {
+    const ragged = [
+      {
+        left: 500,
+        right: 990,
+        lines: [
+          { start: 0, end: 16, left: 500, right: 600 },
+          { start: 20, end: 36, left: 560, right: 800 },
+          { start: 40, end: 56, left: 560, right: 700 },
+          { start: 60, end: 76, left: 560, right: 990 },
+        ],
+      },
+    ];
+    expect(snapReadingRulerColumns(0, 0, 16, 2, 'forward', ragged)).toEqual({
+      columnIndex: 0,
+      start: 20,
+      end: 56,
+      left: 560,
+      right: 800,
+    });
+  });
 
   it('advances within the active column', () => {
     // col0, current block lines[0..1] => [0,36]; next block lines[2..3] => [40,76].
@@ -345,6 +376,8 @@ describe('snapReadingRulerColumns', () => {
       columnIndex: 0,
       start: 40,
       end: 76,
+      left: 40,
+      right: 460,
     });
   });
 
@@ -354,6 +387,8 @@ describe('snapReadingRulerColumns', () => {
       columnIndex: 1,
       start: 0,
       end: 36,
+      left: 540,
+      right: 960,
     });
   });
 
@@ -368,11 +403,95 @@ describe('snapReadingRulerColumns', () => {
       columnIndex: 0,
       start: 60,
       end: 96,
+      left: 40,
+      right: 460,
     });
   });
 
   it('returns null when there are no columns', () => {
     expect(snapReadingRulerColumns(0, 0, 36, 2, 'forward', [])).toBeNull();
+  });
+});
+
+describe('collectTextLineRects', () => {
+  const textRects = new Map<Node, DOMRect[]>();
+  const domRect = (top: number, height: number) =>
+    ({ top, bottom: top + height, left: 0, right: 100, width: 100, height }) as DOMRect;
+
+  afterEach(() => {
+    Reflect.deleteProperty(Range.prototype, 'getClientRects');
+    textRects.clear();
+  });
+
+  const stubRangeRects = () => {
+    const blockRect = domRect(0, 1000);
+    Range.prototype.getClientRects = vi.fn(function (this: Range) {
+      const rects = textRects.get(this.startContainer);
+      if (rects) return rects.map((r) => ({ ...r, offset: this.startOffset })) as never;
+      return [blockRect] as never;
+    });
+  };
+
+  it('collects line rects from each text node and never the element boxes', () => {
+    stubRangeRects();
+    const body = document.createElement('div');
+    const heading = document.createElement('h1');
+    const first = document.createTextNode('Title');
+    heading.appendChild(first);
+    const paragraph = document.createElement('p');
+    const second = document.createTextNode('Body text');
+    paragraph.appendChild(second);
+    body.append(heading, document.createTextNode('\n  '), paragraph);
+    textRects.set(first, [domRect(0, 48)]);
+    textRects.set(second, [domRect(60, 16), domRect(80, 16)]);
+
+    const range = document.createRange();
+    range.selectNodeContents(body);
+
+    expect(collectTextLineRects(range).map((r) => [r.top, r.height])).toEqual([
+      [0, 48],
+      [60, 16],
+      [80, 16],
+    ]);
+  });
+
+  it('clips the first text node to the range start offset', () => {
+    stubRangeRects();
+    const body = document.createElement('div');
+    const text = document.createTextNode('Some long sentence');
+    body.appendChild(text);
+    textRects.set(text, [domRect(0, 16)]);
+
+    const range = document.createRange();
+    range.setStart(text, 5);
+    range.setEnd(text, 9);
+
+    expect(collectTextLineRects(range)).toEqual([expect.objectContaining({ offset: 5 })]);
+  });
+
+  it('skips lines that hold only whitespace inside a text node, like a pre-wrap poem', () => {
+    const lineHeight = 18;
+    const lineIndexAt = (text: string, offset: number) =>
+      text.slice(0, offset).split('\n').length - 1;
+    Range.prototype.getClientRects = vi.fn(function (this: Range) {
+      const text = this.startContainer.nodeValue ?? '';
+      const first = lineIndexAt(text, this.startOffset);
+      const last = lineIndexAt(text, Math.max(this.endOffset - 1, this.startOffset));
+      return Array.from({ length: last - first + 1 }, (_, i) =>
+        domRect((first + i) * lineHeight, lineHeight),
+      ) as never;
+    });
+    const pre = document.createElement('pre');
+    pre.appendChild(
+      document.createTextNode(
+        '\n   “Oh, you wonderful girl,\n    What a wonderful girl you are”\n ',
+      ),
+    );
+
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+
+    expect(collectTextLineRects(range).map((r) => r.top)).toEqual([18, 36]);
   });
 });
 
@@ -417,16 +536,16 @@ describe('snapReadingRulerColumnsToAnchor', () => {
       left: 40,
       right: 360,
       lines: [
-        { start: 100, end: 140 },
-        { start: 200, end: 240 },
+        { start: 100, end: 140, left: 40, right: 360 },
+        { start: 200, end: 240, left: 40, right: 360 },
       ],
     },
     {
       left: 440,
       right: 760,
       lines: [
-        { start: 100, end: 140 },
-        { start: 200, end: 240 },
+        { start: 100, end: 140, left: 440, right: 760 },
+        { start: 200, end: 240, left: 440, right: 760 },
       ],
     },
   ];

@@ -99,6 +99,19 @@ const TEST_METADATA = {
 // retained range chunks). Dropping the reference does NOT release it — the
 // dedicated worker survives GC — so importBook must call destroy() or batch
 // imports accumulate ~60 MB per PDF until the WebView renderer OOMs (#5387).
+const written = new Set<string>();
+
+function trackWrites(fs: ReturnType<TestAppService['getFs']>) {
+  written.clear();
+  fs.writeFile.mockImplementation(async (path: string) => {
+    written.add(path);
+  });
+  fs.copyFile.mockImplementation(async (_src: string, _srcBase: string, dst: string) => {
+    written.add(dst);
+  });
+  fs.exists.mockImplementation(async (path: string) => written.has(path));
+}
+
 describe('importBook BookDoc lifecycle', () => {
   let service: TestAppService;
   let mockDestroy: ReturnType<typeof vi.fn>;
@@ -118,9 +131,8 @@ describe('importBook BookDoc lifecycle', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
+    trackWrites(fs);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
     mockPartialMD5.mockResolvedValue('hash-abc');

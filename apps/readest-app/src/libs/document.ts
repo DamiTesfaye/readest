@@ -16,6 +16,7 @@ export type Location = {
 export interface TOCItem {
   id: number;
   label: string;
+  sourceLabel?: string;
   href: string;
   index: number; // Page index for PDF books
   cfi?: string;

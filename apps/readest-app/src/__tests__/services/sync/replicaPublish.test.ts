@@ -167,7 +167,7 @@ describe('publishReplicaDelete', () => {
   test('no-ops when replicaSync is not initialized', async () => {
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(null);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(false);
     expect(getUserID).not.toHaveBeenCalled();
   });
 
@@ -175,7 +175,7 @@ describe('publishReplicaDelete', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(false);
     expect(ctx.manager.markDirty).not.toHaveBeenCalled();
   });
 
@@ -183,7 +183,7 @@ describe('publishReplicaDelete', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(true);
     expect(ctx.manager.markDirty).toHaveBeenCalledOnce();
     const row = ctx.manager.markDirty.mock.calls[0]![0];
     expect(row.replica_id).toBe('content-hash-abc');
@@ -205,7 +205,7 @@ describe('publishReplicaManifest', () => {
   test('no-ops when replicaSync is not initialized', async () => {
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(null);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaManifest('dictionary', 'content-hash-abc', []);
+    expect(await publishReplicaManifest('dictionary', 'content-hash-abc', [])).toBe(false);
     expect(getUserID).not.toHaveBeenCalled();
   });
 
@@ -213,7 +213,15 @@ describe('publishReplicaManifest', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    await publishReplicaManifest('dictionary', 'content-hash-abc', []);
+    expect(await publishReplicaManifest('dictionary', 'content-hash-abc', [])).toBe(false);
+    expect(ctx.manager.markDirty).not.toHaveBeenCalled();
+  });
+
+  test('no-ops when the kind has no adapter', async () => {
+    const ctx = makeFakeCtx();
+    (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
+    (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
+    expect(await publishReplicaManifest('no-such-kind', 'content-hash-abc', [])).toBe(false);
     expect(ctx.manager.markDirty).not.toHaveBeenCalled();
   });
 
@@ -225,7 +233,7 @@ describe('publishReplicaManifest', () => {
       { filename: 'webster.mdx', byteSize: 1_000_000, partialMd5: 'abc123' },
       { filename: 'webster.mdd', byteSize: 5_000_000, partialMd5: 'def456' },
     ];
-    await publishReplicaManifest('dictionary', 'content-hash-abc', files);
+    expect(await publishReplicaManifest('dictionary', 'content-hash-abc', files)).toBe(true);
     expect(ctx.manager.markDirty).toHaveBeenCalledOnce();
     const row = ctx.manager.markDirty.mock.calls[0]![0] as ReplicaRow;
     expect(row.replica_id).toBe('content-hash-abc');
@@ -289,7 +297,7 @@ describe('publishReplica* sync category gate', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaDelete('dictionary', 'content-hash-abc');
+    expect(await publishReplicaDelete('dictionary', 'content-hash-abc')).toBe(false);
     expect(ctx.manager.markDirty).not.toHaveBeenCalled();
   });
 
@@ -298,7 +306,7 @@ describe('publishReplica* sync category gate', () => {
     const ctx = makeFakeCtx();
     (getReplicaSync as ReturnType<typeof vi.fn>).mockReturnValue(ctx);
     (getUserID as ReturnType<typeof vi.fn>).mockResolvedValue('user-1');
-    await publishReplicaManifest('dictionary', 'content-hash-abc', []);
+    expect(await publishReplicaManifest('dictionary', 'content-hash-abc', [])).toBe(false);
     expect(ctx.manager.markDirty).not.toHaveBeenCalled();
   });
 

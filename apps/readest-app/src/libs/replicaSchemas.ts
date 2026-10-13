@@ -78,12 +78,29 @@ const opdsCatalogFieldsSchema = z
 // envelope shape and the 64-field / 64 KiB row caps.
 const settingsFieldsSchema = z.record(z.string(), fieldEnvelopeWithCipher);
 
-interface KindSpec {
+export const SAFE_REPLICA_ID = /^[0-9A-Za-z_-]{1,64}$/;
+
+const MINDMAP_VERSION_FILENAME = /^([0-9A-Za-z_-]{1,64})\.[0-9a-f]{32}\.json$/;
+
+const mindmapFieldsSchema = z
+  .object({
+    bookHash: fieldEnvelopeSchema.extend({ v: z.string().regex(SAFE_REPLICA_ID) }).optional(),
+  })
+  .strict();
+
+const isMindmapVersionOf = (replicaId: string, filename: string): boolean =>
+  MINDMAP_VERSION_FILENAME.exec(filename)?.[1] === replicaId;
+
+export interface KindSpec {
   minSchemaVersion: number;
   maxSchemaVersion: number;
   maxRowsPerUser: number;
   fields: z.ZodTypeAny;
   binary: boolean;
+  pruneReplacedFiles?: boolean;
+  replicaIdPattern?: RegExp;
+  maxManifestFiles?: number;
+  isManifestFilename?(replicaId: string, filename: string): boolean;
 }
 
 export const KIND_ALLOWLIST: Record<string, KindSpec> = {
@@ -124,6 +141,17 @@ export const KIND_ALLOWLIST: Record<string, KindSpec> = {
     maxRowsPerUser: 1,
     fields: settingsFieldsSchema,
     binary: false,
+  },
+  mindmap: {
+    minSchemaVersion: 1,
+    maxSchemaVersion: 1,
+    maxRowsPerUser: 1000,
+    fields: mindmapFieldsSchema,
+    binary: true,
+    pruneReplacedFiles: true,
+    replicaIdPattern: SAFE_REPLICA_ID,
+    maxManifestFiles: 1,
+    isManifestFilename: isMindmapVersionOf,
   },
 };
 
@@ -176,6 +204,10 @@ export const validateRow = (row: ReplicaRow): ValidationResult => {
     return { ok: false, code: 'UNKNOWN_KIND', message: `Unknown kind: ${row.kind}` };
   }
   const spec = KIND_ALLOWLIST[row.kind]!;
+
+  if (spec.replicaIdPattern && !spec.replicaIdPattern.test(row.replica_id)) {
+    return { ok: false, code: 'VALIDATION', message: `invalid replica_id for kind ${row.kind}` };
+  }
 
   if (row.schema_version < spec.minSchemaVersion || row.schema_version > spec.maxSchemaVersion) {
     return {
@@ -233,6 +265,13 @@ export const validateRow = (row: ReplicaRow): ValidationResult => {
         cause: manifestParse.error,
       };
     }
+    if (spec.isManifestFilename && row.manifest_jsonb.files.length === 0) {
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message: `manifest lists no files for kind ${row.kind}`,
+      };
+    }
     for (const file of row.manifest_jsonb.files) {
       const fnCheck = validateFilename(file.filename);
       if (!fnCheck.ok) {
@@ -242,6 +281,23 @@ export const validateRow = (row: ReplicaRow): ValidationResult => {
           message: `manifest filename invalid: ${file.filename} (${fnCheck.reason})`,
         };
       }
+      if (spec.isManifestFilename && !spec.isManifestFilename(row.replica_id, file.filename)) {
+        return {
+          ok: false,
+          code: 'VALIDATION',
+          message: `manifest filename invalid: ${file.filename} (not a version of ${row.replica_id})`,
+        };
+      }
+    }
+    if (
+      spec.maxManifestFiles !== undefined &&
+      row.manifest_jsonb.files.length > spec.maxManifestFiles
+    ) {
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message: `manifest lists more than ${spec.maxManifestFiles} files for kind ${row.kind}`,
+      };
     }
   }
 

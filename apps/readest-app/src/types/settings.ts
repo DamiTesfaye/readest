@@ -5,6 +5,7 @@ import { HighlightColor, HighlightStyle, UserHighlightColor, ViewSettings } from
 import { OPDSCatalog } from './opds';
 import type { AISettings } from '@/services/ai/types';
 import type { NotebookTab } from '@/store/notebookStore';
+import type { QuickPickSlots } from '@/utils/quickPicks';
 import type { DictionarySettings, ImportedDictionary } from '@/services/dictionaries/types';
 
 export type ThemeType = 'light' | 'dark' | 'auto';
@@ -321,7 +322,8 @@ export type SyncCategory =
   | 'opds_catalog'
   | 'settings'
   | 'credentials'
-  | 'stats';
+  | 'stats'
+  | 'mindmap';
 
 export const SYNC_CATEGORIES: readonly SyncCategory[] = [
   'book',
@@ -333,6 +335,7 @@ export const SYNC_CATEGORIES: readonly SyncCategory[] = [
   'opds_catalog',
   'settings',
   'stats',
+  'mindmap',
   'credentials',
 ] as const;
 
@@ -418,6 +421,9 @@ export interface SystemSettings {
   savedBookCoverForLockScreen: string;
   savedBookCoverForLockScreenPath: string;
   telemetryEnabled: boolean;
+  uiAnimationsEnabled?: boolean;
+  /** Offer the AmpleDocument import prompt when the `ample-document` CLI is on PATH (desktop only). */
+  ampleDocumentPromptEnabled?: boolean;
   discordRichPresenceEnabled: boolean;
   libraryViewMode: LibraryViewModeType;
   librarySortBy: LibrarySortByType;
@@ -516,6 +522,8 @@ export interface SystemSettings {
    * replica sync. Future replica kinds add new SyncCategory members.
    */
   syncCategories?: Partial<Record<SyncCategory, boolean>>;
+
+  readerQuickPicks?: QuickPickSlots;
 
   // Global read settings that apply to the reader page
   globalReadSettings: ReadSettings;

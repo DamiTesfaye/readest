@@ -8,7 +8,7 @@ import { useLongPress } from '@/hooks/useLongPress';
 import BookItem from './BookItem';
 
 /**
- * How many recently-read books the top shelf holds. Fixed (no user option) so
+ * How many in-progress books the top shelf holds. Fixed (no user option) so
  * the row stays a compact quick-resume strip rather than a second library.
  */
 export const RECENT_SHELF_BOOK_COUNT = 12;
@@ -134,8 +134,8 @@ const RecentSlide: React.FC<RecentSlideProps> = ({
 };
 
 /**
- * Recently-read shelf at the top of the library: a flat, recency-ordered strip
- * of covers, independent of the main shelf's sort/grouping. It scrolls only
+ * Currently-reading shelf at the top of the library: a flat, recency-ordered
+ * strip of covers, independent of the main shelf's sort/grouping. It scrolls only
  * horizontally and shares the grid's column widths, gap and insets, so each
  * cover lines up with the shelf below and renders identically (reuses
  * `BookItem`) at any column count.
@@ -161,7 +161,7 @@ const RecentShelf: React.FC<RecentShelfProps> = ({
   // `--rs-gap` mirrors the grid's `gap-x-4 sm:gap-x-0` so the width formula
   // subtracts the right gap at each breakpoint.
   const colsClass = autoColumns
-    ? '[--rs-cols:3] sm:[--rs-cols:4] md:[--rs-cols:6] xl:[--rs-cols:8] 2xl:[--rs-cols:12]'
+    ? '[--rs-cols:1] sm:[--rs-cols:2] md:[--rs-cols:3] xl:[--rs-cols:4] 2xl:[--rs-cols:5]'
     : '';
   const colsStyle = autoColumns
     ? undefined
@@ -215,8 +215,8 @@ const RecentShelf: React.FC<RecentShelfProps> = ({
     // pull translates every wrapper in the scroller, and the shelf lives in the
     // Virtuoso Header — a sibling of the book list, not a descendant.
     <div className='recent-shelf transform-wrapper select-none pt-3'>
-      <h3 className='text-base-content/60 mb-1 ps-4 text-xs font-medium sm:ps-6'>
-        {_('Recently read')}
+      <h3 className='text-base-content/60 mb-2 ps-4 text-xs font-medium sm:ps-6'>
+        {_('Currently Reading')}
       </h3>
       <div className='relative'>
         {/* Horizontal-only scroll; px insets + gap mirror the grid. */}

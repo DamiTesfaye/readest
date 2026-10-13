@@ -21,6 +21,12 @@ export type Palette = {
   accent: string;
 };
 
+export type ThemeScene = {
+  textureId?: string; // rendered via customTextureStore/applyBackgroundTexture (Phase 2)
+  atmospherePreset?: string; // rendered via AtmosphereOverlay (Phase 2)
+  riveAmbient?: string; // ambient Rive file for the journey hub (Phase 3)
+};
+
 export type Theme = {
   name: string;
   label: string;
@@ -28,6 +34,16 @@ export type Theme = {
     light: Palette;
     dark: Palette;
   };
+  scene?: ThemeScene;
+  chrome?: {
+    light: string;
+    dark: string;
+  };
+  previewFont?: string;
+  mood?: 'light' | 'dark';
+  // Hidden themes back a real daisyUI theme (so build-time CSS exists) but are
+  // never shown as a picker card. The dual-mood `default` appearance uses this.
+  hidden?: boolean;
   isCustomizable?: boolean;
 };
 
@@ -115,98 +131,163 @@ export const generateDarkPalette = ({ bg, fg, primary }: BaseColor) => {
   } as Palette;
 };
 
+// Pushes the foreground away from the background until body text clears the
+// target ratio, so a scene keeps its own background character instead of being
+// flattened to black or white. Defaults to WCAG AAA (7:1) for the High Contrast
+// toggle; BODY_MIN_CONTRAST (AA, 4.5:1) is the floor applied to every palette.
+const HIGH_CONTRAST_TARGET_RATIO = 7;
+export const BODY_MIN_CONTRAST = 4.5;
+
+export const boostContrast = (
+  palette: Palette,
+  isDarkMode: boolean,
+  targetRatio: number = HIGH_CONTRAST_TARGET_RATIO,
+): Palette => {
+  const bg = palette['base-100'];
+  let fg = palette['base-content'];
+  let guard = 0;
+  while (tinycolor.readability(bg, fg) < targetRatio && guard < 100) {
+    fg = isDarkMode
+      ? tinycolor(fg).lighten(2).toHexString()
+      : tinycolor(fg).darken(2).toHexString();
+    guard += 1;
+  }
+  // Mid-tone backgrounds can put the target out of reach in the push direction,
+  // so fall back to whichever of the pushed fg, black, or white reads best.
+  if (tinycolor.readability(bg, fg) < targetRatio) {
+    fg = tinycolor.mostReadable(bg, [fg, '#000000', '#ffffff']).toHexString();
+  }
+  return { ...palette, 'base-content': fg };
+};
+
 const _ = (stubKey: string) => stubKey;
 
 export const themes = [
   {
+    // The default appearance: dual-mood, follows the light/dark/auto toggle.
+    // Hidden from the picker (the toggle IS its control); seeded from paper.
     name: 'default',
     label: _('Default'),
+    hidden: true,
     colors: {
-      light: generateLightPalette({ fg: '#171717', bg: '#ffffff', primary: '#0066cc' }),
-      dark: generateDarkPalette({ fg: '#e0e0e0', bg: '#222222', primary: '#77bbee' }),
+      light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
+      dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
     },
   },
   {
-    name: 'gray',
-    label: _('Gray'),
+    name: 'paper',
+    label: _('Neue Paper'),
     colors: {
-      light: generateLightPalette({ fg: '#222222', bg: '#e0e0e0', primary: '#4488cc' }),
-      dark: generateDarkPalette({ fg: '#c6c6c6', bg: '#444444', primary: '#88ccee' }),
+      light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
+      dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
     },
+    previewFont: 'Bitter, Georgia, serif',
+    scene: {},
   },
   {
-    name: 'sepia',
-    label: _('Sepia'),
+    name: 'desert-sunset',
+    label: _('Desert Sunset'),
     colors: {
-      light: generateLightPalette({ fg: '#5b4636', bg: '#f1e8d0', primary: '#008b8b' }),
-      dark: generateDarkPalette({ fg: '#ffd595', bg: '#342e25', primary: '#48d1cc' }),
+      light: generateLightPalette({ fg: '#4a3222', bg: '#fbe7c9', primary: '#c15a1f' }),
+      dark: generateDarkPalette({ fg: '#fdebd2', bg: '#3f2a1f', primary: '#f49e5c' }),
     },
+    chrome: { light: '#b3826b', dark: '#3f2a1f' },
+    previewFont: "'Roboto Slab', Rockwell, 'Courier New', serif",
+    scene: {},
   },
   {
-    name: 'grass',
-    label: _('Grass'),
+    name: 'starry-night',
+    label: _('Starry Night'),
     colors: {
-      light: generateLightPalette({ fg: '#232c16', bg: '#d7dbbd', primary: '#177b4d' }),
-      dark: generateDarkPalette({ fg: '#d8deba', bg: '#333627', primary: '#a6d608' }),
+      light: generateLightPalette({ fg: '#1c2b4a', bg: '#eef1f8', primary: '#c55a3d' }),
+      dark: generateDarkPalette({ fg: '#f4e9da', bg: '#16294a', primary: '#f2a48d' }),
     },
+    chrome: { light: '#16294a', dark: '#101c33' },
+    previewFont: "Literata, Palatino, 'Times New Roman', serif",
+    scene: {},
   },
   {
-    name: 'cherry',
-    label: _('Cherry'),
+    name: 'forest-pond',
+    label: _('Forest Pond'),
     colors: {
-      light: generateLightPalette({ fg: '#4e1609', bg: '#f0d1d5', primary: '#de3838' }),
-      dark: generateDarkPalette({ fg: '#e5c4c8', bg: '#462f32', primary: '#ff646e' }),
+      light: generateLightPalette({ fg: '#1e3327', bg: '#e9f1e6', primary: '#c34633' }),
+      dark: generateDarkPalette({ fg: '#f2eee3', bg: '#16301f', primary: '#f26d5b' }),
     },
+    chrome: { light: '#2e5741', dark: '#16301f' },
+    previewFont: "'Open Sans', Verdana, sans-serif",
+    scene: {},
   },
   {
-    name: 'sky',
-    label: _('Sky'),
+    name: 'ocean-wave',
+    label: _('Ocean Wave'),
     colors: {
-      light: generateLightPalette({ fg: '#262d48', bg: '#cedef5', primary: '#2d53e5' }),
-      dark: generateDarkPalette({ fg: '#babee1', bg: '#282e47', primary: '#ff646e' }),
+      light: generateLightPalette({ fg: '#1d3a4f', bg: '#e7f0f6', primary: '#2f6d99' }),
+      dark: generateDarkPalette({ fg: '#dfeaf2', bg: '#143247', primary: '#85b8d8' }),
     },
+    chrome: { light: '#8fb4cd', dark: '#143247' },
+    previewFont: "'PT Sans', 'Trebuchet MS', sans-serif",
+    scene: {},
   },
   {
-    name: 'solarized',
-    label: _('Solarized'),
+    name: 'cherry-bloom',
+    label: _('Cherry Blossom'),
     colors: {
-      light: generateLightPalette({ fg: '#586e75', bg: '#fdf6e3', primary: '#268bd2' }),
-      dark: generateDarkPalette({ fg: '#93a1a1', bg: '#002b36', primary: '#268bd2' }),
+      light: generateLightPalette({ fg: '#46262a', bg: '#f9ecec', primary: '#b64d62' }),
+      dark: generateDarkPalette({ fg: '#f5e6e2', bg: '#382125', primary: '#e59aa4' }),
     },
-  },
-  {
-    name: 'gruvbox',
-    label: _('Gruvbox'),
-    colors: {
-      light: generateLightPalette({ fg: '#3c3836', bg: '#fbf1c7', primary: '#076678' }),
-      dark: generateDarkPalette({ fg: '#ebdbb2', bg: '#282828', primary: '#83a598' }),
-    },
-  },
-  {
-    name: 'nord',
-    label: _('Nord'),
-    colors: {
-      light: generateLightPalette({ fg: '#2e3440', bg: '#eceff4', primary: '#5e81ac' }),
-      dark: generateDarkPalette({ fg: '#d8dee9', bg: '#2e3440', primary: '#88c0d0' }),
-    },
-  },
-  {
-    name: 'contrast',
-    label: _('Contrast'),
-    colors: {
-      light: generateLightPalette({ fg: '#000000', bg: '#ffffff', primary: '#4488cc' }),
-      dark: generateDarkPalette({ fg: '#ffffff', bg: '#000000', primary: '#88ccee' }),
-    },
-  },
-  {
-    name: 'sunset',
-    label: _('Sunset'),
-    colors: {
-      light: generateLightPalette({ fg: '#423126', bg: '#fff7f0', primary: '#fe6b64' }),
-      dark: generateDarkPalette({ fg: '#f6e1d7', bg: '#3c2b25', primary: '#ff9c94' }),
-    },
+    chrome: { light: '#c993a0', dark: '#382125' },
+    previewFont: "'Noto Serif', 'Book Antiqua', cursive, serif",
+    scene: {},
   },
 ] as Theme[];
+
+export const getChromeColor = (themeName: string, isDarkMode: boolean): string | null => {
+  const chrome = themes.find((t) => t.name === themeName)?.chrome;
+  if (!chrome) return null;
+  return isDarkMode ? chrome.dark : chrome.light;
+};
+
+// Legacy theme names → current themes. Saved settings
+// (localStorage.themeColor) predate the collapse; resolve at the
+// entry points in themeStore so the rest of the app only ever sees
+// current names. sepia/ink/contrast were removed in the redesign:
+// sepia/ink fold into the default appearance, and contrast migrates
+// to default + High Contrast (the toggle side effect lives in themeStore).
+const LEGACY_THEME_ALIASES: Record<string, string> = {
+  sepia: 'default',
+  ink: 'default',
+  contrast: 'default',
+  gray: 'default',
+  solarized: 'default',
+  gruvbox: 'default',
+  grass: 'forest-pond',
+  'night-pond': 'forest-pond',
+  sky: 'starry-night',
+  nord: 'starry-night',
+  cherry: 'desert-sunset',
+  sunset: 'desert-sunset',
+};
+
+export const resolveThemeName = (name: string | null | undefined): string => {
+  if (!name) return 'default';
+  if (themes.some((t) => t.name === name)) return name;
+  return LEGACY_THEME_ALIASES[name] ?? 'default';
+};
+
+// Effective dark mode for a theme: fixed-mood themes ignore the
+// light/dark/auto toggle; dual-mood themes (and custom themes, which
+// have no mood) follow themeMode + system preference.
+export const getEffectiveDarkMode = (
+  themeName: string,
+  themeMode: ThemeMode,
+  systemIsDarkMode: boolean,
+  ambientIsDarkMode = systemIsDarkMode,
+): boolean => {
+  const mood = themes.find((t) => t.name === themeName)?.mood;
+  if (mood) return mood === 'dark';
+  if (themeMode === 'ambient') return ambientIsDarkMode;
+  return themeMode === 'dark' || (themeMode === 'auto' && systemIsDarkMode);
+};
 
 const generateCustomThemeVariables = (palette: Palette, fallbackIncluded = false): string => {
   const colors = `

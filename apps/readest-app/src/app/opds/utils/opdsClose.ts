@@ -32,6 +32,9 @@ export const stashOPDSReturnTarget = (searchParams: ReadonlyURLSearchParams | nu
  *   true (preserved in zustand), the dialog re-mounts on Integrations,
  *   and the panel reads `requestedSubPage='opds'` to land back at the
  *   catalog list.
+ * - When `from=library-catalogs`: return to the catalogs view embedded in
+ *   the library page (the sidebar → Catalogs entry point) instead of any
+ *   dialog.
  * - Otherwise, navigate to the library with `?opds=true` so the standalone
  *   OPDS dialog opens. This matches the original close behavior for users
  *   who entered the browser via the library's own OPDS button.
@@ -48,6 +51,10 @@ export const closeOPDSBrowser = (
   if (searchParams?.get('from') === 'settings-integrations') {
     stashOPDSReturnTarget(searchParams);
     navigateToLibrary(router, '', undefined, true);
+    return;
+  }
+  if (searchParams?.get('from') === 'library-catalogs') {
+    navigateToLibrary(router, 'catalogs=true');
     return;
   }
   // Restore the user's last library state (group filter, sort, etc.) while

@@ -7,7 +7,7 @@ test.describe('Library page', () => {
     await library.goto();
 
     await expect(library.container).toBeVisible();
-    await expect(library.header).toBeVisible();
+    await expect(library.sidebar).toBeVisible();
     await expect(library.emptyState).toBeVisible();
   });
 
@@ -21,7 +21,7 @@ test.describe('Library page', () => {
     await expect(library.localFileImportItem).toBeVisible();
   });
 
-  test('search input accepts text and exposes a clear control', async ({ page }) => {
+  test('search input accepts text and clears it on Escape', async ({ page }) => {
     const library = new LibraryPage(page);
     await library.goto();
 
@@ -29,8 +29,7 @@ test.describe('Library page', () => {
     await library.searchInput.fill('a test query');
     await expect(library.searchInput).toHaveValue('a test query');
 
-    await expect(library.clearSearchButton).toBeVisible();
-    await library.clearSearchButton.click();
+    await library.searchInput.press('Escape');
     await expect(library.searchInput).toHaveValue('');
   });
 });

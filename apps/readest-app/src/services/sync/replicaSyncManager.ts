@@ -1,4 +1,5 @@
 import { HlcGenerator, hlcCompare, hlcMax, mergeFields } from '@/libs/crdt';
+import { isSyncError } from '@/libs/errors';
 import type { Hlc, ReplicaRow } from '@/types/replica';
 import type { ReplicaSyncClient } from '@/libs/replicaSyncClient';
 
@@ -23,6 +24,14 @@ const dirtyKeyOf = (row: ReplicaRow): string => `${row.kind}::${row.replica_id}`
 const splitKey = (k: string): DirtyKey => {
   const idx = k.indexOf('::');
   return { kind: k.slice(0, idx), replicaId: k.slice(idx + 2) };
+};
+
+const unknownKindIndex = (err: unknown, batchSize: number): number | null => {
+  if (!isSyncError(err) || err.code !== 'UNKNOWN_KIND') return null;
+  const index = err.context.offendingIndex;
+  return typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < batchSize
+    ? index
+    : null;
 };
 
 const mergeDirtyRows = (a: ReplicaRow, b: ReplicaRow): ReplicaRow => {
@@ -71,6 +80,7 @@ const mergeDirtyRows = (a: ReplicaRow, b: ReplicaRow): ReplicaRow => {
 
 export class ReplicaSyncManager {
   private readonly dirty = new Map<string, ReplicaRow>();
+  private readonly unsupportedKinds = new Set<string>();
   private readonly debounceMs: number;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private autoSyncInstalled = false;
@@ -107,20 +117,36 @@ export class ReplicaSyncManager {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
-    if (this.dirty.size === 0) return;
-    const snapshot = Array.from(this.dirty.values());
-    const snapshotKeys = Array.from(this.dirty.keys());
-    try {
-      await this.opts.client.push(snapshot);
-      for (const k of snapshotKeys) {
-        const stillSame = this.dirty.get(k);
-        if (stillSame === snapshot[snapshotKeys.indexOf(k)]) {
-          this.dirty.delete(k);
-        }
+    let snapshot = this.pushableSnapshot();
+    while (snapshot.length > 0) {
+      try {
+        await this.opts.client.push(snapshot.map(([, row]) => row));
+      } catch (err) {
+        const index = unknownKindIndex(err, snapshot.length);
+        if (index === null) throw err;
+        this.markUnsupported(snapshot[index]![1].kind);
+        snapshot = this.pushableSnapshot();
+        continue;
       }
-    } catch (err) {
-      throw err;
+      for (const [key, row] of snapshot) {
+        if (this.dirty.get(key) === row) this.dirty.delete(key);
+      }
+      return;
     }
+  }
+
+  private pushableSnapshot(): [string, ReplicaRow][] {
+    return Array.from(this.dirty.entries()).filter(([, row]) => this.isKindSupported(row.kind));
+  }
+
+  isKindSupported(kind: string): boolean {
+    return !this.unsupportedKinds.has(kind);
+  }
+
+  private markUnsupported(kind: string): void {
+    if (this.unsupportedKinds.has(kind)) return;
+    this.unsupportedKinds.add(kind);
+    console.warn('replica sync: the server does not support this kind; skipping it', { kind });
   }
 
   async pull(kind: string, opts?: { since?: Hlc | null }): Promise<ReplicaRow[]> {
@@ -129,8 +155,16 @@ export class ReplicaSyncManager {
     // previous boot advanced the cursor past rows that never made it
     // into the local store (e.g., apply-without-persist bug). Periodic
     // sync (visibility / online) keeps using the cursor.
+    if (!this.isKindSupported(kind)) return [];
     const since = opts && 'since' in opts ? (opts.since ?? null) : this.opts.cursorStore.get(kind);
-    const rows = await this.opts.client.pull(kind, since);
+    let rows: ReplicaRow[];
+    try {
+      rows = await this.opts.client.pull(kind, since);
+    } catch (err) {
+      if (!isSyncError(err) || err.code !== 'UNKNOWN_KIND') throw err;
+      this.markUnsupported(kind);
+      return [];
+    }
     this.observeAndAdvanceCursor(kind, rows);
     return rows;
   }
@@ -156,15 +190,31 @@ export class ReplicaSyncManager {
     const out = new Map<string, ReplicaRow[]>();
     if (kinds.length === 0) return out;
     const overrideSince = opts && 'since' in opts;
-    const cursors = kinds.map((kind) => ({
-      kind,
-      since: overrideSince ? (opts.since ?? null) : this.opts.cursorStore.get(kind),
-    }));
-    const results = await this.opts.client.pullBatch(cursors);
+    const cursorsFor = (): { kind: string; since: Hlc | null }[] =>
+      kinds
+        .filter((kind) => this.isKindSupported(kind))
+        .map((kind) => ({
+          kind,
+          since: overrideSince ? (opts.since ?? null) : this.opts.cursorStore.get(kind),
+        }));
     for (const kind of kinds) out.set(kind, []);
-    for (const { kind, rows } of results) {
-      this.observeAndAdvanceCursor(kind, rows);
-      out.set(kind, rows);
+    let cursors = cursorsFor();
+    while (cursors.length > 0) {
+      let results: { kind: string; rows: ReplicaRow[] }[];
+      try {
+        results = await this.opts.client.pullBatch(cursors);
+      } catch (err) {
+        const index = unknownKindIndex(err, cursors.length);
+        if (index === null) throw err;
+        this.markUnsupported(cursors[index]!.kind);
+        cursors = cursorsFor();
+        continue;
+      }
+      for (const { kind, rows } of results) {
+        this.observeAndAdvanceCursor(kind, rows);
+        out.set(kind, rows);
+      }
+      return out;
     }
     return out;
   }

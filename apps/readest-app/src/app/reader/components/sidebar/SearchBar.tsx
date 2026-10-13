@@ -1,6 +1,5 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaSearch, FaChevronDown } from 'react-icons/fa';
 import { IoMdCloseCircle } from 'react-icons/io';
 import { MdDeleteOutline } from 'react-icons/md';
 
@@ -9,6 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSidebarStore } from '@/store/sidebarStore';
+import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   createLibrarySearchSession,
@@ -18,10 +18,13 @@ import {
 } from '@/services/librarySearchService';
 import { BookSearchConfig, BookSearchMatch, BookSearchResult } from '@/types/book';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
+import { resolveUIAnimationsEnabled } from '@/utils/animation';
 import { debounce } from '@/utils/debounce';
 import { isCJKStr } from '@/utils/lang';
-import Dropdown from '@/components/Dropdown';
-import SearchOptions from './SearchOptions';
+import { getToolbarIconSrc } from '@/utils/toolbarIcons';
+import ToolbarPopover from '@/components/ToolbarPopover';
+import SearchBarRive from './SearchBarRive';
+import SearchFilter from './SearchFilter';
 
 const MINIMUM_SEARCH_TERM_LENGTH_DEFAULT = 2;
 const MINIMUM_SEARCH_TERM_LENGTH_CJK = 1;
@@ -50,10 +53,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   const viewSettings = getViewSettings(bookKey);
   const searchNavState = getSearchNavState(bookKey);
 
+  const { themeColor, isDarkMode } = useThemeStore();
+
   const { searchTerm, searchError } = searchNavState;
   const queuedSearchTerm = useRef('');
   const inputRef = useRef<HTMLInputElement>(null);
   const inputFocusedRef = useRef(false);
+  const [successfulSearchTerm, setSuccessfulSearchTerm] = useState<string | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isPupLoaded, setIsPupLoaded] = useState(false);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   const bookHash = useMemo(() => bookKey.split('-')[0]!, [bookKey]);
   const historyStorageKey = useMemo(() => `${SEARCH_HISTORY_KEY}-${bookHash}`, [bookHash]);
@@ -121,8 +130,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   const progress = getProgress(bookKey);
   const searchMode = (config.searchConfig as BookSearchConfig).mode;
 
-  const iconSize12 = useResponsiveSize(12);
   const iconSize16 = useResponsiveSize(16);
+  const iconSize20 = useResponsiveSize(20);
+  const isEink = !!viewSettings?.isEink;
+  const animationsEnabled = resolveUIAnimationsEnabled(settings);
+  const showPup = !isEink && animationsEnabled;
+  const isPupDrawn = showPup && isPupLoaded;
+  const hasResults = successfulSearchTerm !== null && successfulSearchTerm === searchTerm;
 
   useEffect(() => {
     handleSearchTermChange(searchTerm);
@@ -130,16 +144,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   }, [bookKey, searchTerm]);
 
   useEffect(() => {
-    if (isVisible && inputRef.current) {
-      inputRef.current.onblur = () => {
-        inputFocusedRef.current = false;
-      };
-      inputRef.current.onfocus = () => {
-        inputFocusedRef.current = true;
-      };
-      if (!appService?.isMobile) {
-        inputRef.current.focus();
-      }
+    if (isVisible && inputRef.current && !appService?.isMobile) {
+      inputRef.current.focus();
     }
     if (isVisible && searchTerm) {
       handleSearchTermChange(searchTerm);
@@ -205,6 +211,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
 
       setSearchProgress(bookKey, 0);
       setSearchStatus(bookKey, 'searching');
+      setSuccessfulSearchTerm(null);
       setSearchError(bookKey, null);
       view.clearSearch();
 
@@ -221,7 +228,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
 
       try {
         for await (const event of searchLibraryBooks(appService, [book], term, {
-          config: searchConfig,
+          config: searchConfig.fuzzy ? { ...searchConfig, mode: 'fuzzy' } : searchConfig,
           signal: controller.signal,
           session,
           sectionIndex,
@@ -279,6 +286,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
             setSearchResults(bookKey, [...results]);
             setSearchProgress(bookKey, 1);
             if (results.length > 0) {
+              setSuccessfulSearchTerm(term);
               addToHistory(term);
             }
             console.log('search done');
@@ -318,6 +326,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
   );
 
   const resetSearch = useCallback(() => {
+    setSuccessfulSearchTerm(null);
     searchControllerRef.current?.abort();
     setSearchResults(bookKey, []);
     view?.clearSearch();
@@ -338,64 +347,111 @@ const SearchBar: React.FC<SearchBarProps> = ({ isVisible, bookKey, onHideSearchB
 
   return (
     <div className='relative flex flex-col gap-3 p-2'>
-      <div className='bg-base-100 flex h-8 items-center rounded-lg'>
-        <div className='absolute ps-3'>
-          <FaSearch size={iconSize16} className='text-base-content/50' />
+      <div className='flex items-end gap-2'>
+        <div className={clsx('relative flex-1', showPup ? 'aspect-[602/280]' : 'h-9')}>
+          {showPup && (
+            <SearchBarRive
+              hasResults={hasResults}
+              isEmpty={searchTerm.length === 0}
+              onLoadedChange={setIsPupLoaded}
+            />
+          )}
+
+          <div
+            className={clsx(
+              'absolute flex items-center rounded-full',
+              isEink && 'eink-bordered inset-0',
+              !isEink &&
+                isPupDrawn &&
+                'focus-within:ring-base-content/30 bottom-0 left-[1.66%] h-[42.86%] w-[89.37%] focus-within:ring-2',
+              !isEink &&
+                !isPupDrawn &&
+                clsx(
+                  'inset-x-0 bottom-0 border-2 border-[#353535] bg-white',
+                  showPup ? 'h-[43%]' : 'h-full',
+                ),
+            )}
+          >
+            <input
+              ref={inputRef}
+              type='text'
+              value={searchTerm}
+              spellCheck={false}
+              onChange={handleInputChange}
+              onFocus={() => {
+                inputFocusedRef.current = true;
+              }}
+              onBlur={() => {
+                inputFocusedRef.current = false;
+              }}
+              placeholder={
+                searchMode === 'regex'
+                  ? _('Search with regex')
+                  : searchMode === 'nearby-words'
+                    ? _('Words to find near each other')
+                    : _('Search...')
+              }
+              className={clsx(
+                'search-input w-full bg-transparent font-sans text-sm font-light focus:outline-none',
+                isPupDrawn ? 'h-full pl-[9%] pr-[24%] pt-[4%]' : 'px-4',
+                isEink ? '' : 'text-neutral-800 placeholder:text-neutral-400',
+              )}
+            />
+
+            {searchTerm && (
+              <button
+                onClick={handleClearInput}
+                className={clsx(
+                  'absolute flex h-6 w-6 items-center justify-center bg-transparent',
+                  isPupDrawn ? 'end-[11%]' : 'end-2',
+                )}
+                aria-label={_('Clear search')}
+              >
+                <IoMdCloseCircle
+                  size={iconSize16}
+                  className={isEink ? 'text-base-content/75' : 'text-neutral-400'}
+                />
+              </button>
+            )}
+          </div>
         </div>
 
-        <input
-          ref={inputRef}
-          type='text'
-          value={searchTerm}
-          spellCheck={false}
-          onChange={handleInputChange}
-          placeholder={
-            searchMode === 'regex'
-              ? _('Search with regex')
-              : searchMode === 'nearby-words'
-                ? _('Words to find near each other')
-                : _('Search...')
-          }
-          className='search-input w-full bg-transparent p-2 pr-0 ps-10 font-sans text-sm font-light focus:outline-none'
-        />
-
-        {searchTerm && (
-          <button
-            onClick={handleClearInput}
-            className='absolute end-10 flex h-8 w-8 items-center justify-center bg-transparent'
-            aria-label={_('Clear search')}
-          >
-            <IoMdCloseCircle size={iconSize16} className='text-base-content/75' />
-          </button>
-        )}
-
-        <div
+        <button
+          ref={filterButtonRef}
+          onClick={() => setIsFilterOpen((open) => !open)}
+          aria-expanded={isFilterOpen}
+          aria-label={_('Filter')}
+          title={_('Filter')}
           className={clsx(
-            'absolute end-2 flex h-8 w-8 items-center rounded-r-lg',
-            viewSettings?.isEink ? 'bg-transparent' : 'bg-base-300',
+            'btn btn-ghost h-9 min-h-9 w-9 rounded-lg p-0',
+            isFilterOpen && !isEink && 'bg-base-300',
+            isEink && '!bg-transparent hover:!bg-transparent',
           )}
         >
-          <Dropdown
-            label={_('Search Options')}
-            className={clsx(
-              window.innerWidth < 640 ? 'dropdown-end' : 'dropdown-center',
-              'dropdown-bottom',
-            )}
-            menuClassName={clsx('no-triangle mt-1', window.innerWidth < 640 ? '' : '!relative')}
-            buttonClassName={clsx(
-              'btn btn-ghost h-8 min-h-8 w-8 p-0 rounded-none rounded-r-lg',
-              viewSettings?.isEink ? '!bg-transparent hover:!bg-transparent' : '',
-            )}
-            toggleButton={<FaChevronDown size={iconSize12} className='text-base-content/50' />}
-          >
-            <SearchOptions
-              isEink={!!viewSettings?.isEink}
-              searchConfig={config.searchConfig as BookSearchConfig}
-              onSearchConfigChanged={handleSearchConfigChange}
-            />
-          </Dropdown>
-        </div>
+          <img
+            src={getToolbarIconSrc('filter', themeColor, isDarkMode)}
+            alt=''
+            style={{ width: iconSize20, height: iconSize20 }}
+            className='object-contain'
+          />
+        </button>
       </div>
+
+      <ToolbarPopover
+        isOpen={isFilterOpen}
+        anchorEl={filterButtonRef.current}
+        width={320}
+        maxHeight={560}
+        className='!bg-base-300 border-base-content/15 border shadow-2xl'
+        triangleClassName='!text-base-300'
+        onClose={() => setIsFilterOpen(false)}
+      >
+        <SearchFilter
+          isEink={isEink}
+          searchConfig={config.searchConfig as BookSearchConfig}
+          onSearchConfigChanged={handleSearchConfigChange}
+        />
+      </ToolbarPopover>
 
       {searchError && <div className='text-error px-2 text-xs'>{searchError}</div>}
 

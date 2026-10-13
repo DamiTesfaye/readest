@@ -107,48 +107,41 @@ describe('BookDetailView delete dropdown layout', () => {
   });
 });
 
-describe('BookDetailView More menu (Goodreads + Share)', () => {
-  const openMore = (container: HTMLElement) => {
-    const toggle = container.querySelector('button[aria-label="More Actions"]');
-    expect(toggle).toBeTruthy();
-    fireEvent.click(toggle!);
-  };
+describe('BookDetailView spelled-out actions (Share + Export)', () => {
+  const getAction = (container: HTMLElement, label: string) =>
+    container.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null;
 
-  it('folds Goodreads and Share into the hamburger menu', () => {
-    const { container, getByText } = renderView({ onShare: vi.fn(), shareEnabled: true });
-    // Goodreads is no longer a standalone icon button outside the menu.
-    expect(container.querySelector('button[aria-label="More Actions"]')).toBeTruthy();
-    openMore(container);
-    expect(getByText('Search on Goodreads')).toBeTruthy();
-    expect(getByText('Share Book')).toBeTruthy();
+  it('no longer renders a hamburger More Actions menu', () => {
+    const { container } = renderView({ onShare: vi.fn(), onExport: vi.fn(), shareEnabled: true });
+    expect(container.querySelector('button[aria-label="More Actions"]')).toBeNull();
+  });
+
+  it('renders Share and Export as standalone icon buttons', () => {
+    const { container } = renderView({ onShare: vi.fn(), onExport: vi.fn(), shareEnabled: true });
+    expect(getAction(container, 'Share Book')).toBeTruthy();
+    expect(getAction(container, 'Export Book')).toBeTruthy();
   });
 
   it('enables Share and calls onShare when the book is shareable', () => {
     const onShare = vi.fn();
-    const { container, getByText } = renderView({ onShare, shareEnabled: true });
-    openMore(container);
-    const shareButton = getByText('Share Book').closest('button');
+    const { container } = renderView({ onShare, shareEnabled: true });
+    const shareButton = getAction(container, 'Share Book');
     expect(shareButton).toBeTruthy();
     expect(shareButton!.disabled).toBe(false);
     fireEvent.click(shareButton!);
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
-  it('disables Share when not shareable (logged out or no local file)', () => {
+  it('hides Share when not shareable (logged out or no local file)', () => {
     const onShare = vi.fn();
-    const { container, getByText } = renderView({ onShare, shareEnabled: false });
-    openMore(container);
-    const shareButton = getByText('Share Book').closest('button');
-    expect(shareButton!.disabled).toBe(true);
-    fireEvent.click(shareButton!);
-    expect(onShare).not.toHaveBeenCalled();
+    const { container } = renderView({ onShare, shareEnabled: false });
+    expect(getAction(container, 'Share Book')).toBeNull();
   });
 
-  it('keeps Export in the More menu and calls onExport when the file exists', () => {
+  it('enables Export and calls onExport when the file exists', () => {
     const onExport = vi.fn();
-    const { container, getByText } = renderView({ onExport, fileSize: 1024 });
-    openMore(container);
-    const exportButton = getByText('Export Book').closest('button');
+    const { container } = renderView({ onExport, fileSize: 1024 });
+    const exportButton = getAction(container, 'Export Book');
     expect(exportButton).toBeTruthy();
     expect(exportButton!.disabled).toBe(false);
     fireEvent.click(exportButton!);
@@ -157,9 +150,8 @@ describe('BookDetailView More menu (Goodreads + Share)', () => {
 
   it('disables Export when the book has no local file', () => {
     const onExport = vi.fn();
-    const { container, getByText } = renderView({ onExport, fileSize: null });
-    openMore(container);
-    const exportButton = getByText('Export Book').closest('button');
+    const { container } = renderView({ onExport, fileSize: null });
+    const exportButton = getAction(container, 'Export Book');
     expect(exportButton!.disabled).toBe(true);
     fireEvent.click(exportButton!);
     expect(onExport).not.toHaveBeenCalled();

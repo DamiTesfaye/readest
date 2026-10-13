@@ -61,6 +61,7 @@ const resetTransferManager = () => {
   const mgr = transferManager as unknown as Record<string, unknown>;
   mgr['isInitialized'] = false;
   mgr['isProcessing'] = false;
+  mgr['processQueueRequested'] = false;
   mgr['appService'] = null;
   mgr['getLibrary'] = null;
   mgr['updateBook'] = null;
@@ -756,6 +757,59 @@ describe('TransferManager', () => {
       expect(transfer!.retryCount).toBeGreaterThanOrEqual(1);
     });
 
+    test('spaces the retries of a failed transfer by the doubling backoff', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Backoff Book' });
+      const appService = makeAppService();
+      const attempts: number[] = [];
+      (appService['uploadBook'] as Mock).mockImplementation(async () => {
+        attempts.push(Date.now());
+        throw new Error('Network fail');
+      });
+
+      await transferManager.initialize(
+        appService as never,
+        () => [book],
+        vi.fn().mockResolvedValue(undefined),
+        translationFn,
+      );
+
+      const id = transferManager.queueUpload(book)!;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(attempts).toHaveLength(1);
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('pending');
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('failed');
+      expect(attempts).toHaveLength(4);
+      const gaps = attempts.slice(1).map((at, index) => at - attempts[index]!);
+      [2000, 4000, 8000].forEach((delay, index) => {
+        expect(gaps[index]).toBeGreaterThanOrEqual(delay);
+        expect(gaps[index]).toBeLessThan(delay + 500);
+      });
+    });
+
+    test('runs a transfer waiting for its retry at once when the user retries it', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Manual Retry Book' });
+      const appService = makeAppService();
+      (appService['uploadBook'] as Mock).mockRejectedValueOnce(new Error('Network fail'));
+
+      await transferManager.initialize(
+        appService as never,
+        () => [book],
+        vi.fn().mockResolvedValue(undefined),
+        translationFn,
+      );
+
+      const id = transferManager.queueUpload(book)!;
+      await vi.advanceTimersByTimeAsync(500);
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('pending');
+      transferManager.retryTransfer(id);
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(appService['uploadBook']).toHaveBeenCalledTimes(2);
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('completed');
+    });
+
     test('paused queue does not process transfers', async () => {
       const book = makeBook({ hash: 'h1', title: 'Paused Book' });
       const appService = makeAppService();
@@ -788,7 +842,7 @@ describe('TransferManager', () => {
       );
 
       transferManager.queueUpload(book);
-      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(20000);
 
       // After all retries exhausted, error toast should be dispatched
       expect(eventDispatcher.dispatch).toHaveBeenCalledWith(
@@ -848,6 +902,63 @@ describe('TransferManager', () => {
       { logical: 'webster.mdx', lfp: 'd1/webster.mdx', byteSize: 1000 },
       { logical: 'webster.mdd', lfp: 'd1/webster.mdd', byteSize: 4000 },
     ];
+
+    const errorToasts = () =>
+      (eventDispatcher.dispatch as Mock).mock.calls.filter(
+        (call) => call[0] === 'toast' && (call[1] as { type?: string })?.type === 'error',
+      );
+
+    test('a background replica transfer that fails logs instead of raising a toast', async () => {
+      const appService = makeAppService();
+      appService['uploadReplicaFile'] = vi.fn().mockRejectedValue(new Error('Network fail'));
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      const id = transferManager.queueReplicaUpload('mindmap', 'm1', 'Map', dictFiles, 'Books', {
+        isBackground: true,
+      })!;
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(useTransferStore.getState().transfers[id]!.status).toBe('failed');
+      expect(errorToasts()).toEqual([]);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('failed'),
+        expect.objectContaining({ kind: 'mindmap', replicaId: 'm1', type: 'upload' }),
+      );
+    });
+
+    test('a resume right after a settings change still runs the queue', async () => {
+      const appService = makeAppService();
+      appService['uploadReplicaFile'] = vi.fn().mockResolvedValue(undefined);
+      await transferManager.initialize(appService as never, () => [], vi.fn(), translationFn);
+
+      transferManager.pauseQueue();
+      const id = transferManager.queueReplicaUpload(
+        'dictionary',
+        'd1',
+        'Webster',
+        dictFiles,
+        'Dictionaries',
+      );
+      useSettingsStore.setState({
+        settings: { ...useSettingsStore.getState().settings },
+      });
+      transferManager.resumeQueue();
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(useTransferStore.getState().transfers[id!]!.status).toBe('completed');
+    });
+
+    test('a foreground book delete that fails still raises a toast', async () => {
+      const book = makeBook({ hash: 'h1', title: 'Deleted Book' });
+      const appService = makeAppService();
+      (appService['deleteBook'] as Mock).mockRejectedValue(new Error('Network fail'));
+      await transferManager.initialize(appService as never, () => [book], vi.fn(), translationFn);
+
+      transferManager.queueDelete(book, 10, false);
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(errorToasts()).toHaveLength(1);
+    });
 
     test('queueReplicaUpload returns null when not initialized', () => {
       const id = transferManager.queueReplicaUpload(

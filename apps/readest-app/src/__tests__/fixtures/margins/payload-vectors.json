@@ -1,0 +1,2772 @@
+[
+  {
+    "name": "clip, no elements",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "clip kind with an element",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "note 2000 astral",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": -12.5
+          },
+          "text": "𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄",
+          "hand": true,
+          "motion": "rise"
+        }
+      ]
+    }
+  },
+  {
+    "name": "note 2001",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄"
+        }
+      ]
+    }
+  },
+  {
+    "name": "translation at the capped limit",
+    "kind": "translation",
+    "quoteCost": 150,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 300,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "translation one past",
+    "kind": "translation",
+    "quoteCost": 150,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "gloss floor 200",
+    "kind": "translation",
+    "quoteCost": 5,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 200,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "gloss",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "mt"
+        }
+      ]
+    }
+  },
+  {
+    "name": "capped ceiling 600",
+    "kind": "translation",
+    "quoteCost": 300,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "uncapped 6000",
+    "kind": "translation",
+    "quoteCost": 5,
+    "capped": false,
+    "ok": true,
+    "translationScalars": 6000,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "bad lang",
+    "kind": "translation",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "fr_FR",
+          "text": "bonjour",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "artwork ok",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "artwork needs alt",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "five artworks",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a2",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a3",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a4",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a5",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "local asset ref",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "local:7d6c2f3e-8a1b-4c5d-9e0f-1a2b3c4d5e6f",
+          "alt": "a fox",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "sticker ok",
+    "kind": "sticker",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "s1",
+          "kind": "sticker",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "sticker": "basic/star"
+        }
+      ]
+    }
+  },
+  {
+    "name": "sticker bad name",
+    "kind": "sticker",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "s1",
+          "kind": "sticker",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "sticker": "Basic/Star"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown field",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [],
+      "caption": "x"
+    }
+  },
+  {
+    "name": "unknown element kind",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "v1",
+          "kind": "voice",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "nine elements",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n2",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n3",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n4",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n5",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n6",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n7",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n8",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n9",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate element id",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "ho"
+        }
+      ]
+    }
+  },
+  {
+    "name": "frame w below 0.05",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.04,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "kind not among elements",
+    "kind": "translation",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v 2",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 2,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "four artworks and a note",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a2",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a3",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a4",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown field in an element",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi",
+          "font": "serif"
+        }
+      ]
+    }
+  },
+  {
+    "name": "bad motion",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi",
+          "motion": "spin"
+        }
+      ]
+    }
+  },
+  {
+    "name": "element id 25 characters",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaa",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "two translations sum",
+    "kind": "translation",
+    "quoteCost": 150,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 200,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "hand"
+        },
+        {
+          "id": "t2",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play displace",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ],
+          "poses": [
+            {
+              "shape": "s1",
+              "x": 2.5,
+              "y": 1.0,
+              "rot": 0
+            }
+          ],
+          "shapeMotion": "drift"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play detach",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play displace with loose words",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ],
+          "poses": [
+            {
+              "shape": "s1",
+              "x": 2.5,
+              "y": 1.0,
+              "rot": 0
+            }
+          ],
+          "shapeMotion": "drift",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play with a note",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play polygon 2 points",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s",
+              "type": "polygon",
+              "pts": [[0.0, 999.99], [0.01, 999.99]],
+              "pad": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play polygon point past 1000 em",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s",
+              "type": "polygon",
+              "pts": [[0.0, 1000.01], [0.01, 1000.01], [0.02, 1000.01]],
+              "pad": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play 16 shapes",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "c0",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c2",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c3",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c4",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c5",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c6",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c7",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c8",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c9",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c10",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c11",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c12",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c13",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c14",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c15",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play 17 shapes",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "c0",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c2",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c3",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c4",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c5",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c6",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c7",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c8",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c9",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c10",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c11",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c12",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c13",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c14",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c15",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            },
+            {
+              "id": "c16",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play circle r 0",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 0,
+              "pad": 0.4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play negative pad",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": -0.1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play pose past 1000 em",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ],
+          "poses": [
+            {
+              "shape": "s1",
+              "x": 1000.01,
+              "y": 1.0,
+              "rot": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play bad shape motion",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ],
+          "shapeMotion": "spin"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play asset shape",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "a",
+              "type": "asset",
+              "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "play alt 300 astral",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play alt 301",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play empty alt",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play overlay contract",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "overlay",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play displace without shapes",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "displace",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play detach without detach",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play detach with shapes",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "shapes": [
+            {
+              "id": "s1",
+              "type": "circle",
+              "r": 3.0,
+              "pad": 0.4
+            }
+          ],
+          "poses": [
+            {
+              "shape": "s1",
+              "x": 2.5,
+              "y": 1.0,
+              "rot": 0
+            }
+          ],
+          "shapeMotion": "drift",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play 64 spans",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [
+              [0, 1],
+              [2, 3],
+              [4, 5],
+              [6, 7],
+              [8, 9],
+              [10, 11],
+              [12, 13],
+              [14, 15],
+              [16, 17],
+              [18, 19],
+              [20, 21],
+              [22, 23],
+              [24, 25],
+              [26, 27],
+              [28, 29],
+              [30, 31],
+              [32, 33],
+              [34, 35],
+              [36, 37],
+              [38, 39],
+              [40, 41],
+              [42, 43],
+              [44, 45],
+              [46, 47],
+              [48, 49],
+              [50, 51],
+              [52, 53],
+              [54, 55],
+              [56, 57],
+              [58, 59],
+              [60, 61],
+              [62, 63],
+              [64, 65],
+              [66, 67],
+              [68, 69],
+              [70, 71],
+              [72, 73],
+              [74, 75],
+              [76, 77],
+              [78, 79],
+              [80, 81],
+              [82, 83],
+              [84, 85],
+              [86, 87],
+              [88, 89],
+              [90, 91],
+              [92, 93],
+              [94, 95],
+              [96, 97],
+              [98, 99],
+              [100, 101],
+              [102, 103],
+              [104, 105],
+              [106, 107],
+              [108, 109],
+              [110, 111],
+              [112, 113],
+              [114, 115],
+              [116, 117],
+              [118, 119],
+              [120, 121],
+              [122, 123],
+              [124, 125],
+              [126, 127]
+            ],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play 65 spans",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [
+              [0, 1],
+              [2, 3],
+              [4, 5],
+              [6, 7],
+              [8, 9],
+              [10, 11],
+              [12, 13],
+              [14, 15],
+              [16, 17],
+              [18, 19],
+              [20, 21],
+              [22, 23],
+              [24, 25],
+              [26, 27],
+              [28, 29],
+              [30, 31],
+              [32, 33],
+              [34, 35],
+              [36, 37],
+              [38, 39],
+              [40, 41],
+              [42, 43],
+              [44, 45],
+              [46, 47],
+              [48, 49],
+              [50, 51],
+              [52, 53],
+              [54, 55],
+              [56, 57],
+              [58, 59],
+              [60, 61],
+              [62, 63],
+              [64, 65],
+              [66, 67],
+              [68, 69],
+              [70, 71],
+              [72, 73],
+              [74, 75],
+              [76, 77],
+              [78, 79],
+              [80, 81],
+              [82, 83],
+              [84, 85],
+              [86, 87],
+              [88, 89],
+              [90, 91],
+              [92, 93],
+              [94, 95],
+              [96, 97],
+              [98, 99],
+              [100, 101],
+              [102, 103],
+              [104, 105],
+              [106, 107],
+              [108, 109],
+              [110, 111],
+              [112, 113],
+              [114, 115],
+              [116, 117],
+              [118, 119],
+              [120, 121],
+              [122, 123],
+              [124, 125],
+              [126, 127],
+              [128, 129]
+            ],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play empty span",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[5, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play fractional span",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0.5, 2]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play negative seed",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": -1
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play bad unit",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "sentence",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play bad sink",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "sky",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play carries text",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          },
+          "text": "Begin the morning"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play with motion",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          },
+          "motion": "rise"
+        }
+      ]
+    }
+  },
+  {
+    "name": "play frame w below 0.05",
+    "kind": "play",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.01,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "play under a note kind",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.3,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "p1",
+          "kind": "play",
+          "frame": {
+            "x": 0.5,
+            "y": 0.6,
+            "w": 0.8,
+            "r": 0
+          },
+          "contract": "detach",
+          "alt": "A sun pushes the words aside",
+          "detach": {
+            "unit": "word",
+            "spans": [[0, 5]],
+            "sink": "floor",
+            "seed": 7
+          }
+        }
+      ]
+    }
+  }
+]

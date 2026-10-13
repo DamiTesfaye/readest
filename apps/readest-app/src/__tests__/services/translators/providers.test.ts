@@ -37,6 +37,11 @@ vi.mock('@/utils/supabase', () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
+const isBingUrl = (url: string): boolean => {
+  const { hostname } = new URL(url, 'https://localhost');
+  return hostname === 'bing.com' || hostname.endsWith('.bing.com');
+};
+
 // ---------------------------------------------------------------------------
 // Google Translate Provider
 // ---------------------------------------------------------------------------
@@ -620,7 +625,7 @@ describe('azureProvider', () => {
     expect(urls[1]).toContain('/api/azure-translate?endpoint=translate');
     // The browser must never be asked to fetch bing.com directly — it has no
     // CORS headers, so such a request would be blocked.
-    expect(urls.some((url) => url.includes('bing.com'))).toBe(false);
+    expect(urls.some(isBingUrl)).toBe(false);
   });
 
   it('requires authentication only in web builds', async () => {

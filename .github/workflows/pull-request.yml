@@ -43,6 +43,15 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+      - name: load the ampleread-backend read key
+        if: steps.changes.outputs.tauri == 'true'
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AMPLEREAD_BACKEND_DEPLOY_KEY }}
+      - name: fetch git dependencies through the ssh agent
+        if: steps.changes.outputs.tauri == 'true'
+        shell: bash
+        run: echo 'CARGO_NET_GIT_FETCH_WITH_CLI=true' >> "$GITHUB_ENV"
       - name: Cache apt packages
         if: steps.changes.outputs.tauri == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -211,6 +220,12 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --prefer-offline && pnpm setup-vendors
 
+      - name: margin-core wasm size gate
+        run: test $(gzip -9c packages/margin-core-wasm/dist/web/margin_core_wasm_bg.wasm | wc -c) -le 307200
+
+      - name: margin-play wasm size gate
+        run: test $(gzip -9c packages/margin-play-wasm/dist/web/margin_play_wasm_bg.wasm | wc -c) -le 1572864
+
       # Playwright is only needed by the browser tests, which run on shard 1.
       - name: cache playwright browsers
         if: matrix.shard == 1
@@ -233,6 +248,13 @@ jobs:
       - name: run web unit tests (shard ${{ matrix.shard }}/2)
         working-directory: apps/readest-app
         run: pnpm test:pr:web:unit --shard=${{ matrix.shard }}/2
+
+      - name: print chromium gpu info
+        if: matrix.shard == 1
+        working-directory: apps/readest-app
+        run: |
+          echo "nproc: $(nproc)"
+          node scripts/print-chromium-gpu-info.mjs
 
       - name: run web browser tests
         if: matrix.shard == 1
@@ -398,6 +420,15 @@ jobs:
           # configured with cache-workspace-crates for the vendored tauri fork).
           cache: false
 
+      - name: load the ampleread-backend read key
+        if: steps.changes.outputs.tauri == 'true'
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AMPLEREAD_BACKEND_DEPLOY_KEY }}
+      - name: fetch git dependencies through the ssh agent
+        if: steps.changes.outputs.tauri == 'true'
+        shell: bash
+        run: echo 'CARGO_NET_GIT_FETCH_WITH_CLI=true' >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3 # v2
         if: steps.changes.outputs.tauri == 'true'
         with:

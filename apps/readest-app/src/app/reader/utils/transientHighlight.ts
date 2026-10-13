@@ -57,6 +57,48 @@ const getBlockRange = (doc: Document, el: Element) => {
   return range;
 };
 
+export const sentenceRangeAt = (doc: Document, range: Range): Range => {
+  const startElement =
+    range.startContainer.nodeType === 1
+      ? (range.startContainer as Element)
+      : range.startContainer.parentElement;
+  const root = startElement?.closest(SENTENCE_CONTAINER) ?? startElement;
+  if (!root?.contains(range.endContainer)) return range;
+
+  const before = doc.createRange();
+  before.selectNodeContents(root);
+  before.setEnd(range.startContainer, range.startOffset);
+  const matchStart = before.toString().length;
+  const matchEnd = matchStart + range.toString().length;
+  const text = root.textContent ?? '';
+  const segmentationText = text.replace(/\s/g, ' ');
+  const locale = doc.documentElement.lang || undefined;
+  const segments = Array.from(
+    new Intl.Segmenter(locale, { granularity: 'sentence' }).segment(segmentationText),
+  );
+  const startSegment = segments.find(
+    ({ index: start, segment }) => start <= matchStart && matchStart < start + segment.length,
+  );
+  const endOffset = Math.max(matchStart, matchEnd - 1);
+  const endSegment = segments.find(
+    ({ index: start, segment }) => start <= endOffset && endOffset < start + segment.length,
+  );
+  if (!startSegment || !endSegment) return range;
+
+  const rawStart = startSegment.index;
+  const rawEnd = endSegment.index + endSegment.segment.length;
+  const selectedText = text.slice(rawStart, rawEnd);
+  const sentenceStart = rawStart + selectedText.search(/\S|$/);
+  const sentenceEnd = rawEnd - (selectedText.length - selectedText.trimEnd().length);
+  const start = getTextPosition(root, sentenceStart);
+  const end = getTextPosition(root, sentenceEnd);
+  if (!start || !end) return range;
+  const sentence = doc.createRange();
+  sentence.setStart(start.node, start.offset);
+  sentence.setEnd(end.node, end.offset);
+  return sentence;
+};
+
 const getTargetHighlight = async (view: TransientHighlightView, target: string) => {
   try {
     const { index, anchor } = view.resolveNavigation(target);
@@ -69,46 +111,7 @@ const getTargetHighlight = async (view: TransientHighlightView, target: string) 
     if (!('startContainer' in resolved)) {
       return { overlayer, range: getBlockRange(doc, resolved) };
     }
-    const range = resolved;
-    const startElement =
-      range.startContainer.nodeType === 1
-        ? (range.startContainer as Element)
-        : range.startContainer.parentElement;
-    const root = startElement?.closest(SENTENCE_CONTAINER) ?? startElement;
-    if (!root?.contains(range.endContainer)) return { overlayer, range };
-
-    const before = doc.createRange();
-    before.selectNodeContents(root);
-    before.setEnd(range.startContainer, range.startOffset);
-    const matchStart = before.toString().length;
-    const matchEnd = matchStart + range.toString().length;
-    const text = root.textContent ?? '';
-    const segmentationText = text.replace(/\s/g, ' ');
-    const locale = doc.documentElement.lang || undefined;
-    const segments = Array.from(
-      new Intl.Segmenter(locale, { granularity: 'sentence' }).segment(segmentationText),
-    );
-    const startSegment = segments.find(
-      ({ index: start, segment }) => start <= matchStart && matchStart < start + segment.length,
-    );
-    const endOffset = Math.max(matchStart, matchEnd - 1);
-    const endSegment = segments.find(
-      ({ index: start, segment }) => start <= endOffset && endOffset < start + segment.length,
-    );
-    if (!startSegment || !endSegment) return { overlayer, range };
-
-    const rawStart = startSegment.index;
-    const rawEnd = endSegment.index + endSegment.segment.length;
-    const selectedText = text.slice(rawStart, rawEnd);
-    const sentenceStart = rawStart + selectedText.search(/\S|$/);
-    const sentenceEnd = rawEnd - (selectedText.length - selectedText.trimEnd().length);
-    const start = getTextPosition(root, sentenceStart);
-    const end = getTextPosition(root, sentenceEnd);
-    if (!start || !end) return { overlayer, range };
-    const sentence = doc.createRange();
-    sentence.setStart(start.node, start.offset);
-    sentence.setEnd(end.node, end.offset);
-    return { overlayer, range: sentence };
+    return { overlayer, range: sentenceRangeAt(doc, resolved) };
   } catch {
     return null;
   }

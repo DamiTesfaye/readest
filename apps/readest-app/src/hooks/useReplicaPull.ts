@@ -13,12 +13,15 @@ import {
   migrateLegacyTextures,
 } from '@/store/customTextureStore';
 import { useCustomOPDSStore, findOPDSCatalogByContentId } from '@/store/customOPDSStore';
+import { findMindmapByContentId, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
+import { beginMindmapPull, finishMindmapPull } from '@/services/mindmap/sync/runtime';
 import { transferManager } from '@/services/transferManager';
 import { getReplicaSync, subscribeReplicaSyncReady } from '@/services/sync/replicaSync';
 import { dictionaryAdapter } from '@/services/sync/adapters/dictionary';
 import { fontAdapter } from '@/services/sync/adapters/font';
 import { textureAdapter } from '@/services/sync/adapters/texture';
 import { opdsCatalogAdapter } from '@/services/sync/adapters/opdsCatalog';
+import { mindmapAdapter, type MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
 import { settingsAdapter, type SettingsRemoteRecord } from '@/services/sync/adapters/settings';
 import {
   applyRemoteSettings,
@@ -47,7 +50,29 @@ import type { OPDSCatalog } from '@/types/opds';
 import type { Hlc, ReplicaRow } from '@/types/replica';
 import type { SystemSettings } from '@/types/settings';
 
-export type ReplicaKind = 'dictionary' | 'font' | 'texture' | 'opds_catalog' | 'settings';
+export type ReplicaKind =
+  | 'dictionary'
+  | 'font'
+  | 'texture'
+  | 'opds_catalog'
+  | 'settings'
+  | 'mindmap';
+
+export const READER_REPLICA_KINDS: readonly ReplicaKind[] = [
+  'dictionary',
+  'font',
+  'texture',
+  'mindmap',
+];
+
+export const LIBRARY_REPLICA_KINDS: readonly ReplicaKind[] = [
+  'dictionary',
+  'font',
+  'texture',
+  'opds_catalog',
+  'settings',
+  'mindmap',
+];
 
 export interface UseReplicaPullOpts {
   /** Replica kinds this page wants pulled. */
@@ -129,6 +154,7 @@ interface ReplicaPullConfig<T extends ReplicaLocalRecord> {
   silentDecrypt?: boolean;
   /** Forwarded to PullAndApplyDeps; see that field for semantics. */
   onSaltNotFound?: (paths: readonly string[]) => void;
+  backgroundTransfers?: boolean;
 }
 
 /**
@@ -171,13 +197,18 @@ const buildReplicaPullDeps = <T extends ReplicaLocalRecord>(
   // non-null assertion on baseDir is therefore safe in the binary
   // path; metadata-only kinds (opds_catalog) leave config.baseDir
   // unset and never hit these.
-  createBundleDir: async () => {
-    const id = uniqueId();
+  createBundleDir: async (dir) => {
+    const id = dir ?? uniqueId();
     await service.createDir(id, config.baseDir!, true);
     return id;
   },
+  ensureDir: (dir) => service.createDir(dir, config.baseDir!, true),
   queueReplicaDownload: (contentId, displayTitle, files, _bundleDir, base) =>
-    transferManager.queueReplicaDownload(config.kind, contentId, displayTitle, files, base),
+    config.backgroundTransfers
+      ? transferManager.queueReplicaDownload(config.kind, contentId, displayTitle, files, base, {
+          isBackground: true,
+        })
+      : transferManager.queueReplicaDownload(config.kind, contentId, displayTitle, files, base),
   filesExist: async (bundleDir, filenames) => {
     for (const filename of filenames) {
       const exists = await service.exists(`${bundleDir}/${filename}`, config.baseDir!);
@@ -259,6 +290,17 @@ const opdsCatalogPullConfig: ReplicaPullConfig<OPDSCatalog> = {
   hydrateLocalStore: (envConfig) => useCustomOPDSStore.getState().loadCustomOPDSCatalogs(envConfig),
   applyRemote: (catalog) => useCustomOPDSStore.getState().applyRemoteCatalog(catalog),
   softDeleteByContentId: (id) => useCustomOPDSStore.getState().softDeleteByContentId(id),
+};
+
+const mindmapPullConfig: ReplicaPullConfig<MindmapReplicaRecord> = {
+  kind: 'mindmap',
+  baseDir: 'Books',
+  adapter: mindmapAdapter,
+  findByContentId: findMindmapByContentId,
+  hydrateLocalStore: () => beginMindmapPull(),
+  applyRemote: (record) => useMindmapStore.getState().applyRemoteMap(record),
+  softDeleteByContentId: (id) => useMindmapStore.getState().softDeleteByContentId(id),
+  backgroundTransfers: true,
 };
 
 const settingsPullConfig = (envConfig: EnvConfigType): ReplicaPullConfig<SettingsRemoteRecord> => ({
@@ -372,6 +414,19 @@ const runPullForKind = async (
           pullOverride,
         ),
       );
+      return;
+    case 'mindmap':
+      await replicaPullAndApply(
+        buildReplicaPullDeps(
+          ctx.manager,
+          service,
+          envConfig,
+          mindmapPullConfig,
+          pullOpts,
+          pullOverride,
+        ),
+      );
+      await finishMindmapPull();
       return;
   }
 };

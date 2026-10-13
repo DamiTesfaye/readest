@@ -1,135 +1,118 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act, cleanup } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Book } from '@/types/book';
-import type { AppService } from '@/types/system';
-import type { EnvConfigType } from '@/services/environment';
-
-/**
- * Issue #5265 (the residue of #5084): "Delete locally" must never cost the user
- * their Google Drive copy.
- *
- * The only automatic route into the destructive `handleBookDelete('both')` is
- * this hook's stale-record cleanup: a book whose local file is missing is
- * offered for deletion, the confirm tombstones it, and the file sync then GCs
- * the book's directory off the remote. #5087 fixed the misclassification that
- * fed it (peers adopting a foreign `filePath`, provider-synced books never
- * stamped `uploadedAt`) — but a device that synced on an older build still
- * carries poisoned rows, so the escalation itself has to stop being possible:
- * a missing LOCAL file is not evidence that the REMOTE copy is unwanted.
- */
-
-const routing = vi.hoisted(() => ({
-  backends: [] as ('webdav' | 'gdrive' | 's3' | 'onedrive')[],
-}));
-
-const isBookAvailable = vi.hoisted(() => vi.fn(async () => false));
-const navigateToReader = vi.hoisted(() => vi.fn());
-
-vi.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => (text: string) => text,
-}));
-
-vi.mock('@/hooks/useAppRouter', () => ({
-  useAppRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-}));
-
-vi.mock('@/utils/nav', () => ({
+const {
   navigateToReader,
-  showReaderWindow: vi.fn(),
-}));
-
-vi.mock('@/services/sync/cloudSyncProvider', () => ({
-  getActiveFileSyncBackends: () => routing.backends,
-}));
-
-const appService = {
+  showReaderWindow,
+  dispatch,
+  updateBook,
   isBookAvailable,
-  hasWindow: false,
-  saveLibraryBooks: vi.fn(async () => {}),
-} as unknown as AppService;
-
-const envConfig = { getAppService: async () => appService } as unknown as EnvConfigType;
-
-vi.mock('@/context/EnvContext', () => ({
-  useEnv: () => ({ envConfig, appService }),
+  handleBookDownload,
+} = vi.hoisted(() => ({
+  navigateToReader: vi.fn(),
+  showReaderWindow: vi.fn(),
+  dispatch: vi.fn(),
+  updateBook: vi.fn(),
+  isBookAvailable: vi.fn(),
+  handleBookDownload: vi.fn(),
 }));
 
-const { useOpenBook } = await import('@/app/library/hooks/useOpenBook');
-const { eventDispatcher } = await import('@/utils/event');
+vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
+vi.mock('@/hooks/useAppRouter', () => ({ useAppRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/context/EnvContext', () => ({
+  useEnv: () => ({ envConfig: { env: 'test' }, appService: { isBookAvailable, hasWindow: false } }),
+}));
+vi.mock('@/store/libraryStore', () => ({ useLibraryStore: () => ({ updateBook }) }));
+vi.mock('@/store/settingsStore', () => {
+  const state = { settings: { openBookInNewWindow: false } };
+  return { useSettingsStore: Object.assign(() => state, { getState: () => state }) };
+});
+vi.mock('@/utils/nav', () => ({ navigateToReader, showReaderWindow }));
+vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch } }));
 
-const makeBook = (over: Partial<Book> = {}): Book => ({
-  hash: 'h1',
+import { useOpenBook } from '@/app/library/hooks/useOpenBook';
+import type { Book } from '@/types/book';
+
+const managedBook = {
+  hash: 'f0c0bf6a1e5c338faf9e855d630d3e36',
   format: 'EPUB',
-  title: 'Title',
-  sourceTitle: 'Title',
-  author: 'Author',
-  createdAt: 1000,
-  updatedAt: 1000,
-  ...over,
-});
+  title: 'Zero to One',
+  author: 'Peter Thiel',
+  createdAt: 1,
+  updatedAt: 1,
+  uploadedAt: null,
+  downloadedAt: 1,
+} as unknown as Book;
 
-const setup = (downloadOk = true) => {
-  const handleBookDownload = vi.fn(async () => downloadOk);
-  const { result } = renderHook(() => useOpenBook({ setLoading: vi.fn(), handleBookDownload }));
-  return { result, handleBookDownload };
-};
+const cloudBook = {
+  ...managedBook,
+  hash: 'c2bd82396c077872d1f8f11b2f2c3ed6',
+  title: 'The Rust Programming Language',
+  uploadedAt: 1,
+  downloadedAt: 1,
+} as unknown as Book;
 
-/** `openBook` hands the reader navigation to a setTimeout(0); let it land. */
-const flushNavigation = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-let deleteIntents: string[][] = [];
-
-eventDispatcher.on('delete-books', (event: CustomEvent) => {
-  deleteIntents.push(event.detail.ids as string[]);
-});
+const openBookOf = () =>
+  renderHook(() => useOpenBook({ setLoading: vi.fn(), handleBookDownload })).result.current
+    .openBook;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  routing.backends = [];
-  isBookAvailable.mockResolvedValue(false);
-  deleteIntents = [];
+  handleBookDownload.mockResolvedValue(true);
+  vi.useFakeTimers();
 });
 
-describe('useOpenBook — a missing local file must not delete the cloud copy (#5265)', () => {
-  it('never offers to delete a book whose bytes may still be on the file mirror', async () => {
-    routing.backends = ['gdrive'];
-    // The row right after "Remove from Device Only" on a device whose library
-    // was poisoned by a pre-#5087 client: a peer's absolute `filePath`, and no
-    // `uploadedAt` because the engine kept misreading that path as the source.
-    const book = makeBook({ filePath: 'C:\\Users\\other\\Book.epub', downloadedAt: null });
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+});
 
-    const { result, handleBookDownload } = setup();
-    await result.current.openBook(book);
-    await flushNavigation();
-
-    expect(deleteIntents).toEqual([]);
-    // Instead of proposing a deletion, fetch the book back from the mirror.
-    expect(handleBookDownload).toHaveBeenCalledTimes(1);
-    expect(navigateToReader).toHaveBeenCalled();
+describe('useOpenBook', () => {
+  it('opens a managed book whose file is still there', async () => {
+    isBookAvailable.mockResolvedValue(true);
+    const openBook = openBookOf();
+    await act(async () => {
+      await openBook(managedBook);
+      vi.runAllTimers();
+    });
+    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [managedBook.hash], undefined);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('still cleans up a stale in-place record when no mirror could hold the book', async () => {
-    routing.backends = [];
-    const book = makeBook({ filePath: '/home/reader/moved-away.epub' });
-
-    const { result } = setup();
-    await result.current.openBook(book);
-    await flushNavigation();
-
-    expect(deleteIntents).toEqual([['h1']]);
+  it('does not open the reader when the managed book file is gone', async () => {
+    isBookAvailable.mockResolvedValue(false);
+    const openBook = openBookOf();
+    await act(async () => {
+      await openBook(managedBook);
+      vi.runAllTimers();
+    });
     expect(navigateToReader).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledWith('delete-books', { ids: [managedBook.hash] });
   });
 
-  it('reports failure rather than deleting when the mirror does not have it either', async () => {
-    routing.backends = ['gdrive'];
-    const book = makeBook({ filePath: 'C:\\Users\\other\\Book.epub' });
+  it('re-downloads a cloud book whose downloadedAt outlived its local copy', async () => {
+    isBookAvailable.mockResolvedValue(false);
+    const book = { ...cloudBook };
+    const openBook = openBookOf();
+    await act(async () => {
+      await openBook(book);
+      vi.runAllTimers();
+    });
+    expect(handleBookDownload).toHaveBeenCalledWith(book, { queued: false });
+    expect(book.downloadedAt).toBeNull();
+    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [book.hash], undefined);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
 
-    const { result } = setup(false);
-    await result.current.openBook(book);
-    await flushNavigation();
-
-    expect(deleteIntents).toEqual([]);
-    expect(navigateToReader).not.toHaveBeenCalled();
+  it('opens a downloaded cloud book without downloading it again', async () => {
+    isBookAvailable.mockResolvedValue(true);
+    const book = { ...cloudBook };
+    const openBook = openBookOf();
+    await act(async () => {
+      await openBook(book);
+      vi.runAllTimers();
+    });
+    expect(handleBookDownload).not.toHaveBeenCalled();
+    expect(navigateToReader).toHaveBeenCalledWith(expect.anything(), [book.hash], undefined);
   });
 });

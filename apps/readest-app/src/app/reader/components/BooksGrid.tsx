@@ -27,6 +27,7 @@ import HintInfo from './HintInfo';
 import ReadingRuler from './ReadingRuler';
 import DoubleBorder from './DoubleBorder';
 import ReadingStatsTracker from './ReadingStatsTracker';
+import PlaySurface from './play/PlaySurface';
 
 interface BooksGridProps {
   bookKeys: string[];
@@ -266,15 +267,18 @@ const BookCellInner: React.FC<BookCellProps> = ({
       <SearchResultsNav bookKey={bookKey} gridInsets={gridInsets} />
       <BooknotesNav bookKey={bookKey} gridInsets={gridInsets} toc={bookDoc.toc || []} />
       <FootnotePopup bookKey={bookKey} bookDoc={bookDoc} />
-      <FooterBar
-        bookKey={bookKey}
-        bookFormat={book.format}
-        section={section}
-        pageinfo={pageinfo}
-        isHoveredAnim={false}
-        gridInsets={gridInsets}
-      />
+      {window.innerWidth < 640 && (
+        <FooterBar
+          bookKey={bookKey}
+          bookFormat={book.format}
+          section={section}
+          pageinfo={pageinfo}
+          isHoveredAnim={false}
+          gridInsets={gridInsets}
+        />
+      )}
       <ReadingStatsTracker bookKey={bookKey} />
+      <PlaySurface bookKey={bookKey} />
     </div>
   );
 };

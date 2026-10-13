@@ -9,6 +9,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
 import { isWebAppPlatform } from '@/services/environment';
 import { downloadFile } from '@/libs/storage';
+import { downloadAndImportBook } from '@/services/bookDownload';
 import { Toast } from '@/components/Toast';
 import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -22,12 +23,10 @@ import { useTransferQueue } from '@/hooks/useTransferQueue';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibrary } from '@/hooks/useLibrary';
 import { eventDispatcher } from '@/utils/event';
-import { navigateToReader } from '@/utils/nav';
-import { getFileExtFromMimeType } from '@/libs/document';
+import { navigateToLibrary, navigateToReader } from '@/utils/nav';
 import { OPDSFeed, OPDSPublication, OPDSSearch, REL } from '@/types/opds';
 import {
   expandOPDSSearchTemplate,
-  getFileExtFromPath,
   getSafeDOMParserMimeType,
   isSearchLink,
   looksLikeXMLContent,
@@ -37,15 +36,8 @@ import {
   parseOPDSXML,
   resolveURL,
 } from './utils/opdsUtils';
-import {
-  getProxiedURL,
-  fetchWithAuth,
-  probeAuth,
-  needsProxy,
-  probeFilename,
-} from './utils/opdsReq';
+import { getProxiedURL, fetchWithAuth, probeAuth, needsProxy } from './utils/opdsReq';
 import { getPublicationDetailHref, parsePublicationDocument } from './utils/opdsPublication';
-import { ImportError } from '@/services/errors';
 import { READEST_OPDS_USER_AGENT } from '@/services/constants';
 import { findBookByOPDSSources, upsertOPDSSourceMapping } from '@/services/opds/sourceMap';
 import { applyOPDSCover, getOPDSCoverHref, getOPDSImageCacheFilename } from '@/services/opds/cover';
@@ -60,7 +52,6 @@ import { normalizeCustomHeaders } from '@/utils/customHeaders';
 import { closeOPDSBrowser, stashOPDSReturnTarget } from './utils/opdsClose';
 import { findExistingBookForPublication } from './utils/findExistingBook';
 import Dialog from '@/components/Dialog';
-import { uniqueId } from '@/utils/misc';
 
 type ViewMode = 'feed' | 'publication' | 'search' | 'loading' | 'error';
 
@@ -398,10 +389,12 @@ export default function BrowserPage() {
     } else if (isNavigatingHistoryRef.current) {
       isNavigatingHistoryRef.current = false;
     } else {
-      setViewMode('error');
-      setError(new Error('No OPDS URL provided'));
+      // The catalogs manager lives inside the library page (sidebar →
+      // Catalogs), so a bare /opds visit lands there instead of rendering
+      // a toolbar-only page.
+      navigateToLibrary(router, 'catalogs=true');
     }
-  }, [catalogUrl, catalogId, settings, libraryLoaded, loadOPDS]);
+  }, [catalogUrl, catalogId, settings, libraryLoaded, loadOPDS, router]);
 
   const handleNavigate = useCallback(
     (url: string, isSearch = false) => {
@@ -592,82 +585,50 @@ export default function BrowserPage() {
             }
           }
 
-          const pathname = decodeURIComponent(new URL(url).pathname);
-          const ext = getFileExtFromMimeType(parsed?.mediaType) || getFileExtFromPath(pathname);
-          const basename = uniqueId();
-          const filename = ext ? `${basename}.${ext}` : basename;
-          let dstFilePath = await appService?.resolveFilePath(filename, 'Cache');
-          console.log('Downloading to:', url, dstFilePath);
-
-          const responseHeaders = await downloadFile({
+          return await downloadAndImportBook({
             appService,
-            dst: dstFilePath,
-            cfp: '',
-            url: downloadUrl,
+            url,
+            downloadUrl,
             headers,
-            singleThreaded: true,
+            mediaType: parsed?.mediaType,
             skipSslVerification: true,
             onProgress,
+            onImported: async (book) => {
+              if (publication) {
+                applyOPDSMetadata(book, getOPDSBookMetadata(publication));
+              }
+              if (publicationCoverHref) {
+                try {
+                  await applyOPDSCover({
+                    appService,
+                    book,
+                    coverUrl: resolveURL(publicationCoverHref, state.baseURL),
+                    username,
+                    password,
+                    customHeaders,
+                  });
+                } catch (coverError) {
+                  console.warn('OPDS: failed to apply the feed cover:', coverError);
+                }
+              }
+              if (catalogSourceId) {
+                try {
+                  await upsertOPDSSourceMapping(appService, {
+                    catalogId: catalogSourceId,
+                    sourceUrl: url,
+                    bookHash: book.hash,
+                  });
+                } catch (sourceMapError) {
+                  console.error('OPDS: failed to update source map:', sourceMapError);
+                }
+              }
+              if (user && !book.uploadedAt && isReadestCloudStorageActive(settings)) {
+                setTimeout(() => {
+                  transferManager.queueUpload(book);
+                }, 3000);
+              }
+            },
           });
-          const probedFilename = await probeFilename(responseHeaders);
-          if (probedFilename) {
-            const newFilePath = await appService?.resolveFilePath(probedFilename, 'Cache');
-            await appService?.copyFile(dstFilePath, 'None', newFilePath, 'None');
-            await appService?.deleteFile(dstFilePath, 'None');
-            console.log('Renamed downloaded file to:', newFilePath);
-            dstFilePath = newFilePath;
-          }
-
-          const { library, setLibrary } = useLibraryStore.getState();
-          try {
-            const book = await appService.importBook(dstFilePath, library);
-            // The catalog's curated metadata wins over the file's embedded
-            // record (#5270) — applied before the cloud upload is queued so
-            // peers get the same fields. `publication` already carries the
-            // detail-document merge (#4749), so this is the fullest record.
-            if (book && publication) {
-              applyOPDSMetadata(book, getOPDSBookMetadata(publication));
-            }
-            // The catalog's own artwork wins over the one embedded in the file
-            // (#5270) — applied before the cloud upload is queued so peers get
-            // the same cover. Best effort: never fail the import over it.
-            if (book && publicationCoverHref) {
-              try {
-                await applyOPDSCover({
-                  appService,
-                  book,
-                  coverUrl: resolveURL(publicationCoverHref, state.baseURL),
-                  username,
-                  password,
-                  customHeaders,
-                });
-              } catch (coverError) {
-                console.warn('OPDS: failed to apply the feed cover:', coverError);
-              }
-            }
-            if (book && catalogSourceId) {
-              try {
-                await upsertOPDSSourceMapping(appService, {
-                  catalogId: catalogSourceId,
-                  sourceUrl: url,
-                  bookHash: book.hash,
-                });
-              } catch (sourceMapError) {
-                console.error('OPDS: failed to update source map:', sourceMapError);
-              }
-            }
-            if (user && book && !book.uploadedAt && isReadestCloudStorageActive(settings)) {
-              setTimeout(() => {
-                transferManager.queueUpload(book);
-              }, 3000);
-            }
-            setLibrary(library);
-            appService.saveLibraryBooks(library);
-            return book;
-          } catch (importError) {
-            console.error('Import error:', importError);
-            throw new ImportError(importError);
-          }
         }
       } catch (e) {
         console.error('Download error:', e);

@@ -86,6 +86,14 @@
           <string>readest-onedrive</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLName</key>
+        <string>com.bilingify.readest.ampleread-auth</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>ampleread</string>
+        </array>
+      </dict>
     </array>
     <key>UIApplicationSceneManifest</key>
     <dict>

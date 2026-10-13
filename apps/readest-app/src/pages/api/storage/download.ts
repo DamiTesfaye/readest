@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from '@/utils/supabase';
 import { corsAllMethods, runMiddleware } from '@/utils/cors';
 import { getDownloadSignedUrl } from '@/utils/object';
 import { validateUserAndToken } from '@/utils/access';
+import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await runMiddleware(req, res, corsAllMethods);
@@ -38,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const downloadUrl = downloadUrlsMap[fileKey];
 
       if (!downloadUrl) {
-        return res.status(404).json({ error: 'File not found' });
+        return res.status(404).json({ error: STORAGE_FILE_NOT_FOUND_ERROR });
       }
 
       return res.status(200).json({ downloadUrl });
@@ -83,8 +84,7 @@ async function processFileKeys(
     .is('deleted_at', null);
 
   if (fileError) {
-    console.error('Error querying files:', fileError);
-    return Object.fromEntries(fileKeys.map((key) => [key, undefined]));
+    throw new Error(`Error querying files: ${fileError.message}`);
   }
 
   const fileRecordMap = new Map((fileRecords || []).map((record) => [record.file_key, record]));

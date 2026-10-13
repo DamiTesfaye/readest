@@ -3,7 +3,6 @@ import {
   RiCheckboxCircleFill,
   RiErrorWarningFill,
   RiLoader2Line,
-  RiUploadCloud2Line,
   RiDownloadCloud2Line,
 } from 'react-icons/ri';
 import { useEnv } from '@/context/EnvContext';
@@ -12,6 +11,7 @@ import { useFileSelector } from '@/hooks/useFileSelector';
 import { restoreFromBackupZip, saveBackupFile } from '@/services/backupService';
 import { useLibraryStore } from '@/store/libraryStore';
 import Dialog from '@/components/Dialog';
+import { UploadIcon } from '@/components/UploadIcon';
 
 export const setBackupDialogVisible = (visible: boolean) => {
   const dialog = document.getElementById('backup_window');
@@ -208,7 +208,7 @@ export const BackupWindow: React.FC<BackupWindowProps> = ({ onPullLibrary }) => 
               </label>
 
               <button className='btn btn-outline w-full gap-2' onClick={handleBackup}>
-                <RiUploadCloud2Line className='h-5 w-5' />
+                <UploadIcon className='h-5 w-5' />
                 {_('Backup Library')}
               </button>
 

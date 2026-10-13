@@ -38,6 +38,9 @@ const parseErrorBody = async (response: Response): Promise<ErrorBody> => {
   }
 };
 
+const offendingIndexOf = (body: ErrorBody): { offendingIndex?: number } =>
+  typeof body.offendingIndex === 'number' ? { offendingIndex: body.offendingIndex } : {};
+
 const requireToken = async (): Promise<string> => {
   const token = await getAccessToken();
   if (!token) throw new SyncError('AUTH', 'Not authenticated');
@@ -66,6 +69,7 @@ export class ReplicaSyncClient {
       const code = body.code ?? statusToDefaultCode(response.status);
       throw new SyncError(code, body.error ?? `Push failed with status ${response.status}`, {
         status: response.status,
+        ...offendingIndexOf(body),
       });
     }
     const data = (await response.json()) as { rows: ReplicaRow[] };
@@ -132,6 +136,7 @@ export class ReplicaSyncClient {
       const code = body.code ?? statusToDefaultCode(response.status);
       throw new SyncError(code, body.error ?? `Batch pull failed with status ${response.status}`, {
         status: response.status,
+        ...offendingIndexOf(body),
       });
     }
     const data = (await response.json()) as { results: { kind: string; rows: ReplicaRow[] }[] };

@@ -15,8 +15,11 @@ vi.mock('@/styles/themes', async (importOriginal) => {
   };
 });
 
+import tinycolor from 'tinycolor2';
+import { getBackgroundSwatches } from '@/styles/backgrounds';
 import type { ViewSettings } from '@/types/book';
 import type { ThemeCode } from '@/utils/style';
+import { themes } from '@/styles/themes';
 import {
   applyThemeModeClass,
   applyScrollModeClass,
@@ -321,6 +324,127 @@ describe('getThemeCode', () => {
     // auto mode with systemIsDarkMode not set => light
     expect(code.isDarkMode).toBe(false);
     expect(code.bg).toBeTruthy();
+  });
+
+  it('migrates a removed theme name to the default palette', () => {
+    localStorage.setItem('themeColor', 'sepia');
+    localStorage.setItem('themeMode', 'light');
+    const code = getThemeCode();
+    // sepia was removed; resolveThemeName maps it to the default appearance.
+    const defaultLight = themes.find((t) => t.name === 'default')!.colors.light;
+    expect(code.bg).toBe(defaultLight['base-100']);
+    expect(code.isDarkMode).toBe(false);
+  });
+
+  it('lets a card theme follow themeMode in both directions', () => {
+    localStorage.setItem('themeColor', 'starry-night');
+    localStorage.setItem('themeMode', 'light');
+    expect(getThemeCode().isDarkMode).toBe(false);
+
+    localStorage.setItem('themeMode', 'dark');
+    expect(getThemeCode().isDarkMode).toBe(true);
+  });
+
+  it('follows system scheme for the default appearance in auto mode', () => {
+    localStorage.setItem('themeColor', 'default');
+    localStorage.setItem('themeMode', 'auto');
+    localStorage.setItem('systemIsDarkMode', 'true');
+    const code = getThemeCode();
+    expect(code.isDarkMode).toBe(true);
+  });
+
+  it('resolves a preset background through the mode-appropriate swatch row', () => {
+    localStorage.setItem('themeColor', 'desert-sunset');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'preset', index: 4 }));
+    expect(getThemeCode().bg.toLowerCase()).toBe(
+      getBackgroundSwatches('desert-sunset', false)[4]!.toLowerCase(),
+    );
+  });
+
+  it('carries a background across a mode flip by slot, not by hex', () => {
+    localStorage.setItem('themeColor', 'desert-sunset');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'preset', index: 4 }));
+    localStorage.setItem('themeMode', 'dark');
+    expect(getThemeCode().bg.toLowerCase()).toBe(
+      getBackgroundSwatches('desert-sunset', true)[4]!.toLowerCase(),
+    );
+  });
+
+  it('applies a custom background and keeps it above the AA floor', () => {
+    localStorage.setItem('themeColor', 'paper');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'custom', light: '#e8e4da' }));
+    const { bg, fg } = getThemeCode();
+    expect(bg.toLowerCase()).toBe('#e8e4da');
+    expect(tinycolor.readability(bg, fg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('ignores a stored background for custom themes', () => {
+    localStorage.setItem(
+      'customThemes',
+      JSON.stringify([
+        {
+          name: 'my-custom',
+          label: 'My Custom',
+          colors: {
+            light: { bg: '#fafafa', fg: '#111111', primary: '#cc0000' },
+            dark: { bg: '#111111', fg: '#fafafa', primary: '#ff4444' },
+          },
+        },
+      ]),
+    );
+    localStorage.setItem('themeColor', 'my-custom');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('themeBackground', JSON.stringify({ kind: 'preset', index: 0 }));
+    expect(getThemeCode().bg).toBe('#fafafa');
+  });
+
+  it('floors a low-contrast custom theme to AA (4.5:1) even without High Contrast', () => {
+    localStorage.setItem(
+      'customThemes',
+      JSON.stringify([
+        {
+          name: 'washed-out',
+          label: 'Washed Out',
+          colors: {
+            light: { fg: '#b8b0a0', bg: '#efe8da', primary: '#c15a1f' }, // about 1.5:1
+            dark: { fg: '#4a4a4a', bg: '#1f1f1f', primary: '#f49e5c' },
+          },
+        },
+      ]),
+    );
+    localStorage.setItem('themeColor', 'washed-out');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('highContrast', 'false');
+    const { bg, fg } = getThemeCode();
+    expect(tinycolor.readability(bg, fg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps built-in palettes byte-identical (they already pass AA)', () => {
+    localStorage.setItem('themeColor', 'desert-sunset');
+    localStorage.setItem('themeMode', 'light');
+    localStorage.setItem('highContrast', 'false');
+    const { fg } = getThemeCode();
+    // desert-sunset light fg seed. The floor must be a no-op for compliant themes.
+    expect(fg.toLowerCase()).toBe('#4a3222');
+  });
+
+  it('boosts foreground contrast for book content when highContrast is on', async () => {
+    localStorage.setItem('themeColor', 'night-pond');
+    localStorage.setItem('themeMode', 'dark');
+    const plain = getThemeCode();
+    localStorage.setItem('highContrast', 'true');
+    const boosted = getThemeCode();
+    // Same background (scene character kept), stronger fg/bg contrast.
+    expect(boosted.bg).toBe(plain.bg);
+    const tinycolor = (await import('tinycolor2')).default;
+    // Boost never reduces contrast and always clears AAA (night-pond dark
+    // already exceeds it, so this confirms the path is wired, not a no-op bug).
+    expect(tinycolor.readability(boosted.bg, boosted.fg)).toBeGreaterThanOrEqual(
+      tinycolor.readability(plain.bg, plain.fg),
+    );
+    expect(tinycolor.readability(boosted.bg, boosted.fg)).toBeGreaterThanOrEqual(7);
   });
 });
 

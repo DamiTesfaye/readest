@@ -19,7 +19,7 @@ export type BookFormat =
   | 'MD';
 export type BookNoteType = 'bookmark' | 'annotation' | 'excerpt';
 export type ReadingStatus = 'unread' | 'reading' | 'finished' | 'abandoned';
-export type HighlightStyle = 'highlight' | 'underline' | 'squiggly';
+export type HighlightStyle = 'highlight' | 'underline' | 'squiggly' | 'strikethrough';
 // Predefined highlight colors, can be extended with custom hex colors
 export type HighlightColor = 'red' | 'yellow' | 'green' | 'blue' | 'violet' | string;
 export const DEFAULT_HIGHLIGHT_COLORS = ['red', 'yellow', 'green', 'blue', 'violet'] as const;
@@ -30,6 +30,7 @@ export interface UserHighlightColor {
   label?: string;
 }
 export type ReadingRulerColor = 'transparent' | 'yellow' | 'green' | 'blue' | 'rose';
+export type MarginsDisplay = 'full' | 'markers' | 'quiet';
 
 export interface ParagraphModeConfig {
   enabled: boolean;
@@ -81,6 +82,11 @@ export interface ImportBookOptions {
   inPlace?: boolean;
   /** Pre-built lookup index for O(1) dedup during batch imports. */
   lookupIndex?: BookLookupIndex;
+}
+
+export interface AmpleReadProvenance {
+  workId: string;
+  editionId: string;
 }
 
 export interface Book {
@@ -145,6 +151,7 @@ export interface Book {
   // metadata), so a page-turn that wins whole-row LWW on updatedAt cannot
   // clobber a metadata edit (mirrors readingStatusUpdatedAt / coverUpdatedAt).
   metadataUpdatedAt?: number | null;
+  ampleread?: AmpleReadProvenance;
 }
 
 export interface BookGroupType {
@@ -332,6 +339,8 @@ export interface ViewConfig {
   paragraphMode: ParagraphModeConfig;
 
   readingRulerEnabled: boolean;
+  movingPicturesEnabled: boolean;
+  marginsDisplay: MarginsDisplay;
   readingRulerLines: number;
   readingRulerPosition: number;
   readingRulerOpacity: number;
@@ -489,6 +498,8 @@ export interface BookSearchConfig {
   mode: SearchMode;
   matchCase: boolean;
   matchDiacritics: boolean;
+  fuzzy?: boolean;
+  ignorePunctuation?: boolean;
   // nearby-words: maximum number of words separating the matched words
   nearbyWords?: number;
   /** @deprecated since schema v3 — mirrors `mode === 'whole-words'`; kept for sync wire back-compat. */

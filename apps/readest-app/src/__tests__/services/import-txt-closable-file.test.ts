@@ -106,6 +106,19 @@ const TEST_METADATA = {
  * handle — otherwise every TXT import leaks the opened RemoteFile/NativeFile
  * (same cleanup contract as #5387's destroy/close finally).
  */
+const written = new Set<string>();
+
+function trackWrites(fs: ReturnType<TestAppService['getFs']>) {
+  written.clear();
+  fs.writeFile.mockImplementation(async (path: string) => {
+    written.add(path);
+  });
+  fs.copyFile.mockImplementation(async (_src: string, _srcBase: string, dst: string) => {
+    written.add(dst);
+  });
+  fs.exists.mockImplementation(async (path: string) => written.has(path));
+}
+
 describe('importBook TXT ClosableFile lifecycle', () => {
   let service: TestAppService;
   let mockClose: ReturnType<typeof vi.fn>;
@@ -124,9 +137,8 @@ describe('importBook TXT ClosableFile lifecycle', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
+    trackWrites(fs);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
     mockPartialMD5.mockResolvedValue('hash-txt-abc');

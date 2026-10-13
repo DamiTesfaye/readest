@@ -33,7 +33,7 @@ minisign-verify = "0.2"
 log = "0.4"
 thiserror = "2"
 walkdir = "2"
-tokio = { version = "1", features = ["fs"] }
+tokio = { version = "1", features = ["fs", "rt", "macros"] }
 tokio-util = { version = "0.7", features = ["codec", "rt"] }
 futures-util = "0.3"
 futures = "0.3.31"
@@ -145,6 +145,9 @@ sentry = { version = "0.42", default-features = false, features = [
   "rustls",
 ] }
 tauri-plugin-sentry = { version = "0.5", default-features = false }
+rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+ampleread-types = { git = "ssh://git@github.com/DamiTesfaye/ampleread-backend.git", tag = "phase1-backend.1" }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 rand = "0.8"

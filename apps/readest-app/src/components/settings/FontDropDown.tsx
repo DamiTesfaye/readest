@@ -1,8 +1,9 @@
 import clsx from 'clsx';
 import React, { useMemo } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import { FiChevronUp, FiChevronLeft } from 'react-icons/fi';
+import { FiChevronLeft } from 'react-icons/fi';
 import { MdCheck } from 'react-icons/md';
+import { ChevronDownIcon } from '@/components/themefonts/icons';
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
@@ -113,23 +114,21 @@ const FontDropdown: React.FC<DropdownProps> = ({
   );
 
   return (
-    <div className='dropdown dropdown-top'>
+    <div className='dropdown dropdown-top w-full'>
       <button
         tabIndex={0}
-        className='btn btn-sm flex items-center px-[10px] font-normal normal-case sm:px-[20px]'
+        className='text-base-content flex h-8 w-full items-center justify-between gap-2 overflow-hidden px-2 font-normal normal-case'
         onClick={(e) => e.currentTarget.focus()}
       >
-        <div className='flex items-center gap-x-1'>
-          <span
-            className='line-clamp-1 break-all leading-loose'
-            style={{
-              fontFamily: onGetFontFamily(selectedOption.option, family ?? ''),
-            }}
-          >
-            {selectedOption.label}
-          </span>
-          <FiChevronUp size={iconSize} />
-        </div>
+        <span
+          className='min-w-0 flex-1 truncate text-left text-lg'
+          style={{
+            fontFamily: onGetFontFamily(selectedOption.option, family ?? ''),
+          }}
+        >
+          {selectedOption.label ?? selectedOption.option}
+        </span>
+        <ChevronDownIcon className='h-[7px] w-[11px] shrink-0' />
       </button>
       <ul
         role='listbox'

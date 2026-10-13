@@ -103,6 +103,11 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
     setIsDropdownOpen?.(false);
   };
 
+  const openFontLayoutMenu = () => {
+    setIsDropdownOpen?.(false);
+    eventDispatcher.dispatch('open-theme-fonts', { bookKey });
+  };
+
   const openSettingsDialog = () => {
     setIsDropdownOpen?.(false);
     setSettingsDialogBookKey(bookKey);
@@ -130,6 +135,11 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
   const handleStartRSVP = () => {
     setIsDropdownOpen?.(false);
     eventDispatcher.dispatch('rsvp-start', { bookKey });
+  };
+
+  const handlePlay = () => {
+    setIsDropdownOpen?.(false);
+    eventDispatcher.dispatch('margins-play-enter', { bookKey });
   };
 
   const toggleAutoScroll = () => {
@@ -454,6 +464,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         </>
       )}
 
+      <MenuItem label={_('Theme & Fonts')} shortcut='Shift+F' onClick={openFontLayoutMenu} />
       {!bookData.isFixedLayout && (
         <MenuItem
           label={_('Scrolled Mode')}
@@ -485,6 +496,12 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         label={_('Speed Reading Mode')}
         shortcut='Shift+V'
         onClick={handleStartRSVP}
+        disabled={bookData.isFixedLayout}
+      />
+
+      <MenuItem
+        label={_('Play with this page')}
+        onClick={handlePlay}
         disabled={bookData.isFixedLayout}
       />
 

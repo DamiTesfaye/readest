@@ -109,6 +109,19 @@ const SCANNED = [
   { fullPath: DUPLICATE_PATH, size: 1024 },
 ];
 
+const written = new Set<string>();
+
+function trackWrites(fs: ReturnType<TestAppService['getFs']>) {
+  written.clear();
+  fs.writeFile.mockImplementation(async (path: string) => {
+    written.add(path);
+  });
+  fs.copyFile.mockImplementation(async (_src: string, _srcBase: string, dst: string) => {
+    written.add(dst);
+  });
+  fs.exists.mockImplementation(async (path: string) => written.has(path));
+}
+
 describe('auto-import: watched folder with duplicated files', () => {
   let service: TestAppService;
 
@@ -116,9 +129,8 @@ describe('auto-import: watched folder with duplicated files', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
+    trackWrites(fs);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
     fs.openFile.mockImplementation(async (path: string) => new File(['content'], path));

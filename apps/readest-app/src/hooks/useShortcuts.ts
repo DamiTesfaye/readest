@@ -6,6 +6,17 @@ export type KeyActionHandlers = {
   [K in keyof ShortcutConfig]?: (event?: KeyboardEvent | MessageEvent) => void;
 };
 
+export const isInsideMindmap = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.closest('[data-mindmap-root], [data-mindmap-view]') !== null;
+
+const isMindmapFullscreenOpen = (): boolean =>
+  document.querySelector('[data-mindmap-view][data-layout="fullscreen"]') !== null;
+
+export const isMindmapKeyEvent = (event: KeyboardEvent): boolean =>
+  isInsideMindmap(event.target) || (event.target === document.body && isMindmapFullscreenOpen());
+
+const WINDOW_SECTION = 'Window';
+
 const useShortcuts = (actions: KeyActionHandlers, dependencies: React.DependencyList = []) => {
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>(loadShortcuts);
 
@@ -18,15 +29,20 @@ const useShortcuts = (actions: KeyActionHandlers, dependencies: React.Dependency
     return () => window.removeEventListener('shortcutUpdate', handleShortcutUpdate);
   }, []);
 
-  const processKeyEvent = (eventLike: ShortcutEventLike, event: KeyboardEvent | MessageEvent) => {
+  const processKeyEvent = (
+    eventLike: ShortcutEventLike,
+    event: KeyboardEvent | MessageEvent,
+    windowOnly = false,
+  ) => {
     // FIXME: This is a temporary fix to disable Back button navigation
-    if (eventLike.key.toLowerCase() === 'backspace') return true;
+    if (!windowOnly && eventLike.key.toLowerCase() === 'backspace') return true;
     for (const [actionName, actionHandler] of Object.entries(actions)) {
       const shortcutKey = actionName as keyof ShortcutConfig;
       const handler = actionHandler as
         | ((event?: KeyboardEvent | MessageEvent) => void | boolean)
         | undefined;
       const shortcutEntry = shortcuts[shortcutKey as keyof ShortcutConfig];
+      if (windowOnly && shortcutEntry?.section !== WINDOW_SECTION) continue;
       // console.log('Checking action:', shortcutKey);
       if (handler && shortcutEntry?.keys && matchesShortcut(eventLike, shortcutEntry.keys)) {
         if (handler(event)) {
@@ -52,7 +68,12 @@ const useShortcuts = (actions: KeyActionHandlers, dependencies: React.Dependency
       return; // Skip handling if the user is typing in an input, textarea, or contenteditable
     }
 
-    if (event instanceof KeyboardEvent) {
+    if (event instanceof KeyboardEvent && isMindmapKeyEvent(event)) {
+      const { key, ctrlKey, altKey, metaKey, shiftKey } = event;
+      if (processKeyEvent({ key, ctrlKey, altKey, metaKey, shiftKey }, event, true)) {
+        event.preventDefault();
+      }
+    } else if (event instanceof KeyboardEvent) {
       const { key, ctrlKey, altKey, metaKey, shiftKey } = event;
 
       if (isNoteEditor && !((key === 'Enter' && ctrlKey) || key == 'Escape')) {

@@ -106,6 +106,19 @@ const TEST_METADATA = {
  * source of the duplicate library entries in #5601. importBook must re-check
  * the index synchronously before pushing and adopt the winner's row instead.
  */
+const written = new Set<string>();
+
+function trackWrites(fs: ReturnType<TestAppService['getFs']>) {
+  written.clear();
+  fs.writeFile.mockImplementation(async (path: string) => {
+    written.add(path);
+  });
+  fs.copyFile.mockImplementation(async (_src: string, _srcBase: string, dst: string) => {
+    written.add(dst);
+  });
+  fs.exists.mockImplementation(async (path: string) => written.has(path));
+}
+
 describe('importBook concurrent same-hash race', () => {
   let service: TestAppService;
 
@@ -116,9 +129,8 @@ describe('importBook concurrent same-hash race', () => {
     fs.openFile.mockImplementation(
       async (path: string) => new File(['same-bytes'], path.split('/').pop()!),
     );
-    fs.exists.mockResolvedValue(false);
     fs.createDir.mockResolvedValue(undefined);
-    fs.writeFile.mockResolvedValue(undefined);
+    trackWrites(fs);
     fs.removeDir.mockResolvedValue(undefined);
     fs.readFile.mockResolvedValue('{}');
 

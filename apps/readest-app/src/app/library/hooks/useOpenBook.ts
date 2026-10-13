@@ -61,6 +61,11 @@ export const useOpenBook = ({ setLoading, handleBookDownload }: UseOpenBookOptio
         }
         return true;
       }
+      // The file is not on this device: it either never arrived or the local
+      // copy went away while `downloadedAt` kept claiming otherwise. Clear the
+      // stale stamp so the card stops advertising a local copy, then pull it
+      // down again.
+      book.downloadedAt = null;
       let available = false;
       const loadingTimeout = setTimeout(() => setLoading(true), 200);
       try {
@@ -78,12 +83,14 @@ export const useOpenBook = ({ setLoading, handleBookDownload }: UseOpenBookOptio
 
   const openBook = useCallback(
     async (book: Book, cfi?: string, options?: { highlightSearchResult?: boolean }) => {
-      // In-place books point at a file outside Books/<hash>/ that the user (or
-      // another app) may have moved, renamed, or deleted between sessions. Probe
-      // the source before navigating: if it's gone, drop the stale record
-      // instead of opening the reader only to fail and bounce back. Restricted
-      // to purely-local in-place books — cloud-synced books (`uploadedAt`) still
-      // go through `makeBookAvailable`'s on-demand download path.
+      // A local-only book can lose its file between sessions: in-place books
+      // point outside Books/<hash>/ where the user (or another app) may move,
+      // rename or delete it, and a managed copy can be evicted by browser
+      // storage pressure while its sidecars (config, cover, nav) survive.
+      // `downloadedAt` keeps claiming the file is here either way, so probe the
+      // source before navigating: if it's gone, drop the stale record instead of
+      // opening the reader only to fail and bounce back. Cloud-synced books
+      // (`uploadedAt`) still go through `makeBookAvailable`'s download path.
       //
       // This dispatch is the only automatic route into `handleBookDelete('both')`,
       // which tombstones the book and lets the file sync GC its directory off the
@@ -91,7 +98,7 @@ export const useOpenBook = ({ setLoading, handleBookDownload }: UseOpenBookOptio
       // missing LOCAL file is not evidence that the user wants the REMOTE copy
       // destroyed, and there the book is very likely still on the mirror;
       // `makeBookAvailable` below fetches it back instead.
-      if (book.filePath && !book.uploadedAt && !book.deletedAt && !hasFileSyncMirror()) {
+      if (!book.uploadedAt && !book.deletedAt && !hasFileSyncMirror()) {
         const available = await appService?.isBookAvailable(book);
         if (!available) {
           eventDispatcher.dispatch('toast', {
