@@ -56,9 +56,9 @@ describe('payload', () => {
 
   it('keeps unknown kinds and local refs when not strict', () => {
     const frame = { x: 0.5, y: 0.5, w: 0.5, r: 0 };
-    const e = { ...emptyEnvelope(), elements: [{ id: 'p', kind: 'play', frame }] };
-    expect(validatePayload(e, 'play', 10, true).ok).toBe(false);
-    expect(validatePayload(e, 'play', 10, true, false).ok).toBe(true);
+    const e = { ...emptyEnvelope(), elements: [{ id: 'p', kind: 'voice', frame }] };
+    expect(validatePayload(e, 'voice', 10, true).ok).toBe(false);
+    expect(validatePayload(e, 'voice', 10, true, false).ok).toBe(true);
     const local = 'local:7d6c2f3e-8a1b-4c5d-9e0f-1a2b3c4d5e6f';
     const art = {
       ...emptyEnvelope(),

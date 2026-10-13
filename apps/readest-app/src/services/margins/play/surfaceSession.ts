@@ -1,3 +1,6 @@
+import { createAnchorAt } from '../anchorBridge';
+import { saveMargin } from '../margins';
+import { buildPlayElement, keepPlay, keepSpan, playOverQuota } from './keep';
 import { drift, lerpFactor } from './motion';
 import { createWorld, detachBodies, MAX_BODIES, removeBodies, step, type World } from './physics';
 import { createGlyphCache, drawFrame, STRIDE } from './renderer';
@@ -12,6 +15,7 @@ import {
   undo,
   unitFor,
   wordSpanAt,
+  type PlayKeepResult,
   type PlayShape,
   type PlayTools,
   type SessionState,
@@ -190,6 +194,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
   let unit: Unit | null = null;
   let glyphs = glue.glyphs();
   let lines = glue.lines();
+  const entry = { glyphs, lines };
   let current = targetsOf(glyphs);
   let bodyGlyphs = new Float32Array(0);
   let sentShapes = s.shapes;
@@ -381,14 +386,81 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     wake();
   };
 
+  const lineRange = (l: number): Span => {
+    const [first, count] = [lines[l + 5]!, lines[l + 6]!];
+    const end = (first + count - 1) * STRIDE;
+    return [glyphs[first * STRIDE + 7]!, glyphs[end + 7]! + glyphs[end + 8]!];
+  };
+
   const lineSpan = (n: number): Span | null => {
     for (let l = 0; l < lines.length; l += 7) {
       const [first, count] = [lines[l + 5]!, lines[l + 6]!];
-      if (n < first || n >= first + count) continue;
-      const end = (first + count - 1) * STRIDE;
-      return [glyphs[first * STRIDE + 7]!, glyphs[end + 7]! + glyphs[end + 8]!];
+      if (n >= first && n < first + count) return lineRange(l);
     }
     return null;
+  };
+
+  const shapeLine = (shape: PlayShape, p: { x: number; y: number }): Span | null => {
+    const reach =
+      shape.pad +
+      (shape.type === 'circle'
+        ? (shape.r ?? 0)
+        : Math.max(0, ...(shape.pts ?? []).map(([x, y]) => Math.hypot(x, y))));
+    let first: Span | null = null;
+    for (let l = 0; l < lines.length; l += 7) {
+      if (lines[l + 6]! === 0) continue;
+      first ??= lineRange(l);
+      const at = (k: number) => lines[l + k]!;
+      const hit =
+        at(2) - at(3) < p.y + reach &&
+        at(2) + at(4) > p.y - reach &&
+        at(0) < p.x + reach &&
+        at(1) > p.x - reach;
+      if (hit) return lineRange(l);
+    }
+    return first;
+  };
+
+  const entryOrigin = (start: number) => {
+    const { glyphs: g, lines: ls } = entry;
+    let i = 0;
+    while (i < g.length && g[i + 7]! < start) i += STRIDE;
+    if (i >= g.length) return { x: 0, y: 0 };
+    const n = i / STRIDE;
+    for (let l = 0; l < ls.length; l += 7)
+      if (n >= ls[l + 5]! && n < ls[l + 5]! + ls[l + 6]!)
+        return { x: g[i]!, y: ls[l + 2]! - ls[l + 3]! };
+    return { x: g[i]!, y: g[i + 1]! };
+  };
+
+  const keep = async (alt: string): Promise<PlayKeepResult> => {
+    const store = a.store;
+    if (!store) return { ok: false, reason: 'invalid' };
+    const section = await a.ctx.core.canonicalSection(a.ctx.book.hash, a.index);
+    const canonical = new TextEncoder().encode(section.text);
+    const poses = posesOf(s);
+    const shapeLines = s.shapes
+      .map((x, i) => shapeLine(x, poses[i]!))
+      .filter((x): x is Span => !!x);
+    const span = keepSpan({ detached: s.detached, shapeLines, canonical });
+    if (!span) return { ok: false, reason: 'empty' };
+    const element = buildPlayElement({
+      session: s,
+      spans: s.detached.filter(([, e]) => e <= span.end),
+      anchorStart: span.start,
+      origin: entryOrigin(span.start),
+      em,
+      canonical,
+      alt,
+    });
+    const result = await keepPlay({
+      fileHash: a.ctx.book.hash,
+      createAnchor: () => createAnchorAt(a.ctx, a.index, span.start, span.end),
+      overQuota: (anchor) => playOverQuota(store, a.ctx, anchor),
+      element,
+      save: (draft) => saveMargin(store, draft),
+    });
+    return result.ok ? { ...result, dropped: span.dropped } : result;
   };
 
   const spanAt = (byte: number, u: Unit): Span | null => {
@@ -440,6 +512,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
   };
 
   const onKey = (e: KeyboardEvent) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === 'Escape') {
       e.stopPropagation();
       exit();
@@ -483,9 +556,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
   const tools: PlayTools = {
     enter: async () => undefined,
     exit,
-    keep: async () => {
-      throw new Error('keep is not available yet');
-    },
+    keep,
     addShape(kind) {
       if (s.shapes.length >= MAX_SHAPES) return '';
       const n = s.shapes.length;

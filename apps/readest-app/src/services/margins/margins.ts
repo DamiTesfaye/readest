@@ -1,5 +1,5 @@
 import { getSession } from '@/services/ampleread/auth/session';
-import { type Envelope, leadKind } from './payload';
+import { contractOf, type Envelope, leadKind } from './payload';
 import type { MarginsStore } from './store';
 import { notifyMarginsChanged, queueLayerWrite } from './sync';
 import type { Anchor } from './types';
@@ -23,12 +23,14 @@ export const saveMargin = async (store: MarginsStore, draft: MarginDraft): Promi
   const id = newLayerId();
   const { anchor, envelope } = draft;
   const kind = leadKind(envelope);
+  const contract = contractOf(envelope);
   await store.putLayer({
     id,
     fileHash: draft.fileHash,
     textId: anchor.textId,
     anchor,
     kind,
+    contract,
     payload: envelope,
     rev: null,
     deleted: false,
@@ -38,7 +40,7 @@ export const saveMargin = async (store: MarginsStore, draft: MarginDraft): Promi
   await queueLayerWrite(store, {
     layerId: id,
     method: 'POST',
-    body: { id, anchor, kind, payload: envelope },
+    body: { id, anchor, kind, payload: envelope, ...(contract !== 'overlay' && { contract }) },
   });
   notifyMarginsChanged();
   return id;
@@ -54,9 +56,11 @@ export const editMargin = async (
   const anchor = change.anchor ?? row.anchor;
   const payload = change.envelope ?? row.payload;
   const kind = change.envelope ? leadKind(change.envelope) : row.kind;
-  await store.putLayer({ ...row, anchor, payload, kind, error: null });
+  const prior = row.contract ?? 'overlay';
+  const contract = change.envelope ? contractOf(change.envelope) : prior;
+  await store.putLayer({ ...row, anchor, payload, kind, contract, error: null });
   if (row.rev === null) {
-    const body = { id, anchor, kind, payload };
+    const body = { id, anchor, kind, payload, ...(contract !== 'overlay' && { contract }) };
     if (!(await store.replaceQueuedPost(id, body))) {
       await queueLayerWrite(store, { layerId: id, method: 'POST', body });
     }
@@ -68,6 +72,7 @@ export const editMargin = async (
         kind,
         ...(change.anchor && { anchor }),
         ...(change.envelope && { payload }),
+        ...(contract !== prior && { contract }),
       },
     });
   }

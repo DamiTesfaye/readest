@@ -1,3 +1,4 @@
+import type { KeepResult } from './keep';
 import type { Tier } from './tiers';
 
 export type Unit = 'glyph' | 'word' | 'line';
@@ -151,10 +152,12 @@ export interface PlayToolsState {
   shapeMotion: 'none' | 'drift';
 }
 
+export type PlayKeepResult = KeepResult & { dropped?: number };
+
 export interface PlayTools {
   enter(margin?: string): Promise<void>;
   exit(): void;
-  keep(alt: string): Promise<string>;
+  keep(alt: string): Promise<PlayKeepResult>;
   addShape(kind: 'circle' | 'polygon'): string;
   removeShape(id: string): void;
   setShapeMotion(preset: 'none' | 'drift'): void;

@@ -1,6 +1,7 @@
 import type { CustomFont } from '@/styles/fonts';
 import type { Renderer } from '@/types/view';
 import type { BridgeContext } from '../anchorBridge';
+import type { MarginsStore } from '../store';
 import { FACE_MAX, loadPlayEngine, type PlayEngine } from './engine';
 import { resolvePlayFont, STAND_IN_FACES, standInFor } from './fonts';
 import { fallbackReason, pageBox, pageSpec, playWindow, styleRuns, type Box } from './window';
@@ -22,6 +23,7 @@ export interface EnterPlayArgs {
   reduced: boolean;
   customFonts?: CustomFont[];
   layerId?: string;
+  store?: MarginsStore;
   onExit?: () => void;
 }
 

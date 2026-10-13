@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { enterPlay, toast } = vi.hoisted(() => ({ enterPlay: vi.fn(), toast: vi.fn() }));
@@ -46,7 +46,7 @@ const fakeSession = (onExit: () => void) => {
   const exit = vi.fn(onExit);
   return {
     exit,
-    tools: { state, exit, addShape: vi.fn(() => 's1'), undo: vi.fn() },
+    tools: { state, exit, addShape: vi.fn(() => 's1'), undo: vi.fn(), keep: vi.fn() },
   };
 };
 
@@ -96,5 +96,40 @@ describe('PlaySurface', () => {
       }),
     );
     expect(screen.queryByRole('toolbar')).toBeNull();
+  });
+  it('keeps with a required description and shows refusals in place', async () => {
+    let session: ReturnType<typeof fakeSession> | null = null;
+    enterPlay.mockImplementation(async (args: { onExit: () => void }) => {
+      session = fakeSession(args.onExit);
+      return session;
+    });
+    const panel = vi.fn();
+    eventDispatcher.on('margins-open-panel', panel);
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
+    const dialog = screen.getByRole('dialog', { name: 'Keep this play' });
+    const keep = () => fireEvent.submit(dialog);
+    expect(within(dialog).getByRole('button', { name: 'Keep' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    fireEvent.change(screen.getByLabelText('Describe this play for screen readers'), {
+      target: { value: ' A sun pushes the words aside ' },
+    });
+    session!.tools.keep.mockResolvedValueOnce({ ok: false, reason: 'quota' });
+    await act(async () => keep());
+    expect(session!.tools.keep).toHaveBeenCalledWith('A sun pushes the words aside');
+    expect(within(dialog).getByRole('status').textContent).toMatch(/3,000 characters/);
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Margins' }));
+    expect(panel).toHaveBeenCalled();
+    session!.tools.keep.mockResolvedValueOnce({ ok: true, layerId: 'lyr_1', dropped: 1 });
+    await act(async () => keep());
+    expect(toast.mock.calls.map((c) => c[0].detail.message)).toEqual([
+      'Kept as a private Margin.',
+      "Some loose words were outside the kept passage and won't replay.",
+    ]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('toolbar')).toBeTruthy();
+    eventDispatcher.off('margins-open-panel', panel);
   });
 });
