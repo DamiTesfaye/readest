@@ -2,9 +2,12 @@ import * as CFI from 'foliate-js/epubcfi.js';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { DocumentLoader, type BookDoc } from '@/libs/document';
 import type { BridgeContext } from '@/services/margins/anchorBridge';
+import { WebDatabaseService } from '@/services/database/webDatabaseService';
+import { migrate } from '@/services/database/migrate';
+import { getMigrations } from '@/services/database/migrations';
 import { getMarginsCore } from '@/services/margins/marginsClient';
 import { enterPlay } from '@/services/margins/play/surfaceSession';
-import type { MarginsStore } from '@/services/margins/store';
+import { MarginsStore } from '@/services/margins/store';
 import { buildTextMap } from '@/services/margins/textMap';
 import type { SectionInput } from '@/services/margins/types';
 import type { Book } from '@/types/book';
@@ -90,6 +93,7 @@ describe('play surface', () => {
     file = 'meditations-gutenberg.epub',
     fontSize = 16,
     columns = 1,
+    inFamily = false,
   } = {}) => {
     close();
     const bookDoc = await load(file);
@@ -141,7 +145,7 @@ describe('play surface', () => {
       capped: true,
       getCFI: (i, r) => CFI.joinIndir(bookDoc.sections[i]!.cfi, CFI.fromRange(r)),
       liveDoc: (i) => (i === index ? contents.doc : null),
-      inFamily: () => false,
+      inFamily: () => inFamily,
     };
     return {
       host: wrapper,
@@ -244,5 +248,54 @@ describe('play surface', () => {
     window.dispatchEvent(new Event('resize'));
     expect(again.active()).toBe(false);
     expect(getComputedStyle(s.renderer).opacity).toBe('1');
+  }, 60000);
+  const layerStore = async () => {
+    const db = await WebDatabaseService.open(`play-replay-${Date.now()}-${Math.random()}`);
+    await migrate(db, getMigrations('margins'));
+    return MarginsStore.from(db);
+  };
+
+  it('replays at font 24 in two columns with the same words detached', async () => {
+    const store = await layerStore();
+    const play = await enterPlay({ ...(await openMeditations()), reduced: true, store });
+    const id = play.tools.addShape('circle');
+    play.moveShapeTo(id, 600, 720);
+    play.tools.shake();
+    await play.frame();
+    const kept = await play.tools.keep('Sun and a loose sentence');
+    const detached = play.detachedText();
+    play.exit();
+    if (!kept.ok) throw new Error(`keep refused: ${kept.reason}`);
+    expect(detached).not.toBe('');
+    const row = await store.getLayer(kept.layerId);
+    expect(row).toMatchObject({ kind: 'play', contract: 'displace' });
+    const again = await enterPlay({
+      ...(await openMeditations({ fontSize: 24, columns: 2 })),
+      reduced: true,
+      store,
+      layerId: kept.layerId,
+    });
+    expect(again.detachedText()).toBe(detached);
+    expect(again.shapeCount()).toBe(1);
+    again.exit();
+  }, 60000);
+
+  it('a Gutenberg play Margin replays on the Standard Ebooks file with no span on wrong text', async () => {
+    const store = await layerStore();
+    const play = await enterPlay({ ...(await openMeditations()), reduced: true, store });
+    play.tools.shake();
+    await play.frame();
+    const kept = await play.tools.keep('A loose sentence');
+    const detached = play.detachedText();
+    play.exit();
+    if (!kept.ok) throw new Error(`keep refused: ${kept.reason}`);
+    const again = await enterPlay({
+      ...(await openMeditations({ file: 'meditations-se.epub', inFamily: true })),
+      reduced: true,
+      store,
+      layerId: kept.layerId,
+    });
+    expect(['', detached]).toContain(again.detachedText());
+    again.exit();
   }, 60000);
 });

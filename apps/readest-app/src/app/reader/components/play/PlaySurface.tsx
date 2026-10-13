@@ -164,6 +164,7 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
       script: _('this script'),
       font: _('this font'),
       engine: _('the play engine could not start'),
+      'not-placed': _("this Margin's passage isn't in this copy"),
     };
     const start = async (layerId?: string) => {
       const view = useReaderStore.getState().getView(bookKey);

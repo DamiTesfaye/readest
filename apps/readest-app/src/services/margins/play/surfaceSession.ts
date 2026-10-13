@@ -2,6 +2,7 @@ import { createAnchorAt } from '../anchorBridge';
 import { saveMargin } from '../margins';
 import { buildPlayElement, keepPlay, keepSpan, playOverQuota } from './keep';
 import { drift, lerpFactor } from './motion';
+import { posesToPage, prepareReplay, type Replay, shapesToPage } from './replay';
 import { createWorld, detachBodies, MAX_BODIES, removeBodies, step, type World } from './physics';
 import { createGlyphCache, drawFrame, STRIDE } from './renderer';
 import {
@@ -36,6 +37,8 @@ export interface PlaySession {
   targets(): Float32Array;
   layoutKey(): string;
   active(): boolean;
+  detachedText(): string;
+  shapeCount(): number;
   exit(): void;
 }
 
@@ -165,10 +168,13 @@ const mountProxy = (
   return b;
 };
 
-export const enterPlay = async (a: EnterPlayArgs): Promise<PlaySession> =>
-  startSession(a, await preparePage(a));
+export const enterPlay = async (a: EnterPlayArgs): Promise<PlaySession> => {
+  if (!a.layerId) return startSession(a, await preparePage(a));
+  const { args, replay } = await prepareReplay(a);
+  return startSession(args, await preparePage(args), replay);
+};
 
-const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
+const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySession => {
   const { host, renderer, reduced } = a;
   const { engine, win, box, em } = page;
   const glue = engine.glue;
@@ -180,7 +186,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
   renderer.style.opacity = '0';
   renderer.style.pointerEvents = 'none';
 
-  const seed = Math.floor(Math.random() * 2 ** 31);
+  const seed = replay?.element.detach?.seed ?? Math.floor(Math.random() * 2 ** 31);
   const cache = createGlyphCache((face, gid) => glue.outline(face, gid));
   const textBytes = new TextEncoder().encode(win.text);
   const decoder = new TextDecoder();
@@ -370,7 +376,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     return { out, at };
   };
 
-  const doDetach = (spans: Span[]) => {
+  const doDetach = (spans: Span[], settled = false) => {
     const { out, at } = glyphsIn(spans);
     const records = new Float32Array(bodyGlyphs.length + at.length * STRIDE);
     records.set(bodyGlyphs);
@@ -380,7 +386,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
       bodyIndex.set(glyphs[i + 7]!, to);
     });
     bodyGlyphs = records;
-    const settle = reduced || tier.tier === 'P3' || tier.tier === 'P4';
+    const settle = settled || reduced || tier.tier === 'P3' || tier.tier === 'P4';
     world = detachBodies(world, out, settle, tier.tier === 'P1' ? MAX_BODIES : P2_BODIES);
     s = detach(s, spans);
     wake();
@@ -406,19 +412,22 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
       (shape.type === 'circle'
         ? (shape.r ?? 0)
         : Math.max(0, ...(shape.pts ?? []).map(([x, y]) => Math.hypot(x, y))));
-    let first: Span | null = null;
     for (let l = 0; l < lines.length; l += 7) {
-      if (lines[l + 6]! === 0) continue;
-      first ??= lineRange(l);
-      const at = (k: number) => lines[l + k]!;
-      const hit =
-        at(2) - at(3) < p.y + reach &&
-        at(2) + at(4) > p.y - reach &&
-        at(0) < p.x + reach &&
-        at(1) > p.x - reach;
-      if (hit) return lineRange(l);
+      const [base, ascent, descent, count] = [
+        lines[l + 2]!,
+        lines[l + 3]!,
+        lines[l + 4]!,
+        lines[l + 6]!,
+      ];
+      if (count > 0 && base - ascent < p.y + reach && base + descent > p.y - reach)
+        return lineRange(l);
     }
-    return first;
+    return null;
+  };
+
+  const firstLine = (): Span[] => {
+    for (let l = 0; l < lines.length; l += 7) if (lines[l + 6]! > 0) return [lineRange(l)];
+    return [];
   };
 
   const entryOrigin = (start: number) => {
@@ -439,9 +448,9 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     const section = await a.ctx.core.canonicalSection(a.ctx.book.hash, a.index);
     const canonical = new TextEncoder().encode(section.text);
     const poses = posesOf(s);
-    const shapeLines = s.shapes
-      .map((x, i) => shapeLine(x, poses[i]!))
-      .filter((x): x is Span => !!x);
+    const hits = s.shapes.map((x, i) => shapeLine(x, poses[i]!)).filter((x): x is Span => !!x);
+    const shapeLines =
+      hits.length > 0 || s.detached.length > 0 || s.shapes.length === 0 ? hits : firstLine();
     const span = keepSpan({ detached: s.detached, shapeLines, canonical });
     if (!span) return { ok: false, reason: 'empty' };
     const element = buildPlayElement({
@@ -553,6 +562,38 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     a.onExit?.();
   };
 
+  const mountShapeProxy = (shape: PlayShape) => {
+    const proxy = mountProxy(host, shape, em, (dx, dy) => {
+      s = moveShape(s, shape.id, dx, dy);
+      wake();
+    });
+    proxies.set(shape.id, proxy);
+  };
+
+  const applyReplay = (r: Replay) => {
+    const shapes = shapesToPage(r.element, em).slice(0, MAX_SHAPES);
+    const poses = posesToPage(r.element, entryOrigin(r.anchorStart), em);
+    s = {
+      ...s,
+      shapes,
+      poses: shapes.map(
+        (x) => poses.find((p) => p.shape === x.id) ?? { shape: x.id, x: 0, y: 0, rot: 0 },
+      ),
+      shapeMotion: r.element.shapeMotion ?? 'none',
+    };
+    shapes.forEach(mountShapeProxy);
+    syncEngine(performance.now());
+    current = targetsOf(glyphs);
+    const spans = r.spans.filter(([x, y]) => x >= win.start && y <= win.end);
+    if (spans.length > 0) doDetach(spans, true);
+  };
+
+  const detachedText = () =>
+    [...s.detached]
+      .sort((x, y) => x[0] - y[0])
+      .map(([x, y]) => cluster(x, y - x))
+      .join(' ');
+
   const tools: PlayTools = {
     enter: async () => undefined,
     exit,
@@ -562,11 +603,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
       const n = s.shapes.length;
       s = addShape(s, kind, { x: box.width / 2 - n * em, y: box.height / 3 + n * em }, em);
       const shape = s.shapes[s.shapes.length - 1]!;
-      const proxy = mountProxy(host, shape, em, (dx, dy) => {
-        s = moveShape(s, shape.id, dx, dy);
-        wake();
-      });
-      proxies.set(shape.id, proxy);
+      mountShapeProxy(shape);
       wake();
       return shape.id;
     },
@@ -628,6 +665,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
   window.addEventListener('resize', exit);
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('visibilitychange', onVisibility);
+  if (replay) applyReplay(replay);
   draw();
   wake();
 
@@ -651,6 +689,8 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     targets: () => targetsOf(glyphs),
     layoutKey: () => Array.from(lines, (v) => v.toFixed(1)).join(','),
     active: () => active,
+    detachedText,
+    shapeCount: () => s.shapes.length,
     exit,
   };
 };
