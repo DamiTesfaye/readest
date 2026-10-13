@@ -130,7 +130,7 @@ const liveToCanonical = async (
   return ctx.core.fromRaw(ctx.book.hash, index, run, utf16);
 };
 
-const rangeToCanonical = async (ctx: BridgeContext, index: number, range: Range) => {
+export const rangeToCanonical = async (ctx: BridgeContext, index: number, range: Range) => {
   const start = await liveToCanonical(ctx, index, range.startContainer, range.startOffset, false);
   const end = await liveToCanonical(ctx, index, range.endContainer, range.endOffset, true);
   const { canonical } = await rawSection(ctx, index);
@@ -198,6 +198,23 @@ export const createAnchor = async (
     end,
     capped: ctx.capped,
     file: { fileHash: ctx.book.hash, cfi },
+  });
+};
+
+export const createAnchorAt = async (
+  ctx: BridgeContext,
+  sectionIndex: number,
+  start: number,
+  end: number,
+): Promise<Anchor> => {
+  await ctx.ready;
+  const range = await liveRange(ctx, sectionIndex, start, end);
+  return ctx.core.buildAnchor(ctx.book.hash, {
+    section: sectionIndex,
+    start,
+    end,
+    capped: ctx.capped,
+    file: range ? { fileHash: ctx.book.hash, cfi: ctx.getCFI(sectionIndex, range) } : undefined,
   });
 };
 
