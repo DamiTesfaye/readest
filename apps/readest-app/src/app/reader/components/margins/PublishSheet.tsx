@@ -83,11 +83,8 @@ const PublishSheet: React.FC<PublishSheetProps> = ({
       const me = await publicApi.profile();
       if (!live) return;
       setProfile(me);
-      let current = initial;
-      if (current.rev === null) {
-        await syncMargins(store);
-        current = await reread(store, current);
-      }
+      await syncMargins(store);
+      const current = await reread(store, initial);
       if (!live) return;
       setRow(current);
       if (current.rev === null) return setProblem('sync');

@@ -129,6 +129,14 @@ describe('PublishSheet', () => {
     expect(h.publish).toHaveBeenCalledWith(expect.objectContaining({ layerRev: 5 }));
   });
 
+  it('publishes the synced rev when an edit is still queued', async () => {
+    h.layers = [row({ rev: 6 })];
+    await open(row({ rev: 4 }));
+    expect(h.syncMargins).toHaveBeenCalled();
+    await clickPublish();
+    expect(h.publish).toHaveBeenCalledWith(expect.objectContaining({ layerRev: 6 }));
+  });
+
   it('asks to sync when the Margin still has no rev', async () => {
     h.layers = [row({ rev: null })];
     await open(row({ rev: null }));
@@ -160,6 +168,7 @@ describe('PublishSheet', () => {
 
   it('refuses a long quote on a capped Text', async () => {
     const anchor = { textId: 'txt1', quote: { head: 'a', tail: 'b', len: 900 } };
+    h.layers = [row({ anchor: anchor as unknown as Anchor })];
     await open(row({ anchor: anchor as unknown as Anchor }));
     screen.getByText('Public Margins quote at most 300 characters. Shorten the Clip.');
     screen.getByRole('button', { name: 'Shorten the Clip' });
