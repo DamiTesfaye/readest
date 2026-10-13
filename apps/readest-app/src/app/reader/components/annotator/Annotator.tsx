@@ -98,6 +98,8 @@ import Alert from '@/components/Alert';
 import ModalPortal from '@/components/ModalPortal';
 import { SelectedFile, useFileSelector } from '@/hooks/useFileSelector';
 import { parseMrexpt } from '@/utils/mrexpt';
+import { canClip } from '@/services/margins/clip';
+import ClipSheet from '../margins/ClipSheet';
 import {
   convertMrexptEntriesToBookNotes,
   mergeImportedBookNotes,
@@ -160,6 +162,11 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const [selection, setSelection] = useState<TextSelection | null>(null);
+  const [marginClip, setMarginClip] = useState<{
+    range: Range;
+    index: number;
+    note?: string;
+  } | null>(null);
   const [translationEpoch, setTranslationEpoch] = useState(0);
   const [showAnnotPopup, setShowAnnotPopup] = useState(false);
   const [showDictionaryPopup, setShowDictionaryPopup] = useState(false);
@@ -1325,6 +1332,16 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     handleDismissPopup();
   };
 
+  const handleMargin = () => {
+    if (!selection) return;
+    setMarginClip({
+      range: selection.range.cloneRange(),
+      index: selection.index,
+      note: selection.annotated ? currentAnnotation?.note : undefined,
+    });
+    handleDismissPopup();
+  };
+
   const handleSearch = () => {
     if (!selection || !selection.text) return;
     handleDismissPopupAndSelection();
@@ -1834,6 +1851,11 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
     });
   };
 
+  const canMargin = canClip({
+    format: bookData.book?.format,
+    range: selection?.range,
+    index: selection?.index,
+  });
   const selectionAnnotated = selection?.annotated;
   const currentAnnotation = selection?.cfi
     ? config.booknotes?.find(
@@ -1962,6 +1984,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           popupWidth={annotPopupWidth}
           popupHeight={annotPopupHeight}
           canShare={canShare}
+          canMargin={canMargin}
+          onMargin={handleMargin}
           onSelectStyle={handleSelectStyle}
           onSelectColor={handleSelectColor}
           onBookmark={handleBookmark}
@@ -1976,6 +2000,16 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
           onProofread={handleProofread}
           extraActions={popupExtraActions}
           onDismiss={handleDismissPopupAndSelection}
+        />
+      )}
+      {marginClip && (
+        <ClipSheet
+          bookKey={bookKey}
+          range={marginClip.range}
+          index={marginClip.index}
+          prefillNote={marginClip.note}
+          onClose={() => setMarginClip(null)}
+          onCompose={() => setMarginClip(null)}
         />
       )}
       {showProofreadPopup && trianglePosition && proofreadPopupPosition && selection && (
