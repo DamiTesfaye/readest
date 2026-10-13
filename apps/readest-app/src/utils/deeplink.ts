@@ -1,4 +1,4 @@
-import { READEST_WEB_BASE_URL } from '@/services/constants';
+import { AMPLEREAD_WEB_BASE_URL, READEST_WEB_BASE_URL } from '@/services/constants';
 
 export type AnnotationDeepLink = {
   bookHash: string;
@@ -130,4 +130,24 @@ export const parseBookDeepLink = (url: string): { bookHash: string; autoplay?: b
     return { bookHash: segments[1] };
   }
   return null;
+};
+
+const POST_ID = /^pst_[0-9a-f]{32}$/;
+const MARGIN_PATH = /^\/m\/([^/]+)$/;
+
+export const parseMarginDeepLink = (url: string): { postId: string } | null => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  const path =
+    parsed.protocol === 'ampleread:'
+      ? `/${parsed.host}${parsed.pathname}`
+      : parsed.protocol === 'https:' && parsed.host === new URL(AMPLEREAD_WEB_BASE_URL).host
+        ? parsed.pathname
+        : null;
+  const postId = path?.match(MARGIN_PATH)?.[1];
+  return postId && POST_ID.test(postId) ? { postId } : null;
 };

@@ -7,6 +7,7 @@ import { useAppUrlIngress } from '@/hooks/useAppUrlIngress';
 import { useOpenWithBooks } from '@/hooks/useOpenWithBooks';
 import { useOpenAnnotationLink } from '@/hooks/useOpenAnnotationLink';
 import { useOpenBookLink } from '@/hooks/useOpenBookLink';
+import { useOpenMarginLink } from '@/hooks/useOpenMarginLink';
 import { useReadingWidget } from '@/hooks/useReadingWidget';
 import { useOpenShareLink } from '@/hooks/useOpenShareLink';
 import { useClipUrlIngress } from '@/hooks/useClipUrlIngress';
@@ -26,6 +27,7 @@ export default function Page() {
   useOpenWithBooks();
   useOpenAnnotationLink();
   useOpenBookLink();
+  useOpenMarginLink();
   useReadingWidget();
   useOpenShareLink();
   useClipUrlIngress();

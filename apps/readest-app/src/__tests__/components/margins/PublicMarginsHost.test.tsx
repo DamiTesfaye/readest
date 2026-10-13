@@ -37,6 +37,9 @@ vi.mock('@/app/reader/hooks/useMarginsPainter', () => ({
   viewPostInPlace: h.viewPostInPlace,
   MARGINS_OPEN_CARD_EVENT: 'margins-open-card',
 }));
+vi.mock('@/app/reader/components/margins/PostCard', () => ({
+  PostSheet: ({ postId }: { postId: string }) => <div role='dialog'>{`post ${postId}`}</div>,
+}));
 vi.mock('@/app/reader/components/margins/PassageSheet', () => ({
   default: ({
     sectionLen,
@@ -169,5 +172,13 @@ describe('PublicMarginsHost', () => {
       message: "This passage isn't in your copy.",
     });
     eventDispatcher.off('toast', toast);
+  });
+
+  it('opens the single-post sheet from ?post= and from the open-post event', async () => {
+    render(<PublicMarginsHost bookKey={null} postId='pst_a' />);
+    await act(async () => {});
+    screen.getByText('post pst_a');
+    await act(() => eventDispatcher.dispatch('margins-open-post', { postId: 'pst_b' }));
+    screen.getByText('post pst_b');
   });
 });

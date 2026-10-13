@@ -27,7 +27,6 @@ import { requestMarginOpen } from '@/app/reader/hooks/useMarginsPainter';
 import MarginsRail from './components/MarginsRail';
 import MarginsView from './components/MarginsView';
 import TrendingView, { isTrendingView } from './components/TrendingView';
-import { MARGINS_OPEN_POST_EVENT } from '@/services/margins/public/openPost';
 import PublicMarginsHost from '@/app/reader/components/margins/PublicMarginsHost';
 import AmpleDocumentPromptDialog, {
   type AmpleDocumentChoice,
@@ -76,6 +75,7 @@ import { useAppUrlIngress } from '@/hooks/useAppUrlIngress';
 import { useOpenWithBooks } from '@/hooks/useOpenWithBooks';
 import { useOpenAnnotationLink } from '@/hooks/useOpenAnnotationLink';
 import { useOpenBookLink } from '@/hooks/useOpenBookLink';
+import { useOpenMarginLink } from '@/hooks/useOpenMarginLink';
 import { useReadingWidget } from '@/hooks/useReadingWidget';
 import { useOpenShareLink } from '@/hooks/useOpenShareLink';
 import { useClipUrlIngress } from '@/hooks/useClipUrlIngress';
@@ -388,6 +388,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   useOpenWithBooks();
   useOpenAnnotationLink();
   useOpenBookLink();
+  useOpenMarginLink();
   useReadingWidget();
   useOpenShareLink();
   useClipUrlIngress();
@@ -718,11 +719,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     params.delete('group');
     navigateToLibrary(router, params.toString());
   };
-
-  const postParam = searchParams?.get('post');
-  useEffect(() => {
-    if (postParam) eventDispatcher.dispatch(MARGINS_OPEN_POST_EVENT, { postId: postParam });
-  }, [postParam]);
 
   const handleOpenMargin = (row: LayerRow, bookHash: string) => {
     requestMarginOpen(bookHash, row.id);
@@ -2413,7 +2409,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         onImport={handleImportNovelFile}
       />
       <ClipSignInAlert />
-      <PublicMarginsHost bookKey={null} />
+      <PublicMarginsHost bookKey={null} postId={searchParams?.get('post') ?? null} />
       <Toast />
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAnnotationUrl } from '../../utils/deeplink';
+import { buildAnnotationUrl, parseMarginDeepLink } from '../../utils/deeplink';
 
 describe('buildAnnotationUrl', () => {
   const link = { bookHash: 'abc', noteId: 'n1', cfi: '/6/4!/4/2' };
@@ -24,5 +24,23 @@ describe('buildAnnotationUrl', () => {
   it('omits the cfi query when no cfi is provided', () => {
     const url = buildAnnotationUrl({ bookHash: 'abc', noteId: 'n1' }, 'app');
     expect(url).toBe('readest://book/abc/annotation/n1');
+  });
+});
+
+describe('parseMarginDeepLink', () => {
+  const id = `pst_${'0123456789abcdef'.repeat(2)}`;
+
+  it('accepts the app scheme and the web link', () => {
+    expect(parseMarginDeepLink(`ampleread://m/${id}`)).toEqual({ postId: id });
+    expect(parseMarginDeepLink(`https://web.ampleread.com/m/${id}`)).toEqual({ postId: id });
+  });
+
+  it('rejects other hosts, other paths and malformed ids', () => {
+    expect(parseMarginDeepLink(`https://web.readest.com/m/${id}`)).toBeNull();
+    expect(parseMarginDeepLink('ampleread://auth/callback?code=x')).toBeNull();
+    expect(parseMarginDeepLink('ampleread://m/xyz')).toBeNull();
+    expect(parseMarginDeepLink(`https://web.ampleread.com/s/${id}`)).toBeNull();
+    expect(parseMarginDeepLink(`ampleread://m/${id}/extra`)).toBeNull();
+    expect(parseMarginDeepLink('not a url')).toBeNull();
   });
 });

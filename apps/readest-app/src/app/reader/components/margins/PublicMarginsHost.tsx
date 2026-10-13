@@ -29,12 +29,21 @@ export const offerPublish = (layerId: string, message: string, label: string, bo
     },
   });
 
-const PublicMarginsHost = ({ bookKey }: { bookKey: string | null }) => {
+interface PublicMarginsHostProps {
+  bookKey: string | null;
+  postId?: string | null;
+}
+
+const PublicMarginsHost = ({ bookKey, postId }: PublicMarginsHostProps) => {
   const _ = useTranslation();
   const { appService } = useEnv();
   const router = useRouter();
   const [passage, setPassage] = useState<OpenPassage | null>(null);
   const [single, setSingle] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (postId) setSingle(postId);
+  }, [postId]);
   const { posts } = useMyPosts();
   const [row, setRow] = useState<LayerRow | null>(null);
   const owned = useRef<string | null>(null);
