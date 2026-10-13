@@ -16,6 +16,8 @@ import { useReaderStore } from '@/store/readerStore';
 import { useReaderProgressStore } from '@/store/readerProgressStore';
 import { eventDispatcher } from '@/utils/event';
 
+const PREPARING_DELAY_MS = 150;
+
 interface PlaySurfaceProps {
   bookKey: string;
   toolbar?: (play: PlayTools, tools: readonly PlayTool[]) => ReactNode;
@@ -79,8 +81,8 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
         throw new PlayUnavailable('range');
       const store = await openMarginsStore(appService);
       const ctx = marginsContext({ view, book: data.book, bookDoc: data.bookDoc, store });
-      toast(_('Preparing…'));
-      await ctx.ready;
+      const preparing = setTimeout(() => toast(_('Preparing…')), PREPARING_DELAY_MS);
+      await ctx.ready.finally(() => clearTimeout(preparing));
       return enterPlay({
         host,
         renderer: view.renderer,

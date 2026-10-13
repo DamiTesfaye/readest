@@ -50,7 +50,7 @@ const drawGlyph = (
   const size = g[i + 3]!;
   const path = a.cache.get(g[i + 5]!, g[i + 6]!);
   if (path) {
-    ctx.setTransform(at.scale(size * g[i + 4]!, size));
+    ctx.setTransform(at.scale(size, size));
     ctx.fill(path);
     return;
   }
