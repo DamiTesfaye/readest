@@ -148,6 +148,24 @@ describe('margin assets', () => {
     expect(await store.dueOps(Date.now() + 1000, 'u1')).toEqual([]);
   });
 
+  it('sends two local copies of the same art that the server dedupes to one id', async () => {
+    const a = await saveMargin(store, {
+      fileHash: 'hash-a',
+      anchor,
+      envelope: withArt(await drawing()),
+    });
+    const b = await saveMargin(store, {
+      fileHash: 'hash-a',
+      anchor,
+      envelope: withArt(await drawing()),
+    });
+    server(() => json(200, { id: AST }));
+    expect(await flushOutbox(store)).toBe(2);
+    expect((await store.getLayer(a))?.error).toBeNull();
+    expect((await store.getLayer(b))?.error).toBeNull();
+    expect(await store.dueOps(Date.now() + 10 ** 9, 'u1')).toEqual([]);
+  });
+
   it("never uploads another account's asset", async () => {
     const ref = await drawing();
     const row = await store.getAsset(ref);

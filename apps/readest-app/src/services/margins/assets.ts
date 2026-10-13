@@ -104,7 +104,9 @@ const remoteIdFor = async (
   if (asset.remoteId) return { id: asset.remoteId };
   if (!asset.data) return { error: 'unknown_asset' };
   const uploaded = await upload(asset);
-  if ('id' in uploaded) await store.setAssetRemote(ref, uploaded.id);
+  if ('id' in uploaded && !(await store.assetByRemote(uploaded.id))) {
+    await store.setAssetRemote(ref, uploaded.id);
+  }
   return uploaded;
 };
 
