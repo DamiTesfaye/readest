@@ -186,6 +186,7 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
       const host = view?.parentElement;
       if (!view || !host || !data?.book || !data.bookDoc || !appService || !progress?.range)
         throw new PlayUnavailable('range');
+      if (data.isFixedLayout) throw new PlayUnavailable('fixed-layout');
       const store = await openMarginsStore(appService);
       const ctx = marginsContext({ view, book: data.book, bookDoc: data.bookDoc, store });
       const preparing = setTimeout(() => toast(_('Preparing…')), PREPARING_DELAY_MS);

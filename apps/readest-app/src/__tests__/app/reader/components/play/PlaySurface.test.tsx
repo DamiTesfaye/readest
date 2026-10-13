@@ -1,10 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { enterPlay, toast, viewSettings } = vi.hoisted(() => ({
+const { enterPlay, toast, viewSettings, bookData, ready } = vi.hoisted(() => ({
   enterPlay: vi.fn(),
   toast: vi.fn(),
   viewSettings: { current: {} as Record<string, unknown> },
+  bookData: { current: { book: {}, bookDoc: {} } as Record<string, unknown> },
+  ready: { current: Promise.resolve() as Promise<void> },
 }));
 const host = document.createElement('div');
 const view = { renderer: {} } as { renderer: object; parentElement?: HTMLElement };
@@ -14,7 +16,7 @@ vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => 
 vi.mock('@/context/EnvContext', () => ({ useEnv: () => ({ appService: {} }) }));
 vi.mock('@/services/margins/store', () => ({ openMarginsStore: async () => ({}) }));
 vi.mock('@/services/margins/context', () => ({
-  marginsContext: () => ({ ready: Promise.resolve() }),
+  marginsContext: () => ({ ready: ready.current }),
 }));
 vi.mock('@/store/readerStore', () => ({
   useReaderStore: {
@@ -25,7 +27,7 @@ vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: { getState: () => ({ settings: { globalViewSettings: {} } }) },
 }));
 vi.mock('@/store/bookDataStore', () => ({
-  useBookDataStore: { getState: () => ({ getBookData: () => ({ book: {}, bookDoc: {} }) }) },
+  useBookDataStore: { getState: () => ({ getBookData: () => bookData.current }) },
 }));
 vi.mock('@/store/readerProgressStore', () => ({
   useReaderProgressStore: {
@@ -69,6 +71,8 @@ describe('PlaySurface', () => {
 
   afterEach(() => {
     eventDispatcher.off('toast', toast);
+    bookData.current = { book: {}, bookDoc: {} };
+    ready.current = Promise.resolve();
     cleanup();
     vi.unstubAllGlobals();
   });
@@ -124,6 +128,19 @@ describe('PlaySurface', () => {
     );
     expect(screen.queryByRole('toolbar')).toBeNull();
   });
+  it('says a fixed-layout book cannot play instead of waiting for Margins to load it', async () => {
+    bookData.current = { book: {}, bookDoc: {}, isFixedLayout: true };
+    ready.current = new Promise(() => {});
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    expect(toast).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        detail: { type: 'info', message: "Play isn't available on this page yet: fixed layout" },
+      }),
+    );
+    expect(enterPlay).not.toHaveBeenCalled();
+  });
+
   it('keeps with a required description and shows refusals in place', async () => {
     let session: ReturnType<typeof fakeSession> | null = null;
     enterPlay.mockImplementation(async (args: { onExit: () => void }) => {
