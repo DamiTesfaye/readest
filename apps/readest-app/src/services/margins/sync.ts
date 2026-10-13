@@ -4,6 +4,7 @@ import {
   getSession,
 } from '@/services/ampleread/auth/session';
 import type { MarginsStore, OutboxMethod, OutboxOp, TextLink } from './store';
+import { ensureTexts } from './texts';
 import type { Anchor } from './types';
 
 export const MARGINS_LOCAL_FIRST = true;
@@ -151,18 +152,23 @@ export const pullChanges = async (store: MarginsStore): Promise<number> => {
   const userId = await currentUserId();
   if (!userId) return 0;
   let pulled = 0;
+  const textIds: string[] = [];
   let since: number | null = await store.getCursor(userId);
   while (since !== null) {
     const res = await amplereadFetch(`/v1/layers/changes?since=${since}`);
     if (!res.ok) throw new Error(`margins pull failed: ${res.status}`);
     const page = (await res.json()) as { layers: LayerView[]; nextCursor: number | null };
     if ((await currentUserId()) !== userId) return pulled;
-    for (const view of page.layers) await applyLayer(store, view, userId);
+    for (const view of page.layers) {
+      await applyLayer(store, view, userId);
+      textIds.push(view.textId);
+    }
     const last = page.layers.at(-1)?.rev;
     if (last !== undefined) await store.setCursor(userId, last);
     pulled += page.layers.length;
     since = page.nextCursor;
   }
+  await ensureTexts(store, textIds);
   return pulled;
 };
 
