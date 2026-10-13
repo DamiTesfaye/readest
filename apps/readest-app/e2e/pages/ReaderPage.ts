@@ -496,16 +496,21 @@ export class ReaderPage extends BasePage {
         .catch(() => false)
     )
       return;
-    await this.revealHeader();
+    await this.openMoreAction('Annotations');
+  }
+
+  async openMoreAction(title: string): Promise<void> {
+    for (let attempt = 0; attempt < 4 && !(await this.isHeaderRevealed()); attempt++) {
+      await this.revealHeader();
+      await this.page.waitForTimeout(250);
+    }
     await this.page.locator('button[aria-label="More"]:visible').first().click();
-    await this.page.getByRole('button', { name: 'Annotations', exact: true }).click();
+    await this.page.getByRole('button', { name: new RegExp(`^${title}\\b`) }).click();
   }
 
   async editFirstNote(): Promise<void> {
     await this.page.keyboard.press('Escape');
-    await this.revealHeader();
-    await this.page.locator('button[aria-label="More"]:visible').first().click();
-    await this.page.getByRole('button', { name: 'Bookmarks & Notes', exact: true }).click();
+    await this.openMoreAction('Bookmarks & Notes');
     await this.page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     await this.noteEditor.waitFor({ state: 'visible' });
   }
