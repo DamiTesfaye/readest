@@ -602,6 +602,22 @@ describe('margins book open', () => {
     expect((await currentStore.getTextLink('hash-i'))!.textId).toBe('txt_i');
   });
 
+  it('opens a Margin remembered for this text once the book links', async () => {
+    const { takePostOpen } = await import('@/services/margins/public/openPost');
+    await currentStore.setTextLink('hash-p', 'txt_p', 'en', 'txt_p');
+    localStorage.setItem(
+      'margins-pending-open',
+      JSON.stringify({ textId: 'txt_p', postId: 'pst_9' }),
+    );
+    signInAs(null);
+    const post = { id: 'pst_9', textId: 'txt_p', author: { handle: 'a', displayName: 'A' } };
+    install.installFetch.mockResolvedValueOnce(json(200, post));
+    await onMarginsBookOpen(appService, { ...book, hash: 'hash-p' }, bookDoc);
+    expect(install.installFetch.mock.calls[0]![0]).toBe('/v1/posts/pst_9');
+    expect(takePostOpen('hash-p')).toEqual(post);
+    expect(localStorage.getItem('margins-pending-open')).toBeNull();
+  });
+
   it('does not report the lengths of a linked book again', async () => {
     await currentStore.setTextLink('hash-j', 'txt_j', 'en', 'txt_j');
     localStorage.setItem('margins-lengths-reported:hash-j:usr_a', '1');

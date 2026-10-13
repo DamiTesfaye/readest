@@ -26,6 +26,8 @@ import type { LayerRow } from '@/services/margins/store';
 import { requestMarginOpen } from '@/app/reader/hooks/useMarginsPainter';
 import MarginsRail from './components/MarginsRail';
 import MarginsView from './components/MarginsView';
+import TrendingView, { isTrendingView } from './components/TrendingView';
+import { MARGINS_OPEN_POST_EVENT } from '@/services/margins/public/openPost';
 import PublicMarginsHost from '@/app/reader/components/margins/PublicMarginsHost';
 import AmpleDocumentPromptDialog, {
   type AmpleDocumentChoice,
@@ -716,6 +718,11 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     params.delete('group');
     navigateToLibrary(router, params.toString());
   };
+
+  const postParam = searchParams?.get('post');
+  useEffect(() => {
+    if (postParam) eventDispatcher.dispatch(MARGINS_OPEN_POST_EVENT, { postId: postParam });
+  }, [postParam]);
 
   const handleOpenMargin = (row: LayerRow, bookHash: string) => {
     requestMarginOpen(bookHash, row.id);
@@ -2007,7 +2014,9 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const showExploreView = !showCatalogsView && searchParams?.get('explore') === 'true';
   const showMarginsView =
     !showCatalogsView && !showExploreView && searchParams?.get('margins') === 'true';
-  const showDiscoverView = showCatalogsView || showExploreView || showMarginsView;
+  const showTrendingView = !showCatalogsView && !showExploreView && isTrendingView(searchParams);
+  const showDiscoverView =
+    showCatalogsView || showExploreView || showMarginsView || showTrendingView;
   const catalogSearchQuery = searchParams?.get('q') ?? '';
 
   return (
@@ -2213,6 +2222,11 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         {showMarginsView && (
           <div className='min-h-0 flex-grow overflow-y-auto'>
             <MarginsView onOpenMargin={handleOpenMargin} />
+          </div>
+        )}
+        {showTrendingView && (
+          <div className='min-h-0 flex-grow overflow-y-auto'>
+            <TrendingView />
           </div>
         )}
         {!showDiscoverView &&

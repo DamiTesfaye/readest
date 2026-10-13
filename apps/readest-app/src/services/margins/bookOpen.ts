@@ -6,6 +6,8 @@ import type { AppService } from '@/types/system';
 import { getPrimaryLanguage } from '@/utils/book';
 import { getMarginsCore } from './marginsClient';
 import { openMarginsStore, type MarginsStore } from './store';
+import { publicApi } from './public/api';
+import { requestPostOpen, takePendingOpen } from './public/openPost';
 import { cachedLink, familyCache, loadLink, saveLink, syncMargins } from './sync';
 import { buildTextMap } from './textMap';
 import { rememberMatches } from './texts';
@@ -155,6 +157,12 @@ export const onMarginsBookOpen = async (
       link(store, book, bookDoc, sections, userId),
     );
     if (userId) await syncMargins(store);
+    const textId = cachedLink(book.hash)?.textId;
+    const postId = textId ? takePendingOpen(textId) : null;
+    if (postId) {
+      const post = await publicApi.post(postId);
+      if ('author' in post) requestPostOpen(book.hash, post);
+    }
   } catch (error) {
     console.error('Margins: book open failed', error);
   }

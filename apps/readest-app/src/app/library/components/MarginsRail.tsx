@@ -7,6 +7,7 @@ import { hiddenMargins, onMarginsChanged } from '@/services/margins/margins';
 import { type LayerRow, openMarginsStore } from '@/services/margins/store';
 import { useLibraryStore } from '@/store/libraryStore';
 import type { Book } from '@/types/book';
+import TrendingRail from './TrendingRail';
 
 export const RAIL_LIMIT = 8;
 
@@ -126,6 +127,7 @@ export function MarginsRail({ onSeeAll, onOpenMargin }: MarginsRailProps) {
           {_('Sign in to keep your Margins on all your devices.')}
         </div>
       )}
+      <TrendingRail />
     </aside>
   );
 }

@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getSession } from '@/services/ampleread/auth/session';
 import type { PostView } from '@/services/margins/public/api';
 import { MARGINS_OPEN_PASSAGE_EVENT, type OpenPassage } from '@/services/margins/public/badges';
+import { MARGINS_OPEN_POST_EVENT } from '@/services/margins/public/openPost';
 import { currentPost, refreshMyPosts, useMyPosts } from '@/services/margins/public/myPosts';
 import { type LayerRow, openMarginsStore } from '@/services/margins/store';
 import { eventDispatcher } from '@/utils/event';
@@ -15,6 +16,7 @@ import {
   viewPostInPlace,
 } from '../../hooks/useMarginsPainter';
 import PassageSheet from './PassageSheet';
+import { PostSheet } from './PostCard';
 import PublishSheet, { MARGINS_PUBLISH_EVENT, MARGINS_SHORTEN_EVENT } from './PublishSheet';
 
 export const offerPublish = (layerId: string, message: string, label: string, bookKey?: string) =>
@@ -32,6 +34,7 @@ const PublicMarginsHost = ({ bookKey }: { bookKey: string | null }) => {
   const { appService } = useEnv();
   const router = useRouter();
   const [passage, setPassage] = useState<OpenPassage | null>(null);
+  const [single, setSingle] = useState<string | null>(null);
   const { posts } = useMyPosts();
   const [row, setRow] = useState<LayerRow | null>(null);
   const owned = useRef<string | null>(null);
@@ -78,6 +81,13 @@ const PublicMarginsHost = ({ bookKey }: { bookKey: string | null }) => {
   }, [appService, bookKey, router]);
 
   useEffect(() => {
+    if (bookKey !== null) return;
+    const onPost = (e: CustomEvent<{ postId?: string }>) => setSingle(e.detail?.postId ?? null);
+    eventDispatcher.on(MARGINS_OPEN_POST_EVENT, onPost);
+    return () => eventDispatcher.off(MARGINS_OPEN_POST_EVENT, onPost);
+  }, [bookKey]);
+
+  useEffect(() => {
     if (bookKey === null) return;
     const onPassage = (e: CustomEvent<OpenPassage>) => {
       if (e.detail?.bookKey === bookKey) setPassage(e.detail);
@@ -110,6 +120,7 @@ const PublicMarginsHost = ({ bookKey }: { bookKey: string | null }) => {
           onPublished={() => void refreshMyPosts()}
         />
       )}
+      {single && <PostSheet key={single} postId={single} onClose={() => setSingle(null)} />}
       {passage && (
         <PassageSheet
           key={`${passage.section}:${passage.start}:${passage.end}`}

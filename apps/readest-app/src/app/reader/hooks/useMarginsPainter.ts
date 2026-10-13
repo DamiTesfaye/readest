@@ -16,7 +16,12 @@ import {
   placementOf,
 } from '@/services/margins/painter';
 import type { PostView } from '@/services/margins/public/api';
-import { loadClusters, openPassage } from '@/services/margins/public/badges';
+import {
+  loadClusters,
+  MARGINS_OPEN_PASSAGE_EVENT,
+  openPassage,
+} from '@/services/margins/public/badges';
+import { MARGINS_POST_PENDING_EVENT, takePostOpen } from '@/services/margins/public/openPost';
 import { useMarginsPublic } from '@/services/margins/public/flag';
 import { openMarginsStore } from '@/services/margins/store';
 import { cachedLink } from '@/services/margins/sync';
@@ -121,6 +126,7 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
     if (!appService || !book || !view || book.format === 'PDF') return;
     let cancelled = false;
     let unsubscribe = () => {};
+    let onPending = (_e: CustomEvent) => {};
     (async () => {
       const store = await openMarginsStore(appService);
       const ctx = marginsContext({ view, book, bookDoc, store });
@@ -138,6 +144,25 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
         draw();
         eventDispatcher.dispatch(MARGINS_PLACED_EVENT, { bookKey });
       };
+      const openPendingPost = async () => {
+        const post = takePostOpen(book.hash);
+        if (!post || cancelled) return;
+        await viewPostInPlace(bookKey, post);
+        const { textId, section, sectionLen, start, end } = post;
+        eventDispatcher.dispatch(MARGINS_OPEN_PASSAGE_EVENT, {
+          bookKey,
+          textId,
+          section,
+          sectionLen,
+          start,
+          end,
+        });
+      };
+      onPending = (e: CustomEvent<{ fileHash?: string }>) => {
+        if (e.detail?.fileHash === book.hash)
+          openPendingPost().catch(() => console.error('Margins: post open failed'));
+      };
+      eventDispatcher.on(MARGINS_POST_PENDING_EVENT, onPending);
       await ctx.ready;
       if (cancelled) return;
       painters.set(bookKey, painter);
@@ -146,6 +171,7 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
         load().catch(() => console.error('Margins: painter reload failed'));
       });
       await load();
+      await openPendingPost();
       const target = pendingOpen.get(book.hash);
       if (!target || cancelled) return;
       pendingOpen.delete(book.hash);
@@ -160,6 +186,7 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
     return () => {
       cancelled = true;
       unsubscribe();
+      eventDispatcher.off(MARGINS_POST_PENDING_EVENT, onPending);
       painters.delete(bookKey);
       readers.delete(bookKey);
       viewing.delete(bookKey);

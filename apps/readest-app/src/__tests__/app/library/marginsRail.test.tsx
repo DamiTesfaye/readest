@@ -33,6 +33,8 @@ vi.mock('@/services/margins/margins', () => ({
     return () => h.listeners.delete(l);
   },
 }));
+vi.mock('@/services/margins/public/flag', () => ({ useMarginsPublic: () => false }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({}) }));
 vi.mock('@/store/libraryStore', () => {
   const useLibraryStore = (sel: (s: { library: typeof h.library }) => unknown) =>
     sel({ library: h.library });

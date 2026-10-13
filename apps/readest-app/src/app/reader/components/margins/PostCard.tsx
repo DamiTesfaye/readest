@@ -1,8 +1,23 @@
-import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { type PostView, publicApi } from '@/services/margins/public/api';
+import { canDownloadEdition, getWorkDetail } from '@/services/ampleread';
+import { getSession } from '@/services/ampleread/auth/session';
+import { downloadEdition } from '@/services/ampleread/download';
+import { type PostLookup, type PostView, publicApi } from '@/services/margins/public/api';
+import {
+  type OpenTarget,
+  openTargetFor,
+  rememberPendingOpen,
+  requestPostOpen,
+} from '@/services/margins/public/openPost';
 import { sharePost } from '@/services/margins/public/share';
+import { openMarginsStore } from '@/services/margins/store';
+import { useLibraryStore } from '@/store/libraryStore';
 import { eventDispatcher } from '@/utils/event';
+import { navigateToReader } from '@/utils/nav';
+import { SHEET_CLASS } from './HandleSheet';
 import { EnvelopeView, isEnvelope } from './MarginCard';
 import ReportDialog from './ReportDialog';
 
@@ -63,6 +78,97 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
       </div>
       {reporting && <ReportDialog postId={post.id} onClose={() => setReporting(false)} />}
     </article>
+  );
+};
+
+export const OpenInBook = ({ post }: { post: PostView }) => {
+  const _ = useTranslation();
+  const { appService } = useEnv();
+  const router = useRouter();
+  const library = useLibraryStore((s) => s.library);
+  const [target, setTarget] = useState<OpenTarget | null>(null);
+  const fail = () => console.error('Margins: open in book failed');
+
+  const go = (bookHash: string) => {
+    requestPostOpen(bookHash, post);
+    navigateToReader(router, [bookHash]);
+  };
+
+  const open = async () => {
+    if (!appService) return;
+    const hashes = library.filter((b) => !b.deletedAt).map((b) => b.hash);
+    const found = await openTargetFor(post, await openMarginsStore(appService), hashes);
+    if (found.kind === 'library') return go(found.bookHash);
+    if (found.kind === 'yourCopy') rememberPendingOpen(post);
+    setTarget(found);
+  };
+
+  const getBook = async (workId: string) => {
+    if (!appService) return;
+    const edition = (await getWorkDetail(workId)).editions.find(canDownloadEdition);
+    const book = edition ? await downloadEdition({ appService, workId, edition }) : null;
+    if (book) go(book.hash);
+  };
+
+  return (
+    <>
+      <button
+        type='button'
+        className='btn btn-ghost btn-xs'
+        onClick={() => void open().catch(fail)}
+      >
+        {_('Open in book')}
+      </button>
+      {target?.kind === 'yourCopy' && (
+        <p role='status' className='text-base-content/70 w-full text-xs'>
+          {_('Open this book from your library to see this Margin in place.')}
+        </p>
+      )}
+      {target?.kind === 'download' && (
+        <button
+          type='button'
+          className='btn btn-primary btn-xs'
+          onClick={() => void getBook(target.workId).catch(fail)}
+        >
+          {_('Get this book')}
+        </button>
+      )}
+    </>
+  );
+};
+
+export const PostSheet = ({ postId, onClose }: { postId: string; onClose(): void }) => {
+  const _ = useTranslation();
+  const [lookup, setLookup] = useState<PostLookup | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void getSession().then((s) => live && setSignedIn(!!s));
+    publicApi
+      .post(postId)
+      .then((p) => live && setLookup(p))
+      .catch(() => console.error('Margins: post read failed'));
+    return () => {
+      live = false;
+    };
+  }, [postId]);
+
+  return (
+    <div role='dialog' aria-label={_('Margin')} className={SHEET_CLASS}>
+      <div className='flex justify-end'>
+        <button type='button' className='btn btn-ghost btn-xs' onClick={onClose}>
+          {_('Close')}
+        </button>
+      </div>
+      {lookup?.status === 'gone' && (
+        <p className='text-sm'>{_('This Margin is no longer available')}</p>
+      )}
+      {lookup?.status === 'hidden' && <p className='text-sm'>{_('Under review')}</p>}
+      {lookup && 'author' in lookup && (
+        <PostCard post={lookup} signedIn={signedIn} actions={<OpenInBook post={lookup} />} />
+      )}
+    </div>
   );
 };
 
