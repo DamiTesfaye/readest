@@ -1,0 +1,1137 @@
+[
+  {
+    "name": "clip, no elements",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "clip kind with an element",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "note 2000 astral",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": -12.5
+          },
+          "text": "𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄",
+          "hand": true,
+          "motion": "rise"
+        }
+      ]
+    }
+  },
+  {
+    "name": "note 2001",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄𝔄"
+        }
+      ]
+    }
+  },
+  {
+    "name": "translation at the capped limit",
+    "kind": "translation",
+    "quoteCost": 150,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 300,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "translation one past",
+    "kind": "translation",
+    "quoteCost": 150,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "gloss floor 200",
+    "kind": "translation",
+    "quoteCost": 5,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 200,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "gloss",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "mt"
+        }
+      ]
+    }
+  },
+  {
+    "name": "capped ceiling 600",
+    "kind": "translation",
+    "quoteCost": 300,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "uncapped 6000",
+    "kind": "translation",
+    "quoteCost": 5,
+    "capped": false,
+    "ok": true,
+    "translationScalars": 6000,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "bad lang",
+    "kind": "translation",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "fr_FR",
+          "text": "bonjour",
+          "source": "hand"
+        }
+      ]
+    }
+  },
+  {
+    "name": "artwork ok",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "artwork needs alt",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "five artworks",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a2",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a3",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a4",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a5",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "local asset ref",
+    "kind": "artwork",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "local:7d6c2f3e-8a1b-4c5d-9e0f-1a2b3c4d5e6f",
+          "alt": "a fox",
+          "source": "drawing"
+        }
+      ]
+    }
+  },
+  {
+    "name": "sticker ok",
+    "kind": "sticker",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "s1",
+          "kind": "sticker",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "sticker": "basic/star"
+        }
+      ]
+    }
+  },
+  {
+    "name": "sticker bad name",
+    "kind": "sticker",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "s1",
+          "kind": "sticker",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "sticker": "Basic/Star"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown field",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [],
+      "caption": "x"
+    }
+  },
+  {
+    "name": "unknown element kind",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "v1",
+          "kind": "voice",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "nine elements",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n2",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n3",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n4",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n5",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n6",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n7",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n8",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n9",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate element id",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "ho"
+        }
+      ]
+    }
+  },
+  {
+    "name": "frame w below 0.05",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.04,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "kind not among elements",
+    "kind": "translation",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "v 2",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 2,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "four artworks and a note",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "a1",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a2",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a3",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "a4",
+          "kind": "artwork",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "asset": "ast_0190c3a2b4c47c3e9f1e2d3c4b5a6978",
+          "alt": "a fox",
+          "source": "drawing"
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown field in an element",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi",
+          "font": "serif"
+        }
+      ]
+    }
+  },
+  {
+    "name": "bad motion",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "n1",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi",
+          "motion": "spin"
+        }
+      ]
+    }
+  },
+  {
+    "name": "element id 25 characters",
+    "kind": "note",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaa",
+          "kind": "note",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "two translations sum",
+    "kind": "translation",
+    "quoteCost": 150,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 200,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m"
+      },
+      "elements": [
+        {
+          "id": "t1",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "hand"
+        },
+        {
+          "id": "t2",
+          "kind": "translation",
+          "frame": {
+            "x": 0.5,
+            "y": 0.8,
+            "w": 0.6,
+            "r": 0
+          },
+          "mode": "translation",
+          "lang": "pcm",
+          "text": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": "hand"
+        }
+      ]
+    }
+  }
+]
