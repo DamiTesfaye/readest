@@ -257,4 +257,19 @@ describe('MarginsStore', () => {
     await store.dropQueued('lyr_x');
     expect(await store.dueOps(10, 'usr_a')).toEqual([]);
   });
+  it('adds contract and keeps existing rows as overlay', async () => {
+    const anchor = {
+      textId: null,
+      kind: 'span',
+      quote: { exact: 'x' },
+      context: { prefixHash: '', suffixHash: '', prefix: null, suffix: null },
+      hint: { position: 0, file: null },
+      v: 1,
+    } as Anchor;
+    const row = { fileHash: 'f', textId: null, anchor, payload: {}, rev: null, deleted: false };
+    await store.putLayer({ ...row, id: 'lyr_old', kind: 'note' });
+    expect((await store.getLayer('lyr_old'))?.contract).toBe('overlay');
+    await store.putLayer({ ...row, id: 'lyr_play', kind: 'play', contract: 'detach' });
+    expect((await store.getLayer('lyr_play'))?.contract).toBe('detach');
+  });
 });

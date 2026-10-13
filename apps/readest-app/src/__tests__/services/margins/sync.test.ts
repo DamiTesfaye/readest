@@ -66,7 +66,7 @@ const view = (id: string, rev: number, textId = 'txt_a', deletedAt: string | nul
   textId,
   anchor: anchor(textId),
   kind: 'note',
-  contract: 'v1',
+  contract: 'overlay',
   payload: { text: id },
   visibility: 'private',
   rev,
@@ -247,6 +247,14 @@ describe('margins sync', () => {
       'lyr_2',
       'lyr_3',
     ]);
+  });
+
+  it('stores the pulled contract', async () => {
+    await currentStore.setTextLink('hash-a', 'txt_a', 'en', 'txt_a');
+    const play = { ...view('lyr_p', 1), kind: 'play', contract: 'displace' };
+    session.amplereadFetch.mockResolvedValueOnce(json(200, { layers: [play], nextCursor: null }));
+    await pullChanges(currentStore);
+    expect((await currentStore.getLayer('lyr_p'))?.contract).toBe('displace');
   });
 
   it('takes createdAt from the pulled layer', async () => {

@@ -18,6 +18,7 @@ export interface LayerView {
   textId: string;
   anchor: Anchor;
   kind: string;
+  contract: string;
   payload: unknown;
   rev: number;
   createdAt: string;
@@ -100,6 +101,7 @@ const applyLayer = async (store: MarginsStore, view: LayerView, userId: string) 
     textId: view.textId,
     anchor: view.anchor,
     kind: view.kind,
+    contract: view.contract,
     payload: view.payload,
     rev: view.rev,
     deleted: view.deletedAt !== null,

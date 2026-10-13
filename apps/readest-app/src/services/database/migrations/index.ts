@@ -288,6 +288,12 @@ const migrations: Record<SchemaType, MigrationEntry[]> = {
         );
       `,
     },
+    {
+      name: '2026101210_margins_contract',
+      sql: `
+        ALTER TABLE margin_layers ADD COLUMN contract TEXT NOT NULL DEFAULT 'overlay';
+      `,
+    },
   ],
   reedy: [
     {
