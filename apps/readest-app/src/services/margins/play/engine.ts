@@ -65,6 +65,10 @@ export const createPlayEngine = (load: (instance: number) => Promise<PlayGlue>):
 const VENDOR = '/vendor/margin-play';
 let shared: Promise<PlayEngine> | null = null;
 
+export const dropPlayEngine = () => {
+  shared = null;
+};
+
 export const loadPlayEngine = (): Promise<PlayEngine> =>
   (shared ??= (async () => {
     const module = await WebAssembly.compileStreaming(fetch(`${VENDOR}/margin_play_wasm_bg.wasm`));

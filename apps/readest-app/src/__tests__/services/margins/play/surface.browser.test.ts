@@ -1,11 +1,12 @@
 import * as CFI from 'foliate-js/epubcfi.js';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DocumentLoader, type BookDoc } from '@/libs/document';
 import type { BridgeContext } from '@/services/margins/anchorBridge';
 import { WebDatabaseService } from '@/services/database/webDatabaseService';
 import { migrate } from '@/services/database/migrate';
 import { getMigrations } from '@/services/database/migrations';
 import { getMarginsCore } from '@/services/margins/marginsClient';
+import { loadPlayEngine, type PlayGlue } from '@/services/margins/play/engine';
 import { enterPlay } from '@/services/margins/play/surfaceSession';
 import { MarginsStore } from '@/services/margins/store';
 import { buildTextMap } from '@/services/margins/textMap';
@@ -297,5 +298,49 @@ describe('play surface', () => {
     });
     expect(['', detached]).toContain(again.detachedText());
     again.exit();
+  }, 60000);
+
+  it('a replayed drift stays paused under reduced motion', async () => {
+    const store = await layerStore();
+    const play = await enterPlay({ ...(await openMeditations()), reduced: true, store });
+    play.tools.addShape('circle');
+    play.tools.setShapeMotion('drift');
+    const kept = await play.tools.keep('A drifting sun');
+    play.exit();
+    if (!kept.ok) throw new Error(`keep refused: ${kept.reason}`);
+    const again = await enterPlay({
+      ...(await openMeditations()),
+      reduced: true,
+      store,
+      layerId: kept.layerId,
+    });
+    expect(again.tools.state.shapeMotion).toBe('none');
+    again.exit();
+  }, 60000);
+
+  it('a compose failure mid-session exits play and drops the engine', async () => {
+    const s = await openMeditations();
+    (await enterPlay({ ...s, reduced: true })).exit();
+    const shared = loadPlayEngine();
+    const engine = await shared;
+    const real = engine.glue;
+    let composes = 0;
+    const failing = new Proxy(real, {
+      get: (t, k) =>
+        k === 'compose'
+          ? () => {
+              if (++composes > 1) throw new Error('unreachable');
+              return t.compose();
+            }
+          : Reflect.get(t, k),
+    }) as PlayGlue;
+    const spy = vi.spyOn(engine, 'glue', 'get').mockReturnValue(failing);
+    const play = await enterPlay({ ...s, reduced: true });
+    play.tools.addShape('circle');
+    await play.frame();
+    spy.mockRestore();
+    expect(play.active()).toBe(false);
+    expect(getComputedStyle(s.renderer).opacity).toBe('1');
+    expect(loadPlayEngine()).not.toBe(shared);
   }, 60000);
 });

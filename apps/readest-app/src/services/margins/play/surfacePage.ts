@@ -2,7 +2,7 @@ import type { CustomFont } from '@/styles/fonts';
 import type { Renderer } from '@/types/view';
 import type { BridgeContext } from '../anchorBridge';
 import type { MarginsStore } from '../store';
-import { FACE_MAX, loadPlayEngine, type PlayEngine } from './engine';
+import { dropPlayEngine, FACE_MAX, loadPlayEngine, type PlayEngine } from './engine';
 import { resolvePlayFont, STAND_IN_FACES, standInFor } from './fonts';
 import { fallbackReason, pageBox, pageSpec, playWindow, styleRuns, type Box } from './window';
 
@@ -175,6 +175,7 @@ export const preparePage = async (a: EnterPlayArgs) => {
     engine.glue.compose();
   } catch {
     console.error('Margins: play compose failed');
+    dropPlayEngine();
     throw new PlayUnavailable('engine');
   }
   const bg = view.getComputedStyle(doc.body).backgroundColor;

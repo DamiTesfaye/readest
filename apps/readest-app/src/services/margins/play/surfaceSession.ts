@@ -1,4 +1,5 @@
 import { createAnchorAt } from '../anchorBridge';
+import { dropPlayEngine } from './engine';
 import { saveMargin } from '../margins';
 import { buildPlayElement, keepPlay, keepSpan, playOverQuota } from './keep';
 import { drift, lerpFactor } from './motion';
@@ -326,7 +327,14 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       };
     const flying = world.bodies.some((b) => !b.rest);
     if (flying) world = step(world);
-    syncEngine(now);
+    try {
+      syncEngine(now);
+    } catch {
+      console.error('Margins: play compose failed');
+      dropPlayEngine();
+      exit();
+      return;
+    }
     const moving = lerp(dt) || flying || s.shapeMotion === 'drift' || !!dragging;
     draw();
     placeProxies();
@@ -579,7 +587,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       poses: shapes.map(
         (x) => poses.find((p) => p.shape === x.id) ?? { shape: x.id, x: 0, y: 0, rot: 0 },
       ),
-      shapeMotion: r.element.shapeMotion ?? 'none',
+      shapeMotion: reduced ? 'none' : (r.element.shapeMotion ?? 'none'),
     };
     shapes.forEach(mountShapeProxy);
     syncEngine(performance.now());
