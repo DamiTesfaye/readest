@@ -125,7 +125,7 @@ describe('play surface', () => {
     wrapper.appendChild(el);
     el.open(bookDoc);
     el.setStyles?.(`html { font-size: ${fontSize}px !important; }`);
-    let range: Range | null = null;
+    let range = null as Range | null;
     el.addEventListener('relocate', ((e: CustomEvent) => {
       if (e.detail?.index === index && e.detail.range && !e.detail.range.collapsed)
         range = e.detail.range;
@@ -234,6 +234,10 @@ describe('play surface', () => {
   it('exits_on_relocate_and_resize', async () => {
     const s = await openMeditations();
     const play = await enterPlay({ ...s, reduced: true });
+    s.renderer.dispatchEvent(
+      new CustomEvent('relocate', { detail: { reason: 'anchor', range: s.range.cloneRange() } }),
+    );
+    expect(play.active()).toBe(true);
     s.renderer.dispatchEvent(new CustomEvent('relocate', { detail: {} }));
     expect(play.active()).toBe(false);
     const again = await enterPlay({ ...s, reduced: true });

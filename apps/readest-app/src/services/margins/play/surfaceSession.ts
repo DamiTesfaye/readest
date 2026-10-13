@@ -82,6 +82,17 @@ const targetsOf = (glyphs: Float32Array) => {
   return out;
 };
 
+const sameRange = (x: Range, y: Range) => {
+  try {
+    return (
+      x.compareBoundaryPoints(Range.START_TO_START, y) === 0 &&
+      x.compareBoundaryPoints(Range.END_TO_END, y) === 0
+    );
+  } catch {
+    return false;
+  }
+};
+
 const mountSurface = (host: HTMLElement, box: Box, reduced: boolean) => {
   const dpr = window.devicePixelRatio || 1;
   const canvas = document.createElement('canvas');
@@ -439,6 +450,11 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     }
   };
 
+  const onRelocate = (e: Event) => {
+    const moved = (e as CustomEvent<{ range?: Range }>).detail?.range;
+    if (!moved || !sameRange(moved, a.range)) exit();
+  };
+
   const onVisibility = () => {
     paused = document.hidden;
     if (!paused) wake();
@@ -448,7 +464,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
     if (!active) return;
     active = false;
     if (raf) cancelAnimationFrame(raf);
-    renderer.removeEventListener('relocate', exit);
+    renderer.removeEventListener('relocate', onRelocate);
     window.removeEventListener('resize', exit);
     document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('visibilitychange', onVisibility);
@@ -537,7 +553,7 @@ const startSession = (a: EnterPlayArgs, page: Page): PlaySession => {
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerUp);
-  renderer.addEventListener('relocate', exit);
+  renderer.addEventListener('relocate', onRelocate);
   window.addEventListener('resize', exit);
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('visibilitychange', onVisibility);
