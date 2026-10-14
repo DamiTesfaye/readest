@@ -182,7 +182,7 @@ importers:
         version: 0.7.0-pre.3-readest.0
       '@rive-app/canvas':
         specifier: ^2.38.1
-        version: 2.44.2
+        version: 2.44.0
       '@serwist/next':
         specifier: ^9.5.6
         version: 9.5.11(next@16.3.8(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(@types/node@22.19.19)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(typescript@7.0.2)(webpack@5.106.2(lightningcss@1.32.0)(postcss@8.5.25))
@@ -2767,8 +2767,8 @@ packages:
     resolution: {integrity: sha512-C7c51Nn4yTxXFKvgh2txJFNweaVcfUPQxwEUFw4aWsCmfiBDJsTSwviIF8EcwjQ6k8bPyMWCl1vw4BdxE569Cg==}
     engines: {node: '>= 10'}
 
-  '@rive-app/canvas@2.44.2':
-    resolution: {integrity: sha512-MzVTWpaWWjeGEyC9rhL8w53Mi3q+WfpG1ooj8IYuEcRPJNyh1LzCMYUAHel0M7Nj9xR/P41HvUPaikM9wrsIyA==}
+  '@rive-app/canvas@2.44.0':
+    resolution: {integrity: sha512-ak0GGwCbuWubi6rP9qB5YPy5CxYuTY3AiuTV4i1Vi7GXhuK2XB+M+4WJMuGcYGfGLzojaVMKaxtunD5OjjGzOQ==}
 
   '@rolldown/pluginutils@1.0.0-rc.18':
     resolution: {integrity: sha512-CUY5Mnhe64xQBGZEEXQ5WyZwsc1JU3vAZLIxtrsBt3LO6UOb+C8GunVKqe9sT8NeWb4lqSaoJtp2xo6GxT1MNw==}
@@ -11295,7 +11295,7 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
-  '@rive-app/canvas@2.44.2': {}
+  '@rive-app/canvas@2.44.0': {}
 
   '@rolldown/pluginutils@1.0.0-rc.18': {}
 
