@@ -1,49 +1,31 @@
 import { GROUND_STYLE } from '@/app/reader/components/margins/ElementView';
 import type { Ground } from '../payload';
+import { mulberry32 } from '../play/physics';
+import { ghostGlyph } from '../replay/ghost';
 import { call } from './api';
 
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
 
 const PAD = 72;
-const QUOTE_FONT = '44px Georgia, "Times New Roman", serif';
-const QUOTE_LINE = 60;
-const MAX_LINES = 6;
+const LINE = 60;
+const GHOST_LINES = 5;
+const GHOST_EM = 34;
+const GHOST_GAP = 14;
+const GHOST_ALPHA = 0.35;
+const CITATION_FONT = '30px Georgia, "Times New Roman", serif';
 const BYLINE_FONT = '28px system-ui, sans-serif';
 
 export interface CardInput {
-  quote: string;
   handle: string;
   bookTitle: string | null;
+  citation: string;
   ground: Ground;
   art: Blob[];
+  seed: number;
 }
 
 type Ctx = OffscreenCanvasRenderingContext2D;
-
-const fits = (ctx: Ctx, text: string, width: number) => ctx.measureText(text).width <= width;
-
-const ellipsize = (ctx: Ctx, line: string, width: number) => {
-  let words = line.split(' ');
-  while (words.length > 1 && !fits(ctx, `${words.join(' ')}…`, width)) words = words.slice(0, -1);
-  return `${words.join(' ')}…`;
-};
-
-const wrap = (ctx: Ctx, text: string, width: number): string[] => {
-  const lines: string[] = [];
-  let line = '';
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const next = line ? `${line} ${word}` : word;
-    if (!line || fits(ctx, next, width)) {
-      line = next;
-      continue;
-    }
-    if (lines.length === MAX_LINES - 1) return [...lines, ellipsize(ctx, line, width)];
-    lines.push(line);
-    line = word;
-  }
-  return line ? [...lines, line] : lines;
-};
 
 const drawArt = async (ctx: Ctx, art: Blob, x: number, y: number, w: number, h: number) => {
   const bitmap = await createImageBitmap(art);
@@ -53,7 +35,26 @@ const drawArt = async (ctx: Ctx, art: Blob, x: number, y: number, w: number, h: 
   bitmap.close();
 };
 
-export const renderCard = async ({ quote, handle, bookTitle, ground, art }: CardInput) => {
+const drawGhostLines = (ctx: Ctx, seed: number, width: number) => {
+  const r = mulberry32(seed);
+  let unit = 0;
+  ctx.beginPath();
+  for (let line = 0; line < GHOST_LINES; line++) {
+    const lineWidth = line === GHOST_LINES - 1 ? width * (0.4 + 0.3 * r()) : width;
+    const y = PAD + line * LINE;
+    for (let at = 0, w = GHOST_EM * (1.5 + 3 * r()); at + w <= lineWidth; ) {
+      for (const [gx, gy, gw, gh] of ghostGlyph(seed, unit++, w, GHOST_EM))
+        ctx.roundRect(PAD + at + gx, y + gy, gw, gh, Math.min(gw, gh) / 2);
+      at += w + GHOST_GAP;
+      w = GHOST_EM * (1.5 + 3 * r());
+    }
+  }
+  ctx.globalAlpha = GHOST_ALPHA;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+};
+
+export const renderCard = async ({ handle, bookTitle, citation, ground, art, seed }: CardInput) => {
   const canvas = new OffscreenCanvas(CARD_WIDTH, CARD_HEIGHT);
   const ctx = canvas.getContext('2d')!;
   const { background, color } = GROUND_STYLE[ground];
@@ -63,14 +64,14 @@ export const renderCard = async ({ quote, handle, bookTitle, ground, art }: Card
   if (art[0])
     await drawArt(ctx, art[0], half + PAD / 2, PAD, half - 1.5 * PAD, CARD_HEIGHT - 2 * PAD);
   ctx.fillStyle = color;
-  ctx.textBaseline = 'top';
-  ctx.font = QUOTE_FONT;
   const width = (art[0] ? half : CARD_WIDTH) - 1.5 * PAD;
-  wrap(ctx, `“${quote.trim()}”`, width).forEach((line, i) =>
-    ctx.fillText(line, PAD, PAD + i * QUOTE_LINE),
-  );
-  ctx.font = BYLINE_FONT;
+  drawGhostLines(ctx, seed, width);
   ctx.textBaseline = 'alphabetic';
+  if (citation) {
+    ctx.font = CITATION_FONT;
+    ctx.fillText(citation, PAD, PAD + (GHOST_LINES + 1) * LINE, width);
+  }
+  ctx.font = BYLINE_FONT;
   ctx.fillText(
     [`@${handle}`, bookTitle].filter(Boolean).join(' · '),
     PAD,

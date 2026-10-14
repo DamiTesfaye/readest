@@ -15,11 +15,13 @@ import {
   type QuoteBudget,
 } from '@/services/margins/public/api';
 import { renderCard, uploadCard } from '@/services/margins/public/card';
+import { formatCitation } from '@/services/margins/public/citation';
 import type { ScalarSpan } from '@/services/margins/public/offsets';
 import { publishSpan } from '@/services/margins/public/publishSpan';
 import { type LayerRow, type MarginsStore, openMarginsStore } from '@/services/margins/store';
 import { syncMargins } from '@/services/margins/sync';
 import { eventDispatcher } from '@/utils/event';
+import { hashText } from '@/utils/homeRowVariant';
 import HandleSheet, { SHEET_CLASS } from './HandleSheet';
 import { isEnvelope, storedQuote } from './MarginCard';
 
@@ -131,13 +133,18 @@ const PublishSheet: React.FC<PublishSheetProps> = ({
     setProblem(null);
     const store = await openMarginsStore(appService);
     try {
+      const text = textId ? await store.getText(textId) : null;
       card.current ??= await uploadCard(
         await renderCard({
-          quote: storedQuote(row),
           handle: profile.handle,
-          bookTitle: textId ? ((await store.getText(textId))?.title ?? null) : null,
+          bookTitle: text?.title ?? null,
+          citation: formatCitation(null, {
+            title: text?.title ?? null,
+            author: text?.author ?? null,
+          }),
           ground: isEnvelope(row.payload) ? row.payload.ground : 'paper',
           art: await artBlobs(store, row),
+          seed: hashText(row.id),
         }),
       );
       const body = { layerId: row.id, layerRev: row.rev, cardAsset: card.current, ...span };

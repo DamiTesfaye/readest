@@ -32,7 +32,7 @@ export interface HomeRowFactors {
   sessionSeed: number;
 }
 
-const hashText = (text: string): number => {
+export const hashText = (text: string): number => {
   let hash = FNV_OFFSET_BASIS;
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);

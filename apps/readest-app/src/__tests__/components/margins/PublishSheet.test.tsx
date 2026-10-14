@@ -242,13 +242,15 @@ describe('PublishSheet', () => {
     await clickPublish();
     expect(h.renderCard).toHaveBeenCalledWith(
       expect.objectContaining({
-        quote: 'a quiet passage',
         handle: 'reader_1',
         bookTitle: 'Meditations',
+        citation: 'Meditations',
         ground: 'ink',
         art: [],
+        seed: expect.any(Number),
       }),
     );
+    expect(Object.keys(h.renderCard.mock.calls[0]![0] as object)).not.toContain('quote');
     expect(h.uploadCard).toHaveBeenCalledTimes(1);
     expect(h.publish).toHaveBeenCalledWith({
       layerId: 'lay1',

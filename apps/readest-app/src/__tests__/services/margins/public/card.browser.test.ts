@@ -21,12 +21,47 @@ const artBlob = async () => {
   return canvas.convertToBlob({ type: 'image/png' });
 };
 
-const quote = 'To live a good life: we have the potential for it. '.repeat(6).slice(0, 280);
+const citation = 'Meditations · Marcus Aurelius · Gutenberg, 2001 ed. · p. 16';
+
+const spyText = () => {
+  const texts: string[] = [];
+  const record = function (this: unknown, text: string) {
+    texts.push(text);
+  };
+  const spies = [
+    vi.spyOn(OffscreenCanvasRenderingContext2D.prototype, 'fillText').mockImplementation(record),
+    vi.spyOn(CanvasRenderingContext2D.prototype, 'fillText').mockImplementation(record),
+  ];
+  return { texts, restore: () => spies.forEach((s) => s.mockRestore()) };
+};
 
 describe('Margin preview card', () => {
-  it('renders the quote, art, handle and title to a 1200 × 630 PNG', async () => {
+  it('renders the card without passage text', async () => {
+    const spy = spyText();
+    const bars = vi.spyOn(OffscreenCanvasRenderingContext2D.prototype, 'roundRect');
+    try {
+      const input = {
+        handle: 'reader_1',
+        bookTitle: 'Meditations',
+        citation,
+        ground: 'ink' as const,
+        art: [],
+        seed: 7,
+      };
+      await renderCard(input);
+      expect(Object.keys(input)).not.toContain('quote');
+      expect(new Set(spy.texts)).toEqual(new Set(['@reader_1 · Meditations', citation]));
+      expect(bars).toHaveBeenCalled();
+    } finally {
+      spy.restore();
+      bars.mockRestore();
+    }
+  });
+
+  it('renders the citation, art, handle and title to a 1200 × 630 PNG', async () => {
     const png = await renderCard({
-      quote,
+      citation,
+      seed: 3,
       handle: 'reader_1',
       bookTitle: 'Meditations',
       ground: 'ink',
@@ -60,7 +95,8 @@ describe('Margin preview card', () => {
 
   it('renders without art or a title', async () => {
     const png = await renderCard({
-      quote: 'Short.',
+      citation: '',
+      seed: 1,
       handle: 'r',
       bookTitle: null,
       ground: 'paper',
