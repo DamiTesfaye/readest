@@ -38,10 +38,14 @@ vi.mock('@/store/bookDataStore', () => {
   return { useBookDataStore: store };
 });
 vi.mock('@/store/settingsStore', () => ({
-  useSettingsStore: { getState: () => ({ settings: {} }) },
+  useSettingsStore: Object.assign(() => ({ settings: {} }), {
+    getState: () => ({ settings: {} }),
+  }),
 }));
 vi.mock('@/store/themeStore', () => ({
-  useThemeStore: { getState: () => ({ isDarkMode: false }) },
+  useThemeStore: Object.assign(() => ({ isDarkMode: false }), {
+    getState: () => ({ isDarkMode: false }),
+  }),
   getThemeCode: () => ({}),
 }));
 vi.mock('@/store/customFontStore', () => ({
