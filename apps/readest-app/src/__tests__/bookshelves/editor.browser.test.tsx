@@ -340,7 +340,7 @@ describe('bookshelf editor responsive layout', () => {
   }
   for (const width of [390, 1440]) {
     for (const layout of ['carousel', 'grid'] as const) {
-      it(`bottom-aligns fitted covers and labels in the ${layout} preview at ${width}px`, async () => {
+      it(`top-aligns fitted covers and labels in the ${layout} preview at ${width}px`, async () => {
         await page.viewport(width, 900);
         const shapes = [
           [60, 120],
@@ -371,8 +371,13 @@ describe('bookshelf editor responsive layout', () => {
           const covers = Array.from(preview.querySelectorAll<HTMLImageElement>('.fit-cover-img'));
           expect(covers).toHaveLength(3);
           expect(covers.every((cover) => cover.complete && cover.naturalWidth > 0)).toBe(true);
-          const bottoms = covers.map((cover) => cover.getBoundingClientRect().bottom);
-          expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThan(1);
+          expect(
+            covers.some((cover) => cover.closest('.bookitem-main')!.hasAttribute('style')),
+          ).toBe(true);
+          const tops = covers.map(
+            (cover) => cover.closest('.bookitem-main')!.getBoundingClientRect().top,
+          );
+          expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(1);
           const titles = Array.from(
             preview.querySelectorAll('h4'),
             (title) => title.getBoundingClientRect().top,
@@ -637,7 +642,8 @@ describe('bookshelf editor responsive layout', () => {
     await act(async () => {
       await eventDispatcher.dispatch('show-bookshelves');
     });
-    fireEvent.click(getByLabelText('Enabled'));
+    if (!(getByLabelText('Enabled') as HTMLInputElement).checked)
+      fireEvent.click(getByLabelText('Enabled'));
     fireEvent.click(getByRole('button', { name: 'Rename bookshelf' }));
     fireEvent.change(getByLabelText('Bookshelf name'), { target: { value: 'A' } });
     fireEvent.keyDown(getByLabelText('Bookshelf name'), { key: 'Enter' });
@@ -863,7 +869,8 @@ describe('bookshelf editor responsive layout', () => {
       await act(async () => {
         await eventDispatcher.dispatch('show-bookshelves');
       });
-      fireEvent.click(getByLabelText('Enabled'));
+      if (!(getByLabelText('Enabled') as HTMLInputElement).checked)
+        fireEvent.click(getByLabelText('Enabled'));
       fireEvent.click(getByLabelText(/^Exclusive/));
       fireEvent.click(getByRole('button', { name: 'Add bookshelf' }));
       fireEvent.click(getByRole('button', { name: 'Rename bookshelf' }));
