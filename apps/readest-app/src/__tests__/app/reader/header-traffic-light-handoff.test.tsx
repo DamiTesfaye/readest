@@ -88,6 +88,30 @@ vi.mock('@/app/reader/components/SyncInfoDialog', () => ({ default: () => null }
 vi.mock('@/components/WindowButtons', () => ({ default: () => null }));
 vi.mock('@/components/Dropdown', () => ({ default: () => null }));
 vi.mock('@/components/ModalPortal', () => ({ default: () => null }));
+vi.mock('@/components/ToolbarPopover', () => ({ default: () => null }));
+vi.mock('@/components/themefonts/ThemeFontsPanel', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/SettingsToggler', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/TocPopover', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/library/LibraryPopover', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/booknotes/BooknotesPopover', () => ({
+  default: () => null,
+  BOOKNOTES_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/booknotes/AnnotationsPopover', () => ({
+  default: () => null,
+  ANNOTATIONS_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/margins/MarginsPopover', () => ({
+  default: () => null,
+  MARGINS_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/MorePopover', () => ({
+  default: () => null,
+  MORE_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/QuickPickSlots', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/MoreMenuButton', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/PinnedMoreMenuButton', () => ({ default: () => null }));
 
 const insets = { top: 0, right: 0, bottom: 0, left: 0 };
 
