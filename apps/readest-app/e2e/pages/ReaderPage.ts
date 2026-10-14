@@ -241,24 +241,6 @@ export class ReaderPage extends BasePage {
   }
 
   /**
-   * Settings -> Control -> Keep Text Selected After Lookup. The row only shows
-   * while the quick action is Dictionary, so set that first.
-   */
-  async setKeepSelectionAfterLookup(keep: boolean): Promise<void> {
-    await this.openSettings();
-    await this.page.locator('[data-tab="Control"]').click();
-
-    const toggle = this.page
-      .locator('[data-setting-id="settings.control.keepSelectionAfterLookup"]')
-      .getByRole('checkbox')
-      .first();
-    await toggle.waitFor({ state: 'visible' });
-    await toggle.setChecked(keep);
-
-    await this.page.keyboard.press('Escape');
-  }
-
-  /**
    * Turn the in-page header band (the running section title) on or off from
    * the Control tab of the settings dialog. With it off the book text moves up
    * to the compact top margin, right under the header bar's hover strip.
@@ -469,64 +451,6 @@ export class ReaderPage extends BasePage {
       );
     });
     await this.annotationPopup.waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Select a single word of book text.
-   *
-   * The instant quick action only fires for a single lookup term, and it fires
-   * off the selection itself — so unlike {@link selectText} this waits for no
-   * popup, leaving the spec to say which one it expects. Returns the word, so a
-   * spec can assert the selection is (still) exactly that.
-   */
-  async selectWord(): Promise<string> {
-    await this.openTocChapter(3);
-    const frame = await this.visibleSectionFrame();
-
-    return frame.locator('body').evaluate(() => {
-      const paragraphs = Array.from(document.querySelectorAll('p'));
-      const target = paragraphs.find((p) => (p.textContent ?? '').trim().length > 60);
-      if (!target) {
-        throw new Error('no selectable paragraph in the visible section');
-      }
-      const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
-      let textNode = walker.nextNode();
-      let word: { node: Node; start: number; end: number } | null = null;
-      while (textNode && !word) {
-        const text = textNode.textContent ?? '';
-        const match = /[A-Za-z]{4,}/.exec(text);
-        if (match) {
-          word = { node: textNode, start: match.index, end: match.index + match[0].length };
-        }
-        textNode = walker.nextNode();
-      }
-      if (!word) {
-        throw new Error('no single word found in the target paragraph');
-      }
-      const range = document.createRange();
-      range.setStart(word.node, word.start);
-      range.setEnd(word.node, word.end);
-      const selection = document.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      return range.toString();
-    });
-  }
-
-  /** The text currently selected inside the on-screen book section. */
-  async selectedSectionText(): Promise<string> {
-    const frame = await this.visibleSectionFrame();
-    return frame.locator('body').evaluate(() => document.getSelection()?.toString() ?? '');
-  }
-
-  /**
-   * Turn on an instant quick action (`Instant Dictionary`, `Instant Highlight`,
-   * …) from the header bar's quick-action dropdown.
-   */
-  async setQuickAction(action: string): Promise<void> {
-    await this.revealHeader();
-    await this.headerBar.getByRole('button', { name: 'Enable Quick Action on Selection' }).click();
-    await this.page.getByRole('menuitem', { name: `Instant ${action}` }).click();
   }
 
   /**

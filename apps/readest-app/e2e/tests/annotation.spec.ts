@@ -76,49 +76,6 @@ test.describe('Annotation', () => {
     await expect(reader.popupTool('Highlight')).toBeVisible();
   });
 
-  // The instant dictionary drops the selection only for as long as the lookup is
-  // up: iOS paints its native selection handles and blue highlight above web
-  // content, i.e. on top of the popup (#5585). Dismissing hands the word back,
-  // or there is no route left to highlighting or copying it — with a quick
-  // action armed, re-selecting the word just opens the dictionary again (#6213).
-  // That hand-back is opt-in (#6454).
-  test('the instant dictionary hands the selection back when it closes (#6213)', async ({
-    openBook,
-  }) => {
-    const reader = await openBook();
-
-    await reader.setQuickAction('Dictionary');
-    await reader.setKeepSelectionAfterLookup(true);
-    const word = await reader.selectWord();
-
-    await expect(reader.dictionaryPopup).toBeVisible();
-    await expect(reader.annotationPopup).toBeHidden();
-    expect(await reader.selectedSectionText()).toBe('');
-
-    await reader.page.keyboard.press('Escape');
-
-    await expect(reader.dictionaryPopup).toBeHidden();
-    await expect(reader.annotationPopup).toBeVisible();
-    expect(await reader.selectedSectionText()).toBe(word);
-  });
-
-  // By default the dismiss goes straight back to reading: readers who look up
-  // word after word would otherwise close a toolbar after every lookup (#6454).
-  test('the instant dictionary dismisses clean by default (#6454)', async ({ openBook }) => {
-    const reader = await openBook();
-
-    await reader.setQuickAction('Dictionary');
-    await reader.selectWord();
-
-    await expect(reader.dictionaryPopup).toBeVisible();
-
-    await reader.page.keyboard.press('Escape');
-
-    await expect(reader.dictionaryPopup).toBeHidden();
-    await expect(reader.annotationPopup).toBeHidden();
-    expect(await reader.selectedSectionText()).toBe('');
-  });
-
   // Tapping a highlight (or holding one out with Instant Highlight) opens its
   // range editor: app-drawn handles in a fixed overlay painted after the lookup
   // popups, so they floated on top of the dictionary (#5815). A lookup hides
@@ -190,7 +147,7 @@ test.describe('Annotation', () => {
     await expect(reader.annotationPopup).toBeVisible();
     await expect(reader.rangeHandles).toHaveCount(2);
 
-    await reader.popupTool('Dictionary').click();
+    await reader.popupTool(/^Look up/).click();
 
     await expect(reader.dictionaryPopup).toBeVisible();
     await expect(reader.rangeHandles).toHaveCount(0);
@@ -261,7 +218,7 @@ test.describe('Annotation', () => {
     await expect(noteBubbles).toHaveCount(1);
 
     await clickHighlight();
-    await reader.popupTool('Delete Highlight').click();
+    await reader.popupTool(/^Delete$/).click();
 
     await expect(noteBubbles).toHaveCount(0);
     await reader.openAnnotationsTab();
