@@ -2515,7 +2515,12 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
     .map((type): AnnotationPopupAction | null => {
       const def = annotationToolButtons.find((button) => button.type === type);
       if (!def) return null;
-      const onClick = type === 'copylink' ? handleCopyLink : () => handleSpeakText();
+      const onClick =
+        type === 'copylink'
+          ? handleCopyLink
+          : type === 'quotecard'
+            ? () => void handleQuoteCard()
+            : () => handleSpeakText(true);
       return { id: type, label: _(def.label), Icon: def.Icon, onClick };
     })
     .filter((action): action is AnnotationPopupAction => action !== null);
@@ -2646,6 +2651,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
           isVertical={viewSettings.vertical}
           selectedText={selection?.text ?? ''}
           notes={annotationNotes}
+          onEditNote={handleEditNote}
           position={annotPopupPosition}
           trianglePosition={trianglePosition}
           selectedStyle={selectedStyle}

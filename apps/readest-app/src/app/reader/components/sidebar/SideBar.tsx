@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
@@ -34,9 +34,10 @@ const SideBar = ({}) => {
     useSidebarStore();
   const { setSearchBarVisible } = useSidebarStore();
   const searchNavState = sideBarBookKey ? getSearchNavState(sideBarBookKey) : null;
-  const { searchResults = null } = searchNavState || {};
+  const { searchTerm = '', searchResults = null } = searchNavState || {};
   const { getBookData, getConfig } = useBookDataStore();
   const { getView, getViewSettings } = useReaderStore();
+  const searchTermRef = useRef(searchTerm);
   const isMobile = window.innerWidth < 640;
   const [isFullHeightInMobile, setIsFullHeightInMobile] = useState(isMobile);
   const {
@@ -90,6 +91,10 @@ const SideBar = ({}) => {
   }, [isSideBarVisible]);
 
   useEffect(() => {
+    searchTermRef.current = searchTerm;
+  }, [searchTerm]);
+
+  useEffect(() => {
     eventDispatcher.on('search-term', onSearchEvent);
     eventDispatcher.on('navigate', onNavigateEvent);
     return () => {
@@ -130,7 +135,7 @@ const SideBar = ({}) => {
   }, [sideBarBookKey, clearSearch]);
 
   const handleHideSideBar = useCallback(() => {
-    if (isSearchBarVisible) {
+    if (searchTermRef.current) {
       handleHideSearchBar();
       return true;
     }
@@ -139,7 +144,7 @@ const SideBar = ({}) => {
     setSideBarVisible(false);
     return true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sideBarBookKey, isSearchBarVisible, isSideBarPinned, isSideBarVisible]);
+  }, [sideBarBookKey, isSideBarPinned, isSideBarVisible]);
 
   useShortcuts({ onShowSearchBar: handleShowSearchBar, onEscape: handleHideSideBar }, [
     handleHideSideBar,

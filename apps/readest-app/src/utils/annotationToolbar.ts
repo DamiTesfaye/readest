@@ -61,7 +61,7 @@ export const getToolbarToolTypes = (
   canShare: boolean,
 ): AnnotationToolType[] => sanitize(items).filter((type) => canShare || type !== 'share');
 
-const POPUP_EXTRA_TOOL_TYPES: AnnotationToolType[] = ['copylink', 'tts'];
+const POPUP_EXTRA_TOOL_TYPES: AnnotationToolType[] = ['copylink', 'tts', 'quotecard'];
 
 export const getPopupExtraToolTypes = (
   items: AnnotationToolType[] | undefined,

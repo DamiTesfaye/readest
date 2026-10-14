@@ -61,6 +61,7 @@ interface AnnotationPopupProps {
   isVertical: boolean;
   selectedText: string;
   notes: BookNote[];
+  onEditNote?: (note: BookNote) => void;
   position: Position;
   trianglePosition: Position;
   selectedStyle: HighlightStyle;
@@ -93,6 +94,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
   isVertical,
   selectedText,
   notes,
+  onEditNote,
   position,
   trianglePosition,
   selectedStyle: _selectedStyle,
@@ -195,6 +197,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
             triangleDir={trianglePosition.dir!}
             popupWidth={popupWidth}
             popupHeight={popupHeight}
+            onEditNote={onEditNote}
             onDismiss={onDismiss}
           />
         ) : showAdvanced ? (
