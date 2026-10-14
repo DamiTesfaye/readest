@@ -61,7 +61,6 @@ export const creatorColor = (userId: string): string => {
 const BATCH = 20;
 const MARKER = 14;
 const AVATAR = 18;
-let clipIds = 0;
 const SAME_LINE_PX = 2;
 const PARAGRAPH_MERGE_ABOVE = 200;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -97,28 +96,7 @@ const box = (left: number, top: number, size: number) =>
 
 const drawMarker = (g: SVGElement, cx: number, cy: number, r: number, o: MarginDrawOptions) => {
   const color = o.creator?.color ?? MARGIN_COLOR;
-  const avatar = o.creator?.avatarUrl;
-  if (avatar) {
-    const id = `margins-avatar-${++clipIds}`;
-    const clip = svg('clipPath', { id });
-    clip.append(svg('circle', { cx, cy, r }));
-    g.append(clip);
-    g.append(svg('circle', { cx, cy, r, fill: color }));
-    g.append(
-      svg('image', {
-        href: avatar,
-        x: cx - r,
-        y: cy - r,
-        width: 2 * r,
-        height: 2 * r,
-        'clip-path': `url(#${id})`,
-        preserveAspectRatio: 'xMidYMid slice',
-      }),
-    );
-    g.append(svg('circle', { cx, cy, r, fill: 'none', stroke: color, 'stroke-width': 2 }));
-  } else {
-    g.append(svg('circle', { cx, cy, r, fill: color }));
-  }
+  g.append(svg('circle', { cx, cy, r, fill: color }));
   if (o.fuzzy) {
     g.append(
       svg('circle', {
@@ -131,7 +109,7 @@ const drawMarker = (g: SVGElement, cx: number, cy: number, r: number, o: MarginD
       }),
     );
   }
-  const label = o.count > 1 ? String(o.count) : avatar ? '' : (o.creator?.initial ?? '');
+  const label = o.count > 1 ? String(o.count) : (o.creator?.initial ?? '');
   if (label) {
     const text = svg('text', {
       x: cx,
