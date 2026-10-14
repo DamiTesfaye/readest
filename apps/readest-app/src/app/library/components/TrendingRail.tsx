@@ -7,7 +7,7 @@ import { useMarginsPublic } from '@/services/margins/public/flag';
 import { MARGINS_OPEN_POST_EVENT, TRENDING_RAIL_LIMIT } from '@/services/margins/public/openPost';
 import { eventDispatcher } from '@/utils/event';
 import { navigateToLibrary } from '@/utils/nav';
-import { useTrendingPage } from './TrendingView';
+import { useTrendingPage } from '@/services/margins/public/feedApi';
 
 export function TrendingRail() {
   const _ = useTranslation();

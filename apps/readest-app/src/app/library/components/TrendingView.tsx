@@ -1,28 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import PostCard, { OpenInBook } from '@/app/reader/components/margins/PostCard';
-import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getSession } from '@/services/ampleread/auth/session';
-import { type PostPage, type PostView, publicApi } from '@/services/margins/public/api';
-import { ownedHashes, sessionSalt } from '@/services/margins/public/openPost';
-import { openMarginsStore } from '@/services/margins/store';
-import { getLocale } from '@/utils/misc';
+import type { PostView } from '@/services/margins/public/api';
+import { useTrendingPage } from '@/services/margins/public/feedApi';
 
 export const isTrendingView = (params: Pick<URLSearchParams, 'get'> | null): boolean =>
   params?.get('margins') === 'trending';
-
-export const useTrendingPage = () => {
-  const { appService } = useEnv();
-  return useCallback(
-    async (cursor?: string): Promise<PostPage> => {
-      const salt = sessionSalt();
-      const owned = appService ? await ownedHashes(await openMarginsStore(appService), salt) : [];
-      const lang = getLocale().split('-')[0] || 'en';
-      return publicApi.trending({ cursor, lang, salt, owned });
-    },
-    [appService],
-  );
-};
 
 function TrendingView() {
   const _ = useTranslation();
