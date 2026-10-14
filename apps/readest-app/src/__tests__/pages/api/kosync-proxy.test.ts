@@ -1,9 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '@/pages/api/kosync';
 
+const lookupMock = vi.hoisted(() => vi.fn());
+vi.mock('node:dns/promises', () => ({ default: { lookup: lookupMock }, lookup: lookupMock }));
 vi.mock('@/utils/cors', () => ({ corsAllMethods: {}, runMiddleware: vi.fn() }));
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => {
+  lookupMock.mockResolvedValue([{ address: '93.184.215.14', family: 4 }]);
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  lookupMock.mockReset();
+});
 
 const call = async (
   endpoint = '/users/auth',
@@ -192,5 +200,57 @@ describe('KOSync proxy boundaries', () => {
         redirect: 'manual',
       }),
     );
+  });
+
+  it.each([
+    [[{ address: '10.0.0.5', family: 4 }]],
+    [[{ address: '169.254.169.254', family: 4 }]],
+    [[{ address: '::1', family: 6 }]],
+    [[{ address: '::ffff:192.168.1.10', family: 6 }]],
+    [
+      [
+        { address: '93.184.215.14', family: 4 },
+        { address: '127.0.0.1', family: 4 },
+      ],
+    ],
+  ])('rejects a public hostname that resolves to an internal address: %j', async (addresses) => {
+    lookupMock.mockResolvedValue(addresses);
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await call('/users/auth', 'https://internal.attacker.example');
+    expect(lookupMock).toHaveBeenCalledWith('internal.attacker.example', {
+      all: true,
+      verbatim: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a hostname that does not resolve', async () => {
+    lookupMock.mockRejectedValue(
+      Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await call('/users/auth', 'https://nowhere.example');
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('skips the DNS check for a public IP literal', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await call('/users/auth', 'https://8.8.8.8');
+    expect(lookupMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('skips the DNS check on Cloudflare Workers', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Cloudflare-Workers' });
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await call();
+    expect(lookupMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });
