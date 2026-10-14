@@ -15,3 +15,17 @@ export interface ReplayHandle {
 }
 
 export type ReplayCtor = new (sceneJson: string) => ReplayHandle;
+
+export interface Scene {
+  v: 1;
+  page: { w: number; h: number; columns: number; gutter: number; font: string; size: number };
+  lines: { y: number; base: number; boxes: [number, number, number][] }[];
+  glyphs?: [number, number, number, number][];
+  passage: { start: number; end: number; boxes: [number, number] };
+  seed: number;
+  step_hz: 120;
+  events: number[][];
+  checkpoints: [number, number, number[]][];
+  sfx: [number, string][];
+  cover_step: number;
+}

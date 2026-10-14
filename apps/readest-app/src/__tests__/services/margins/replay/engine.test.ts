@@ -1,22 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import type { ReplayCtor } from '@/services/margins/replay/engine';
-
-const vendor = join(process.cwd(), 'public/vendor/margin-play');
-const scene = readFileSync(
-  join(process.cwd(), 'src/__tests__/fixtures/margins/scene-meditations.json'),
-  'utf8',
-);
-
-const replayCtor = async (): Promise<ReplayCtor> => {
-  const glue = await import(
-    /* @vite-ignore */ `${pathToFileURL(join(vendor, 'margin_play_wasm.js')).href}?i=replay`
-  );
-  glue.initSync({ module: readFileSync(join(vendor, 'margin_play_wasm_bg.wasm')) });
-  return glue.Replay as ReplayCtor;
-};
+import { goldenScene as scene, replayCtor } from './nodeReplay';
 
 describe('replay engine', () => {
   it('the vendored wasm reproduces the golden hashes', async () => {
