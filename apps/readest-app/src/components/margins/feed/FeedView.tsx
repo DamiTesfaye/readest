@@ -13,6 +13,7 @@ import {
 } from '@/services/margins/public/feedApi';
 import { engagement } from '@/services/margins/public/engagement';
 import { socialApi } from '@/services/margins/public/social';
+import { type Sfx, sharedSfx } from '@/services/margins/replay/sfx';
 import { familyCache } from '@/services/margins/sync';
 import { prefersReducedMotion } from '@/utils/animation';
 import { eventDispatcher } from '@/utils/event';
@@ -54,6 +55,7 @@ const Feed = ({ source, shown, onForYou }: FeedProps) => {
   const [cursor, setCursor] = useState<string | null>(null);
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [sfx, setSfx] = useState<Sfx | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [reduced] = useState(prefersReducedMotion);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -222,8 +224,15 @@ const Feed = ({ source, shown, onForYou }: FeedProps) => {
             muted={muted}
             reduced={reduced}
             signedIn={signedIn}
-            onUnmute={() => setMuted(false)}
-            onMute={() => setMuted(true)}
+            sfx={sfx}
+            onUnmute={() => {
+              setSfx(sharedSfx());
+              setMuted(false);
+            }}
+            onMute={() => {
+              sfx?.stop();
+              setMuted(true);
+            }}
             onHidden={hide}
             onOpenBook={openBook}
             onEngage={signedIn ? countEngagement : noEngagement}

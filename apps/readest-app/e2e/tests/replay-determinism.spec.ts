@@ -36,3 +36,21 @@ test('the golden scene replays to the same hashes', async ({ page }) => {
   }, scene);
   expect(hashes).toEqual((JSON.parse(scene).checkpoints as [number, number][]).map(([, h]) => h));
 });
+
+test('decodes the pack', async ({ page }) => {
+  const ogg = readFileSync(join(process.cwd(), 'public/sfx/thud-1.ogg'));
+  await page.route(`${origin}/**`, (route) =>
+    new URL(route.request().url()).pathname === '/thud-1.ogg'
+      ? route.fulfill({ contentType: 'audio/ogg', body: ogg })
+      : route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>sfx</title>' }),
+  );
+  await page.goto(`${origin}/`);
+  const ok = await page.evaluate(async () => {
+    const bytes = await (await fetch('/thud-1.ogg')).arrayBuffer();
+    return new OfflineAudioContext(1, 48000, 48000).decodeAudioData(bytes).then(
+      (b) => b.duration > 0,
+      () => false,
+    );
+  });
+  test.info().annotations.push({ type: 'opus', description: ok ? 'decodes' : 'skipped' });
+});

@@ -166,4 +166,28 @@ describe('ReplayPlayer', () => {
     await settle();
     expect(screen.getByRole('img', { name: /Meditations, Book II/ }).tagName).toBe('IMG');
   });
+
+  it('schedules nothing muted, and only effects still ahead once unmuted', async () => {
+    const sfx = { schedule: vi.fn(), stop: vi.fn() };
+    const withSfx = {
+      ...scene,
+      seed: 7,
+      sfx: [
+        [10, 'pop-1'],
+        [20, 'tick-1'],
+      ],
+    } as unknown as Scene;
+    const { rerender } = render(<ReplayPlayer {...props} scene={withSfx} sfx={null} />);
+    await settle();
+    lastArgs.current!.onSound!(10, -1, 10);
+    lastArgs.current!.onSound!(12, 1, 12);
+    expect(sfx.schedule).not.toHaveBeenCalled();
+    rerender(<ReplayPlayer {...props} scene={withSfx} sfx={sfx} />);
+    lastArgs.current!.onSound!(20, -2, 19);
+    lastArgs.current!.onSound!(30, 1, 31);
+    expect(sfx.schedule.mock.calls).toEqual([
+      ['tick-1', 20, 19],
+      ['thud-3', 30, 31],
+    ]);
+  });
 });

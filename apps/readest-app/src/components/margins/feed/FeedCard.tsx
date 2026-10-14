@@ -11,6 +11,7 @@ import { type EngagementKind, sceneOf } from '@/services/margins/public/feedApi'
 import { sharePost } from '@/services/margins/public/share';
 import { socialApi } from '@/services/margins/public/social';
 import { chooseMaterial, type Material, ownerPassage } from '@/services/margins/replay/material';
+import type { Sfx } from '@/services/margins/replay/sfx';
 import type { Scene } from '@/services/margins/replay/types';
 import { openMarginsStore } from '@/services/margins/store';
 import { useLibraryStore } from '@/store/libraryStore';
@@ -25,6 +26,7 @@ export interface FeedCardProps {
   post: PostView;
   active: boolean;
   muted: boolean;
+  sfx?: Sfx | null;
   reduced: boolean;
   signedIn: boolean;
   onUnmute(): void;
@@ -48,6 +50,7 @@ const FeedCard = ({
   post,
   active,
   muted,
+  sfx = null,
   reduced,
   signedIn,
   onUnmute,
@@ -143,6 +146,7 @@ const FeedCard = ({
                 reduced={reduced}
                 active={active}
                 onEngage={(kind) => onEngage(post, kind)}
+                sfx={muted ? null : sfx}
               />
             )
           : isEnvelope(post.payload) && (

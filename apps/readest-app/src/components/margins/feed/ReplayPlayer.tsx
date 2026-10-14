@@ -9,6 +9,7 @@ import {
   type Player,
   type PlayerArgs,
 } from '@/services/margins/replay/player';
+import { landingSound, type Sfx } from '@/services/margins/replay/sfx';
 import type { Scene } from '@/services/margins/replay/types';
 
 export type Engagement = 'view' | 'completion' | 'replay' | 'your_turn';
@@ -23,10 +24,11 @@ export interface ReplayPlayerProps {
   reduced: boolean;
   active: boolean;
   onEngage?(kind: Engagement): void;
-  onSound?(step: number, code: number, sfx: [number, string][]): void;
+  sfx?: Sfx | null;
 }
 
 const VIEW_MS = 1000;
+const LANDED = 1;
 const BUTTON = 'btn btn-sm btn-ghost bg-base-100/80';
 
 const sizeCanvas = (canvas: HTMLCanvasElement, scene: Scene) => {
@@ -46,12 +48,12 @@ const ReplayPlayer = ({
   reduced,
   active,
   onEngage,
-  onSound,
+  sfx = null,
 }: ReplayPlayerProps) => {
   const _ = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engage = useRef(onEngage);
-  const sound = useRef(onSound);
+  const sound = useRef(sfx);
   const viewed = useRef(false);
   const [level, setLevel] = useState<Level | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
@@ -61,13 +63,14 @@ const ReplayPlayer = ({
   const [turned, setTurned] = useState(false);
   const label = `${alt} — ${citation}`;
   engage.current = onEngage;
-  sound.current = onSound;
+  sound.current = sfx;
 
   useEffect(() => {
     let cancelled = false;
     let made: Player | null = null;
     const canvas = canvasRef.current;
     const levels: [Level, () => Promise<Player | null>][] = [];
+    let landed = 0;
     if (scene && canvas) {
       sizeCanvas(canvas, scene);
       const args = async (): Promise<PlayerArgs> => ({
@@ -79,7 +82,11 @@ const ReplayPlayer = ({
         font: scene.page.font.startsWith('SourceSans') ? 'sans-serif' : 'serif',
         reduced,
         onDrift: (step) => console.warn('Margins: replay_drift', postId, step, navigator.userAgent),
-        onSound: (step, code) => sound.current?.(step, code, scene.sfx),
+        onSound: (step, code, now) => {
+          const id =
+            code === LANDED ? landingSound(scene.seed, landed++) : scene.sfx[-1 - code]?.[1];
+          if (id) sound.current?.schedule(id, step, now);
+        },
         onEnd: () => {
           setEnded(true);
           engage.current?.('completion');

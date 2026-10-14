@@ -27,7 +27,7 @@ export interface PlayerArgs {
   raf?: (cb: FrameRequestCallback) => number;
   caf?: (id: number) => void;
   onDrift?(step: number): void;
-  onSound?(step: number, code: number): void;
+  onSound?(step: number, code: number, now: number): void;
   onEnd?(): void;
   onTurn?(): void;
 }
@@ -165,10 +165,10 @@ export const createPlayer = (a: PlayerArgs): Player => {
 
   const emitSounds = () => {
     const sounds = replay.take_sounds();
-    for (let i = 0; i + 1 < sounds.length; i += 2) a.onSound?.(sounds[i]!, sounds[i + 1]!);
     const now = replay.now();
-    while (sfxNext < a.scene.sfx.length && a.scene.sfx[sfxNext]![0] <= now) {
-      a.onSound?.(a.scene.sfx[sfxNext]![0], sceneSfxCode(sfxNext));
+    for (let i = 0; i + 1 < sounds.length; i += 2) a.onSound?.(sounds[i]!, sounds[i + 1]!, now);
+    while (sfxNext < a.scene.sfx.length && a.scene.sfx[sfxNext]![0] <= now + 1) {
+      a.onSound?.(a.scene.sfx[sfxNext]![0], sceneSfxCode(sfxNext), now);
       sfxNext++;
     }
   };

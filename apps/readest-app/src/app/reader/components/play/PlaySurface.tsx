@@ -10,6 +10,7 @@ import {
   type PlaySession,
 } from '@/services/margins/play/surfaceSession';
 import { playTools, type PlayTool } from '@/services/margins/play/tools';
+import { sharedSfx } from '@/services/margins/replay/sfx';
 import { openMarginsStore } from '@/services/margins/store';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useCustomFontStore } from '@/store/customFontStore';
@@ -181,7 +182,15 @@ const SoundPicker = ({ play }: { play: PlayTools }) => {
     >
       {failed && <p className='text-error text-xs'>{_("Sound effects couldn't load")}</p>}
       {effects.map((e) => (
-        <button key={e.id} type='button' className='btn btn-xs' onClick={() => play.addSound(e.id)}>
+        <button
+          key={e.id}
+          type='button'
+          className='btn btn-xs'
+          onClick={() => {
+            play.addSound(e.id);
+            sharedSfx()?.schedule(e.id, 0, 0);
+          }}
+        >
           {e.label}
         </button>
       ))}
