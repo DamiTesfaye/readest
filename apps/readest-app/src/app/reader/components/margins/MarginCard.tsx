@@ -87,9 +87,11 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
       tabIndex={-1}
       className='flex flex-col gap-2 rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#5B3DF5]'
     >
-      <p className='text-base-content/85 line-clamp-3 font-serif text-xs leading-relaxed'>
-        {quote}
-      </p>
+      {!(expanded && envelope) && (
+        <p className='text-base-content/85 line-clamp-3 font-serif text-xs leading-relaxed'>
+          {quote}
+        </p>
+      )}
       {expanded && envelope && (
         <div
           className='relative w-full overflow-hidden rounded-lg'
