@@ -85,7 +85,6 @@ import { useReaderStore } from '@/store/readerStore';
 import { useBookDataStore, type BookData } from '@/store/bookDataStore';
 import { useLibraryStore } from '@/store/libraryStore';
 import { uniqueId } from '@/utils/misc';
-import { useLibraryStore } from '@/store/libraryStore';
 import { trackEvent } from '@/services/ampleread';
 import type { Book } from '@/types/book';
 

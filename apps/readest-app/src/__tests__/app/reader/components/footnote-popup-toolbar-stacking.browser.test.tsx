@@ -133,6 +133,8 @@ afterEach(() => {
 const footnoteContainer = () =>
   document.querySelector<HTMLElement>('#popup-container:not(.selection-popup)')!;
 
+const noop = () => {};
+
 /** Open the toolbar on a selection inside the already-open footnote popup. */
 const openToolbarOver = (rect: DOMRect) => {
   const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -141,23 +143,32 @@ const openToolbarOver = (rect: DOMRect) => {
       bookKey='book-1'
       dir='ltr'
       isVertical={false}
-      buttons={[
-        {
-          tooltipText: 'Dictionary',
-          Icon: () => <span>D</span>,
-          onClick: () => {},
-        },
-      ]}
+      selectedText='note'
       notes={[]}
       position={{ point }}
       trianglePosition={{ point, dir: 'up' }}
-      highlightOptionsVisible={false}
       selectedStyle='highlight'
       selectedColor='yellow'
+      annotatedStyle={null}
       popupWidth={240}
       popupHeight={44}
-      onHighlight={() => {}}
-      onDismiss={() => {}}
+      canShare={false}
+      canMargin={false}
+      onMargin={noop}
+      onSelectStyle={noop}
+      onSelectColor={noop}
+      onBookmark={noop}
+      onAddNote={noop}
+      onLookup={noop}
+      onTranslate={noop}
+      onSearch={noop}
+      onCopy={noop}
+      onShare={noop}
+      onDelete={noop}
+      canProofread={false}
+      onProofread={noop}
+      extraActions={[]}
+      onDismiss={noop}
     />,
   );
   return document.querySelector<HTMLElement>('.selection-popup')!;
