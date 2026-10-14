@@ -49,8 +49,8 @@ class TestAppService extends BaseAppService {
   protected fs = {
     openFile: vi.fn(),
     readFile: vi.fn(async (path: string) => disk.get(path) ?? '{}'),
-    writeFile: vi.fn(async (path: string, _base: unknown, content: string) => {
-      if (typeof content === 'string') disk.set(path, content);
+    writeFile: vi.fn(async (path: string, _base: unknown, content: unknown) => {
+      disk.set(path, typeof content === 'string' ? content : '');
     }),
     copyFile: vi.fn(),
     removeFile: vi.fn(),
@@ -61,8 +61,7 @@ class TestAppService extends BaseAppService {
       for (const key of [...disk.keys()]) if (key.startsWith(`${dir}/`)) disk.delete(key);
     }),
     exists: vi.fn(async (path: string) => {
-      if (path.endsWith('/config.json')) return disk.has(path);
-      return false;
+      return disk.has(path);
     }),
     stats: vi.fn(),
     resolvePath: vi.fn(),

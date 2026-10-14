@@ -24,7 +24,7 @@ vi.mock('@/hooks/useLibrary', () => ({ useLibrary: () => ({ libraryLoaded: false
 vi.mock('@/hooks/useScreenWakeLock', () => ({ useScreenWakeLock: vi.fn() }));
 vi.mock('@/app/reader/hooks/useScreenBrightness', () => ({ useScreenBrightness: vi.fn() }));
 vi.mock('@/hooks/useTransferQueue', () => ({ useTransferQueue: vi.fn() }));
-vi.mock('@/hooks/useReplicaPull', () => ({ useReplicaPull: vi.fn() }));
+vi.mock('@/hooks/useReplicaPull', () => ({ useReplicaPull: vi.fn(), READER_REPLICA_KINDS: [] }));
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: () => ({ settings: { alwaysShowStatusBar: false } }),
 }));

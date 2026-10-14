@@ -106,6 +106,13 @@ function trackWrites(fs: TestFs, extraExists: (path: string) => boolean = () => 
   fs.exists.mockImplementation(async (path: string) => written.has(path) || extraExists(path));
 }
 
+function wrote(fs: TestFs, path: string) {
+  return (
+    fs.writeFile.mock.calls.some((call) => call[0] === path) ||
+    fs.copyFile.mock.calls.some((call) => call[2] === path)
+  );
+}
+
 function makeBook(overrides: Partial<Book> = {}): Book {
   return {
     hash: 'old-hash-123',
@@ -253,8 +260,9 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) =>
-      ['old-hash-123/config.json', 'old-hash-123'].includes(path),
+    fs.exists.mockImplementation(
+      async (path: string) =>
+        wrote(fs, path) || ['old-hash-123/config.json', 'old-hash-123'].includes(path),
     );
     fs.readFile.mockResolvedValue(
       JSON.stringify({
@@ -306,7 +314,9 @@ describe('importBook metaHash deduplication', () => {
     mockPartialMD5.mockResolvedValue('old-hash-123');
     setupMockBookDoc();
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => path === 'new-hash-456');
+    fs.exists.mockImplementation(
+      async (path: string) => wrote(fs, path) || path === 'new-hash-456',
+    );
 
     const result = await service.importBook(
       new File(['old content'], 'test.epub', { type: 'application/epub+zip' }),
@@ -407,7 +417,9 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) => path === 'old-hash-123/config.json');
+    fs.exists.mockImplementation(
+      async (path: string) => wrote(fs, path) || path === 'old-hash-123/config.json',
+    );
     fs.readFile.mockResolvedValue(JSON.stringify({ lastSyncedAtNotes: Date.now() }));
 
     await service.importBook(
@@ -479,8 +491,9 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) =>
-      ['old-hash-123/config.json', 'old-hash-123'].includes(path),
+    fs.exists.mockImplementation(
+      async (path: string) =>
+        wrote(fs, path) || ['old-hash-123/config.json', 'old-hash-123'].includes(path),
     );
     fs.readFile.mockResolvedValue(
       JSON.stringify({
@@ -531,8 +544,9 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) =>
-      ['old-hash-123/config.json', 'old-hash-123'].includes(path),
+    fs.exists.mockImplementation(
+      async (path: string) =>
+        wrote(fs, path) || ['old-hash-123/config.json', 'old-hash-123'].includes(path),
     );
     fs.readFile.mockResolvedValue(
       JSON.stringify({
@@ -571,8 +585,9 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) =>
-      ['old-hash-123/config.json', 'old-hash-123'].includes(path),
+    fs.exists.mockImplementation(
+      async (path: string) =>
+        wrote(fs, path) || ['old-hash-123/config.json', 'old-hash-123'].includes(path),
     );
     fs.readFile.mockResolvedValue(
       JSON.stringify({
@@ -614,8 +629,9 @@ describe('importBook metaHash deduplication', () => {
     setupMockBookDoc();
 
     const fs = service.getFs();
-    fs.exists.mockImplementation(async (path: string) =>
-      ['old-hash-123/config.json', 'old-hash-123'].includes(path),
+    fs.exists.mockImplementation(
+      async (path: string) =>
+        wrote(fs, path) || ['old-hash-123/config.json', 'old-hash-123'].includes(path),
     );
     fs.readFile.mockResolvedValue(
       JSON.stringify({
@@ -1025,6 +1041,7 @@ describe('importBook metaHash aggregation', () => {
 
     const fs = service.getFs();
     fs.exists.mockImplementation(async (path: string) => {
+      if (wrote(fs, path)) return true;
       if (path.endsWith('/config.json')) return true;
       return path === 'paired-hash';
     });
@@ -1343,7 +1360,7 @@ describe('importBook volatile-identifier dedup (issue #5959)', () => {
     vi.clearAllMocks();
     service = new TestAppService();
     const fs = service.getFs();
-    fs.exists.mockResolvedValue(false);
+    fs.exists.mockImplementation(async (path: string) => wrote(fs, path));
     fs.createDir.mockResolvedValue(undefined);
     fs.writeFile.mockResolvedValue(undefined);
     fs.removeDir.mockResolvedValue(undefined);
