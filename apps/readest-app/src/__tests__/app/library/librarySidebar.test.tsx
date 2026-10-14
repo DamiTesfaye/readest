@@ -10,6 +10,7 @@ const { navigateToLibrary, navigateToLogin, navigateToProfile, dispatch } = vi.h
 }));
 
 let searchString = '';
+let marginsPublic = false;
 let amplereadSession: {
   me: { displayName: string | null; email: string | null; avatarUrl: string | null };
 } | null = null;
@@ -57,6 +58,7 @@ vi.mock('@/components/Dropdown', () => ({
 vi.mock('@/app/library/components/SettingsMenu', () => ({
   default: () => <div data-testid='settings-menu' />,
 }));
+vi.mock('@/services/margins/public/flag', () => ({ useMarginsPublic: () => marginsPublic }));
 vi.mock('@/components/UserAvatar', () => ({ default: () => <div data-testid='avatar' /> }));
 
 import LibrarySidebar from '@/app/library/components/LibrarySidebar';
@@ -74,6 +76,7 @@ const renderSidebar = (overrides: Partial<React.ComponentProps<typeof LibrarySid
 
 beforeEach(() => {
   searchString = '';
+  marginsPublic = false;
   amplereadSession = null;
   navigateToLibrary.mockReset();
   navigateToLogin.mockReset();
@@ -309,5 +312,32 @@ describe('LibrarySidebar', () => {
     expect(screen.getByRole('button', { name: 'Sign into your account' }).innerHTML).toContain(
       'Avenir_Next_LT_Pro',
     );
+  });
+
+  it('opens the Feed under Margins only while the flag is on', () => {
+    renderSidebar();
+    expect(screen.queryByRole('button', { name: 'Feed' })).toBeNull();
+    cleanup();
+    marginsPublic = true;
+    searchString = 'margins=true&explore=true';
+    renderSidebar();
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(labels.indexOf('Feed')).toBe(labels.indexOf('Your Margins') + 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Feed' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).toContain('feed=for-you');
+    expect(navigatedTo).not.toContain('margins=');
+    expect(navigatedTo).not.toContain('explore=');
+  });
+
+  it('marks the Feed current in a feed and leaves it for Your Margins', () => {
+    marginsPublic = true;
+    searchString = 'feed=book&text=txt1&order=ranked';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Feed' }).getAttribute('aria-current')).toBe('page');
+    fireEvent.click(screen.getByRole('button', { name: 'Your Margins' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).toContain('margins=true');
+    expect(navigatedTo).not.toMatch(/feed=|text=|order=/);
   });
 });

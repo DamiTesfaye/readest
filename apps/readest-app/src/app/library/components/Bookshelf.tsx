@@ -27,6 +27,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useLibraryStore } from '@/store/libraryStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { navigateToLibrary, navigateToReader, showReaderWindow } from '@/utils/nav';
+import { bookFeedParams } from '@/services/margins/public/feedApi';
 import {
   createBookFilter,
   createBookGroups,
@@ -952,6 +953,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           handleSetSelectMode={handleSetSelectMode}
           handleShowDetailsBook={handleShowDetailsBook}
           handleLibraryNavigation={handleLibraryNavigation}
+          handleOpenMarginsFeed={(textId) => navigateToLibrary(router, bookFeedParams(textId))}
           handleUpdateReadingStatus={handleUpdateReadingStatus}
           transferProgress={'hash' in item ? (transferProgress[item.hash] ?? null) : null}
           showTimeRemaining={showTimeRemaining}

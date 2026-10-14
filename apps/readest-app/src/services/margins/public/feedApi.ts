@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
 import type { AppService } from '@/types/system';
 import { getLocale } from '@/utils/misc';
@@ -6,6 +6,7 @@ import { unpackScene } from '../replay/scene';
 import type { Scene } from '../replay/types';
 import { openMarginsStore } from '../store';
 import { type PostPage, type PostView, publicApi } from './api';
+import { useMarginsPublic } from './flag';
 import { ownedHashes, sessionSalt } from './openPost';
 
 export type FeedSource =
@@ -15,8 +16,45 @@ export type FeedSource =
 
 export type EngagementKind = 'view' | 'completion' | 'replay' | 'your_turn' | 'get_book';
 
+type Params = Pick<URLSearchParams, 'get'> | null;
+
 const SCENES_KEPT = 50;
 const scenes = new Map<string, Promise<Scene | null>>();
+
+export const FEED_PARAMS = ['feed', 'text', 'order'];
+
+export const feedSourceOf = (params: Params): FeedSource | null => {
+  if (params?.get('margins') === 'trending') return { kind: 'for-you' };
+  const feed = params?.get('feed');
+  if (feed === 'for-you' || feed === 'following') return { kind: feed };
+  const textId = params?.get('text');
+  if (feed !== 'book' || !textId) return null;
+  return { kind: 'book', textId, order: params?.get('order') === 'book' ? 'book' : 'ranked' };
+};
+
+export const isFeedView = (params: Params): boolean => feedSourceOf(params) !== null;
+
+export const bookFeedParams = (textId: string): string =>
+  `feed=book&text=${encodeURIComponent(textId)}&order=ranked`;
+
+export const useBookTextId = (hash: string | null): string | null => {
+  const { appService } = useEnv();
+  const on = useMarginsPublic();
+  const [textId, setTextId] = useState<string | null>(null);
+  useEffect(() => {
+    setTextId(null);
+    if (!on || !hash || !appService) return;
+    let live = true;
+    openMarginsStore(appService)
+      .then((store) => store.getTextLink(hash))
+      .then((link) => live && setTextId(link?.textId ?? null))
+      .catch(() => live && setTextId(null));
+    return () => {
+      live = false;
+    };
+  }, [on, hash, appService]);
+  return textId;
+};
 
 const trendingPage = async (appService: AppService | null, cursor?: string): Promise<PostPage> => {
   const salt = sessionSalt();

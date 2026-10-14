@@ -27,7 +27,9 @@ import type { LayerRow } from '@/services/margins/store';
 import { requestMarginOpen } from '@/app/reader/hooks/useMarginsPainter';
 import MarginsRail from './components/MarginsRail';
 import MarginsView from './components/MarginsView';
-import TrendingView, { isTrendingView } from './components/TrendingView';
+import FeedView from '@/components/margins/feed/FeedView';
+import { FEED_PARAMS, feedSourceOf } from '@/services/margins/public/feedApi';
+import { useMarginsPublic } from '@/services/margins/public/flag';
 import PublicMarginsHost from '@/app/reader/components/margins/PublicMarginsHost';
 import AmpleDocumentPromptDialog, {
   type AmpleDocumentChoice,
@@ -224,6 +226,7 @@ const LibraryPageWithSearchParams = () => {
 const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchParams | null }) => {
   const router = useAppRouter();
   const { envConfig, appService } = useEnv();
+  const marginsPublic = useMarginsPublic();
   const { token, user } = useAuth();
   const {
     library: libraryBooks,
@@ -702,6 +705,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     params.delete('q');
     params.delete('status');
     params.delete('group');
+    for (const key of FEED_PARAMS) params.delete(key);
     navigateToLibrary(router, params.toString());
   };
 
@@ -713,6 +717,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     params.delete('q');
     params.delete('status');
     params.delete('group');
+    for (const key of FEED_PARAMS) params.delete(key);
     navigateToLibrary(router, params.toString());
   };
 
@@ -724,6 +729,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     params.delete('q');
     params.delete('status');
     params.delete('group');
+    for (const key of FEED_PARAMS) params.delete(key);
     navigateToLibrary(router, params.toString());
   };
 
@@ -2023,9 +2029,9 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const showExploreView = !showCatalogsView && searchParams?.get('explore') === 'true';
   const showMarginsView =
     !showCatalogsView && !showExploreView && searchParams?.get('margins') === 'true';
-  const showTrendingView = !showCatalogsView && !showExploreView && isTrendingView(searchParams);
-  const showDiscoverView =
-    showCatalogsView || showExploreView || showMarginsView || showTrendingView;
+  const feedSource =
+    marginsPublic && !showCatalogsView && !showExploreView ? feedSourceOf(searchParams) : null;
+  const showDiscoverView = showCatalogsView || showExploreView || showMarginsView || !!feedSource;
   const catalogSearchQuery = searchParams?.get('q') ?? '';
 
   return (
@@ -2233,9 +2239,9 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             <MarginsView onOpenMargin={handleOpenMargin} />
           </div>
         )}
-        {showTrendingView && (
-          <div className='min-h-0 flex-grow overflow-y-auto'>
-            <TrendingView />
+        {feedSource && (
+          <div className='min-h-0 grow'>
+            <FeedView source={feedSource} />
           </div>
         )}
         {!showDiscoverView &&

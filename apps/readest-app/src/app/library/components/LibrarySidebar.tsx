@@ -12,6 +12,8 @@ import { useAppRouter } from '@/hooks/useAppRouter';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
 import { useAmpleReadSession } from '@/hooks/useAmpleReadSession';
 import { navigateToLibrary } from '@/utils/nav';
+import { FEED_PARAMS, isFeedView } from '@/services/margins/public/feedApi';
+import { useMarginsPublic } from '@/services/margins/public/flag';
 import { getHomepageIconSrc, getSearchShortcutBadgeSrc } from '@/utils/toolbarIcons';
 import { ensureLibraryStatusFilter, LibraryStatusFilter } from '../utils/libraryUtils';
 import { eventDispatcher } from '@/utils/event';
@@ -92,7 +94,9 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
   const catalogsActive = searchParams?.get('catalogs') === 'true';
   const exploreActive = searchParams?.get('explore') === 'true';
   const marginsActive = searchParams?.get('margins') === 'true';
-  const discoverActive = catalogsActive || exploreActive || marginsActive;
+  const marginsPublic = useMarginsPublic();
+  const feedActive = isFeedView(searchParams);
+  const discoverActive = catalogsActive || exploreActive || marginsActive || feedActive;
 
   const navigateWithParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -153,6 +157,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
         params.delete('explore');
         params.delete('margins');
         params.delete('q');
+        for (const key of FEED_PARAMS) params.delete(key);
       }
     });
   };
@@ -160,6 +165,18 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
   const handleOpenMargins = () => {
     navigateWithParams((params) => {
       params.set('margins', 'true');
+      params.delete('catalogs');
+      params.delete('explore');
+      params.delete('q');
+      for (const key of FEED_PARAMS) params.delete(key);
+    });
+  };
+
+  const handleOpenFeed = () => {
+    navigateWithParams((params) => {
+      for (const key of FEED_PARAMS) params.delete(key);
+      params.set('feed', 'for-you');
+      params.delete('margins');
       params.delete('catalogs');
       params.delete('explore');
       params.delete('q');
@@ -265,6 +282,16 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
             isDarkMode={isDarkMode}
             onClick={handleOpenMargins}
           />
+          {marginsPublic && (
+            <SidebarNavItem
+              icon='margins'
+              iconSrc='/images/spark/margins.svg'
+              label={_('Feed')}
+              active={feedActive}
+              isDarkMode={isDarkMode}
+              onClick={handleOpenFeed}
+            />
+          )}
         </div>
         <div className='flex flex-col gap-1'>
           <span className='text-base-content/50 px-2 [font-family:"Avenir_Next_LT_Pro"] text-xs'>

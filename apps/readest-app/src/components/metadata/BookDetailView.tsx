@@ -35,6 +35,7 @@ import { DeleteIcon } from '@/components/DeleteIcon';
 import { DownloadIcon } from '@/components/DownloadIcon';
 import { ShareIcon } from '@/components/ShareIcon';
 import BookCoverViewer, { useBookCoverViewer } from '@/components/BookCoverViewer';
+import MarginsOnBookButton from '@/components/margins/feed/MarginsOnBookButton';
 import Dropdown from '../Dropdown';
 import MenuItem from '../MenuItem';
 
@@ -235,6 +236,7 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
               </button>
             )}
           </div>
+          <MarginsOnBookButton hash={book.hash} />
         </div>
       </div>
 

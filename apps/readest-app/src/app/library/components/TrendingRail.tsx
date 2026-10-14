@@ -54,7 +54,7 @@ export function TrendingRail() {
       <button
         type='button'
         className='link self-start text-sm'
-        onClick={() => navigateToLibrary(router, 'margins=trending')}
+        onClick={() => navigateToLibrary(router, 'feed=for-you')}
       >
         {_('See all')}
       </button>

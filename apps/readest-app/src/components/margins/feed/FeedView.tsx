@@ -4,7 +4,12 @@ import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getSession } from '@/services/ampleread/auth/session';
 import type { PostView } from '@/services/margins/public/api';
-import { type FeedSource, fetchFeedPage, preloadPost } from '@/services/margins/public/feedApi';
+import {
+  bookFeedParams,
+  type FeedSource,
+  fetchFeedPage,
+  preloadPost,
+} from '@/services/margins/public/feedApi';
 import { prefersReducedMotion } from '@/utils/animation';
 import { navigateToLibrary } from '@/utils/nav';
 import FeedCard from './FeedCard';
@@ -114,8 +119,7 @@ const FeedView = ({ source }: FeedViewProps) => {
     if (quiet && Math.abs(e.deltaY) > WHEEL_MIN) go(active + Math.sign(e.deltaY));
   };
 
-  const openBook = (post: PostView) =>
-    navigateToLibrary(router, `feed=book&text=${encodeURIComponent(post.textId)}&order=ranked`);
+  const openBook = (post: PostView) => navigateToLibrary(router, bookFeedParams(post.textId));
 
   const hide = (post: PostView) =>
     setPosts((prev) => prev?.filter((p) => p.author.handle !== post.author.handle) ?? null);

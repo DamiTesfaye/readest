@@ -2,12 +2,14 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostView } from '@/services/margins/public/api';
 
-const h = vi.hoisted(() => ({ passages: vi.fn() }));
+const h = vi.hoisted(() => ({ passages: vi.fn(), navigateToLibrary: vi.fn(), router: {} }));
 
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (s: string, opts?: Record<string, string | number>) =>
     opts ? s.replace(/\{\{(\w+)\}\}/g, (_m, key) => String(opts[key] ?? '')) : s,
 }));
+vi.mock('next/navigation', () => ({ useRouter: () => h.router }));
+vi.mock('@/utils/nav', () => ({ navigateToLibrary: h.navigateToLibrary }));
 vi.mock('@/services/ampleread/auth/session', () => ({ getSession: async () => null }));
 vi.mock('@/services/margins/public/api', async (orig) => ({
   ...(await orig<typeof import('@/services/margins/public/api')>()),
@@ -51,6 +53,16 @@ describe('PassageSheet', () => {
     expect(onViewInPlace).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }));
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onViewInPlace).toHaveBeenLastCalledWith(null);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens This Book from See all on this book', async () => {
+    h.passages.mockResolvedValue({ posts: [post('a')], nextCursor: null });
+    const onClose = vi.fn();
+    render(<PassageSheet {...passage} onClose={onClose} onViewInPlace={vi.fn()} />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'See all on this book' }));
+    expect(h.navigateToLibrary).toHaveBeenCalledWith(h.router, 'feed=book&text=txt1&order=ranked');
     expect(onClose).toHaveBeenCalled();
   });
 });

@@ -1041,6 +1041,7 @@ export type BookContextMenuItemId =
   | 'markAbandoned'
   | 'clearStatus'
   | 'showDetails'
+  | 'marginsOnBook'
   | 'showInFinder'
   | 'searchGoodreads'
   | 'download'
@@ -1173,7 +1174,7 @@ export const pickFresherMetadata = (
  */
 export const getBookContextMenuItemIds = (
   book: Book,
-  opts?: { localSend?: boolean; absOffline?: boolean },
+  opts?: { localSend?: boolean; absOffline?: boolean; margins?: boolean },
 ): BookContextMenuItemId[] => {
   const ids: BookContextMenuItemId[] = ['select', 'group'];
   ids.push(book.readingStatus === 'finished' ? 'markUnread' : 'markFinished');
@@ -1186,7 +1187,9 @@ export const getBookContextMenuItemIds = (
   ) {
     ids.push('clearStatus');
   }
-  ids.push('showDetails', 'showInFinder', 'searchGoodreads');
+  ids.push('showDetails');
+  if (opts?.margins) ids.push('marginsOnBook');
+  ids.push('showInFinder', 'searchGoodreads');
   // A feed book has no file to move: every transfer action would fail, and the
   // share dialog uploads before it can hand out a link (issue #5307).
   if (!isFeedBook(book)) {
