@@ -224,10 +224,10 @@ export const call = async (path: string, init: RequestInit = {}, signedOutOk = f
   );
 };
 
-const callJson = async <T>(path: string, init?: RequestInit, signedOutOk?: boolean) =>
+export const callJson = async <T>(path: string, init?: RequestInit, signedOutOk?: boolean) =>
   (await (await call(path, init, signedOutOk)).json()) as T;
 
-const withBody = (method: string, body: unknown): RequestInit => ({
+export const withBody = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify(body),
@@ -235,7 +235,7 @@ const withBody = (method: string, body: unknown): RequestInit => ({
 
 const seg = encodeURIComponent;
 
-const query = (params: Record<string, string | number | undefined>) =>
+export const query = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(
     Object.entries(params).flatMap(([k, v]) => (v === undefined ? [] : [[k, String(v)]])),
   ).toString();

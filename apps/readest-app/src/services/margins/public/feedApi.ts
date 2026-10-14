@@ -5,9 +5,10 @@ import { getLocale } from '@/utils/misc';
 import { unpackScene } from '../replay/scene';
 import type { Scene } from '../replay/types';
 import { openMarginsStore } from '../store';
-import { type PostPage, type PostView, publicApi } from './api';
+import { type PostPage, type PostView, publicApi, type TrendingRequest } from './api';
 import { useMarginsPublic } from './flag';
 import { ownedHashes, sessionSalt } from './openPost';
+import { socialApi } from './social';
 
 export type FeedSource =
   | { kind: 'for-you' }
@@ -56,12 +57,18 @@ export const useBookTextId = (hash: string | null): string | null => {
   return textId;
 };
 
-const trendingPage = async (appService: AppService | null, cursor?: string): Promise<PostPage> => {
+const trendingBody = async (
+  appService: AppService | null,
+  cursor?: string,
+): Promise<TrendingRequest> => {
   const salt = sessionSalt();
   const owned = appService ? await ownedHashes(await openMarginsStore(appService), salt) : [];
   const lang = getLocale().split('-')[0] || 'en';
-  return publicApi.trending({ cursor, lang, salt, owned });
+  return { cursor, lang, salt, owned };
 };
+
+const trendingPage = async (appService: AppService | null, cursor?: string): Promise<PostPage> =>
+  publicApi.trending(await trendingBody(appService, cursor));
 
 export const useTrendingPage = () => {
   const { appService } = useEnv();
@@ -73,8 +80,9 @@ export const fetchFeedPage = async (
   cursor: string | undefined,
   deps: { appService: AppService | null },
 ): Promise<PostPage> => {
-  if (source.kind === 'for-you') return trendingPage(deps.appService, cursor);
-  if (source.kind === 'following') return { posts: [], nextCursor: null };
+  if (source.kind === 'for-you')
+    return socialApi.forYou(await trendingBody(deps.appService, cursor));
+  if (source.kind === 'following') return socialApi.following(cursor);
   return publicApi.familyFeed(source.textId, source.order, cursor);
 };
 

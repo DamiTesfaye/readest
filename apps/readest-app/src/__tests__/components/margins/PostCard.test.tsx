@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   mute: vi.fn(async () => {}),
   report: vi.fn(async () => {}),
   sharePost: vi.fn(async () => 'copied'),
+  follow: vi.fn(async () => {}),
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -23,6 +24,7 @@ vi.mock('@/services/margins/public/api', async (orig) => ({
   publicApi: { postAssetUrl: h.postAssetUrl, mute: h.mute, report: h.report },
 }));
 vi.mock('@/services/margins/public/share', () => ({ sharePost: h.sharePost }));
+vi.mock('@/services/margins/public/social', () => ({ socialApi: { follow: h.follow } }));
 
 import PostCard from '@/app/reader/components/margins/PostCard';
 
@@ -108,5 +110,19 @@ describe('PostCard', () => {
     cleanup();
     render(<PostCard post={samplePost()} signedIn={false} />);
     expect(screen.queryByRole('button', { name: /Mute/ })).toBeNull();
+  });
+
+  it('puts Follow after the handle, and none on your own post', async () => {
+    render(<PostCard post={samplePost()} signedIn />);
+    const follow = screen.getByRole('button', { name: 'Follow' });
+    expect(
+      screen.getByText('@reader_1').compareDocumentPosition(follow) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await act(async () => fireEvent.click(follow));
+    expect(h.follow).toHaveBeenCalledWith('reader_1', 'pst1');
+    cleanup();
+    render(<PostCard post={samplePost({ mine: true })} signedIn />);
+    expect(screen.queryByRole('button', { name: 'Follow' })).toBeNull();
   });
 });

@@ -9,7 +9,9 @@ const h = vi.hoisted(() => ({
   postAssetUrl: vi.fn(async () => 'blob:cover'),
   mute: vi.fn(async () => {}),
   ownerPassage: vi.fn(async () => null as string | null),
+  follow: vi.fn(async () => {}),
 }));
+vi.mock('@/services/margins/public/social', () => ({ socialApi: { follow: h.follow } }));
 
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (s: string, opts?: Record<string, string | number>) =>
@@ -132,6 +134,17 @@ describe('FeedCard', () => {
     );
     expect(player.dataset['cover']).toBe('blob:cover');
     expect(h.postAsset).toHaveBeenCalledWith(expect.stringMatching(/^pst/), 'ast_s');
+  });
+
+  it('follows from the chip with the card post, and offers no Follow on your own post', async () => {
+    const p = post({ following: false });
+    await show(p);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Follow' })));
+    expect(h.follow).toHaveBeenCalledWith('reader_1', p.id);
+    screen.getByRole('button', { name: 'Following' });
+    cleanup();
+    await show(post({ mine: true }));
+    expect(screen.queryByRole('button', { name: 'Follow' })).toBeNull();
   });
 
   it('keeps Mute in More for signed-in viewers', async () => {

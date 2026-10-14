@@ -104,7 +104,7 @@ const FeedCard = ({
 
   return (
     <div className='flex h-full flex-col gap-3 p-4'>
-      <CreatorChip author={post.author} />
+      <CreatorChip post={post} signedIn={signedIn} />
       <div className='flex min-h-0 flex-1 items-center justify-center overflow-hidden'>
         {post.sceneAsset
           ? replay && (

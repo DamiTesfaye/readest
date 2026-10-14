@@ -2,6 +2,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
 import { CitationLine } from '@/components/margins/CitationLine';
+import FollowButton from '@/components/margins/feed/FollowButton';
 import { useTranslation } from '@/hooks/useTranslation';
 import { canDownloadEdition, getWorkDetail } from '@/services/ampleread';
 import { getSession } from '@/services/ampleread/auth/session';
@@ -52,6 +53,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
       <header className='flex items-baseline gap-2 text-xs'>
         <span className='font-semibold'>{post.author.displayName}</span>
         <span className='text-base-content/60'>{`@${post.author.handle}`}</span>
+        {!post.mine && (
+          <FollowButton
+            handle={post.author.handle}
+            postId={post.id}
+            following={post.following}
+            signedIn={signedIn}
+          />
+        )}
       </header>
       {isEnvelope(post.payload) ? (
         <MarginArt envelope={post.payload} quote={post.quote ?? ''} assetSource={assetSource} />
