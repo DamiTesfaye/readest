@@ -70,9 +70,11 @@ vi.mock('@/app/reader/components/sidebar/TabNavigation', () => ({
 
 import SidebarContent from '@/app/reader/components/sidebar/Content';
 
-describe('SidebarContent tab transitions', () => {
+describe('SidebarContent tab transitions on phone-sized screens', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.stubGlobal('innerWidth', 390);
+    vi.stubGlobal('innerHeight', 844);
     h.config.viewSettings.sideBarTab = 'toc';
     vi.clearAllMocks();
   });
@@ -80,6 +82,7 @@ describe('SidebarContent tab transitions', () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   test('keeps the old tab faded until the delayed swap is persisted', () => {

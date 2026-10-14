@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   setSideBarVisible: vi.fn(),
   sidebar: {
     isSearchBarVisible: true,
+    searchTerm: 'rabbit',
     sideBarBookKey: 'book-1',
   },
   sidebarHook: {
@@ -39,7 +40,7 @@ vi.mock('@/store/sidebarStore', () => ({
     () => ({
       ...h.sidebar,
       clearSearch: h.clearSearch,
-      getSearchNavState: () => ({ searchTerm: '', searchResults: null }),
+      getSearchNavState: () => ({ searchTerm: h.sidebar.searchTerm, searchResults: null }),
       setSearchBarVisible: h.setSearchBarVisible,
       setSearchTerm: vi.fn(),
       setSideBarBookKey: vi.fn(),
@@ -114,6 +115,7 @@ describe('SideBar Escape shortcut', () => {
   beforeEach(() => {
     h.actions = null;
     h.sidebar.isSearchBarVisible = true;
+    h.sidebar.searchTerm = 'rabbit';
     h.sidebar.sideBarBookKey = 'book-1';
     h.sidebarHook.isSideBarPinned = false;
     h.sidebarHook.isSideBarVisible = true;
@@ -124,7 +126,7 @@ describe('SideBar Escape shortcut', () => {
     cleanup();
   });
 
-  test.each([false, true])('closes an empty search bar before a pinned=%s sidebar', (pinned) => {
+  test.each([false, true])('closes an active search before a pinned=%s sidebar', (pinned) => {
     h.sidebarHook.isSideBarPinned = pinned;
     render(<SideBar />);
 
@@ -135,7 +137,7 @@ describe('SideBar Escape shortcut', () => {
     expect(h.setSideBarVisible).not.toHaveBeenCalled();
   });
 
-  test('closes the search bar before checking whether the sidebar is visible', () => {
+  test('closes an active search before checking whether the sidebar is visible', () => {
     h.sidebarHook.isSideBarVisible = false;
     render(<SideBar />);
 
@@ -150,7 +152,7 @@ describe('SideBar Escape shortcut', () => {
     const { rerender } = render(<SideBar />);
 
     expect(h.actions?.['onEscape']?.()).toBe(true);
-    h.sidebar.isSearchBarVisible = false;
+    h.sidebar.searchTerm = '';
     rerender(<SideBar />);
     vi.clearAllMocks();
 
