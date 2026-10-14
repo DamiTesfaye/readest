@@ -13,6 +13,7 @@ describe('play tools', () => {
       'play.detachNext',
       'play.shake',
       'play.undo',
+      'play.sound',
       'play.keep',
       'play.exit',
     ]);

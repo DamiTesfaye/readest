@@ -43,4 +43,17 @@ describe('recorder', () => {
     expect(r.events()).toHaveLength(20_000);
     expect(r.truncated(0)).toBe(true);
   });
+
+  it('records a sound on the replay clock', () => {
+    const r = createRecorder(1000);
+    r.sound(2500, 'pop-1');
+    expect(r.sfx()).toEqual([[180, 'pop-1']]);
+  });
+
+  it('refuses a sound id outside the pattern and past 60 seconds', () => {
+    const r = createRecorder(0);
+    r.sound(10, 'Begin the morning');
+    r.sound(60_010, 'pop-1');
+    expect(r.sfx()).toEqual([]);
+  });
 });

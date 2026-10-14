@@ -57,7 +57,14 @@ const fakeSession = (onExit: () => void) => {
   const exit = vi.fn(onExit);
   return {
     exit,
-    tools: { state, exit, addShape: vi.fn(() => 's1'), undo: vi.fn(), keep: vi.fn() },
+    tools: {
+      state,
+      exit,
+      addShape: vi.fn(() => 's1'),
+      addSound: vi.fn(),
+      undo: vi.fn(),
+      keep: vi.fn(),
+    },
   };
 };
 
@@ -200,5 +207,36 @@ describe('PlaySurface', () => {
       'Replays show the first minute.',
       "This Play couldn't be saved for replay",
     ]);
+  });
+
+  it('lists the sound effects by label and places one on tap', async () => {
+    let session: ReturnType<typeof fakeSession> | null = null;
+    enterPlay.mockImplementation(async (args: { onExit: () => void }) => {
+      session = fakeSession(args.onExit);
+      return session;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          v: 1,
+          effects: [
+            { id: 'pop-1', file: 'pop-1.ogg', label: 'Pop', group: 'ui' },
+            { id: 'thud-1', file: 'thud-1.ogg', label: 'Thud', group: 'impact' },
+          ],
+        }),
+      ),
+    );
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Sound' })));
+    const list = screen.getByRole('group', { name: 'Sound effects' });
+    expect(
+      within(list)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Pop', 'Thud']);
+    fireEvent.click(within(list).getByRole('button', { name: 'Thud' }));
+    expect(session!.tools.addSound).toHaveBeenCalledWith('thud-1');
   });
 });

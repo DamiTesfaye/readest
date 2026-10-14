@@ -165,6 +165,7 @@ export interface PlayTools {
   addShape(kind: 'circle' | 'polygon'): string;
   removeShape(id: string): void;
   setShapeMotion(preset: 'none' | 'drift'): void;
+  addSound(id: string): void;
   detachMode(unit: Unit | null): void;
   detachNext(): void;
   shake(): void;

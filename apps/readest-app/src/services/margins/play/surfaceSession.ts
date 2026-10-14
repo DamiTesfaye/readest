@@ -553,7 +553,11 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       const passage = { startByte: span.start, endByte: span.end, start, end };
       const unit = glyphUnits ? ('glyph' as const) : ('word' as const);
       const { unitOf } = buildScene({ ...sceneSource, unit, passage }, []);
-      const built = buildScene({ ...sceneSource, unit, passage }, sceneEvents(unitOf)).scene;
+      const built = buildScene(
+        { ...sceneSource, unit, passage },
+        sceneEvents(unitOf),
+        rec.sfx(),
+      ).scene;
       const data = packScene(withCheckpoints(built, await loadReplay()));
       if (!data) return 'failed';
       const asset = {
@@ -728,6 +732,9 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       record(EV.TOOL, [TOOL.MOTION, preset === 'drift' ? 1 : 0]);
       s = { ...s, shapeMotion: preset };
       wake();
+    },
+    addSound(id) {
+      rec.sound(performance.now(), id);
     },
     detachMode(u) {
       unit = u ? unitFor(u, win.text) : null;

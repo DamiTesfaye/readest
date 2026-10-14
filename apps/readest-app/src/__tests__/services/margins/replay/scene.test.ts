@@ -64,6 +64,12 @@ describe('scene builder', () => {
     expect(JSON.stringify(scene)).not.toMatch(/Begin|morning|saying/);
   });
 
+  it('keeps the recorded sounds and only allowed strings', () => {
+    const { scene } = buildScene(source, [], [[180, 'pop-1']]);
+    expect(scene.sfx).toEqual([[180, 'pop-1']]);
+    expect(stringsOutsideAllowList(scene)).toEqual([]);
+  });
+
   it('names the passage boxes', () => {
     expect(
       buildScene({ ...source, passage: { startByte: 6, endByte: 17, start: 6, end: 17 } }, []).scene

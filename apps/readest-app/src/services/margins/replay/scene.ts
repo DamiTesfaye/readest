@@ -34,7 +34,7 @@ export interface SceneSource {
 const STRIDE = 10;
 const LINE_STRIDE = 7;
 const Q_EM = 0.25;
-const SFX_ID = /^[a-z0-9-]{1,32}$/;
+export const SFX_ID = /^[a-z0-9-]{1,32}$/;
 const SFX_PATH = /^\/sfx\/\d+\/1$/;
 const FACES: readonly string[] = [...STAND_IN_FACES.serif, ...STAND_IN_FACES.sans];
 
@@ -62,6 +62,7 @@ const wordRuns = (src: SceneSource, first: number, count: number) => {
 export const buildScene = (
   src: SceneSource,
   events: number[][],
+  sfx: Scene['sfx'] = [],
 ): { scene: Scene; unitOf(canon: number): number } => {
   const { glyphs, lines, em } = src;
   const sceneLines: Scene['lines'] = [];
@@ -122,7 +123,7 @@ export const buildScene = (
     step_hz: STEP_HZ,
     events,
     checkpoints: [],
-    sfx: [],
+    sfx,
     cover_step: 0,
   };
   return { scene, unitOf: (canon) => units.get(canon) ?? -1 };
