@@ -15,6 +15,7 @@ import { openMarginsStore } from '@/services/margins/store';
 import { useLibraryStore } from '@/store/libraryStore';
 import { eventDispatcher } from '@/utils/event';
 import CreatorChip from './CreatorChip';
+import GetBookSheet from './GetBookSheet';
 import ReplayPlayer from './ReplayPlayer';
 
 export interface FeedCardProps {
@@ -58,6 +59,7 @@ const FeedCard = ({
   const [replay, setReplay] = useState<Replay | null>(null);
   const [more, setMore] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [getting, setGetting] = useState(false);
   const assetSource = useCallback((ref: string) => publicApi.postAssetUrl(post.id, ref), [post.id]);
   const fail = () => console.error('Margins: feed action failed');
 
@@ -130,6 +132,9 @@ const FeedCard = ({
         <button type='button' className={`${BUTTON} h-auto`} onClick={() => onOpenBook(post)}>
           <CitationLine citation={post.citation} book={post.book} />
         </button>
+        <button type='button' className={BUTTON} onClick={() => setGetting(true)}>
+          {_('Get this book')}
+        </button>
       </div>
       <div className='flex flex-wrap items-center gap-1'>
         <button type='button' className={BUTTON} onClick={muted ? onUnmute : onMute}>
@@ -158,6 +163,13 @@ const FeedCard = ({
             </button>
           )}
         </div>
+      )}
+      {getting && (
+        <GetBookSheet
+          post={post}
+          onClose={() => setGetting(false)}
+          onTap={() => onEngage(post, 'get_book')}
+        />
       )}
       {reporting && <ReportDialog postId={post.id} onClose={() => setReporting(false)} />}
     </div>

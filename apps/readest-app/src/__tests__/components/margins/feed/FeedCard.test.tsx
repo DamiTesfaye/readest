@@ -42,6 +42,16 @@ vi.mock('@/components/margins/feed/ReplayPlayer', () => ({
   ),
 }));
 
+vi.mock('@/components/margins/feed/GetBookSheet', () => ({
+  default: (p: { onTap(): void }) => (
+    <div role='dialog' aria-label='Get this book'>
+      <button type='button' onClick={p.onTap}>
+        Open at this page
+      </button>
+    </div>
+  ),
+}));
+
 import FeedCard from '@/components/margins/feed/FeedCard';
 
 const scene: Scene = {
@@ -157,6 +167,14 @@ describe('FeedCard', () => {
     const on = await show(p);
     fireEvent.click(screen.getByRole('button', { name: /Meditations/ }));
     expect(on.onOpenBook).toHaveBeenCalledWith(p);
+  });
+
+  it('opens Get this book from the book chip and counts each tap', async () => {
+    const p = post();
+    const on = await show(p);
+    fireEvent.click(screen.getByRole('button', { name: 'Get this book' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open at this page' }));
+    expect(on.onEngage).toHaveBeenCalledWith(p, 'get_book');
   });
 
   it('unmutes and mutes the feed', async () => {

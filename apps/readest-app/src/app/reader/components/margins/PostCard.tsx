@@ -84,26 +84,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
   );
 };
 
-export const OpenInBook = ({ post }: { post: PostView }) => {
-  const _ = useTranslation();
+export const useOpenTarget = (post: PostView) => {
   const { appService } = useEnv();
   const router = useRouter();
   const library = useLibraryStore((s) => s.library);
-  const [target, setTarget] = useState<OpenTarget | null>(null);
-  const fail = () => console.error('Margins: open in book failed');
 
   const go = (bookHash: string) => {
     requestPostOpen(bookHash, post);
     navigateToReader(router, [bookHash]);
   };
 
-  const open = async () => {
-    if (!appService) return;
+  const resolve = async (): Promise<OpenTarget | null> => {
+    if (!appService) return null;
     const hashes = library.filter((b) => !b.deletedAt).map((b) => b.hash);
     const found = await openTargetFor(post, await openMarginsStore(appService), hashes);
-    if (found.kind === 'library') return go(found.bookHash);
     if (found.kind === 'yourCopy') rememberPendingOpen(post);
-    setTarget(found);
+    return found;
   };
 
   const getBook = async (workId: string) => {
@@ -111,6 +107,21 @@ export const OpenInBook = ({ post }: { post: PostView }) => {
     const edition = (await getWorkDetail(workId)).editions.find(canDownloadEdition);
     const book = edition ? await downloadEdition({ appService, workId, edition }) : null;
     if (book) go(book.hash);
+  };
+
+  return { go, resolve, getBook };
+};
+
+export const OpenInBook = ({ post }: { post: PostView }) => {
+  const _ = useTranslation();
+  const { go, resolve, getBook } = useOpenTarget(post);
+  const [target, setTarget] = useState<OpenTarget | null>(null);
+  const fail = () => console.error('Margins: open in book failed');
+
+  const open = async () => {
+    const found = await resolve();
+    if (found?.kind === 'library') return go(found.bookHash);
+    setTarget(found);
   };
 
   return (
