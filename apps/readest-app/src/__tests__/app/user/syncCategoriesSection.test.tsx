@@ -5,6 +5,7 @@ import type { EnvConfigType } from '@/services/environment';
 vi.mock('@/context/EnvContext', () => ({
   useEnv: () => ({ envConfig: {} as EnvConfigType, appService: null }),
 }));
+vi.mock('@/hooks/useEnsureSettingsLoaded', () => ({ useEnsureSettingsLoaded: () => true }));
 
 import { SyncCategoriesSection } from '@/app/user/components/SyncCategoriesSection';
 import { isSyncCategoryEnabled } from '@/services/sync/syncCategories';

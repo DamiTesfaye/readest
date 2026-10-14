@@ -10,10 +10,9 @@ const { navigateToLibrary, navigateToLogin, navigateToProfile, dispatch } = vi.h
 }));
 
 let searchString = '';
-let authState: { user: { user_metadata?: Record<string, string> } | null; token: string | null } = {
-  user: null,
-  token: null,
-};
+let amplereadSession: {
+  me: { displayName: string | null; email: string | null; avatarUrl: string | null };
+} | null = null;
 
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
 vi.mock('@/context/EnvContext', () => ({
@@ -22,7 +21,7 @@ vi.mock('@/context/EnvContext', () => ({
     appService: { osPlatform: 'macos', isMobile: false, hasWindowBar: false },
   }),
 }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => authState }));
+vi.mock('@/hooks/useAmpleReadSession', () => ({ useAmpleReadSession: () => amplereadSession }));
 vi.mock('@/store/themeStore', () => ({
   useThemeStore: () => ({ isDarkMode: false, safeAreaInsets: { top: 0 } }),
 }));
@@ -36,7 +35,6 @@ vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch } }));
 vi.mock('@/utils/debounce', () => ({
   debounce: (fn: (...args: unknown[]) => void) => fn,
 }));
-vi.mock('@/utils/access', () => ({ getUserProfilePlan: () => 'free' }));
 vi.mock('@/hooks/useTrafficLight', () => ({
   useTrafficLight: () => ({ isTrafficLightVisible: false }),
 }));
@@ -76,7 +74,7 @@ const renderSidebar = (overrides: Partial<React.ComponentProps<typeof LibrarySid
 
 beforeEach(() => {
   searchString = '';
-  authState = { user: null, token: null };
+  amplereadSession = null;
   navigateToLibrary.mockReset();
   navigateToLogin.mockReset();
   navigateToProfile.mockReset();
@@ -271,17 +269,23 @@ describe('LibrarySidebar', () => {
     expect(navigateToLogin).not.toHaveBeenCalled();
   });
 
-  it('shows name, plan and Upgrade when logged in, routing to the profile', () => {
-    authState = {
-      user: { user_metadata: { full_name: 'Dami Tesfaye' } },
-      token: 'jwt',
+  it('shows the AmpleRead account name and email when signed in, with no Readest plan', () => {
+    amplereadSession = {
+      me: { displayName: 'Dami Tesfaye', email: 'dami@example.com', avatarUrl: null },
     };
     renderSidebar();
     expect(screen.getByText('Dami Tesfaye')).toBeTruthy();
-    expect(screen.getByText('Free')).toBeTruthy();
+    expect(screen.getByText('dami@example.com')).toBeTruthy();
     expect(screen.getByTestId('settings-menu')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
-    expect(navigateToProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Free')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sign into your account' })).toBeNull();
+  });
+
+  it('falls back to the email when the AmpleRead account has no display name', () => {
+    amplereadSession = { me: { displayName: null, email: 'dami@example.com', avatarUrl: null } };
+    renderSidebar();
+    expect(screen.getAllByText('dami@example.com')).toHaveLength(1);
   });
 
   it('no longer renders the view/select/settings footer strip', () => {

@@ -9,6 +9,7 @@ import { quotaState } from '@/services/margins/clip';
 import {
   type ComposeController,
   createComposeController,
+  QUOTE_ID,
 } from '@/services/margins/compose/controller';
 import { builtinTools, type ComposeIO, newElementId } from '@/services/margins/compose/registry';
 import {
@@ -33,6 +34,7 @@ import {
   ElementView,
   frameStyle,
   GROUND_STYLE,
+  quoteStyle,
   MarginsMotionStyle,
   motionClass,
   stickerSrc,
@@ -50,6 +52,7 @@ export interface ComposeSurfaceProps {
   toolbar?: (controller: ComposeController) => React.ReactNode;
   onSave(envelope: Envelope, anchor: Anchor): Promise<void>;
   onDiscard(): void;
+  onPlay?(): void;
 }
 
 const NUDGE = 0.01;
@@ -125,6 +128,7 @@ function ComposeSurface({
   toolbar,
   onSave,
   onDiscard,
+  onPlay,
 }: ComposeSurfaceProps) {
   const _ = useTranslation();
   const { appService } = useEnv();
@@ -140,6 +144,7 @@ function ComposeSurface({
         addNote: () => io.current.addNote(),
         addTranslation: (mode) => io.current.addTranslation(mode),
         pickSticker: () => io.current.pickSticker(),
+        ...(onPlay ? { startPlay: onPlay } : {}),
       }),
     }),
   );
@@ -163,7 +168,12 @@ function ComposeSurface({
     controller.dispatch({ type: 'select', ids: [element.id] });
   };
   const update = (id: string, patch: Partial<Element>) =>
-    controller.dispatch({ type: 'update', id, patch });
+    id === QUOTE_ID
+      ? controller.dispatch({
+          type: 'setQuote',
+          quote: { ...controller.state.envelope.quote, ...(patch.frame && { frame: patch.frame }) },
+        })
+      : controller.dispatch({ type: 'update', id, patch });
 
   io.current = {
     addNote: () => add({ id: newElementId(), kind: 'note', frame: NEW_FRAME, text: '' }),
@@ -265,7 +275,8 @@ function ComposeSurface({
 
   const nudge = (dx: number, dy: number) => {
     controller.dispatch({ type: 'begin' });
-    for (const e of envelope.elements) {
+    const quote = { id: QUOTE_ID, frame: envelope.quote.frame };
+    for (const e of [quote, ...envelope.elements]) {
       if (!selection.includes(e.id)) continue;
       const { frame } = e;
       update(e.id, {
@@ -299,7 +310,11 @@ function ComposeSurface({
     }
   };
 
-  const startDrag = (e: React.PointerEvent, element: Element, mode: Drag['mode']) => {
+  const startDrag = (
+    e: React.PointerEvent,
+    element: { id: string; frame: Frame },
+    mode: Drag['mode'],
+  ) => {
     e.stopPropagation();
     controller.dispatch({ type: 'select', ids: [element.id] });
     if (mode === 'move' && isTyping(e.target)) return;
@@ -429,11 +444,17 @@ function ComposeSurface({
             onPointerCancel={endDrag}
           >
             <blockquote
+              data-element-id={QUOTE_ID}
+              aria-label={_('Passage')}
               className={clsx(
-                'font-serif leading-snug',
+                'touch-none leading-snug',
                 { s: 'text-xs', m: 'text-sm', l: 'text-base' }[envelope.quote.size],
+                selection.includes(QUOTE_ID) && 'ring-2 ring-[#5B3DF5]',
               )}
-              style={frameStyle(envelope.quote.frame)}
+              style={quoteStyle(envelope.quote)}
+              onPointerDown={(e) =>
+                startDrag(e, { id: QUOTE_ID, frame: envelope.quote.frame }, 'move')
+              }
             >
               {live}
             </blockquote>

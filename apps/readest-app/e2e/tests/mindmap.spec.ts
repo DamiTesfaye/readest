@@ -284,6 +284,7 @@ test.describe('Mind map', () => {
         const total = sizes.reduce((sum, size) => sum + size, 0);
         const heading = view.book.sections[0]?.fragments?.find((f) => f.href.endsWith('#ch2'));
         return {
+          fraction: view.lastLocation?.fraction ?? 0,
           ahead: heading ? (view.lastLocation?.fraction ?? 0) >= heading.size / total : false,
           onScreen: (view.lastLocation?.range?.toString() ?? '').includes('Chapter Two Secret'),
           toc: view.lastLocation?.tocItem?.label ?? '',
@@ -292,7 +293,10 @@ test.describe('Mind map', () => {
     await expect
       .poll(async () => {
         const state = await probe();
-        if (!state.ahead) await reader.nextPage();
+        if (!state.ahead) {
+          await reader.nextPage();
+          await expect.poll(async () => (await probe()).fraction).not.toBe(state.fraction);
+        }
         return state.ahead;
       })
       .toBe(true);

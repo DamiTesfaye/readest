@@ -2,9 +2,10 @@ import { OsPlatform } from '@/types/system';
 import { md5 } from 'js-md5';
 import { isCaselessLang } from './lang';
 
-export const uniqueId = () => Math.random().toString(36).substring(2, 9);
+export const uniqueId = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(7)), (b) => (b % 36).toString(36)).join('');
 
-export const randomMd5 = () => md5(Math.random().toString());
+export const randomMd5 = () => md5(crypto.getRandomValues(new Uint32Array(4)).join('-'));
 
 export const getContentMd5 = (content: unknown) => md5(JSON.stringify(content));
 

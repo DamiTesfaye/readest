@@ -61,7 +61,12 @@ import { useSpatialNavigation } from '../hooks/useSpatialNavigation';
 import DeleteConfirmAlert from '@/components/DeleteConfirmAlert';
 import Spinner from '@/components/Spinner';
 import ModalPortal from '@/components/ModalPortal';
-import BookshelfItem, { generateBookshelfItems } from './BookshelfItem';
+import BookshelfItem from './BookshelfItem';
+import TaggingModal from './TaggingModal';
+import { generateBookshelfItems } from '@/services/bookshelves/presentation';
+import { isAbsBookOrphaned, useABSServerStore } from '@/store/absServerStore';
+import { selectActiveBookDownloadProgress, useTransferStore } from '@/store/transferStore';
+import { splitLibraryOpenIds } from '@/utils/audiobook';
 import SelectModeActions from './SelectModeActions';
 import ShareBookDialog from './ShareBookDialog';
 import { useAuth } from '@/context/AuthContext';
@@ -93,7 +98,7 @@ interface BookshelfProps {
   handleShowDetailsBook: (book: Book) => void;
   handleLibraryNavigation: (targetGroup: string) => void;
   handlePushLibrary: () => Promise<void>;
-  booksTransferProgress: { [key: string]: number | null };
+  booksTransferProgress: { [key: string]: number };
   contentSearch: ContentSearchRequest | null;
   onSearchContents: () => void;
   onSearchProgress?: (value: number | null) => void;
@@ -230,6 +235,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   const [showSelectModeActions, setShowSelectModeActions] = useState(false);
   const [selectModeActionsHeight, setSelectModeActionsHeight] = useState(0);
   const [bookIdsToDelete, setBookIdsToDelete] = useState<string[]>([]);
+  const [tagBookHashes, setTagBookHashes] = useState<string[] | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showStatusAlert, setShowStatusAlert] = useState(false);
   const [showGroupingModal, setShowGroupingModal] = useState(false);
@@ -281,23 +287,39 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
 
+  const absServers = useABSServerStore((state) => state.servers);
+  const visibleBooks = useMemo(
+    () => libraryBooks.filter((book) => !book.deletedAt && !isAbsBookOrphaned(book)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [libraryBooks, absServers, settings.absServers],
+  );
+
+  const transfers = useTransferStore((state) => state.transfers);
+  const transferProgress = useMemo(
+    () => ({ ...selectActiveBookDownloadProgress(transfers), ...booksTransferProgress }),
+    [transfers, booksTransferProgress],
+  );
+
   const filteredBooks = useMemo(() => {
     const bookFilter = createBookFilter(queryTerm);
-    const queried = queryTerm ? libraryBooks.filter((book) => bookFilter(book)) : libraryBooks;
+    const queried = queryTerm ? visibleBooks.filter((book) => bookFilter(book)) : visibleBooks;
     return statusFilter === 'all'
       ? queried
       : queried.filter((book) => matchesStatusFilter(book, statusFilter));
-  }, [libraryBooks, queryTerm, statusFilter]);
+  }, [visibleBooks, queryTerm, statusFilter]);
 
   const manualGroupName = groupBy === LibraryGroupByType.Group ? getGroupName(groupId) : undefined;
   const currentShelfBooks = useMemo(
-    () => resolveCurrentShelfBooks(libraryBooks, groupBy, groupId, manualGroupName),
-    [libraryBooks, groupBy, groupId, manualGroupName],
+    () => resolveCurrentShelfBooks(visibleBooks, groupBy, groupId, manualGroupName),
+    [visibleBooks, groupBy, groupId, manualGroupName],
   );
   const filteredShelfBooks = useMemo(() => {
     const bookFilter = createBookFilter(queryTerm);
-    return queryTerm ? currentShelfBooks.filter(bookFilter) : currentShelfBooks;
-  }, [currentShelfBooks, queryTerm]);
+    const queried = queryTerm ? currentShelfBooks.filter(bookFilter) : currentShelfBooks;
+    return statusFilter === 'all'
+      ? queried
+      : queried.filter((book) => matchesStatusFilter(book, statusFilter));
+  }, [currentShelfBooks, queryTerm, statusFilter]);
 
   const currentBookshelfItems = useMemo(() => {
     if (groupBy === LibraryGroupByType.Group) {
@@ -444,11 +466,26 @@ const Bookshelf: React.FC<BookshelfProps> = ({
 
   const openSelectedBooks = () => {
     handleSetSelectMode(false);
+    const { audiobookHash, readerIds, droppedAudiobooks } = splitLibraryOpenIds(
+      getSelectedBooks(),
+      (hash) => libraryBooks.find((book) => book.hash === hash),
+    );
+    if (audiobookHash) {
+      router.push(`/player?id=${audiobookHash}`);
+      return;
+    }
+    if (droppedAudiobooks) {
+      eventDispatcher.dispatch('toast', {
+        message: _('Audiobooks open in the player'),
+        type: 'info',
+      });
+    }
+    if (readerIds.length === 0) return;
     if (appService?.hasWindow && settings.openBookInNewWindow) {
-      showReaderWindow(appService, getSelectedBooks());
+      showReaderWindow(appService, readerIds);
     } else {
       setTimeout(() => setLoading(true), 200);
-      navigateToReader(router, getSelectedBooks());
+      navigateToReader(router, readerIds);
     }
   };
 
@@ -502,6 +539,11 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     setBookIdsToDelete(expandBookshelfSelection(getSelectedBooks(), sortedBookshelfItems));
     setShowSelectModeActions(false);
     setShowDeleteAlert(true);
+  };
+
+  const tagSelectedBooks = () => {
+    setTagBookHashes(expandBookshelfSelection(getSelectedBooks(), sortedBookshelfItems));
+    setShowSelectModeActions(false);
   };
 
   const groupSelectedBooks = () => {
@@ -810,8 +852,8 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   // Flat recency slice of the whole library, independent of the main shelf's
   // sort/grouping. Built from `libraryBooks` (not the sorted/filtered items).
   const recentBooks = useMemo(
-    () => selectRecentShelfBooks(libraryBooks, RECENT_SHELF_BOOK_COUNT),
-    [libraryBooks],
+    () => selectRecentShelfBooks(visibleBooks, RECENT_SHELF_BOOK_COUNT),
+    [visibleBooks],
   );
 
   // A top-level quick-resume strip: hidden while searching, inside a group, or
@@ -841,6 +883,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           handleBookDownload={handleBookDownload}
           showBookDetailsModal={handleShowDetailsBook}
           showTimeRemaining={showTimeRemaining}
+          transferProgress={transferProgress}
         />
       ) : null,
     [
@@ -910,9 +953,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           handleShowDetailsBook={handleShowDetailsBook}
           handleLibraryNavigation={handleLibraryNavigation}
           handleUpdateReadingStatus={handleUpdateReadingStatus}
-          transferProgress={
-            'hash' in item ? booksTransferProgress[(item as Book).hash] || null : null
-          }
+          transferProgress={'hash' in item ? (transferProgress[item.hash] ?? null) : null}
           showTimeRemaining={showTimeRemaining}
         />
       );
@@ -924,7 +965,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
       viewMode,
       coverFit,
       isSelectMode,
-      booksTransferProgress,
+      transferProgress,
       toggleSelection,
       handleBookUpload,
       handleBookDownload,
@@ -1015,7 +1056,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           <Spinner loading />
         </div>
       )}
-      {!showGroupingModal && isSelectMode && showSelectModeActions && (
+      {!showGroupingModal && !tagBookHashes && isSelectMode && showSelectModeActions && (
         <SelectModeActions
           selectedBooks={selectedBooks}
           safeAreaBottom={safeAreaInsets?.bottom || 0}
@@ -1036,6 +1077,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           canDownload={downloadableBooks.length > 0}
           onOpen={openSelectedBooks}
           onGroup={groupSelectedBooks}
+          onTag={tagSelectedBooks}
           onDetails={openBookDetails}
           onStatus={showStatusSelection}
           onDownload={downloadSelectedBooks}
@@ -1043,6 +1085,22 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           onDelete={deleteSelectedBooks}
           onCancel={() => handleSetSelectMode(false)}
         />
+      )}
+      {tagBookHashes && (
+        <ModalPortal>
+          <TaggingModal
+            libraryBooks={libraryBooks}
+            bookHashes={tagBookHashes}
+            onCancel={() => {
+              setTagBookHashes(null);
+              setShowSelectModeActions(true);
+            }}
+            onConfirm={() => {
+              setTagBookHashes(null);
+              handleSetSelectMode(false);
+            }}
+          />
+        </ModalPortal>
       )}
       {showGroupingModal && selectedBooks.length > 0 && (
         <ModalPortal>

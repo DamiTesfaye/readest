@@ -7,6 +7,7 @@ import type { LayerRow } from '@/services/margins/store';
 import {
   ElementView,
   frameStyle,
+  quoteStyle,
   GROUND_STYLE,
   MarginsMotionStyle,
   motionClass,
@@ -33,6 +34,34 @@ const ART_ERRORS = [
   'image_undecodable',
   'unsupported_media_type',
 ];
+
+export const MarginArt = ({
+  envelope,
+  quote,
+  onPlay,
+}: {
+  envelope: Envelope;
+  quote: string;
+  onPlay?(): void;
+}) => (
+  <div
+    className='relative w-full overflow-hidden rounded-lg'
+    style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
+  >
+    <MarginsMotionStyle />
+    <blockquote
+      className={{ s: 'text-[0.625rem]', m: 'text-xs', l: 'text-sm' }[envelope.quote.size]}
+      style={quoteStyle(envelope.quote)}
+    >
+      {quote}
+    </blockquote>
+    {envelope.elements.map((e) => (
+      <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
+        <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
+      </div>
+    ))}
+  </div>
+);
 
 export const storedQuote = (row: LayerRow): string => {
   const q = row.anchor.quote;
@@ -87,25 +116,12 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
       tabIndex={-1}
       className='flex flex-col gap-2 rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#5B3DF5]'
     >
-      <p className='text-base-content/85 line-clamp-3 font-serif text-xs leading-relaxed'>
-        {quote}
-      </p>
-      {expanded && envelope && (
-        <div
-          className='relative w-full overflow-hidden rounded-lg'
-          style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
-        >
-          <MarginsMotionStyle />
-          <blockquote className='font-serif text-xs' style={frameStyle(envelope.quote.frame)}>
-            {quote}
-          </blockquote>
-          {envelope.elements.map((e) => (
-            <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
-              <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
-            </div>
-          ))}
-        </div>
+      {!(expanded && envelope) && (
+        <p className='text-base-content/85 line-clamp-3 font-serif text-xs leading-relaxed'>
+          {quote}
+        </p>
       )}
+      {expanded && envelope && <MarginArt envelope={envelope} quote={quote} onPlay={onPlay} />}
       {fuzzy && (
         <p className='text-base-content/70 text-xs'>
           {_('This Margin moved slightly.')}{' '}

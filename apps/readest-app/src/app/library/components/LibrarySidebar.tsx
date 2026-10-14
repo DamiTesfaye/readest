@@ -6,14 +6,13 @@ import { LuChevronsUpDown } from 'react-icons/lu';
 import { PiCaretRightBold } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
-import { useAuth } from '@/context/AuthContext';
 import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
-import { navigateToLibrary, navigateToProfile } from '@/utils/nav';
+import { useAmpleReadSession } from '@/hooks/useAmpleReadSession';
+import { navigateToLibrary } from '@/utils/nav';
 import { getHomepageIconSrc, getSearchShortcutBadgeSrc } from '@/utils/toolbarIcons';
-import { getUserProfilePlan } from '@/utils/access';
 import { ensureLibraryStatusFilter, LibraryStatusFilter } from '../utils/libraryUtils';
 import { eventDispatcher } from '@/utils/event';
 import { debounce } from '@/utils/debounce';
@@ -31,13 +30,6 @@ const TAG_COLORS = [
   { label: 'Purple', color: '#B9A8EF' },
   { label: 'Yellow', color: '#F2D34E' },
 ];
-
-const PLAN_LABELS = {
-  free: 'Free',
-  plus: 'Plus',
-  pro: 'Pro',
-  purchase: 'Lifetime',
-} as const;
 
 interface LibrarySidebarProps {
   onPullLibrary: () => void;
@@ -89,7 +81,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
   const router = useAppRouter();
   const searchParams = useSearchParams();
   const { appService } = useEnv();
-  const { user, token } = useAuth();
+  const me = useAmpleReadSession()?.me;
   const { isDarkMode } = useThemeStore();
   const { isTrafficLightVisible } = useTrafficLight();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -182,9 +174,9 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
     });
   };
 
-  const plan = token ? getUserProfilePlan(token) : 'free';
-  const userFullName = user?.user_metadata?.['full_name'] || user?.email || '';
-  const avatarUrl = user?.user_metadata?.['picture'] || user?.user_metadata?.['avatar_url'] || '';
+  const userFullName = me?.displayName || me?.email || '';
+  const userEmail = me?.displayName ? me.email : null;
+  const avatarUrl = me?.avatarUrl || '';
 
   return (
     <aside
@@ -347,7 +339,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
         </div>
       </nav>
       <div className='border-base-300 eink-bordered border-t p-3'>
-        {user ? (
+        {me ? (
           <div className='flex items-center gap-2'>
             <Dropdown
               label={_('Account Menu')}
@@ -366,27 +358,17 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenEx
                     <span className='truncate [font-family:"Avenir_Next_LT_Pro"] text-sm'>
                       {userFullName}
                     </span>
-                    <span className='text-base-content/60 truncate [font-family:"Avenir_Next_LT_Pro"] text-xs'>
-                      {_(PLAN_LABELS[plan])}
-                    </span>
+                    {userEmail && (
+                      <span className='text-base-content/60 truncate [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+                        {userEmail}
+                      </span>
+                    )}
                   </span>
                 </>
               }
             >
               <SettingsMenu onPullLibrary={onPullLibrary} />
             </Dropdown>
-            {plan === 'free' && (
-              <button
-                type='button'
-                onClick={() => navigateToProfile(router)}
-                className={clsx(
-                  'border-base-300 eink-bordered rounded-full border px-3 py-1',
-                  'hover:bg-base-300/70 [font-family:"Avenir_Next_LT_Pro"] text-xs font-medium',
-                )}
-              >
-                {_('Upgrade')}
-              </button>
-            )}
             <LuChevronsUpDown aria-hidden className='text-base-content/50 h-4 w-4 shrink-0' />
           </div>
         ) : (

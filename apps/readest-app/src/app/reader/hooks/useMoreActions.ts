@@ -109,14 +109,6 @@ export const useMoreActions = ({
       subtitle: _('Readers, notes & finds'),
       run: onOpenMargins,
     },
-    play: {
-      title: _('Play'),
-      subtitle: _('Text in motion'),
-      run: () => {
-        eventDispatcher.dispatch('margins-play-enter', { bookKey });
-        onDone();
-      },
-    },
     mindmap: {
       title: _('Mindmap'),
       subtitle: _('Organise thoughts'),

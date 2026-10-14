@@ -176,6 +176,7 @@ const QuickPickSlots: React.FC<QuickPickSlotsProps> = ({
               title={action.title}
               aria-label={action.title}
               aria-pressed={action.toggled}
+              data-quick-pick={id}
               className={clsx(SLOT_CLASS, ring)}
               onClick={handleSlotClick(action)}
               onPointerDown={startPress(index)}

@@ -10,6 +10,13 @@ fn main() {
     if target_os == "windows" {
         build_windows_thumbnail();
     }
+    if target_os == "android" {
+        // The APK ships the library stripped (see gen/android/app/build.gradle.kts),
+        // so Sentry symbolicates Rust panics from the debug files CI uploads. It
+        // matches them to the crashing library by build id, and the NDK linker
+        // emits none by default.
+        println!("cargo:rustc-link-arg=-Wl,--build-id=sha1");
+    }
 
     propagate_sentry_dsn();
     propagate_app_version();
@@ -31,22 +38,36 @@ fn main() {
             "upload_file",
             "get_environment_variable",
             "get_executable_dir",
+            "reveal_item_in_dir",
             "set_webview_info",
+            "get_webview_version",
             "is_updater_disabled",
             "allow_paths_in_scopes",
+            "optimize_cover_thumbnails",
             "read_dir",
+            "write_backup_zip",
+            "extract_backup_zip",
             "parse_epub_metadata",
             "extract_epub_cover_full",
             "parse_epub_full",
+            "get_comic_page_sizes",
             "parse_mobi_metadata",
             "extract_mobi_cover_full",
+            "parse_pdf_metadata",
+            "render_pdf_cover",
             "auth_with_safari",
             "start_apple_sign_in",
             "set_traffic_lights",
+            "set_window_title",
             "show_lookup_popover",
             "update_book_presence",
             "clear_book_presence",
             "clip_url",
+            "open_web_browser",
+            "fetch_web_browser_resource",
+            "get_media_proxy_base",
+            "set_web_browser_status",
+            "extract_web_browser_archive",
             "spawn_fresh_browser",
             "verify_update_signature",
             "install_nightly_update",
@@ -55,10 +76,19 @@ fn main() {
             "localsend_get_status",
             "localsend_list_devices",
             "localsend_announce",
+            "localsend_set_discoverable",
+            "localsend_is_alive",
             "localsend_respond",
             "localsend_cancel_receive",
             "localsend_send_files",
             "localsend_cancel_send",
+            "ampleread_explore",
+            "ampleread_work_detail",
+            "ampleread_refresh",
+            "ampleread_install_token",
+            "ampleread_download_url",
+            "ampleread_track_event",
+            "ampleread_flush_events",
         ]),
     ))
     .expect("failed to run tauri-build");

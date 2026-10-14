@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useEnv } from '@/context/EnvContext';
 import type { BookDoc } from '@/libs/document';
 import { getSession } from '@/services/ampleread/auth/session';
+import type { Me } from '@/services/ampleread/auth/types';
 import { liveRange, resolveAnchor } from '@/services/margins/anchorBridge';
 import { marginsContext } from '@/services/margins/context';
 import { hiddenMargins, onMarginsChanged } from '@/services/margins/margins';
 import {
   createPainter,
+  creatorColor,
+  MARGIN_COLOR,
   MARGIN_KEY_PREFIX,
   marginIdsOfKey,
   type MarginsPainter,
@@ -19,6 +22,13 @@ import { readerTextIds } from '@/services/margins/texts';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { eventDispatcher } from '@/utils/event';
+import { attachCreatorHover } from '@/services/margins/creatorHover';
+import { MARGINS_PEEK_EVENT } from '../components/margins/MarginPeek';
+import { toParentViewportPoint } from '../utils/annotatorUtil';
+
+const CREATOR_OFFSET_PX = 12;
+
+type PointOverlayer = { hitTest(point: { x: number; y: number }): unknown[] };
 
 const painters = new Map<string, MarginsPainter>();
 
@@ -65,12 +75,25 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
     (async () => {
       const store = await openMarginsStore(appService);
       const ctx = marginsContext({ view, book, bookDoc, store });
+      let me: Me | null = null;
       const painter = createPainter({
         resolve: async (row) => placementOf(await resolveAnchor(ctx, row.anchor)),
         liveRange: (section, start, end) => liveRange(ctx, section, start, end),
+        creator: (userId) => {
+          const mine = !userId || userId === me?.id;
+          return {
+            name: mine ? me?.displayName || me?.email || '' : '',
+            avatarUrl: mine ? (me?.avatarUrl ?? null) : null,
+            color: userId || me ? creatorColor(userId ?? me!.id) : MARGIN_COLOR,
+            initial: mine
+              ? ([...(me?.displayName || me?.email || '')][0]?.toUpperCase() ?? '')
+              : '',
+          };
+        },
       });
       const load = async () => {
-        const userId = (await getSession())?.me.id ?? null;
+        me = (await getSession())?.me ?? null;
+        const userId = me?.id ?? null;
         const textIds = await readerTextIds(store, cachedLink(book.hash)?.textId ?? null);
         const hidden = hiddenMargins();
         const rows = await store.layersForReader(book.hash, textIds, userId);
@@ -124,11 +147,54 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
         rect,
       });
     };
+    const detachers = new Map<Document, () => void>();
+    const hover = (doc: Document, index: number) => {
+      if (detachers.has(doc)) return;
+      const detach = attachCreatorHover(doc, {
+        hitTest: (point) => {
+          const overlayer = view.renderer.getContents().find((c) => c.index === index)?.overlayer;
+          const [key] = ((overlayer as PointOverlayer | undefined)?.hitTest(point) ?? []) as [
+            string?,
+          ];
+          return key?.startsWith(MARGIN_KEY_PREFIX) && key !== CLIP_PREVIEW_KEY ? key : undefined;
+        },
+        peekOf: (key) => {
+          const id = marginIdsOfKey(key)[0]!;
+          const painter = getMarginsPainter(bookKey);
+          const creator = painter?.creatorOf(id);
+          const row = painter?.rowOf(id);
+          return creator && row ? { creator, row } : undefined;
+        },
+        show: (peek, x, y) => {
+          const at = toParentViewportPoint(doc, x, y);
+          eventDispatcher.dispatch(MARGINS_PEEK_EVENT, {
+            bookKey,
+            peek,
+            x: at.x + CREATOR_OFFSET_PX,
+            y: at.y + CREATOR_OFFSET_PX,
+          });
+        },
+      });
+      detachers.set(doc, detach);
+      doc.defaultView?.addEventListener('unload', () => {
+        detach();
+        detachers.delete(doc);
+      });
+    };
+    const onLoad = (e: Event) => {
+      const { doc, index } = (e as CustomEvent<{ doc: Document; index: number }>).detail;
+      hover(doc, index);
+    };
+    for (const { doc, index } of view.renderer.getContents())
+      if (doc && index !== undefined) hover(doc, index);
     view.addEventListener('create-overlay', onCreateOverlay);
     view.addEventListener('show-annotation', onShowAnnotation);
+    view.addEventListener('load', onLoad);
     return () => {
       view.removeEventListener('create-overlay', onCreateOverlay);
       view.removeEventListener('show-annotation', onShowAnnotation);
+      view.removeEventListener('load', onLoad);
+      for (const detach of detachers.values()) detach();
     };
   }, [view, bookKey, draw]);
 };

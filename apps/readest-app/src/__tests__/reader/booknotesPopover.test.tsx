@@ -179,15 +179,17 @@ describe('BooknotesPopover', () => {
     expect(writeTextToClipboard).toHaveBeenCalledWith('You would have spoken to the art director');
   });
 
-  it('opens the note in the notebook editor', () => {
+  it("hands the note to the reader's note editor rather than the notebook", () => {
     const onClose = vi.fn();
     renderPopover(onClose);
 
     fireEvent.click(screen.getByLabelText('Edit'));
-    expect(setNotebookVisible).toHaveBeenCalledWith(true);
-    expect(setNotebookEditAnnotation).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'note1' }),
-    );
+    expect(dispatch).toHaveBeenCalledWith('edit-note', {
+      bookKey: 'hash1-abc',
+      note: expect.objectContaining({ id: 'note1' }),
+    });
+    expect(setNotebookVisible).not.toHaveBeenCalled();
+    expect(setNotebookEditAnnotation).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
