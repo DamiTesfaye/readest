@@ -9,12 +9,15 @@ import { type PostView, publicApi } from '@/services/margins/public/api';
 import { formatCitation } from '@/services/margins/public/citation';
 import { type EngagementKind, sceneOf } from '@/services/margins/public/feedApi';
 import { sharePost } from '@/services/margins/public/share';
+import { socialApi } from '@/services/margins/public/social';
 import { chooseMaterial, type Material, ownerPassage } from '@/services/margins/replay/material';
 import type { Scene } from '@/services/margins/replay/types';
 import { openMarginsStore } from '@/services/margins/store';
 import { useLibraryStore } from '@/store/libraryStore';
 import { eventDispatcher } from '@/utils/event';
+import BlockSheet from './BlockSheet';
 import CreatorChip from './CreatorChip';
+import { askToSignIn } from './FollowButton';
 import GetBookSheet from './GetBookSheet';
 import ReplayPlayer from './ReplayPlayer';
 
@@ -26,7 +29,7 @@ export interface FeedCardProps {
   signedIn: boolean;
   onUnmute(): void;
   onMute(): void;
-  onHidden(post: PostView): void;
+  onHidden(post: PostView, by: 'creator' | 'book'): void;
   onOpenBook(post: PostView): void;
   onEngage(post: PostView, kind: EngagementKind): void;
 }
@@ -60,6 +63,7 @@ const FeedCard = ({
   const [more, setMore] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [getting, setGetting] = useState(false);
+  const [blocking, setBlocking] = useState(false);
   const assetSource = useCallback((ref: string) => publicApi.postAssetUrl(post.id, ref), [post.id]);
   const fail = () => console.error('Margins: feed action failed');
 
@@ -99,7 +103,28 @@ const FeedCard = ({
   const mute = async () => {
     await publicApi.mute(post.author.handle);
     setMore(false);
-    onHidden(post);
+    onHidden(post, 'creator');
+  };
+
+  const signedOut = () => askToSignIn(_('Sign in to block or hide Margins'));
+
+  const startBlock = () => {
+    if (!signedIn) {
+      signedOut();
+      return;
+    }
+    setMore(false);
+    setBlocking(true);
+  };
+
+  const hideBook = async () => {
+    if (!signedIn) {
+      signedOut();
+      return;
+    }
+    await socialApi.hideBook(post.textId);
+    setMore(false);
+    onHidden(post, 'book');
   };
 
   return (
@@ -162,7 +187,22 @@ const FeedCard = ({
               {_('Mute @{{handle}}', { handle: post.author.handle })}
             </button>
           )}
+          {!post.mine && (
+            <button type='button' className={BUTTON} onClick={startBlock}>
+              {_('Block @{{handle}}', { handle: post.author.handle })}
+            </button>
+          )}
+          <button type='button' className={BUTTON} onClick={() => void hideBook().catch(fail)}>
+            {_('Hide this book')}
+          </button>
         </div>
+      )}
+      {blocking && (
+        <BlockSheet
+          handle={post.author.handle}
+          onBlocked={() => onHidden(post, 'creator')}
+          onClose={() => setBlocking(false)}
+        />
       )}
       {getting && (
         <GetBookSheet

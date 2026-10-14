@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostView } from '@/services/margins/public/api';
 import { packScene } from '@/services/margins/replay/scene';
 import type { Scene } from '@/services/margins/replay/types';
+import { eventDispatcher } from '@/utils/event';
 
 const h = vi.hoisted(() => ({
   postAsset: vi.fn(),
@@ -10,8 +11,13 @@ const h = vi.hoisted(() => ({
   mute: vi.fn(async () => {}),
   ownerPassage: vi.fn(async () => null as string | null),
   follow: vi.fn(async () => {}),
+  block: vi.fn(async () => {}),
+  hideBook: vi.fn(async () => {}),
+  toast: vi.fn(),
 }));
-vi.mock('@/services/margins/public/social', () => ({ socialApi: { follow: h.follow } }));
+vi.mock('@/services/margins/public/social', () => ({
+  socialApi: { follow: h.follow, block: h.block, hideBook: h.hideBook },
+}));
 
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (s: string, opts?: Record<string, string | number>) =>
@@ -170,11 +176,56 @@ describe('FeedCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Mute @reader_1' })));
     expect(h.mute).toHaveBeenCalledWith('reader_1');
-    expect(on.onHidden).toHaveBeenCalledWith(p);
+    expect(on.onHidden).toHaveBeenCalledWith(p, 'creator');
     cleanup();
     await show(post(), { signedIn: false });
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     expect(screen.queryByRole('button', { name: /^Mute @/ })).toBeNull();
+  });
+
+  it('blocks the creator from More after a confirm', async () => {
+    const p = post();
+    const on = await show(p);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Block @reader_1' }));
+    screen.getByText("Block @reader_1? You won't see each other's Margins.");
+    expect(h.block).not.toHaveBeenCalled();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Block' })));
+    expect(h.block).toHaveBeenCalledWith('reader_1');
+    expect(on.onHidden).toHaveBeenCalledWith(p, 'creator');
+  });
+
+  it('hides the book from More', async () => {
+    const p = post();
+    const on = await show(p);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Hide this book' })));
+    expect(h.hideBook).toHaveBeenCalledWith('txt1');
+    expect(on.onHidden).toHaveBeenCalledWith(p, 'book');
+  });
+
+  it('asks a signed-out viewer to sign in instead of blocking or hiding', async () => {
+    eventDispatcher.on('toast', h.toast);
+    const on = await show(post(), { signedIn: false });
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Block @reader_1' }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Hide this book' })));
+    eventDispatcher.off('toast', h.toast);
+    expect(screen.queryByText(/You won't see each other's Margins/)).toBeNull();
+    expect(h.block).not.toHaveBeenCalled();
+    expect(h.hideBook).not.toHaveBeenCalled();
+    expect(on.onHidden).not.toHaveBeenCalled();
+    expect(h.toast).toHaveBeenCalledTimes(2);
+    expect(h.toast.mock.calls[0]![0].detail).toMatchObject({
+      message: 'Sign in to block or hide Margins',
+    });
+  });
+
+  it('offers no Block or Hide on your own post', async () => {
+    await show(post({ mine: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.queryByRole('button', { name: /^Block/ })).toBeNull();
+    screen.getByRole('button', { name: 'Hide this book' });
   });
 
   it('shows the art and the quote for a quote post with no scene', async () => {

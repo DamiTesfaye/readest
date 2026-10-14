@@ -8,6 +8,11 @@ const h = vi.hoisted(() => ({
   postAsset: vi.fn(async () => null),
   postAssetUrl: vi.fn(async () => null),
   session: { me: { id: 'u1' } } as unknown,
+  unhideBook: vi.fn(async () => {}),
+  toast: vi.fn(),
+}));
+vi.mock('@/services/margins/public/social', () => ({
+  socialApi: { unhideBook: h.unhideBook },
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -35,6 +40,7 @@ vi.mock('@/components/margins/feed/FeedCard', () => ({
     muted: boolean;
     onUnmute(): void;
     onMute(): void;
+    onHidden(post: PostView, by: 'creator' | 'book'): void;
   }) => (
     <div>
       {p.post.id}
@@ -42,11 +48,19 @@ vi.mock('@/components/margins/feed/FeedCard', () => ({
       <button type='button' onClick={p.muted ? p.onUnmute : p.onMute}>
         {p.muted ? 'Unmute' : 'Mute'}
       </button>
+      <button type='button' onClick={() => p.onHidden(p.post, 'creator')}>
+        {`Block ${p.post.id}`}
+      </button>
+      <button type='button' onClick={() => p.onHidden(p.post, 'book')}>
+        {`Hide ${p.post.id}`}
+      </button>
     </div>
   ),
 }));
 
 import FeedView from '@/components/margins/feed/FeedView';
+import { familyCache } from '@/services/margins/sync';
+import { eventDispatcher } from '@/utils/event';
 
 const post = (i: number): PostView =>
   ({
@@ -159,5 +173,48 @@ describe('FeedView', () => {
     h.session = null;
     await show();
     expect(screen.getAllByRole('article')).toHaveLength(12);
+  });
+
+  describe('dropping cards', () => {
+    const mixed = () => ({
+      posts: [
+        { id: 'p0', author: { handle: 'a' }, textId: 't0' },
+        { id: 'p1', author: { handle: 'a' }, textId: 't1' },
+        { id: 'p2', author: { handle: 'b' }, textId: 't0' },
+        { id: 'p3', author: { handle: 'c' }, textId: 't3' },
+        { id: 'p4', author: { handle: 'd' }, textId: 't4' },
+      ] as unknown as PostView[],
+      nextCursor: null,
+    });
+    const ids = () => screen.getAllByRole('article').map((a) => a.textContent?.match(/^p\d+/)?.[0]);
+
+    beforeEach(() => {
+      h.fetchFeedPage.mockResolvedValue(mixed());
+      familyCache.set('t0', 'fam');
+      familyCache.set('t3', 'fam');
+      eventDispatcher.on('toast', h.toast);
+    });
+    afterEach(() => {
+      familyCache.clear();
+      eventDispatcher.off('toast', h.toast);
+    });
+
+    it('drops every card by a blocked creator at once', async () => {
+      await show();
+      fireEvent.click(screen.getByRole('button', { name: 'Block p0' }));
+      expect(ids()).toEqual(['p2', 'p3', 'p4']);
+      expect(h.toast).not.toHaveBeenCalled();
+    });
+
+    it('drops every card on a hidden family, and Undo shows them again', async () => {
+      await show();
+      fireEvent.click(screen.getByRole('button', { name: 'Hide p2' }));
+      expect(ids()).toEqual(['p1', 'p4']);
+      const detail = h.toast.mock.calls[0]![0].detail;
+      expect(detail.action.label).toBe('Undo');
+      await act(async () => detail.action.onClick());
+      expect(h.unhideBook).toHaveBeenCalledWith('t0');
+      expect(ids()).toEqual(['p0', 'p1', 'p2', 'p3', 'p4']);
+    });
   });
 });

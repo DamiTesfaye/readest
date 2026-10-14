@@ -243,4 +243,24 @@ describe('ModerationQueue', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Restore' })));
     within(region('pst_a')).getByText("Restoring would go over this book's public quote limit.");
   });
+
+  it('approves a review item for the feeds', async () => {
+    h.fetch
+      .mockResolvedValueOnce(json(200, [item('pst_r', { kind: 'review', reports: [] })]))
+      .mockResolvedValueOnce(json(200, item('pst_r', { kind: 'none' })));
+    await show();
+    await act(async () =>
+      fireEvent.click(within(region('pst_r')).getByRole('button', { name: 'Approve for feeds' })),
+    );
+    const [path, init] = h.fetch.mock.calls[1]!;
+    expect(path).toBe('/v1/admin/posts/pst_r/actions');
+    expect(JSON.parse(init.body)).toEqual({ action: 'approve_feed' });
+    expect(screen.queryByRole('region', { name: 'pst_r' })).toBeNull();
+  });
+
+  it('offers Approve for feeds only on review items', async () => {
+    h.fetch.mockResolvedValue(json(200, [item('pst_x')]));
+    await show();
+    expect(within(region('pst_x')).queryByRole('button', { name: 'Approve for feeds' })).toBeNull();
+  });
 });

@@ -74,6 +74,9 @@ const PassageSheet: React.FC<PassageSheetProps> = ({
               signedIn={signedIn}
               onViewInPlace={onViewInPlace}
               onMuted={(handle) => setPosts((all) => all.filter((p) => p.author.handle !== handle))}
+              onBlocked={(handle) =>
+                setPosts((all) => all.filter((p) => p.author.handle !== handle))
+              }
             />
           </li>
         ))}

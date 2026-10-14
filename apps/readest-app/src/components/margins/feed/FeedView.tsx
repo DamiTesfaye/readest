@@ -10,7 +10,10 @@ import {
   fetchFeedPage,
   preloadPost,
 } from '@/services/margins/public/feedApi';
+import { socialApi } from '@/services/margins/public/social';
+import { familyCache } from '@/services/margins/sync';
 import { prefersReducedMotion } from '@/utils/animation';
+import { eventDispatcher } from '@/utils/event';
 import { navigateToLibrary } from '@/utils/nav';
 import FeedCard from './FeedCard';
 
@@ -28,11 +31,15 @@ const PREV_KEYS = ['ArrowUp', 'PageUp'];
 
 const noEngagement = () => {};
 
+const familyOf = (post: PostView) => familyCache.get(post.textId) ?? post.textId;
+
 const FeedView = ({ source }: FeedViewProps) => {
   const _ = useTranslation();
   const router = useRouter();
   const { appService } = useEnv();
-  const [posts, setPosts] = useState<PostView[] | null>(null);
+  const [all, setPosts] = useState<PostView[] | null>(null);
+  const [dropped, setDropped] = useState<ReadonlySet<string>>(new Set());
+  const posts = all?.filter((p) => !dropped.has(p.id)) ?? null;
   const [cursor, setCursor] = useState<string | null>(null);
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
@@ -50,6 +57,7 @@ const FeedView = ({ source }: FeedViewProps) => {
   useEffect(() => {
     let live = true;
     setPosts(null);
+    setDropped(new Set());
     setCursor(null);
     setActive(0);
     void getSession().then((s) => live && setSignedIn(!!s));
@@ -78,11 +86,11 @@ const FeedView = ({ source }: FeedViewProps) => {
       .finally(() => {
         loading.current = false;
       });
-  }, [active, posts, cursor]);
+  }, [active, all, dropped, cursor]);
 
   useEffect(() => {
     posts?.slice(active + 1, active + 1 + PRELOAD).forEach(preloadPost);
-  }, [active, posts]);
+  }, [active, all, dropped]);
 
   useEffect(() => {
     if (!posts || typeof IntersectionObserver === 'undefined') return;
@@ -97,7 +105,7 @@ const FeedView = ({ source }: FeedViewProps) => {
     );
     for (const card of cards.current) if (card) io.observe(card);
     return () => io.disconnect();
-  }, [posts]);
+  }, [all, dropped]);
 
   const go = (i: number) => {
     if (!posts || i < 0 || i >= posts.length) return;
@@ -121,8 +129,30 @@ const FeedView = ({ source }: FeedViewProps) => {
 
   const openBook = (post: PostView) => navigateToLibrary(router, bookFeedParams(post.textId));
 
-  const hide = (post: PostView) =>
-    setPosts((prev) => prev?.filter((p) => p.author.handle !== post.author.handle) ?? null);
+  const drop = (ids: string[]) => setDropped((prev) => new Set([...prev, ...ids]));
+
+  const undrop = (ids: string[]) =>
+    setDropped((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
+
+  const hide = (post: PostView, by: 'creator' | 'book') => {
+    const matches = (p: PostView) =>
+      by === 'creator' ? p.author.handle === post.author.handle : familyOf(p) === familyOf(post);
+    const ids = (all ?? []).filter(matches).map((p) => p.id);
+    drop(ids);
+    if (by === 'creator') return;
+    eventDispatcher.dispatch('toast', {
+      type: 'info',
+      message: _('Book hidden'),
+      action: {
+        label: _('Undo'),
+        onClick: () =>
+          void socialApi
+            .unhideBook(post.textId)
+            .then(() => undrop(ids))
+            .catch(() => console.error('Margins: undo hide failed')),
+      },
+    });
+  };
 
   const empty = {
     'for-you': _('No Margins yet'),

@@ -10,6 +10,7 @@ import {
   type HandoffRecord,
 } from '@/services/ampleread/auth/signIn';
 import SubPageHeader from '../SubPageHeader';
+import BlockedAccounts from './BlockedAccounts';
 import { SectionTitle } from '../primitives';
 
 interface AmpleReadAccountFormProps {
@@ -101,6 +102,7 @@ const AmpleReadAccountForm: React.FC<AmpleReadAccountFormProps> = ({ onBack }) =
               {_('Sign out')}
             </button>
           </div>
+          <BlockedAccounts />
         </div>
       ) : (
         <div className='space-y-4'>

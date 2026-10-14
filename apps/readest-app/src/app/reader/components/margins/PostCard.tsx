@@ -2,7 +2,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
 import { CitationLine } from '@/components/margins/CitationLine';
-import FollowButton from '@/components/margins/feed/FollowButton';
+import BlockSheet from '@/components/margins/feed/BlockSheet';
+import FollowButton, { askToSignIn } from '@/components/margins/feed/FollowButton';
 import { useTranslation } from '@/hooks/useTranslation';
 import { canDownloadEdition, getWorkDetail } from '@/services/ampleread';
 import { getSession } from '@/services/ampleread/auth/session';
@@ -28,12 +29,21 @@ interface PostCardProps {
   signedIn: boolean;
   onViewInPlace?(post: PostView): void;
   onMuted?(handle: string): void;
+  onBlocked?(handle: string): void;
   actions?: React.ReactNode;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMuted, actions }) => {
+const PostCard: React.FC<PostCardProps> = ({
+  post,
+  signedIn,
+  onViewInPlace,
+  onMuted,
+  onBlocked,
+  actions,
+}) => {
   const _ = useTranslation();
   const [reporting, setReporting] = useState(false);
+  const [blocking, setBlocking] = useState(false);
   const assetSource = useCallback((ref: string) => publicApi.postAssetUrl(post.id, ref), [post.id]);
   const button = 'btn btn-ghost btn-xs';
   const fail = () => console.error('Margins: post action failed');
@@ -46,6 +56,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
   const mute = async () => {
     await publicApi.mute(post.author.handle);
     onMuted?.(post.author.handle);
+  };
+
+  const startBlock = () => {
+    if (signedIn) setBlocking(true);
+    else askToSignIn(_('Sign in to block or hide Margins'));
   };
 
   return (
@@ -87,8 +102,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
             {_('Mute @{{handle}}', { handle: post.author.handle })}
           </button>
         )}
+        {!post.mine && (
+          <button type='button' className={button} onClick={startBlock}>
+            {_('Block @{{handle}}', { handle: post.author.handle })}
+          </button>
+        )}
       </div>
       {reporting && <ReportDialog postId={post.id} onClose={() => setReporting(false)} />}
+      {blocking && (
+        <BlockSheet
+          handle={post.author.handle}
+          onBlocked={() => onBlocked?.(post.author.handle)}
+          onClose={() => setBlocking(false)}
+        />
+      )}
     </article>
   );
 };

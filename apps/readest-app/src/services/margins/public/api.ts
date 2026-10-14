@@ -157,7 +157,7 @@ export interface QueueNotice {
 }
 
 export interface QueueItem {
-  kind: 'csam' | 'notice' | 'appeal' | 'report' | 'none';
+  kind: 'csam' | 'notice' | 'appeal' | 'report' | 'review' | 'none';
   post: PostView | null;
   postId: string;
   status: string;
