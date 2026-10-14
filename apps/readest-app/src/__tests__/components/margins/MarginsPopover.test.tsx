@@ -165,6 +165,36 @@ describe('MarginsPopover', () => {
     expect(quotes[0]!.tagName).toBe('BLOCKQUOTE');
   });
 
+  it('draws the passage on an opened card with its saved text style', async () => {
+    h.rows = [
+      row('early', 'early passage', {
+        payload: {
+          v: 1,
+          ground: 'paper',
+          quote: {
+            frame: { x: 0.3, y: 0.4, w: 0.6, r: 0 },
+            size: 'l',
+            font: 'mono',
+            weight: 'bold',
+            italic: true,
+          },
+          elements: [],
+        },
+      }),
+    ];
+    await open();
+    const first = screen.getAllByRole('listitem')[0]!;
+    await act(async () =>
+      fireEvent.click(within(first).getByRole('button', { name: 'Go to passage' })),
+    );
+    const quote = within(first).getByText('early passage');
+    expect(quote.style.fontFamily).toContain('monospace');
+    expect(quote.style.fontWeight).toBe('700');
+    expect(quote.style.fontStyle).toBe('italic');
+    expect(quote.style.left).toBe('30%');
+    expect(quote.className).toContain('text-sm');
+  });
+
   it('keeps the header from shrinking when an opened card fills the panel', async () => {
     await open();
     const header = screen.getByRole('radiogroup', { name: 'Show Margins' }).closest('.bg-base-200');

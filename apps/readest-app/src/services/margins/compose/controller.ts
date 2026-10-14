@@ -29,6 +29,7 @@ export type BuiltinToolId =
 export type ToolId = BuiltinToolId | (string & {});
 
 export type QuotePlacement = Envelope['quote'];
+export const QUOTE_ID = '#quote';
 
 export interface ComposeState {
   envelope: Envelope;
@@ -115,7 +116,7 @@ export const createComposeController = (
   const listeners = new Set<() => void>();
 
   const set = (envelope: Envelope, selection: string[], mode: ComposeState['mode']) => {
-    const ids = new Set(envelope.elements.map((e) => e.id));
+    const ids = new Set([QUOTE_ID, ...envelope.elements.map((e) => e.id)]);
     state = {
       envelope,
       selection: selection.filter((id) => ids.has(id)),

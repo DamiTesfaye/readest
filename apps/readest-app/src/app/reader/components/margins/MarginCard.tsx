@@ -7,6 +7,7 @@ import type { LayerRow } from '@/services/margins/store';
 import {
   ElementView,
   frameStyle,
+  quoteStyle,
   GROUND_STYLE,
   MarginsMotionStyle,
   motionClass,
@@ -98,7 +99,10 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
           style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
         >
           <MarginsMotionStyle />
-          <blockquote className='font-serif text-xs' style={frameStyle(envelope.quote.frame)}>
+          <blockquote
+            className={{ s: 'text-[0.625rem]', m: 'text-xs', l: 'text-sm' }[envelope.quote.size]}
+            style={quoteStyle(envelope.quote)}
+          >
             {quote}
           </blockquote>
           {envelope.elements.map((e) => (

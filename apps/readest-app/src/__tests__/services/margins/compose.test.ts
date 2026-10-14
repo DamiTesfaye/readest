@@ -147,6 +147,10 @@ describe('compose tools', () => {
       'sticker',
       'animate',
       'ground',
+      'quote.size',
+      'quote.font',
+      'quote.bold',
+      'quote.italic',
       'arrange.forward',
       'arrange.back',
       'delete',
@@ -168,6 +172,32 @@ describe('compose tools', () => {
     expect(startPlay).toHaveBeenCalledTimes(1);
     c.dispatch({ type: 'add', element: note('n1') });
     expect(play.enabled(c.state)).toBe(false);
+  });
+
+  it('restyles the passage text as single undoable steps', async () => {
+    const tools = builtinTools(t, io());
+    const c = createComposeController(emptyEnvelope(), { ...ctx, tools });
+    const sizes = [];
+    for (let i = 0; i < 3; i++) {
+      await byId(tools, 'quote.size').run(c);
+      sizes.push(c.state.envelope.quote.size);
+    }
+    expect(sizes).toEqual(['l', 's', 'm']);
+    const fonts = [];
+    for (let i = 0; i < 4; i++) {
+      await byId(tools, 'quote.font').run(c);
+      fonts.push(c.state.envelope.quote.font);
+    }
+    expect(fonts).toEqual(['sans', 'mono', 'hand', 'serif']);
+    expect(byId(tools, 'quote.bold').active!(c.state)).toBe(false);
+    await byId(tools, 'quote.bold').run(c);
+    expect(c.state.envelope.quote.weight).toBe('bold');
+    expect(byId(tools, 'quote.bold').active!(c.state)).toBe(true);
+    await byId(tools, 'quote.italic').run(c);
+    expect(c.state.envelope.quote.italic).toBe(true);
+    c.undo();
+    expect(c.state.envelope.quote.italic).toBeFalsy();
+    expect(c.state.envelope.quote.frame).toEqual(emptyEnvelope().quote.frame);
   });
 
   it('disables art at four artworks and undo without history', () => {
