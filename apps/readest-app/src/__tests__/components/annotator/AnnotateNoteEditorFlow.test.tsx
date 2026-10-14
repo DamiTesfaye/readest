@@ -4,9 +4,9 @@
  * virtualizes them. The new note's editor mounted off screen, so the user got a
  * higher annotation count and nothing else: no visible note, no caret.
  *
- * Annotate now opens the editor where the selection already is — inside the
- * annotation toolbar popup on desktop, in a bottom sheet on phone-sized
- * screens — and leaves the sidebar alone.
+ * Annotate now opens the editor over the selection in a bottom sheet at every
+ * viewport (the fork's sectioned popup embeds no editor) and leaves the
+ * sidebar alone.
  */
 
 import { act, cleanup, render, screen } from '@testing-library/react';
@@ -335,11 +335,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Annotate opens the note editor at the selection', () => {
-  test('hands the editor to the toolbar popup on a desktop-sized window', async () => {
+  test('hands the editor to the bottom sheet on a desktop-sized window too', async () => {
     await annotate();
 
-    expect(screen.getByTestId('note-editor-popup')).toBeTruthy();
-    expect(screen.queryByTestId('note-editor-sheet')).toBeNull();
+    expect(screen.getByTestId('note-editor-sheet')).toBeTruthy();
+    expect(screen.queryByText('stub-edit-note')).toBeNull();
     expect(liveAnnotations()).toHaveLength(1);
   });
 
@@ -348,7 +348,7 @@ describe('Annotate opens the note editor at the selection', () => {
     await annotate();
 
     expect(screen.getByTestId('note-editor-sheet')).toBeTruthy();
-    expect(screen.queryByTestId('note-editor-popup')).toBeNull();
+    expect(screen.queryByText('stub-edit-note')).toBeNull();
   });
 
   test('leaves the sidebar alone', async () => {
@@ -374,7 +374,7 @@ describe('Annotate opens the note editor at the selection', () => {
     expect(liveAnnotations()).toEqual([
       expect.objectContaining({ note: 'a thought worth keeping', text: 'selected text' }),
     ]);
-    expect(screen.queryByTestId('note-editor-popup')).toBeNull();
+    expect(screen.queryByTestId('note-editor-sheet')).toBeNull();
   });
 
   test.each([
@@ -427,7 +427,7 @@ describe('Annotate opens the note editor at the selection', () => {
     });
 
     expect(liveAnnotations()).toHaveLength(0);
-    expect(screen.queryByTestId('note-editor-popup')).toBeNull();
+    expect(screen.queryByTestId('note-editor-sheet')).toBeNull();
   });
 
   const existingNote: BookNote = {
@@ -460,7 +460,7 @@ describe('Annotate opens the note editor at the selection', () => {
       await eventDispatcher.dispatch('footnote-selection', { key: 'book-1' });
     });
 
-    expect(screen.getByTestId('note-editor-popup')).toBeTruthy();
+    expect(screen.getByTestId('note-editor-sheet')).toBeTruthy();
     expect(liveAnnotations()).toHaveLength(1);
   });
 
@@ -496,7 +496,7 @@ describe('Annotate opens the note editor at the selection', () => {
 
   test('the note bubble pencil opens the same editor, seeded with the existing note', async () => {
     await editExistingNote();
-    expect(screen.getByTestId('note-editor-popup-value').textContent).toBe('an older thought');
+    expect(screen.getByTestId('note-editor-sheet-value').textContent).toBe('an older thought');
 
     await act(async () => {
       screen.getByText('stub-save').click();
@@ -511,7 +511,6 @@ describe('Annotate opens the note editor at the selection', () => {
   ])('keeps the editor open on save failure at viewport %s (#6123)', async (width) => {
     setViewport(width, 844);
     await editExistingNote();
-    const surface = width === 390 ? 'sheet' : 'popup';
     let rejectSave!: (error: Error) => void;
     h.saveConfig.mockReturnValueOnce(
       new Promise<void>((_resolve, reject) => {
@@ -521,7 +520,7 @@ describe('Annotate opens the note editor at the selection', () => {
     act(() => {
       screen.getByText('stub-save').click();
     });
-    expect(screen.getByTestId(`note-editor-${surface}`)).toBeTruthy();
+    expect(screen.getByTestId('note-editor-sheet')).toBeTruthy();
     act(() => {
       screen.getByText('stub-save').click();
     });
@@ -529,11 +528,11 @@ describe('Annotate opens the note editor at the selection', () => {
     await act(async () => {
       rejectSave(new Error('disk full'));
     });
-    expect(screen.getByTestId(`note-editor-${surface}`)).toBeTruthy();
+    expect(screen.getByTestId('note-editor-sheet')).toBeTruthy();
     await act(async () => {
       screen.getByText('stub-save').click();
     });
-    expect(screen.queryByTestId(`note-editor-${surface}`)).toBeNull();
+    expect(screen.queryByTestId('note-editor-sheet')).toBeNull();
   });
 
   test('an edit-note event for this book opens the same editor on that note', async () => {
@@ -591,7 +590,7 @@ describe('Annotate opens the note editor at the selection', () => {
       );
     });
 
-    expect(screen.queryByTestId('note-editor-popup')).toBeNull();
+    expect(screen.queryByTestId('note-editor-sheet')).toBeNull();
     expect(liveAnnotations()).toHaveLength(0);
   });
 
