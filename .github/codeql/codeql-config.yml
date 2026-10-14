@@ -1,0 +1,4 @@
+name: AmpleRead CodeQL config
+paths-ignore:
+  - apps/readest-app/src/__tests__/**
+  - apps/readest-app/e2e/**
