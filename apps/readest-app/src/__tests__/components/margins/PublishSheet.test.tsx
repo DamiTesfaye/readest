@@ -250,7 +250,9 @@ describe('PublishSheet', () => {
         seed: expect.any(Number),
       }),
     );
-    expect(Object.keys(h.renderCard.mock.calls[0]![0] as object)).not.toContain('quote');
+    expect(Object.keys((h.renderCard.mock.calls[0] as unknown as [object])[0])).not.toContain(
+      'quote',
+    );
     expect(h.uploadCard).toHaveBeenCalledTimes(1);
     expect(h.publish).toHaveBeenCalledWith({
       layerId: 'lay1',
