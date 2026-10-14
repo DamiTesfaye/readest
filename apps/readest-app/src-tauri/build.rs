@@ -82,6 +82,13 @@ fn main() {
             "localsend_cancel_receive",
             "localsend_send_files",
             "localsend_cancel_send",
+            "ampleread_explore",
+            "ampleread_work_detail",
+            "ampleread_refresh",
+            "ampleread_install_token",
+            "ampleread_download_url",
+            "ampleread_track_event",
+            "ampleread_flush_events",
         ]),
     ))
     .expect("failed to run tauri-build");
