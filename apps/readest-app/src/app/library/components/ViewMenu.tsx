@@ -1,4 +1,3 @@
-import { eventDispatcher } from '@/utils/event';
 import { BOOKSHELF_GROUP_LABELS, BOOKSHELF_SORT_LABELS } from '@/services/bookshelves/definitions';
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -6,6 +5,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
+  LibraryCoverFitType,
   LibraryViewModeType,
   LibraryGroupByType,
   LibrarySecondarySortByType,
@@ -43,6 +43,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
   const { settings } = useSettingsStore();
 
   const viewMode = searchParams?.get('view') || settings.libraryViewMode;
+  const coverFit = settings.libraryCoverFit;
   const autoColumns = settings.libraryAutoColumns;
   const columns = settings.libraryColumns;
   const {
@@ -65,6 +66,11 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
   const viewOptions = [
     { label: _('List'), value: 'list' },
     { label: _('Grid'), value: 'grid' },
+  ];
+
+  const coverFitOptions = [
+    { label: _('Crop'), value: 'crop' },
+    { label: _('Fit'), value: 'fit' },
   ];
 
   const groupByOptions = Object.entries(BOOKSHELF_GROUP_LABELS).map(([value, label]) => ({
@@ -96,6 +102,22 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
     navigateToLibrary(router, `${params.toString()}`);
   };
 
+  const handleToggleCropCovers = async (value: LibraryCoverFitType) => {
+    await saveSysSettings(envConfig, 'libraryCoverFit', value);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('cover', value);
+    navigateToLibrary(router, `${params.toString()}`);
+  };
+
+  const handleToggleRecentShelf = async () => {
+    await saveSysSettings(
+      envConfig,
+      'libraryRecentShelfEnabled',
+      !settings.libraryRecentShelfEnabled,
+    );
+  };
+
   const handleToggleAutoColumns = async () => {
     const newValue = !settings.libraryAutoColumns;
     await saveSysSettings(envConfig, 'libraryAutoColumns', newValue);
@@ -112,16 +134,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
       style={{ marginRight: appService?.isMobile || window.innerWidth < 640 ? '-40px' : 0 }}
       onCancel={() => setIsDropdownOpen?.(false)}
     >
-      <MenuItem
-        label={_('Bookshelves')}
-        buttonClass='min-h-11'
-        onClick={() => {
-          eventDispatcher.dispatch('show-bookshelves');
-          setIsDropdownOpen?.(false);
-        }}
-        transient
-      />
-      <hr aria-hidden='true' className='border-base-200 my-1' />
       {/* View Mode */}
       {viewOptions.map((option) => (
         <MenuItem
@@ -160,6 +172,33 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
           />
         }
         onClick={() => handleToggleAutoColumns()}
+      />
+
+      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <MenuItem
+        label={_('Book Covers')}
+        buttonClass='min-h-8 py-1!'
+        labelClass='text-sm sm:text-xs'
+        disabled
+      />
+      {coverFitOptions.map((option) => (
+        <MenuItem
+          key={option.value}
+          label={option.label}
+          buttonClass='min-h-8 py-1!'
+          toggled={coverFit === option.value}
+          onClick={() => handleToggleCropCovers(option.value as LibraryCoverFitType)}
+          transient
+        />
+      ))}
+
+      <hr aria-hidden='true' className='border-base-200 my-1' />
+      <MenuItem
+        label={_('Show currently reading')}
+        buttonClass='min-h-8 py-1!'
+        toggled={settings.libraryRecentShelfEnabled}
+        onClick={handleToggleRecentShelf}
+        transient
       />
 
       {/* Group By - Collapsible */}

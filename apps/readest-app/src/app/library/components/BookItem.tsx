@@ -1,12 +1,8 @@
 import clsx from 'clsx';
 import { useState } from 'react';
 import { MdCheckCircle, MdCheckCircleOutline, MdOutlineOfflinePin } from 'react-icons/md';
-import {
-  LiaCloudUploadAltSolid,
-  LiaCloudDownloadAltSolid,
-  LiaHeadphonesSolid,
-  LiaInfoCircleSolid,
-} from 'react-icons/lia';
+import { LiaCloudDownloadAltSolid, LiaHeadphonesSolid, LiaInfoCircleSolid } from 'react-icons/lia';
+import { UploadIcon } from '@/components/UploadIcon';
 
 import { Book } from '@/types/book';
 import { useEnv } from '@/context/EnvContext';
@@ -347,7 +343,7 @@ const BookItem: React.FC<BookItemProps> = ({
                     }}
                   >
                     {!book.uploadedAt && isReadestCloudStorageActive(settings) && (
-                      <LiaCloudUploadAltSolid size={iconSize15} />
+                      <UploadIcon size={iconSize15} />
                     )}
                     {book.uploadedAt && !book.downloadedAt && (
                       <LiaCloudDownloadAltSolid size={iconSize15} />

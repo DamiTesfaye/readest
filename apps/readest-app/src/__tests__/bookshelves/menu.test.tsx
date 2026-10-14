@@ -59,14 +59,18 @@ describe('bookshelf layouts from the View menu', () => {
     expect(screen.getAllByText('Date Published').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Progress Read').length).toBeGreaterThan(0);
   });
-  it('keeps shelf visibility and cover visibility in Bookshelves settings', () => {
+  it('offers the fork cover fit and Currently Reading toggles instead of Bookshelves', async () => {
     render(<ViewMenu />);
-    expect(screen.getByText('Bookshelves')).toBeTruthy();
-    expect(screen.queryByText('Hide covers')).toBeNull();
-    expect(screen.queryByText('Show recently read')).toBeNull();
-    expect(screen.queryByText('Book Covers')).toBeNull();
-    expect(screen.queryByText('Crop')).toBeNull();
-    expect(screen.queryByText('Fit')).toBeNull();
+    expect(screen.queryByText('Bookshelves')).toBeNull();
+    expect(screen.getByText('Book Covers')).toBeTruthy();
+    expect(screen.getByText('Crop')).toBeTruthy();
+    fireEvent.click(screen.getByText('Fit'));
+    await waitFor(() => expect(useSettingsStore.getState().settings.libraryCoverFit).toBe('fit'));
+    const enabled = useSettingsStore.getState().settings.libraryRecentShelfEnabled;
+    fireEvent.click(screen.getByText('Show currently reading'));
+    await waitFor(() =>
+      expect(useSettingsStore.getState().settings.libraryRecentShelfEnabled).toBe(!enabled),
+    );
   });
   it('keeps every carousel, including Default, when switching between Grid and List', async () => {
     const base = readBookshelves(useSettingsStore.getState().settings);

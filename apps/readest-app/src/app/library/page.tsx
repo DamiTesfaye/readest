@@ -1,7 +1,5 @@
 'use client';
 
-import BookshelvesDialog from './components/BookshelvesDialog';
-
 import clsx from 'clsx';
 import * as React from 'react';
 import { MdChevronRight, MdClose } from 'react-icons/md';
@@ -2247,7 +2245,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
                 <DropIndicator />
                 <Bookshelf
                   libraryBooks={libraryBooks}
-                  handleImportBooks={setImportMenuAnchor}
                   isSelectMode={isSelectMode}
                   isSelectAll={isSelectAll}
                   isSelectNone={isSelectNone}
@@ -2405,7 +2402,6 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           }}
         />
       )}
-      <BookshelvesDialog />
       <WebSourcesDialog
         isOpen={showWebSources}
         onClose={() => setShowWebSources(false)}
