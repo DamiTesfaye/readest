@@ -13,8 +13,8 @@ const setup = () => {
   const doc = document.implementation.createHTMLDocument('t');
   const show = vi.fn();
   const hitTest = vi.fn(({ x }: { x: number }) => (x < 20 ? 'margins:m1' : undefined));
-  const creatorOf = vi.fn((key: string) => (key === 'margins:m1' ? creator : undefined));
-  const detach = attachCreatorHover(doc, { hitTest, creatorOf, show });
+  const peekOf = vi.fn((key: string) => (key === 'margins:m1' ? { ...creator } : undefined));
+  const detach = attachCreatorHover(doc, { hitTest, peekOf, show });
   return { doc, show, hitTest, detach };
 };
 
@@ -25,7 +25,7 @@ describe('attachCreatorHover', () => {
     vi.useFakeTimers();
     const { doc, show } = setup();
     doc.dispatchEvent(pointer('pointermove', { x: 10, y: 10, pointerType: 'mouse' }));
-    expect(show).toHaveBeenLastCalledWith(creator, 10, 10);
+    expect(show).toHaveBeenLastCalledWith({ ...creator }, 10, 10);
     vi.advanceTimersByTime(200);
     doc.dispatchEvent(pointer('pointermove', { x: 12, y: 10, pointerType: 'mouse' }));
     expect(show).toHaveBeenCalledTimes(1);
@@ -41,7 +41,7 @@ describe('attachCreatorHover', () => {
     vi.advanceTimersByTime(300);
     expect(show).not.toHaveBeenCalled();
     vi.advanceTimersByTime(300);
-    expect(show).toHaveBeenLastCalledWith(creator, 10, 10);
+    expect(show).toHaveBeenLastCalledWith({ ...creator }, 10, 10);
     doc.dispatchEvent(pointer('pointerdown', { x: 100, y: 100, pointerType: 'touch' }));
     expect(show).toHaveBeenLastCalledWith(null, 100, 100);
   });

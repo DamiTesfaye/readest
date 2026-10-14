@@ -39,6 +39,7 @@ export interface MarginsPainter {
   ): Promise<string[]>;
   placements(): ReadonlyMap<string, Placement>;
   creatorOf(id: string): MarginCreator | undefined;
+  rowOf(id: string): LayerRow | undefined;
 }
 
 export const MARGIN_KEY_PREFIX = 'margins:';
@@ -224,6 +225,7 @@ export const createPainter = (o: {
   const queues = new Map<number, Promise<unknown>>();
   const ranges = new Map<string, Range>();
   const authors = new Map<string, string | null>();
+  const rowsById = new Map<string, LayerRow>();
 
   const rangeFor = async (index: number, start: number, end: number) => {
     const key = `${index}:${start}:${end}`;
@@ -244,6 +246,7 @@ export const createPainter = (o: {
     }
     placed.set(row.id, placement);
     authors.set(row.id, row.userId ?? null);
+    rowsById.set(row.id, row);
   };
 
   const gapRange = async (section: number, at: number) => {
@@ -305,7 +308,12 @@ export const createPainter = (o: {
   return {
     async resolveAll(rows, onBatch) {
       const live = new Set(rows.map((r) => r.id));
-      for (const id of [...placed.keys()]) if (!live.has(id)) placed.delete(id);
+      for (const id of [...placed.keys()]) {
+        if (live.has(id)) continue;
+        placed.delete(id);
+        rowsById.delete(id);
+        authors.delete(id);
+      }
       for (let i = 0; i < rows.length; i += BATCH) {
         if (i > 0) await idle();
         await Promise.all(rows.slice(i, i + BATCH).map(resolveOne));
@@ -320,6 +328,7 @@ export const createPainter = (o: {
       return run;
     },
     placements: () => placed,
+    rowOf: (id) => rowsById.get(id),
     creatorOf: (id) => (authors.has(id) ? o.creator?.(authors.get(id) ?? null) : undefined),
   };
 };

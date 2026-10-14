@@ -1,26 +1,25 @@
-import type { MarginCreator } from './painter';
-
 const HOVER_THROTTLE_MS = 100;
 const LONG_PRESS_MS = 500;
 const SLOP_PX = 10;
 
-export interface CreatorHoverOptions {
+export interface CreatorHoverOptions<T> {
   hitTest(point: { x: number; y: number }): string | undefined;
-  creatorOf(key: string): MarginCreator | undefined;
-  show(creator: MarginCreator | null, x: number, y: number): void;
+  peekOf(key: string): T | undefined;
+  show(peek: T | null, x: number, y: number): void;
 }
 
-export const attachCreatorHover = (doc: Document, o: CreatorHoverOptions): (() => void) => {
-  let shown: MarginCreator | null = null;
+export const attachCreatorHover = <T>(doc: Document, o: CreatorHoverOptions<T>): (() => void) => {
+  let shown: string | null = null;
   let lastMove = -Infinity;
   let press: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
 
   const update = (x: number, y: number) => {
     const key = o.hitTest({ x, y });
-    const creator = (key && o.creatorOf(key)) || null;
-    if (creator === shown) return;
-    shown = creator;
-    o.show(creator, x, y);
+    const peek = key ? o.peekOf(key) : undefined;
+    const next = peek ? key! : null;
+    if (next === shown) return;
+    shown = next;
+    o.show(peek ?? null, x, y);
   };
 
   const hide = (x: number, y: number) => {

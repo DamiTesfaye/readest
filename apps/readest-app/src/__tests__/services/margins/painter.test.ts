@@ -231,6 +231,8 @@ describe('margins painter', () => {
     expect(creator).toHaveBeenCalledWith('u1');
     expect(painter.creatorOf('a')).toMatchObject({ color: '#111111' });
     expect(painter.creatorOf('missing')).toBeUndefined();
+    expect(painter.rowOf('a')?.userId).toBe('u1');
+    expect(painter.rowOf('missing')).toBeUndefined();
     expect(added.get('margins:a')!.opts).toMatchObject({ creator: { color: '#111111' } });
   });
 

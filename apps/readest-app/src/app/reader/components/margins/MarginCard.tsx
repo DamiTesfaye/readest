@@ -35,6 +35,34 @@ const ART_ERRORS = [
   'unsupported_media_type',
 ];
 
+export const MarginArt = ({
+  envelope,
+  quote,
+  onPlay,
+}: {
+  envelope: Envelope;
+  quote: string;
+  onPlay?(): void;
+}) => (
+  <div
+    className='relative w-full overflow-hidden rounded-lg'
+    style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
+  >
+    <MarginsMotionStyle />
+    <blockquote
+      className={{ s: 'text-[0.625rem]', m: 'text-xs', l: 'text-sm' }[envelope.quote.size]}
+      style={quoteStyle(envelope.quote)}
+    >
+      {quote}
+    </blockquote>
+    {envelope.elements.map((e) => (
+      <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
+        <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
+      </div>
+    ))}
+  </div>
+);
+
 export const storedQuote = (row: LayerRow): string => {
   const q = row.anchor.quote;
   return 'exact' in q ? q.exact : `${q.head} … ${q.tail}`;
@@ -93,25 +121,7 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
           {quote}
         </p>
       )}
-      {expanded && envelope && (
-        <div
-          className='relative w-full overflow-hidden rounded-lg'
-          style={{ aspectRatio: '4 / 5', ...GROUND_STYLE[envelope.ground] }}
-        >
-          <MarginsMotionStyle />
-          <blockquote
-            className={{ s: 'text-[0.625rem]', m: 'text-xs', l: 'text-sm' }[envelope.quote.size]}
-            style={quoteStyle(envelope.quote)}
-          >
-            {quote}
-          </blockquote>
-          {envelope.elements.map((e) => (
-            <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
-              <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
-            </div>
-          ))}
-        </div>
-      )}
+      {expanded && envelope && <MarginArt envelope={envelope} quote={quote} onPlay={onPlay} />}
       {fuzzy && (
         <p className='text-base-content/70 text-xs'>
           {_('This Margin moved slightly.')}{' '}

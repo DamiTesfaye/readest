@@ -23,7 +23,7 @@ import { useBookDataStore } from '@/store/bookDataStore';
 import { useReaderStore } from '@/store/readerStore';
 import { eventDispatcher } from '@/utils/event';
 import { attachCreatorHover } from '@/services/margins/creatorHover';
-import { MARGINS_CREATOR_EVENT } from '../components/margins/MarginCreatorPopover';
+import { MARGINS_PEEK_EVENT } from '../components/margins/MarginPeek';
 import { toParentViewportPoint } from '../utils/annotatorUtil';
 
 const CREATOR_OFFSET_PX = 12;
@@ -158,12 +158,18 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
           ];
           return key?.startsWith(MARGIN_KEY_PREFIX) && key !== CLIP_PREVIEW_KEY ? key : undefined;
         },
-        creatorOf: (key) => getMarginsPainter(bookKey)?.creatorOf(marginIdsOfKey(key)[0]!),
-        show: (creator, x, y) => {
+        peekOf: (key) => {
+          const id = marginIdsOfKey(key)[0]!;
+          const painter = getMarginsPainter(bookKey);
+          const creator = painter?.creatorOf(id);
+          const row = painter?.rowOf(id);
+          return creator && row ? { creator, row } : undefined;
+        },
+        show: (peek, x, y) => {
           const at = toParentViewportPoint(doc, x, y);
-          eventDispatcher.dispatch(MARGINS_CREATOR_EVENT, {
+          eventDispatcher.dispatch(MARGINS_PEEK_EVENT, {
             bookKey,
-            creator,
+            peek,
             x: at.x + CREATOR_OFFSET_PX,
             y: at.y + CREATOR_OFFSET_PX,
           });
