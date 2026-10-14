@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useEnv } from '@/context/EnvContext';
 import type { BookDoc } from '@/libs/document';
 import { getSession } from '@/services/ampleread/auth/session';
+import type { Me } from '@/services/ampleread/auth/types';
 import { liveRange, resolveAnchor } from '@/services/margins/anchorBridge';
 import { marginsContext } from '@/services/margins/context';
 import { hiddenMargins, onMarginsChanged } from '@/services/margins/margins';
 import {
   createPainter,
+  creatorColor,
+  MARGIN_COLOR,
   MARGIN_KEY_PREFIX,
   marginIdsOfKey,
   type MarginsPainter,
@@ -65,12 +68,24 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
     (async () => {
       const store = await openMarginsStore(appService);
       const ctx = marginsContext({ view, book, bookDoc, store });
+      let me: Me | null = null;
       const painter = createPainter({
         resolve: async (row) => placementOf(await resolveAnchor(ctx, row.anchor)),
         liveRange: (section, start, end) => liveRange(ctx, section, start, end),
+        creator: (userId) => {
+          const mine = !userId || userId === me?.id;
+          return {
+            avatarUrl: mine ? (me?.avatarUrl ?? null) : null,
+            color: userId || me ? creatorColor(userId ?? me!.id) : MARGIN_COLOR,
+            initial: mine
+              ? ([...(me?.displayName || me?.email || '')][0]?.toUpperCase() ?? '')
+              : '',
+          };
+        },
       });
       const load = async () => {
-        const userId = (await getSession())?.me.id ?? null;
+        me = (await getSession())?.me ?? null;
+        const userId = me?.id ?? null;
         const textIds = await readerTextIds(store, cachedLink(book.hash)?.textId ?? null);
         const hidden = hiddenMargins();
         const rows = await store.layersForReader(book.hash, textIds, userId);

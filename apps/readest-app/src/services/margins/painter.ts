@@ -15,11 +15,18 @@ export interface PainterOverlayer {
   remove(key: string): void;
 }
 
+export interface MarginCreator {
+  avatarUrl: string | null;
+  color: string;
+  initial: string;
+}
+
 export interface MarginDrawOptions {
   count: number;
   fuzzy: boolean;
   markers: boolean;
   gap?: boolean;
+  creator?: MarginCreator;
 }
 
 export interface MarginsPainter {
@@ -34,9 +41,27 @@ export interface MarginsPainter {
 
 export const MARGIN_KEY_PREFIX = 'margins:';
 export const MARGIN_COLOR = '#5B3DF5';
+export const CREATOR_COLORS = [
+  '#5B3DF5',
+  '#E8846B',
+  '#2E7D6B',
+  '#C2185B',
+  '#D9A400',
+  '#1E88E5',
+  '#8E5CC4',
+  '#E0613D',
+];
+
+export const creatorColor = (userId: string): string => {
+  let hash = 0;
+  for (const ch of userId) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
+  return CREATOR_COLORS[hash % CREATOR_COLORS.length]!;
+};
 
 const BATCH = 20;
 const MARKER = 14;
+const AVATAR = 18;
+let clipIds = 0;
 const SAME_LINE_PX = 2;
 const PARAGRAPH_MERGE_ABOVE = 200;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -70,10 +95,64 @@ const svg = (tag: string, attrs: Record<string, string | number>) => {
 const box = (left: number, top: number, size: number) =>
   ({ left, top, right: left + size, bottom: top + size, width: size, height: size }) as DOMRect;
 
+const drawMarker = (g: SVGElement, cx: number, cy: number, r: number, o: MarginDrawOptions) => {
+  const color = o.creator?.color ?? MARGIN_COLOR;
+  const avatar = o.creator?.avatarUrl;
+  if (avatar) {
+    const id = `margins-avatar-${++clipIds}`;
+    const clip = svg('clipPath', { id });
+    clip.append(svg('circle', { cx, cy, r }));
+    g.append(clip);
+    g.append(svg('circle', { cx, cy, r, fill: color }));
+    g.append(
+      svg('image', {
+        href: avatar,
+        x: cx - r,
+        y: cy - r,
+        width: 2 * r,
+        height: 2 * r,
+        'clip-path': `url(#${id})`,
+        preserveAspectRatio: 'xMidYMid slice',
+      }),
+    );
+    g.append(svg('circle', { cx, cy, r, fill: 'none', stroke: color, 'stroke-width': 2 }));
+  } else {
+    g.append(svg('circle', { cx, cy, r, fill: color }));
+  }
+  if (o.fuzzy) {
+    g.append(
+      svg('circle', {
+        cx,
+        cy,
+        r: r + 2,
+        fill: 'none',
+        stroke: color,
+        'stroke-dasharray': '2 2',
+      }),
+    );
+  }
+  const label = o.count > 1 ? String(o.count) : avatar ? '' : (o.creator?.initial ?? '');
+  if (label) {
+    const text = svg('text', {
+      x: cx,
+      y: cy,
+      fill: '#fff',
+      'font-size': 9,
+      'font-family': 'sans-serif',
+      'text-anchor': 'middle',
+      'dominant-baseline': 'central',
+    });
+    text.textContent = label;
+    g.append(text);
+  }
+};
+
 export const drawMargin = (rects: DOMRect[], o: MarginDrawOptions): SVGElement => {
   const g = svg('g', { 'aria-hidden': 'true' });
+  const first = rects[0];
   const last = rects[rects.length - 1];
-  if (!last) return g;
+  if (!first || !last) return g;
+  const color = o.creator?.color ?? MARGIN_COLOR;
   if (o.gap) {
     const x = last.left;
     const y = last.top + (last.height - MARKER) / 2;
@@ -81,7 +160,7 @@ export const drawMargin = (rects: DOMRect[], o: MarginDrawOptions): SVGElement =
       svg('path', {
         d: `M ${x + 5} ${y} H ${x} V ${y + MARKER} H ${x + 5}`,
         fill: 'none',
-        stroke: MARGIN_COLOR,
+        stroke: color,
         'stroke-width': 2,
       }),
     );
@@ -96,42 +175,18 @@ export const drawMargin = (rects: DOMRect[], o: MarginDrawOptions): SVGElement =
           y: r.top,
           width: r.width,
           height: r.height,
-          fill: MARGIN_COLOR,
-          'fill-opacity': 0.1,
+          fill: color,
+          'fill-opacity': 0.18,
         }),
       );
     }
   }
-  const r = MARKER / 2;
-  const cx = last.right;
-  const cy = last.top;
-  g.append(svg('circle', { cx, cy, r, fill: MARGIN_COLOR }));
-  if (o.fuzzy) {
-    g.append(
-      svg('circle', {
-        cx,
-        cy,
-        r: r + 2,
-        fill: 'none',
-        stroke: MARGIN_COLOR,
-        'stroke-dasharray': '2 2',
-      }),
-    );
-  }
-  if (o.count > 1) {
-    const label = svg('text', {
-      x: cx,
-      y: cy,
-      fill: '#fff',
-      'font-size': 9,
-      'font-family': 'sans-serif',
-      'text-anchor': 'middle',
-      'dominant-baseline': 'central',
-    });
-    label.textContent = String(o.count);
-    g.append(label);
-  }
-  const marker = box(cx - r, cy - r, MARKER);
+  const size = o.creator ? AVATAR : MARKER;
+  const r = size / 2;
+  const cx = first.left;
+  const cy = first.top;
+  drawMarker(g, cx, cy, r, o);
+  const marker = box(cx - r, cy - r, size);
   if (o.markers) rects.splice(0, rects.length, marker);
   else rects.push(marker);
   return g;
@@ -181,12 +236,14 @@ const groupMembers = (members: Member[]) => {
 export const createPainter = (o: {
   resolve: (row: LayerRow) => Promise<Placement>;
   liveRange: (section: number, start: number, end: number) => Promise<Range | null>;
+  creator?: (userId: string | null) => MarginCreator;
 }): MarginsPainter => {
   const cache = new Map<string, Placement>();
   const placed = new Map<string, Placement>();
   const drawn = new Map<number, Set<string>>();
   const queues = new Map<number, Promise<unknown>>();
   const ranges = new Map<string, Range>();
+  const authors = new Map<string, string | null>();
 
   const rangeFor = async (index: number, start: number, end: number) => {
     const key = `${index}:${start}:${end}`;
@@ -206,6 +263,7 @@ export const createPainter = (o: {
       cache.set(key, placement);
     }
     placed.set(row.id, placement);
+    authors.set(row.id, row.userId ?? null);
   };
 
   const gapRange = async (section: number, at: number) => {
@@ -229,7 +287,13 @@ export const createPainter = (o: {
         if (range) members.push({ id, range, step: p.step, start: p.start });
       } else if (p.kind === 'gap' && p.section === index && display === 'full') {
         const range = await gapRange(index, p.at);
-        const opts = { count: 1, fuzzy: false, markers: false, gap: true };
+        const opts = {
+          count: 1,
+          fuzzy: false,
+          markers: false,
+          gap: true,
+          creator: o.creator?.(authors.get(id) ?? null),
+        };
         if (range) next.set(MARGIN_KEY_PREFIX + id, { range, opts });
       }
     }
@@ -243,6 +307,7 @@ export const createPainter = (o: {
           count: group.length,
           fuzzy: group.some((m) => m.step === 3),
           markers: display === 'markers',
+          creator: o.creator?.(authors.get(group[0]!.id) ?? null),
         },
       });
     }

@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   cacheKey,
   createPainter,
+  CREATOR_COLORS,
+  creatorColor,
   drawMargin,
   marginIdsOfKey,
   placementOf,
@@ -172,7 +174,56 @@ describe('margins painter', () => {
     expect(markers.querySelectorAll('rect')).toHaveLength(0);
     expect(markers.textContent).toBe('');
     expect(marked).toHaveLength(1);
-    expect(marked[0]!.left).toBeGreaterThan(20);
+    expect(marked[0]!.left + marked[0]!.width / 2).toBe(rects[0]!.left);
+    expect(marked[0]!.top + marked[0]!.height / 2).toBe(rects[0]!.top);
+  });
+
+  it("draws the creator's avatar in a ring of their colour and tints the band to match", () => {
+    const rects = [
+      { left: 40, top: 20, right: 90, bottom: 30, width: 50, height: 10 },
+    ] as DOMRect[];
+    const creator = { avatarUrl: 'https://cdn.example/a.png', color: '#E8846B', initial: 'D' };
+    const g = drawMargin([...rects], { count: 1, fuzzy: false, markers: false, creator });
+    expect(g.querySelector('image')!.getAttribute('href')).toBe(creator.avatarUrl);
+    expect(g.querySelector('clipPath circle')).not.toBeNull();
+    expect(g.querySelector('[stroke="#E8846B"]')).not.toBeNull();
+    expect(g.querySelector('rect')!.getAttribute('fill')).toBe('#E8846B');
+  });
+
+  it("falls back to the creator's initial on their colour without an avatar", () => {
+    const rects = [
+      { left: 40, top: 20, right: 90, bottom: 30, width: 50, height: 10 },
+    ] as DOMRect[];
+    const creator = { avatarUrl: null, color: '#2E7D6B', initial: 'D' };
+    const g = drawMargin([...rects], { count: 1, fuzzy: false, markers: true, creator });
+    expect(g.querySelector('image')).toBeNull();
+    expect(g.querySelector('circle')!.getAttribute('fill')).toBe('#2E7D6B');
+    expect(g.textContent).toBe('D');
+  });
+
+  it('gives each creator a stable colour from the palette', () => {
+    expect(creatorColor('u1')).toBe(creatorColor('u1'));
+    expect(CREATOR_COLORS).toContain(creatorColor('u1'));
+    const spread = new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(creatorColor));
+    expect(spread.size).toBeGreaterThan(2);
+  });
+
+  it('passes each Margin creator to the drawing', async () => {
+    const creator = vi.fn((userId: string | null) => ({
+      avatarUrl: null,
+      color: userId === 'u1' ? '#111111' : '#222222',
+      initial: 'X',
+    }));
+    const painter = createPainter({
+      resolve: async () => ({ kind: 'placed', section: 0, start: 0, end: 3, step: 1 }),
+      liveRange: async (_s, start, end) => rangeAt(start, end, 0),
+      creator,
+    });
+    await painter.resolveAll([row('a', { userId: 'u1' })]);
+    const { overlayer, added } = fakeOverlayer();
+    await painter.drawSection(0, overlayer, 'full');
+    expect(creator).toHaveBeenCalledWith('u1');
+    expect(added.get('margins:a')!.opts).toMatchObject({ creator: { color: '#111111' } });
   });
 
   it('maps resolutions to placements and keys back to ids', () => {
