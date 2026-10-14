@@ -1,4 +1,12 @@
-import { ARTWORK_MAX, ELEMENTS_MAX, type Ground, type Motion } from '../payload';
+import {
+  ARTWORK_MAX,
+  ELEMENTS_MAX,
+  type Ground,
+  type Motion,
+  type QuoteFont,
+  type QuoteSize,
+  type QuoteStyle,
+} from '../payload';
 import type { ComposeController, ComposeState, ComposeTool } from './controller';
 
 export interface ComposeIO {
@@ -7,10 +15,13 @@ export interface ComposeIO {
   addNote(): void;
   addTranslation(mode: 'translation' | 'gloss'): void;
   pickSticker(): void;
+  startPlay?(): void;
 }
 
 const MOTIONS: (Motion | undefined)[] = [undefined, 'rise', 'drift', 'breathe'];
 const GROUNDS: Ground[] = ['paper', 'ink', 'lime'];
+const QUOTE_SIZES: QuoteSize[] = ['s', 'm', 'l'];
+const QUOTE_FONTS: QuoteFont[] = ['serif', 'sans', 'mono', 'hand'];
 
 const next = <T>(list: T[], current: T): T => list[(list.indexOf(current) + 1) % list.length]!;
 
@@ -33,6 +44,11 @@ const cycleMotion = (c: ComposeController) => {
   c.dispatch({ type: 'commit' });
 };
 
+const restyleQuote = (c: ComposeController, patch: (q: QuoteStyle) => Partial<QuoteStyle>) => {
+  const quote = c.state.envelope.quote;
+  c.dispatch({ type: 'setQuote', quote: { ...quote, ...patch(quote) } });
+};
+
 const move = (c: ComposeController, by: number) => {
   const i = single(c.state);
   if (i >= 0) c.dispatch({ type: 'reorder', id: c.state.selection[0]!, to: i + by });
@@ -46,6 +62,17 @@ export const builtinTools = (t: (s: string) => string, io: ComposeIO): ComposeTo
     enabled: () => true,
     run: (c) => c.dispatch({ type: 'select', ids: [] }),
   },
+  ...(io.startPlay
+    ? [
+        {
+          id: 'play',
+          label: t('Play'),
+          group: 'create',
+          enabled: (s: ComposeState) => s.envelope.elements.length === 0,
+          run: () => io.startPlay?.(),
+        } satisfies ComposeTool,
+      ]
+    : []),
   { id: 'note', label: t('Note'), group: 'create', enabled: hasRoom, run: () => io.addNote() },
   {
     id: 'translate',
@@ -98,6 +125,36 @@ export const builtinTools = (t: (s: string) => string, io: ComposeIO): ComposeTo
     group: 'style',
     enabled: () => true,
     run: (c) => c.dispatch({ type: 'setGround', ground: next(GROUNDS, c.state.envelope.ground) }),
+  },
+  {
+    id: 'quote.size',
+    label: t('Text size'),
+    group: 'style',
+    enabled: () => true,
+    run: (c) => restyleQuote(c, (q) => ({ size: next(QUOTE_SIZES, q.size) })),
+  },
+  {
+    id: 'quote.font',
+    label: t('Font'),
+    group: 'style',
+    enabled: () => true,
+    run: (c) => restyleQuote(c, (q) => ({ font: next(QUOTE_FONTS, q.font ?? 'serif') })),
+  },
+  {
+    id: 'quote.bold',
+    label: t('Bold'),
+    group: 'style',
+    enabled: () => true,
+    active: (s) => s.envelope.quote.weight === 'bold',
+    run: (c) => restyleQuote(c, (q) => ({ weight: q.weight === 'bold' ? 'regular' : 'bold' })),
+  },
+  {
+    id: 'quote.italic',
+    label: t('Italic'),
+    group: 'style',
+    enabled: () => true,
+    active: (s) => !!s.envelope.quote.italic,
+    run: (c) => restyleQuote(c, (q) => ({ italic: !q.italic })),
   },
   {
     id: 'arrange.forward',

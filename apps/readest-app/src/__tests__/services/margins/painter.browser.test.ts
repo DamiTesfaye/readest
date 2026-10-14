@@ -165,12 +165,12 @@ describe('margins painter in the paginator', () => {
       expect(painter.placements().get('m0')?.kind).toBe('placed');
       await painter.drawSection(index, overlayer as unknown as PainterOverlayer, 'full');
       const rects = textRange(doc, QUOTE).getClientRects();
-      const last = rects[rects.length - 1]!;
+      const start = rects[0]!;
       const markers = Array.from(
         (overlayer.element as SVGSVGElement).querySelectorAll('circle'),
       ).map((c) => [Number(c.getAttribute('cx')), Number(c.getAttribute('cy'))]);
       expect(
-        markers.some(([cx, cy]) => Math.abs(cx! - last.right) < 2 && Math.abs(cy! - last.top) < 2),
+        markers.some(([cx, cy]) => Math.abs(cx! - start.left) < 2 && Math.abs(cy! - start.top) < 2),
       ).toBe(true);
     }
   }, 90000);

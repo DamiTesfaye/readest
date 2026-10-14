@@ -4,7 +4,6 @@ import React, { useCallback, useMemo } from 'react';
 import type { BookNote } from '@/types/book';
 import { useEnv } from '@/context/EnvContext';
 import { useBookDataStore } from '@/store/bookDataStore';
-import { useNotebookStore } from '@/store/notebookStore';
 import { useReaderStore } from '@/store/readerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -44,7 +43,6 @@ const BooknotesPopover: React.FC<BooknotesPopoverProps> = ({
   const { isDarkMode } = useThemeStore();
   const { getBookData, getConfig, saveConfig, updateBooknotes } = useBookDataStore();
   const { getView, getViewsById } = useReaderStore();
-  const { setNotebookEditAnnotation, setNotebookVisible } = useNotebookStore();
 
   const booknotes = getConfig(bookKey)?.booknotes;
   const toc = getBookData(bookKey)?.bookDoc?.toc;
@@ -68,11 +66,10 @@ const BooknotesPopover: React.FC<BooknotesPopoverProps> = ({
 
   const handleEdit = useCallback(
     (item: BookNote) => {
-      setNotebookVisible(true);
-      setNotebookEditAnnotation(item);
+      eventDispatcher.dispatch('edit-note', { bookKey, note: item });
       onClose();
     },
-    [onClose, setNotebookEditAnnotation, setNotebookVisible],
+    [bookKey, onClose],
   );
 
   const handleDelete = useCallback(

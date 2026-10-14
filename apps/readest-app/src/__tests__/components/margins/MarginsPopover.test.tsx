@@ -182,6 +182,54 @@ describe('MarginsPopover', () => {
     expect(document.querySelector('[aria-live="polite"]')?.textContent).toContain('early passage');
   });
 
+  it('shows the passage once on an opened card, inside the card art only', async () => {
+    await open();
+    const first = screen.getAllByRole('listitem')[0]!;
+    expect(within(first).getAllByText('early passage')).toHaveLength(1);
+    await act(async () =>
+      fireEvent.click(within(first).getByRole('button', { name: 'Go to passage' })),
+    );
+    const quotes = within(first).getAllByText('early passage');
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0]!.tagName).toBe('BLOCKQUOTE');
+  });
+
+  it('draws the passage on an opened card with its saved text style', async () => {
+    h.rows = [
+      row('early', 'early passage', {
+        payload: {
+          v: 1,
+          ground: 'paper',
+          quote: {
+            frame: { x: 0.3, y: 0.4, w: 0.6, r: 0 },
+            size: 'l',
+            font: 'mono',
+            weight: 'bold',
+            italic: true,
+          },
+          elements: [],
+        },
+      }),
+    ];
+    await open();
+    const first = screen.getAllByRole('listitem')[0]!;
+    await act(async () =>
+      fireEvent.click(within(first).getByRole('button', { name: 'Go to passage' })),
+    );
+    const quote = within(first).getByText('early passage');
+    expect(quote.style.fontFamily).toContain('monospace');
+    expect(quote.style.fontWeight).toBe('700');
+    expect(quote.style.fontStyle).toBe('italic');
+    expect(quote.style.left).toBe('30%');
+    expect(quote.className).toContain('text-sm');
+  });
+
+  it('keeps the header from shrinking when an opened card fills the panel', async () => {
+    await open();
+    const header = screen.getByRole('radiogroup', { name: 'Show Margins' }).closest('.bg-base-200');
+    expect(header?.className).toContain('shrink-0');
+  });
+
   it('switches the display through a three-option radiogroup', async () => {
     await open();
     const group = screen.getByRole('radiogroup', { name: 'Show Margins' });
@@ -218,6 +266,11 @@ describe('MarginsPopover', () => {
     screen.getByText("This Margin couldn't sync. Edit it to try again.");
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry' })));
     expect(h.retryMargin).toHaveBeenCalledWith(expect.anything(), 'bad');
+  });
+
+  it('has no standalone Play button; Play is made like any other Margin', async () => {
+    await open();
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull();
   });
 
   it('shows the sign-in banner when signed out', async () => {

@@ -2768,5 +2768,122 @@
         }
       ]
     }
+  },
+  {
+    "name": "quote styled",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "l",
+        "font": "sans",
+        "weight": "bold",
+        "italic": true
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "quote hand font",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": true,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m",
+        "font": "hand"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "quote bad font",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m",
+        "font": "comic"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "quote bad weight",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m",
+        "weight": "black"
+      },
+      "elements": []
+    }
+  },
+  {
+    "name": "quote italic not boolean",
+    "kind": "clip",
+    "quoteCost": 40,
+    "capped": true,
+    "ok": false,
+    "translationScalars": 0,
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": {
+        "frame": {
+          "x": 0.5,
+          "y": 0.4,
+          "w": 0.8,
+          "r": 0
+        },
+        "size": "m",
+        "italic": "yes"
+      },
+      "elements": []
+    }
   }
 ]

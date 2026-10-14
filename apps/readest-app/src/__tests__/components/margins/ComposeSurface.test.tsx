@@ -69,12 +69,54 @@ describe('ComposeSurface', () => {
       'Sticker',
       'Animate',
       'Background',
+      'Text size',
+      'Font',
+      'Bold',
+      'Italic',
       'Bring forward',
       'Send backward',
       'Delete',
       'Undo',
       'Redo',
     ]);
+  });
+
+  it('moves the passage text by dragging it and nudges it with arrows', () => {
+    const { container } = renderSurface({ initial: emptyEnvelope() });
+    const card = container.querySelector<HTMLElement>('[data-element-id="#quote"]')!.parentElement!;
+    card.getBoundingClientRect = () => new DOMRect(0, 0, 400, 500);
+    const quote = container.querySelector<HTMLElement>('[data-element-id="#quote"]')!;
+    fireEvent.pointerDown(quote, { clientX: 200, clientY: 250 });
+    fireEvent.pointerMove(card, { clientX: 240, clientY: 300 });
+    fireEvent.pointerUp(card);
+    expect(quote.style.left).toBe('60%');
+    expect(quote.style.top).toBe('60%');
+    fireEvent.keyDown(card, { key: 'ArrowLeft' });
+    expect(quote.style.left).toBe('59%');
+  });
+
+  it('styles the passage text from the Font, Bold and Italic tools', () => {
+    const { container } = renderSurface({ initial: emptyEnvelope() });
+    const quote = container.querySelector<HTMLElement>('[data-element-id="#quote"]')!;
+    fireEvent.click(screen.getByRole('button', { name: 'Font' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Italic' }));
+    expect(quote.style.fontFamily).toContain('sans-serif');
+    expect(quote.style.fontWeight).toBe('700');
+    expect(quote.style.fontStyle).toBe('italic');
+  });
+
+  it('hands an empty card to play mode from the Play tool', () => {
+    const onPlay = vi.fn();
+    renderSurface({ initial: emptyEnvelope(), onPlay });
+    const play = screen.getByRole('button', { name: 'Play' });
+    fireEvent.click(play);
+    expect(onPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no Play tool when editing an existing Margin', () => {
+    renderSurface();
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull();
   });
 
   it('sizes the translation limit from the stored quote once the anchor resolves', async () => {
@@ -166,7 +208,7 @@ describe('ComposeSurface', () => {
   it('lets a custom toolbar replace the plain one', () => {
     renderSurface({ toolbar: (c) => <div data-testid='custom'>{c.tools().length}</div> });
     expect(screen.queryByRole('toolbar')).toBeNull();
-    expect(screen.getByTestId('custom').textContent).toBe('14');
+    expect(screen.getByTestId('custom').textContent).toBe('18');
   });
 
   it('asks before discarding changes', () => {

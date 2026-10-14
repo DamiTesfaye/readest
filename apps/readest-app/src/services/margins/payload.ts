@@ -70,10 +70,21 @@ export type Element =
   | StickerElement
   | UnknownElement;
 
+export type QuoteSize = 's' | 'm' | 'l';
+export type QuoteFont = 'serif' | 'sans' | 'mono' | 'hand';
+
+export interface QuoteStyle {
+  frame: Frame;
+  size: QuoteSize;
+  font?: QuoteFont;
+  weight?: 'regular' | 'bold';
+  italic?: boolean;
+}
+
 export interface Envelope {
   v: 1;
   ground: Ground;
-  quote: { frame: Frame; size: 's' | 'm' | 'l' };
+  quote: QuoteStyle;
   elements: Element[];
 }
 
@@ -123,7 +134,13 @@ const base = {
 const envelope = z.strictObject({
   v: z.literal(1),
   ground: z.enum(['paper', 'ink', 'lime']),
-  quote: z.strictObject({ frame, size: z.enum(['s', 'm', 'l']) }),
+  quote: z.strictObject({
+    frame,
+    size: z.enum(['s', 'm', 'l']),
+    font: z.enum(['serif', 'sans', 'mono', 'hand']).optional(),
+    weight: z.enum(['regular', 'bold']).optional(),
+    italic: z.boolean().optional(),
+  }),
   elements: z.array(z.unknown()).max(ELEMENTS_MAX),
 });
 

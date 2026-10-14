@@ -18,7 +18,7 @@ import { useLibraryStore } from '@/store/libraryStore';
 import { eventDispatcher } from '@/utils/event';
 import { navigateToReader } from '@/utils/nav';
 import { SHEET_CLASS } from './HandleSheet';
-import { EnvelopeView, isEnvelope } from './MarginCard';
+import { isEnvelope, MarginArt } from './MarginCard';
 import ReportDialog from './ReportDialog';
 
 interface PostCardProps {
@@ -53,7 +53,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
         <span className='text-base-content/60'>{`@${post.author.handle}`}</span>
       </header>
       {isEnvelope(post.payload) ? (
-        <EnvelopeView envelope={post.payload} quote={post.quote} assetSource={assetSource} />
+        <MarginArt envelope={post.payload} quote={post.quote} assetSource={assetSource} />
       ) : (
         <p className='line-clamp-3 font-serif text-xs leading-relaxed'>{post.quote}</p>
       )}

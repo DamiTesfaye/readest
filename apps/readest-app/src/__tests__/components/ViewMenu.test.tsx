@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ViewMenu from '@/app/reader/components/ViewMenu';
-import { eventDispatcher } from '@/utils/event';
 
 const mockView = {
   book: { dir: undefined as string | undefined },
@@ -14,6 +13,7 @@ const mockView = {
 
 const mockBookData = {
   isFixedLayout: true,
+  book: { format: 'PDF' },
   bookDoc: {
     dir: undefined as string | undefined,
     rendition: { layout: 'pre-paginated' },
@@ -44,7 +44,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock('@/context/EnvContext', () => ({
-  useEnv: () => ({ envConfig: {}, appService: { hasAmbientLightSensor: false } }),
+  useEnv: () => ({
+    envConfig: {},
+    appService: { hasAmbientLightSensor: false, supportsCanvasContext2DFilter: true },
+  }),
 }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: null }),
@@ -171,16 +174,58 @@ describe('ViewMenu right-to-left pages toggle', () => {
 describe('ViewMenu play entry', () => {
   afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
   });
 
-  it('enters play on the current page and closes the menu', () => {
+  it('leaves Play to Margins', () => {
     mockBookData.isFixedLayout = false;
-    const dispatch = vi.spyOn(eventDispatcher, 'dispatch').mockResolvedValue(undefined);
-    const setIsDropdownOpen = vi.fn();
-    render(<ViewMenu bookKey='book-1' setIsDropdownOpen={setIsDropdownOpen} />);
-    fireEvent.click(screen.getByText('Play with this page'));
-    expect(setIsDropdownOpen).toHaveBeenCalledWith(false);
-    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'book-1' });
+    render(<ViewMenu bookKey='book-1' />);
+    expect(screen.queryByText('Play with this page')).toBeNull();
+  });
+});
+
+// Menu rows and separators in document order: 'hr' for a separator, else the
+// row's label (shortcut hints stripped).
+const menuSequence = () =>
+  Array.from(document.querySelectorAll('hr, [role="menuitem"], [role="none"]')).map((el) =>
+    el.tagName === 'HR' ? 'hr' : (el.textContent ?? '').replace(/Shift\+\w$/, '').trim(),
+  );
+
+describe('ViewMenu layout', () => {
+  beforeEach(() => {
+    mockBookData.isFixedLayout = true;
+    mockBookData.bookDoc.rendition = { layout: 'pre-paginated' };
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('drops Paragraph and Speed Reading modes for fixed-layout books', () => {
+    render(<ViewMenu bookKey='book-1' />);
+    expect(screen.queryByText('Paragraph Mode')).toBeNull();
+    expect(screen.queryByText('Speed Reading Mode')).toBeNull();
+  });
+
+  it('keeps Paragraph and Speed Reading modes for reflowable books', () => {
+    mockBookData.isFixedLayout = false;
+    mockBookData.bookDoc.rendition = { layout: 'reflowable' };
+    render(<ViewMenu bookKey='book-1' />);
+    expect(screen.getByText('Paragraph Mode')).toBeTruthy();
+    expect(screen.getByText('Speed Reading Mode')).toBeTruthy();
+  });
+
+  it('groups the image colour toggles after Auto Scroll and Webtoon Mode on its own above sync', () => {
+    render(<ViewMenu bookKey='book-1' />);
+    const seq = menuSequence();
+    const autoScroll = seq.indexOf('Auto Scroll');
+    expect(seq.slice(autoScroll, autoScroll + 6)).toEqual([
+      'Auto Scroll',
+      'Apply Theme Colors',
+      'Invert Image In Dark Mode',
+      'hr',
+      'Webtoon Mode',
+      'hr',
+    ]);
+    expect(seq[autoScroll + 6]).toBe('Sign in to Sync');
   });
 });

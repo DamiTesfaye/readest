@@ -8,6 +8,8 @@ import type {
   Element,
   Frame,
   Ground,
+  QuoteFont,
+  QuoteStyle,
   NoteElement,
   StickerElement,
   TranslationElement,
@@ -51,6 +53,20 @@ export const frameStyle = (frame: Frame): React.CSSProperties => ({
   top: percent(frame.y),
   width: percent(frame.w),
   transform: `translate(-50%, -50%) rotate(${frame.r}deg)`,
+});
+
+export const QUOTE_FONT: Record<QuoteFont, string> = {
+  serif: 'ui-serif, Georgia, serif',
+  sans: 'ui-sans-serif, system-ui, sans-serif',
+  mono: 'ui-monospace, Menlo, monospace',
+  hand: "'Bradley Hand', 'Segoe Print', 'Chalkboard SE', cursive",
+};
+
+export const quoteStyle = (quote: QuoteStyle): React.CSSProperties => ({
+  ...frameStyle(quote.frame),
+  fontFamily: QUOTE_FONT[quote.font ?? 'serif'],
+  fontWeight: quote.weight === 'bold' ? 700 : 400,
+  fontStyle: quote.italic ? 'italic' : 'normal',
 });
 
 export const motionClass = (element: Element) =>

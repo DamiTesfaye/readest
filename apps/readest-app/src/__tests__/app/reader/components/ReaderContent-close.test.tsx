@@ -25,6 +25,7 @@ vi.mock('@/services/environment', () => ({
   isTauriAppPlatform: () => true,
 }));
 vi.mock('@/utils/window', () => ({
+  isMainAppWindow: () => true,
   tauriHandleClose: vi.fn(),
   tauriHandleOnCloseWindow: (callback: () => unknown) => {
     h.onCloseWindow = callback;
@@ -58,6 +59,7 @@ vi.mock('@/store/readerStore', () => {
     initViewState: vi.fn(),
     getViewState: vi.fn(),
     clearViewState: vi.fn(),
+    areBooksOpen: () => false,
   };
   return { useReaderStore: Object.assign(() => state, { getState: () => state }) };
 });

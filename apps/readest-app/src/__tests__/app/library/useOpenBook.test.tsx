@@ -22,7 +22,10 @@ vi.mock('@/hooks/useAppRouter', () => ({ useAppRouter: () => ({ push: vi.fn() })
 vi.mock('@/context/EnvContext', () => ({
   useEnv: () => ({ envConfig: { env: 'test' }, appService: { isBookAvailable, hasWindow: false } }),
 }));
-vi.mock('@/store/libraryStore', () => ({ useLibraryStore: () => ({ updateBook }) }));
+vi.mock('@/store/libraryStore', () => ({
+  useLibraryStore: (selector?: (state: { updateBook: typeof updateBook }) => unknown) =>
+    selector ? selector({ updateBook }) : { updateBook },
+}));
 vi.mock('@/store/settingsStore', () => {
   const state = { settings: { openBookInNewWindow: false } };
   return { useSettingsStore: Object.assign(() => state, { getState: () => state }) };

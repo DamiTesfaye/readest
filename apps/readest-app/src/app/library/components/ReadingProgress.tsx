@@ -5,7 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { SHOW_UNREAD_STATUS_BADGE } from '@/services/constants';
 import { getProgressPercentage } from '@/utils/bookProgress';
 import StatusBadge from './StatusBadge';
-import { getDisplayedTimeRemaining } from '../utils/libraryUtils';
+import { getDisplayedTimeRemaining, formatTimeLeft } from '../utils/libraryUtils';
 import { useMedianPageDurationSecs } from '@/hooks/useMedianPageDurationSecs';
 
 interface ReadingProgressProps {
@@ -19,17 +19,9 @@ const ReadingProgress: React.FC<ReadingProgressProps> = memo(
     const progressPercentage = useMemo(() => getProgressPercentage(book), [book]);
     const medianPageDurationSecs = useMedianPageDurationSecs(book.hash) ?? undefined;
     const minutes = getDisplayedTimeRemaining(book, medianPageDurationSecs);
-    const formatTimeLeft = (total: number) => {
-      if (total < 60) return _('{{minutes}}m left', { minutes: total });
-      const hours = total / 60;
-      // One decimal below 10h (1.6h), whole hours above it (23h) — a tenth of an
-      // hour stops being meaningful once there are dozens of them left.
-      const rounded = hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours);
-      return _('{{hours}}h left', { hours: rounded });
-    };
     const progressLabel =
       showTimeRemaining && minutes
-        ? `${progressPercentage}% · ${formatTimeLeft(minutes)}`
+        ? `${progressPercentage}% · ${formatTimeLeft(minutes, _)}`
         : `${progressPercentage}%`;
 
     if (book.readingStatus === 'finished') {

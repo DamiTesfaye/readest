@@ -141,7 +141,7 @@ describe('NewMapSheet', () => {
     render(<NewMapSheet bookKey='bookhash-1' />);
     expect(await screen.findByTestId('mm-map-limit')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Upgrade to Readest Premium' }));
-    expect(h.push).toHaveBeenCalledWith('/user');
+    expect(h.push).toHaveBeenCalledWith('/user?redirect=%2F');
     expect(useMindmapStore.getState().entriesForBook('bookhash')).toHaveLength(3);
   });
 

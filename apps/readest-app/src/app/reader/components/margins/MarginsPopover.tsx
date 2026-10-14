@@ -287,7 +287,7 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
         onClose={onClose}
       >
         <div className='flex max-h-full flex-col'>
-          <div className='bg-base-200 flex flex-col gap-2 px-4 pb-2 pt-4'>
+          <div className='bg-base-200 flex shrink-0 flex-col gap-2 px-4 pb-2 pt-4'>
             <PopoverTitleBar title={_('Margins')} showDivider />
             <div role='radiogroup' aria-label={_('Show Margins')} className='join self-start'>
               {displays.map(([d, label]) => (
@@ -304,7 +304,7 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
               ))}
             </div>
           </div>
-          <div className='no-scrollbar flex flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-3 pt-1'>
+          <div className='no-scrollbar flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-4 pt-2'>
             {!signedIn && (
               <p className='bg-base-200 rounded-lg p-3 text-xs'>
                 {_('Sign in to keep your Margins on all your devices.')}

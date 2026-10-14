@@ -26,9 +26,9 @@ export const PRESET_COLORS: readonly PresetColor[] = [
 ];
 
 const LIGHT_RIM = '#fff4e0';
-const DARK_RIM = 'oklch(var(--b3))';
+const DARK_RIM = 'var(--color-base-300)';
 const EINK: PresetTokens = { fill: '#ffffff', text: '#000000', rim: '#000000' };
-const THEME_STROKE = 'oklch(var(--bc))';
+const THEME_STROKE = 'var(--color-base-content)';
 
 export const STROKE_TOKENS: Record<
   'light' | 'dark',
@@ -110,7 +110,7 @@ export const contrastRatio = (foreground: string, background: string): number =>
   tinycolor.readability(foreground, background);
 
 const tint = (percent: number): string =>
-  `color-mix(in srgb, oklch(var(--bc)) ${percent}%, transparent)`;
+  `color-mix(in srgb, var(--color-base-content) ${percent}%, transparent)`;
 
 const modeSurfaces = (mode: MindmapMode): Record<string, string> => {
   if (mode === 'eink') {
@@ -133,7 +133,7 @@ const modeSurfaces = (mode: MindmapMode): Record<string, string> => {
   }
   const link = tint(LINK_TINT_PERCENT[mode]);
   return {
-    '--mm-canvas': 'oklch(var(--b2))',
+    '--mm-canvas': 'var(--color-base-200)',
     '--mm-grid': tint(22),
     '--mm-link': link,
     '--mm-section': tint(6),
@@ -142,9 +142,9 @@ const modeSurfaces = (mode: MindmapMode): Record<string, string> => {
     '--mm-fog-border': link,
     '--mm-shadow': mode === 'light' ? tint(25) : 'transparent',
     '--mm-edge': mode === 'dark' ? 'color-mix(in srgb, #ffffff 18%, transparent)' : 'transparent',
-    '--mm-label-bg': 'oklch(var(--b1))',
-    '--mm-label-text': 'oklch(var(--bc))',
-    '--mm-quote-paper': `color-mix(in srgb, ${QUOTE_HIGHLIGHT} ${QUOTE_TINT_PERCENT[mode]}%, oklch(var(--b1)))`,
+    '--mm-label-bg': 'var(--color-base-100)',
+    '--mm-label-text': 'var(--color-base-content)',
+    '--mm-quote-paper': `color-mix(in srgb, ${QUOTE_HIGHLIGHT} ${QUOTE_TINT_PERCENT[mode]}%, var(--color-base-100))`,
     '--mm-quote-tape': `color-mix(in srgb, ${QUOTE_HIGHLIGHT} 55%, transparent)`,
     '--mm-quote-rule': 'color-mix(in srgb, var(--mm-link) 35%, transparent)',
   };
