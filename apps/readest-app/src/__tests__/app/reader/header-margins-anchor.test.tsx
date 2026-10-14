@@ -57,13 +57,10 @@ vi.mock('@/store/sidebarStore', () => ({
   useSidebarStore: () => ({ isSideBarVisible: false, getIsSideBarVisible: () => false }),
 }));
 
-// `null` is what WindowButtons' close handler writes before it closes the last
-// book and routes back to the library.
-let hoveredBookKey: string | null = null;
 vi.mock('@/store/readerStore', () => ({
   useReaderStore: () => ({
     bookKeys: ['book-1'],
-    hoveredBookKey,
+    hoveredBookKey: null,
     getView: () => null,
     getViewSettings: () => ({ enableAnnotationQuickActions: false }),
     setHoveredBookKey: vi.fn(),
