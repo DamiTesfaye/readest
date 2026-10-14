@@ -19,6 +19,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useMedianPageDurationsSecs } from '@/hooks/useMedianPageDurationSecs';
 import { useBookshelfDate } from '@/hooks/useBookshelfDate';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
+import { PiPlus } from 'react-icons/pi';
 import { navigateToLibrary, navigateToReader, showReaderWindow } from '@/utils/nav';
 import {
   createBookFilter,
@@ -83,6 +84,7 @@ interface BookshelfProps {
     options?: { redownload?: boolean; queued?: boolean; silent?: boolean },
   ) => Promise<boolean>;
   handleBookUpload: (book: Book, syncBooks?: boolean) => Promise<boolean>;
+  handleImportBooks: (anchor: HTMLElement) => void;
   handleBookDelete: (book: Book, syncBooks?: boolean) => Promise<boolean>;
   handleBookPurge: (book: Book, syncBooks?: boolean) => Promise<boolean>;
   handleSetSelectMode: (selectMode: boolean) => void;
@@ -105,6 +107,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   isSelectNone,
   onScrollerRef,
   handleBookUpload,
+  handleImportBooks,
   handleBookDownload,
   handleBookDelete,
   handleBookPurge,
@@ -118,6 +121,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   onSearchProgress,
 }) => {
   const _ = useTranslation();
+  const iconSize15 = useResponsiveSize(15);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { envConfig, appService } = useEnv();

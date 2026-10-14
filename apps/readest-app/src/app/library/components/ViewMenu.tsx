@@ -1,8 +1,7 @@
 import { eventDispatcher } from '@/utils/event';
 import { BOOKSHELF_GROUP_LABELS, BOOKSHELF_SORT_LABELS } from '@/services/bookshelves/definitions';
-import { getGlobalBookshelfSort } from '@/services/bookshelves/sorting';
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEnv } from '@/context/EnvContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -39,7 +38,8 @@ const SORT_BY_ORDER: LibrarySortByType[] = [
 const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
   const _ = useTranslation();
   const router = useRouter();
-  const { envConfig } = useEnv();
+  const searchParams = useSearchParams();
+  const { envConfig, appService } = useEnv();
   const { settings } = useSettingsStore();
 
   const viewMode = searchParams?.get('view') || settings.libraryViewMode;
@@ -160,35 +160,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ setIsDropdownOpen }) => {
           />
         }
         onClick={() => handleToggleAutoColumns()}
-      />
-
-      {/* Book Covers */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
-      <MenuItem
-        label={_('Book Covers')}
-        buttonClass='min-h-8 !py-1'
-        labelClass='text-sm sm:text-xs'
-        disabled
-      />
-      {coverFitOptions.map((option) => (
-        <MenuItem
-          key={option.value}
-          label={option.label}
-          buttonClass='min-h-8 !py-1'
-          toggled={coverFit === option.value}
-          onClick={() => handleToggleCropCovers(option.value as LibraryCoverFitType)}
-          transient
-        />
-      ))}
-
-      {/* Currently reading shelf */}
-      <hr aria-hidden='true' className='border-base-200 my-1' />
-      <MenuItem
-        label={_('Show currently reading')}
-        buttonClass='min-h-8 !py-1'
-        toggled={settings.libraryRecentShelfEnabled}
-        onClick={handleToggleRecentShelf}
-        transient
       />
 
       {/* Group By - Collapsible */}

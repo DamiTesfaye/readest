@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { MdCheckCircle, MdCheckCircleOutline, MdOutlineOfflinePin } from 'react-icons/md';
 import {
   LiaCloudUploadAltSolid,
@@ -26,7 +26,6 @@ import { INDETERMINATE_PROGRESS } from '@/utils/transfer';
 import { getBookTags } from '../utils/libraryUtils';
 import ReadingProgress from './ReadingProgress';
 import BookCover from '@/components/BookCover';
-import { UploadIcon } from '@/components/UploadIcon';
 
 interface BookItemProps {
   book: Book;

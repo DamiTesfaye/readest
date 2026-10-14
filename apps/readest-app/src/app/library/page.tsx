@@ -36,7 +36,7 @@ import {
   ampleDocumentService,
   isEligibleForAmpleDocument,
 } from '@/services/ampleDocument/ampleDocumentService';
-import { getBookWithUpdatedMetadata, getDir, listFormater, markBookDeleted } from '@/utils/book';
+import { getDir, listFormater, markBookDeleted } from '@/utils/book';
 import { splitLibraryOpenIds } from '@/utils/audiobook';
 import { getImportErrorMessage } from '@/services/errors';
 import { ingestFile } from '@/services/ingestService';
@@ -132,6 +132,7 @@ import ImportFromFolderDialog, {
   ImportFromFolderResult,
 } from './components/ImportFromFolderDialog';
 import WebSourcesDialog from './components/WebSourcesDialog';
+import LibraryEmptyState from './components/LibraryEmptyState';
 import ImportNovelDialog from './components/ImportNovelDialog';
 import NowPlayingBar from './components/NowPlayingBar';
 import { convertToEpubWithWorker } from '@/services/send/conversion/conversionWorker';
@@ -2055,8 +2056,8 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             onImportBooksFromDirectory={
               appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
             }
-            onImportBookFromUrl={
-              isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined
+            onImportFromWebBrowser={
+              isTauriAppPlatform() ? () => setShowWebSources(true) : undefined
             }
             onImportBookFromNovelUrl={
               isTauriAppPlatform() ? () => setShowImportNovel(true) : undefined
@@ -2105,8 +2106,8 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             onImportBooksFromDirectory={
               appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
             }
-            onImportBookFromUrl={
-              isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined
+            onImportFromWebBrowser={
+              isTauriAppPlatform() ? () => setShowWebSources(true) : undefined
             }
             onImportBookFromNovelUrl={
               isTauriAppPlatform() ? () => setShowImportNovel(true) : undefined
@@ -2151,7 +2152,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
                     key={term}
                     type='button'
                     onClick={() => handleSearchQueryApply(term)}
-                    className='bg-base-300/45 hover:bg-base-300/70 text-base-content/70 max-w-[60%] flex-shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
+                    className='bg-base-300/45 hover:bg-base-300/70 text-base-content/70 max-w-[60%] shrink-0 whitespace-nowrap rounded-full px-3 py-0.5 text-xs'
                   >
                     <p className='truncate'>{term}</p>
                   </button>
@@ -2212,30 +2213,30 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           />
         )}
         {showCatalogsView && (
-          <div className='min-h-0 flex-grow overflow-y-auto'>
+          <div className='min-h-0 grow overflow-y-auto'>
             <div className='flex justify-center px-6 py-8'>
               <CatalogManager browseFrom='library-catalogs' searchQuery={catalogSearchQuery} />
             </div>
           </div>
         )}
         {showExploreView && (
-          <div className='min-h-0 flex-grow overflow-y-auto'>
+          <div className='min-h-0 grow overflow-y-auto'>
             <ExplorePage />
           </div>
         )}
         {showMarginsView && (
-          <div className='min-h-0 flex-grow overflow-y-auto'>
+          <div className='min-h-0 grow overflow-y-auto'>
             <MarginsView onOpenMargin={handleOpenMargin} />
           </div>
         )}
         {!showDiscoverView &&
           showBookshelf &&
           (libraryBooks.some((book) => !book.deletedAt) ? (
-            <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
+            <div aria-label={_('Your Bookshelf')} className='flex min-h-0 grow flex-col'>
               <div
                 ref={containerRef}
                 className={clsx(
-                  'scroll-container drop-zone flex min-h-0 flex-grow flex-col',
+                  'scroll-container drop-zone flex min-h-0 grow flex-col',
                   isDragging && 'drag-over',
                 )}
                 style={{
@@ -2246,6 +2247,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
                 <DropIndicator />
                 <Bookshelf
                   libraryBooks={libraryBooks}
+                  handleImportBooks={setImportMenuAnchor}
                   isSelectMode={isSelectMode}
                   isSelectAll={isSelectAll}
                   isSelectNone={isSelectNone}
@@ -2270,7 +2272,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
               </div>
             </div>
           ) : (
-            <div className='hero drop-zone flex-grow items-center justify-center'>
+            <div className='hero drop-zone grow items-center justify-center'>
               <DropIndicator />
               <LibraryEmptyState onImport={setImportMenuAnchor} />
             </div>
@@ -2403,6 +2405,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           }}
         />
       )}
+      <BookshelvesDialog />
       <WebSourcesDialog
         isOpen={showWebSources}
         onClose={() => setShowWebSources(false)}

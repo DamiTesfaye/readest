@@ -19,7 +19,7 @@ interface LibraryContentHeaderProps {
   onDeselectAll: () => void;
   onImportBooksFromFiles: () => void;
   onImportBooksFromDirectory?: () => void;
-  onImportBookFromUrl?: () => void;
+  onImportFromWebBrowser?: () => void;
   onImportBookFromNovelUrl?: () => void;
   onOpenCatalogManager: () => void;
   onOpenFeeds: () => void;
@@ -33,7 +33,7 @@ const LibraryContentHeader: React.FC<LibraryContentHeaderProps> = ({
   onDeselectAll,
   onImportBooksFromFiles,
   onImportBooksFromDirectory,
-  onImportBookFromUrl,
+  onImportFromWebBrowser,
   onImportBookFromNovelUrl,
   onOpenCatalogManager,
   onOpenFeeds,
@@ -97,7 +97,7 @@ const LibraryContentHeader: React.FC<LibraryContentHeaderProps> = ({
                 <ImportMenu
                   onImportBooksFromFiles={onImportBooksFromFiles}
                   onImportBooksFromDirectory={onImportBooksFromDirectory}
-                  onImportBookFromUrl={onImportBookFromUrl}
+                  onImportFromWebBrowser={onImportFromWebBrowser}
                   onImportBookFromNovelUrl={onImportBookFromNovelUrl}
                   onOpenCatalogManager={onOpenCatalogManager}
                   onOpenFeeds={onOpenFeeds}

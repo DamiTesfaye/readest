@@ -5,11 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { SHOW_UNREAD_STATUS_BADGE } from '@/services/constants';
 import { getProgressPercentage } from '@/utils/bookProgress';
 import StatusBadge from './StatusBadge';
-import {
-  getDisplayedTimeRemaining,
-  getProgressPercentage,
-  formatTimeLeft,
-} from '../utils/libraryUtils';
+import { getDisplayedTimeRemaining, formatTimeLeft } from '../utils/libraryUtils';
 import { useMedianPageDurationSecs } from '@/hooks/useMedianPageDurationSecs';
 
 interface ReadingProgressProps {
