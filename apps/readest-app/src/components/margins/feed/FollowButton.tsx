@@ -12,6 +12,9 @@ export interface FollowButtonProps {
   onFollowed?(): void;
 }
 
+export const askToSignIn = (message: string) =>
+  eventDispatcher.dispatch('toast', { type: 'info', message, timeout: 2500 });
+
 const FollowButton = ({ handle, postId, following, signedIn, onFollowed }: FollowButtonProps) => {
   const _ = useTranslation();
   const [on, setOn] = useState(following);
@@ -19,14 +22,7 @@ const FollowButton = ({ handle, postId, following, signedIn, onFollowed }: Follo
   const [blocked, setBlocked] = useState(false);
 
   const toggle = async () => {
-    if (!signedIn) {
-      eventDispatcher.dispatch('toast', {
-        type: 'info',
-        message: _('Sign in to follow creators'),
-        timeout: 2500,
-      });
-      return;
-    }
+    if (!signedIn) return askToSignIn(_('Sign in to follow creators'));
     setBusy(true);
     try {
       if (on) {

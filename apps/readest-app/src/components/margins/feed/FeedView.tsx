@@ -128,6 +128,7 @@ const FeedView = ({ source }: FeedViewProps) => {
     'for-you': _('No Margins yet'),
     following: _('Follow creators from any card to see their Margins here'),
     book: _('No Margins on this book yet'),
+    profile: _('No Margins yet'),
   }[source.kind];
 
   return (

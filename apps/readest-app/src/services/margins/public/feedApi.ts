@@ -13,7 +13,8 @@ import { socialApi } from './social';
 export type FeedSource =
   | { kind: 'for-you' }
   | { kind: 'following' }
-  | { kind: 'book'; textId: string; order: 'ranked' | 'book' };
+  | { kind: 'book'; textId: string; order: 'ranked' | 'book' }
+  | { kind: 'profile'; handle: string };
 
 export type EngagementKind = 'view' | 'completion' | 'replay' | 'your_turn' | 'get_book';
 
@@ -83,6 +84,7 @@ export const fetchFeedPage = async (
   if (source.kind === 'for-you')
     return socialApi.forYou(await trendingBody(deps.appService, cursor));
   if (source.kind === 'following') return socialApi.following(cursor);
+  if (source.kind === 'profile') return socialApi.profilePosts(source.handle, cursor);
   return publicApi.familyFeed(source.textId, source.order, cursor);
 };
 

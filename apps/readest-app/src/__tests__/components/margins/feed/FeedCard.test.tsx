@@ -53,6 +53,15 @@ vi.mock('@/components/margins/feed/GetBookSheet', () => ({
     </div>
   ),
 }));
+vi.mock('@/components/margins/feed/ProfileSheet', () => ({
+  default: (p: { handle: string; onClose(): void }) => (
+    <div role='dialog' aria-label={`profile ${p.handle}`}>
+      <button type='button' onClick={p.onClose}>
+        Close profile
+      </button>
+    </div>
+  ),
+}));
 
 import FeedCard from '@/components/margins/feed/FeedCard';
 
@@ -145,6 +154,14 @@ describe('FeedCard', () => {
     cleanup();
     await show(post({ mine: true }));
     expect(screen.queryByRole('button', { name: 'Follow' })).toBeNull();
+  });
+
+  it('opens the creator profile from the chip', async () => {
+    await show(post());
+    fireEvent.click(screen.getByRole('button', { name: /Reader One/ }));
+    screen.getByRole('dialog', { name: 'profile reader_1' });
+    fireEvent.click(screen.getByRole('button', { name: 'Close profile' }));
+    expect(screen.queryByRole('dialog', { name: 'profile reader_1' })).toBeNull();
   });
 
   it('keeps Mute in More for signed-in viewers', async () => {
