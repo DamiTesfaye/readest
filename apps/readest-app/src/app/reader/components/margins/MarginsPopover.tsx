@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { PiPlayCircle } from 'react-icons/pi';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PopoverTitleBar from '@/components/PopoverTitleBar';
 import ToolbarPopover from '@/components/ToolbarPopover';
@@ -259,19 +260,32 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
         <div className='flex max-h-full flex-col'>
           <div className='bg-base-200 flex flex-col gap-2 px-4 pb-2 pt-4'>
             <PopoverTitleBar title={_('Margins')} showDivider />
-            <div role='radiogroup' aria-label={_('Show Margins')} className='join self-start'>
-              {displays.map(([d, label]) => (
-                <button
-                  key={d}
-                  type='button'
-                  role='radio'
-                  aria-checked={display === d}
-                  className={clsx('btn btn-xs join-item', display === d && 'btn-active')}
-                  onClick={() => chooseDisplay(d)}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className='flex items-center justify-between gap-2'>
+              <div role='radiogroup' aria-label={_('Show Margins')} className='join'>
+                {displays.map(([d, label]) => (
+                  <button
+                    key={d}
+                    type='button'
+                    role='radio'
+                    aria-checked={display === d}
+                    className={clsx('btn btn-xs join-item', display === d && 'btn-active')}
+                    onClick={() => chooseDisplay(d)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type='button'
+                className='btn btn-ghost btn-xs gap-1'
+                onClick={() => {
+                  onClose();
+                  eventDispatcher.dispatch('margins-play-enter', { bookKey });
+                }}
+              >
+                <PiPlayCircle aria-hidden className='h-4 w-4' />
+                {_('Play')}
+              </button>
             </div>
           </div>
           <div className='no-scrollbar flex flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-3 pt-1'>

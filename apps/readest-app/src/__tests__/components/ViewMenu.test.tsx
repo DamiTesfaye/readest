@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ViewMenu from '@/app/reader/components/ViewMenu';
-import { eventDispatcher } from '@/utils/event';
 
 const mockView = {
   book: { dir: undefined as string | undefined },
@@ -175,17 +174,12 @@ describe('ViewMenu right-to-left pages toggle', () => {
 describe('ViewMenu play entry', () => {
   afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
   });
 
-  it('enters play on the current page and closes the menu', () => {
+  it('leaves Play to Margins', () => {
     mockBookData.isFixedLayout = false;
-    const dispatch = vi.spyOn(eventDispatcher, 'dispatch').mockResolvedValue(undefined);
-    const setIsDropdownOpen = vi.fn();
-    render(<ViewMenu bookKey='book-1' setIsDropdownOpen={setIsDropdownOpen} />);
-    fireEvent.click(screen.getByText('Play with this page'));
-    expect(setIsDropdownOpen).toHaveBeenCalledWith(false);
-    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'book-1' });
+    render(<ViewMenu bookKey='book-1' />);
+    expect(screen.queryByText('Play with this page')).toBeNull();
   });
 });
 
@@ -224,15 +218,14 @@ describe('ViewMenu layout', () => {
     render(<ViewMenu bookKey='book-1' />);
     const seq = menuSequence();
     const autoScroll = seq.indexOf('Auto Scroll');
-    expect(seq.slice(autoScroll, autoScroll + 7)).toEqual([
+    expect(seq.slice(autoScroll, autoScroll + 6)).toEqual([
       'Auto Scroll',
       'Apply Theme Colors',
       'Invert Image In Dark Mode',
-      'Play with this page',
       'hr',
       'Webtoon Mode',
       'hr',
     ]);
-    expect(seq[autoScroll + 7]).toBe('Sign in to Sync');
+    expect(seq[autoScroll + 6]).toBe('Sign in to Sync');
   });
 });

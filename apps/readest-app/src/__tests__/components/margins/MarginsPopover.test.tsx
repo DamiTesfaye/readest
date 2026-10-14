@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Placement } from '@/services/margins/painter';
 import type { LayerRow } from '@/services/margins/store';
 import type { Anchor } from '@/services/margins/types';
+import { eventDispatcher } from '@/utils/event';
 
 const h = vi.hoisted(() => ({
   rows: [] as LayerRow[],
@@ -189,6 +190,17 @@ describe('MarginsPopover', () => {
     screen.getByText("This Margin couldn't sync. Edit it to try again.");
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry' })));
     expect(h.retryMargin).toHaveBeenCalledWith(expect.anything(), 'bad');
+  });
+
+  it('plays the current page from the Play button and closes', async () => {
+    const dispatch = vi.spyOn(eventDispatcher, 'dispatch').mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(<MarginsPopover bookKey='b1' isOpen anchorEl={null} onClose={onClose} />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'b1' });
+    dispatch.mockRestore();
   });
 
   it('shows the sign-in banner when signed out', async () => {

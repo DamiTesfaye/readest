@@ -148,7 +148,6 @@ describe('MorePopover', () => {
       'Annotations',
       'Bookmarks & Notes',
       'Margins',
-      'Play',
       'Mindmap',
       'Discuss with Tim & Fini',
       'Summarise',
@@ -408,7 +407,7 @@ describe('MorePopover', () => {
     act(() => vi.advanceTimersByTime(150));
     expect(playing('contents')).toBe('true');
     expect(playing('theme-fonts')).toBe('false');
-    expect(screen.getByTestId('spark-art-mindmap').getAttribute('data-delay')).toBe('1050');
+    expect(screen.getByTestId('spark-art-mindmap').getAttribute('data-delay')).toBe('900');
   });
 
   it('opens the Theme & Fonts popover while staying open itself', () => {
@@ -432,11 +431,10 @@ describe('MorePopover', () => {
     expect(dispatch).not.toHaveBeenCalledWith('toast', expect.anything());
   });
 
-  it('enters play on the current page from the Play tile', () => {
-    const props = renderPopover();
-    fireEvent.click(screen.getByRole('button', { name: /^Play/ }));
-    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'book-1' });
-    expect(props.onClose).toHaveBeenCalled();
+  it('leaves Play to Margins instead of offering its own tile', () => {
+    renderPopover();
+    expect(screen.queryByRole('button', { name: /^Play/ })).toBeNull();
+    expect(screen.queryByText('Text in motion')).toBeNull();
   });
 
   it('opens the Annotations popover while staying open itself', () => {

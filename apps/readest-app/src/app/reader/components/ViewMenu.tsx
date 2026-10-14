@@ -172,11 +172,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
     eventDispatcher.dispatch('rsvp-start', { bookKey });
   };
 
-  const handlePlay = () => {
-    setIsDropdownOpen?.(false);
-    eventDispatcher.dispatch('margins-play-enter', { bookKey });
-  };
-
   const toggleAutoScroll = () => {
     setIsDropdownOpen?.(false);
     eventDispatcher.dispatch('autoscroll-toggle', { bookKey });
@@ -538,12 +533,6 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
         disabled={!isDarkMode}
         Icon={invertImgColorInDark ? MdCheck : undefined}
         onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}
-      />
-
-      <MenuItem
-        label={_('Play with this page')}
-        onClick={handlePlay}
-        disabled={bookData.isFixedLayout}
       />
 
       <hr aria-hidden='true' className='border-base-300 my-1' />

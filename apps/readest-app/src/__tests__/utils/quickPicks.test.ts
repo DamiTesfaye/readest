@@ -76,6 +76,15 @@ describe('normalizeQuickPicks', () => {
     expect(normalizeQuickPicks('library')).toEqual(DEFAULT_QUICK_PICKS);
   });
 
+  it('drops a stored Play pick now that Play lives under Margins', () => {
+    expect(normalizeQuickPicks(['play', 'margins', null, 'contents'])).toEqual([
+      null,
+      'margins',
+      null,
+      'contents',
+    ]);
+  });
+
   it('gives older three slot picks Contents in the new fourth slot', () => {
     expect(normalizeQuickPicks(['library', 'margins', null])).toEqual([
       'library',
