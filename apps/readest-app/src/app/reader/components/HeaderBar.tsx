@@ -222,9 +222,12 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   useEffect(() => {
     const open = (e: CustomEvent) => {
-      if (e.detail?.bookKey !== bookKey || !moreAnchorRef.current) return;
+      const anchor =
+        headerRef.current?.querySelector<HTMLElement>('[data-quick-pick="margins"]') ??
+        moreAnchorRef.current;
+      if (e.detail?.bookKey !== bookKey || !anchor) return;
       setMarginsFocusId(e.detail.ids?.[0] ?? null);
-      openSidePanelFromSlot('margins')(moreAnchorRef.current);
+      openSidePanelFromSlot('margins')(anchor);
     };
     eventDispatcher.on(MARGINS_OPEN_CARD_EVENT, open);
     eventDispatcher.on(MARGINS_OPEN_PANEL_EVENT, open);
