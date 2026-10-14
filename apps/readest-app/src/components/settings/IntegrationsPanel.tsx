@@ -231,6 +231,7 @@ const IntegrationsPanel: React.FC = () => {
     }
     if (
       requestedSubPage === 'kosync' ||
+      requestedSubPage === 'ampleread' ||
       requestedSubPage === 'bookorbit' ||
       requestedSubPage === 'webdav' ||
       requestedSubPage === 'gdrive' ||
