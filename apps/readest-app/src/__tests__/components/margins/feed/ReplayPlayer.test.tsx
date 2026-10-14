@@ -91,6 +91,17 @@ describe('ReplayPlayer', () => {
     expect(screen.queryByText('Your turn')).toBeNull();
   });
 
+  it('hides Your turn once the viewer takes it and keeps Restart', async () => {
+    const onEngage = vi.fn();
+    render(<ReplayPlayer {...props} onEngage={onEngage} />);
+    await settle();
+    act(() => lastArgs.current!.onEnd!());
+    act(() => lastArgs.current!.onTurn!());
+    expect(onEngage).toHaveBeenCalledWith('your_turn');
+    expect(screen.queryByText('Your turn')).toBeNull();
+    screen.getByRole('button', { name: 'Restart' });
+  });
+
   it('pauses and resumes', async () => {
     render(<ReplayPlayer {...props} />);
     await settle();

@@ -28,6 +28,7 @@ export class ReaderPage extends BasePage {
   readonly annotationItems: Locator;
   readonly rangeHandles: Locator;
   readonly pageJumpInput: Locator;
+  readonly viewInPlace: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -56,6 +57,7 @@ export class ReaderPage extends BasePage {
     // The app-drawn range-edit handles (the selection / annotation range
     // editors), as opposed to the browser's native selection handles.
     this.rangeHandles = page.locator('[data-testid="selection-handle"]');
+    this.viewInPlace = this.foliateView.locator('rect[fill="#5B3DF5"][fill-opacity="0.18"]');
   }
 
   /** Wait until the reader route is active and the book viewer has mounted. */

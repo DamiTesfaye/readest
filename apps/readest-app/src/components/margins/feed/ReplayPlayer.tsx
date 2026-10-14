@@ -58,6 +58,7 @@ const ReplayPlayer = ({
   const [started, setStarted] = useState(!reduced);
   const [paused, setPaused] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [turned, setTurned] = useState(false);
   const label = `${alt} — ${citation}`;
   engage.current = onEngage;
   sound.current = onSound;
@@ -83,7 +84,10 @@ const ReplayPlayer = ({
           setEnded(true);
           engage.current?.('completion');
         },
-        onTurn: () => engage.current?.('your_turn'),
+        onTurn: () => {
+          setTurned(true);
+          engage.current?.('your_turn');
+        },
       });
       levels.push(
         ['live', async () => createPlayer({ ...(await args()), mode: 'live' })],
@@ -143,6 +147,7 @@ const ReplayPlayer = ({
   const restart = () => {
     player?.restart();
     setEnded(false);
+    setTurned(false);
     engage.current?.('replay');
   };
 
@@ -203,7 +208,9 @@ const ReplayPlayer = ({
         )}
         {ended && (
           <>
-            <span className='bg-base-100/80 rounded px-2 text-sm'>{_('Your turn')}</span>
+            {!turned && (
+              <span className='bg-base-100/80 rounded px-2 text-sm'>{_('Your turn')}</span>
+            )}
             <button type='button' className={BUTTON} onClick={restart}>
               {_('Restart')}
             </button>

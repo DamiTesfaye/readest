@@ -184,8 +184,9 @@ export const useMarginsPainter = (bookKey: string, bookDoc: BookDoc) => {
         eventDispatcher.dispatch(MARGINS_PLACED_EVENT, { bookKey });
       };
       const openPendingPost = async () => {
+        if (cancelled) return;
         const post = takePostOpen(book.hash);
-        if (!post || cancelled) return;
+        if (!post) return;
         await viewPostInPlace(bookKey, post);
         const { textId, section, sectionLen, start, end } = post;
         eventDispatcher.dispatch(MARGINS_OPEN_PASSAGE_EVENT, {
