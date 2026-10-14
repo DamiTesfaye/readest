@@ -578,7 +578,6 @@ export const loadDataTheme = (scope: ThemeScope = getThemeScopeForPath()) => {
   if (typeof localStorage === 'undefined' || typeof document === 'undefined') return;
 
   const themeMode = localStorage.getItem('themeMode');
-  const themeColor = localStorage.getItem('themeColor');
   const libraryThemeMode = getInitialLibraryThemeMode();
   const libraryThemeColor = getInitialLibraryThemeColor();
   // Nothing configured at all: leave the attribute alone and let useTheme
@@ -586,7 +585,7 @@ export const loadDataTheme = (scope: ThemeScope = getThemeScopeForPath()) => {
   // decoupling the library writes only its own key, so a user who never
   // touched the reader theme has no reader keys to gate on, and checking
   // those alone would skip the early paint in exactly that case.
-  if (!(themeMode && themeColor) && !libraryThemeMode && !libraryThemeColor) return;
+  if (!themeMode && !libraryThemeMode && !libraryThemeColor) return;
 
   const systemIsDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const ambientIsDarkMode = getInitialAmbientIsDarkMode(systemIsDarkMode);
