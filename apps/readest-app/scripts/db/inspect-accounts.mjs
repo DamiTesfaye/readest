@@ -95,7 +95,7 @@ const listR2 = async (prefix) => {
     for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
       const key = m[1].match(/<Key>([\s\S]*?)<\/Key>/)?.[1] ?? '';
       const size = Number(m[1].match(/<Size>(\d+)<\/Size>/)?.[1] ?? 0);
-      objects.push({ key: key.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'"), size });
+      objects.push({ key: key.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&'), size });
     }
     token = xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1] ?? '';
   } while (token);

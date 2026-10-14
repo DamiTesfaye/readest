@@ -119,11 +119,11 @@ const listR2 = async (prefix) => {
     for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
       const raw = m[1].match(/<Key>([\s\S]*?)<\/Key>/)?.[1] ?? '';
       const key = raw
-        .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'");
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&');
       out.set(key, Number(m[1].match(/<Size>(\d+)<\/Size>/)?.[1] ?? 0));
     }
     token = xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1] ?? '';
