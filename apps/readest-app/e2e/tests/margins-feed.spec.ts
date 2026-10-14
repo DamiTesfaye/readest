@@ -88,7 +88,7 @@ const mockApi = async (page: Page) => {
     }
     if (path.endsWith('/post-counts')) return reply(route, { json: [] });
     if (path.endsWith('/passages')) return reply(route, { json: { posts: [], nextCursor: null } });
-    if (path === '/v1/feed/trending')
+    if (path === '/v1/feed/trending' || path === '/v1/feed/for-you')
       return reply(route, {
         json: seen.lengths ? feedPage(seen.lengths) : { posts: [], nextCursor: null },
       });
