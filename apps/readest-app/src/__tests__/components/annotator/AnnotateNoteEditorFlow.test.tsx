@@ -536,6 +536,28 @@ describe('Annotate opens the note editor at the selection', () => {
     expect(screen.queryByTestId(`note-editor-${surface}`)).toBeNull();
   });
 
+  test('an edit-note event for this book opens the same editor on that note', async () => {
+    h.config.booknotes = [{ ...existingNote }];
+    render(<Annotator bookKey='book-1' contentInsets={{ top: 0, right: 0, bottom: 0, left: 0 }} />);
+
+    await act(async () => {
+      await eventDispatcher.dispatch('edit-note', { bookKey: 'book-2', note: existingNote });
+    });
+    expect(screen.queryByTestId('note-editor-sheet')).toBeNull();
+
+    await act(async () => {
+      await eventDispatcher.dispatch('edit-note', { bookKey: 'book-1', note: existingNote });
+    });
+    expect(screen.getByTestId('note-editor-sheet-value').textContent).toBe('an older thought');
+
+    await act(async () => {
+      screen.getByText('stub-save').click();
+    });
+    expect(liveAnnotations()).toEqual([
+      expect.objectContaining({ id: 'existing-note', note: 'a thought worth keeping' }),
+    ]);
+  });
+
   test('cancelling an existing note never deletes it', async () => {
     await editExistingNote();
 

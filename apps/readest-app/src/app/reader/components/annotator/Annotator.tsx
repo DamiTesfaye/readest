@@ -1724,6 +1724,15 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
     setNoteEditorTarget({ annotationId: note.id, placeholderIds: [] });
   };
 
+  useEffect(() => {
+    const onEditNote = (event: CustomEvent) => {
+      const { bookKey: targetBookKey, note } = event.detail as { bookKey: string; note: BookNote };
+      if (targetBookKey === bookKey) handleEditNote(note);
+    };
+    eventDispatcher.on('edit-note', onEditNote);
+    return () => eventDispatcher.off('edit-note', onEditNote);
+  });
+
   // Takes back the highlight Annotate created for the note to hang on, but
   // never one the user had already made themselves (#4791).
   const removeNotePlaceholders = (placeholderIds: string[]) => {
