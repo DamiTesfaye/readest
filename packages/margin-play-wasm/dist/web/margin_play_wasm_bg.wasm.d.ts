@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_replay_free: (a: number, b: number) => void;
 export const add_font: (a: number, b: number) => [number, number, number, number];
 export const compose: () => [number, number, number];
 export const covers: (a: number, b: number, c: number, d: number) => number;
@@ -9,6 +10,19 @@ export const hit: (a: number, b: number) => number;
 export const lines: () => [number, number];
 export const outline: (a: number, b: number) => [number, number];
 export const overset_at: () => number;
+export const replay_boxes: (a: number) => [number, number];
+export const replay_end: (a: number) => number;
+export const replay_hash: (a: number) => number;
+export const replay_new: (a: number, b: number) => [number, number, number];
+export const replay_now: (a: number) => number;
+export const replay_poses_q: (a: number) => [number, number];
+export const replay_push: (a: number, b: number, c: number, d: number) => number;
+export const replay_run_to: (a: number, b: number) => void;
+export const replay_shape_rev: (a: number) => number;
+export const replay_shapes_json: (a: number) => [number, number];
+export const replay_snap: (a: number, b: number, c: number) => number;
+export const replay_step: (a: number, b: number) => number;
+export const replay_take_sounds: (a: number) => [number, number];
 export const set_page: (a: number, b: number) => [number, number];
 export const set_poses: (a: number, b: number) => void;
 export const set_removed: (a: number, b: number) => [number, number];
