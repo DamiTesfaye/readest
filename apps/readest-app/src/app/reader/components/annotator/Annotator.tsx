@@ -2697,6 +2697,10 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
           used={marginCompose.used}
           anchor={marginCompose.anchor}
           onDiscard={() => setMarginCompose(null)}
+          onPlay={() => {
+            setMarginCompose(null);
+            eventDispatcher.dispatch('margins-play-enter', { bookKey });
+          }}
           onSave={async (envelope, anchor) => {
             if (!appService || !bookData.book) return;
             const store = await openMarginsStore(appService);

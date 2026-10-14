@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Placement } from '@/services/margins/painter';
 import type { LayerRow } from '@/services/margins/store';
 import type { Anchor } from '@/services/margins/types';
-import { eventDispatcher } from '@/utils/event';
 
 const h = vi.hoisted(() => ({
   rows: [] as LayerRow[],
@@ -210,15 +209,9 @@ describe('MarginsPopover', () => {
     expect(h.retryMargin).toHaveBeenCalledWith(expect.anything(), 'bad');
   });
 
-  it('plays the current page from the Play button and closes', async () => {
-    const dispatch = vi.spyOn(eventDispatcher, 'dispatch').mockResolvedValue(undefined);
-    const onClose = vi.fn();
-    render(<MarginsPopover bookKey='b1' isOpen anchorEl={null} onClose={onClose} />);
-    await act(async () => {});
-    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
-    expect(onClose).toHaveBeenCalled();
-    expect(dispatch).toHaveBeenCalledWith('margins-play-enter', { bookKey: 'b1' });
-    dispatch.mockRestore();
+  it('has no standalone Play button; Play is made like any other Margin', async () => {
+    await open();
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull();
   });
 
   it('shows the sign-in banner when signed out', async () => {

@@ -50,6 +50,7 @@ export interface ComposeSurfaceProps {
   toolbar?: (controller: ComposeController) => React.ReactNode;
   onSave(envelope: Envelope, anchor: Anchor): Promise<void>;
   onDiscard(): void;
+  onPlay?(): void;
 }
 
 const NUDGE = 0.01;
@@ -125,6 +126,7 @@ function ComposeSurface({
   toolbar,
   onSave,
   onDiscard,
+  onPlay,
 }: ComposeSurfaceProps) {
   const _ = useTranslation();
   const { appService } = useEnv();
@@ -140,6 +142,7 @@ function ComposeSurface({
         addNote: () => io.current.addNote(),
         addTranslation: (mode) => io.current.addTranslation(mode),
         pickSticker: () => io.current.pickSticker(),
+        ...(onPlay ? { startPlay: onPlay } : {}),
       }),
     }),
   );

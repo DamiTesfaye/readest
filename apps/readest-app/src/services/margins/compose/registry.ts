@@ -7,6 +7,7 @@ export interface ComposeIO {
   addNote(): void;
   addTranslation(mode: 'translation' | 'gloss'): void;
   pickSticker(): void;
+  startPlay?(): void;
 }
 
 const MOTIONS: (Motion | undefined)[] = [undefined, 'rise', 'drift', 'breathe'];
@@ -46,6 +47,17 @@ export const builtinTools = (t: (s: string) => string, io: ComposeIO): ComposeTo
     enabled: () => true,
     run: (c) => c.dispatch({ type: 'select', ids: [] }),
   },
+  ...(io.startPlay
+    ? [
+        {
+          id: 'play',
+          label: t('Play'),
+          group: 'create',
+          enabled: (s: ComposeState) => s.envelope.elements.length === 0,
+          run: () => io.startPlay?.(),
+        } satisfies ComposeTool,
+      ]
+    : []),
   { id: 'note', label: t('Note'), group: 'create', enabled: hasRoom, run: () => io.addNote() },
   {
     id: 'translate',

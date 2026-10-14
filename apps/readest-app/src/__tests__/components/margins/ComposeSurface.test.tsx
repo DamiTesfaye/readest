@@ -77,6 +77,19 @@ describe('ComposeSurface', () => {
     ]);
   });
 
+  it('hands an empty card to play mode from the Play tool', () => {
+    const onPlay = vi.fn();
+    renderSurface({ initial: emptyEnvelope(), onPlay });
+    const play = screen.getByRole('button', { name: 'Play' });
+    fireEvent.click(play);
+    expect(onPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no Play tool when editing an existing Margin', () => {
+    renderSurface();
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull();
+  });
+
   it('sizes the translation limit from the stored quote once the anchor resolves', async () => {
     const translation = {
       id: 't1',

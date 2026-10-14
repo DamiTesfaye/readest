@@ -155,6 +155,21 @@ describe('compose tools', () => {
     ]);
   });
 
+  it('offers Play only when the surface can hand off to play, and only on an empty card', async () => {
+    expect(builtinTools(t, io()).some((x) => x.id === 'play')).toBe(false);
+    const startPlay = vi.fn();
+    const tools = builtinTools(t, { ...io(), startPlay });
+    expect(tools.map((x) => x.id).slice(0, 3)).toEqual(['select', 'play', 'note']);
+    const play = byId(tools, 'play');
+    expect(play.group).toBe('create');
+    const c = createComposeController(emptyEnvelope(), { ...ctx, tools });
+    expect(play.enabled(c.state)).toBe(true);
+    await play.run(c);
+    expect(startPlay).toHaveBeenCalledTimes(1);
+    c.dispatch({ type: 'add', element: note('n1') });
+    expect(play.enabled(c.state)).toBe(false);
+  });
+
   it('disables art at four artworks and undo without history', () => {
     const tools = builtinTools(t, io());
     const c = createComposeController(emptyEnvelope(), { ...ctx, tools });
