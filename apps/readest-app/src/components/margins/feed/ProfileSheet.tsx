@@ -76,8 +76,8 @@ export const ProfileBody = ({ handle }: { handle: string }) => {
 
   const startBlock = () => {
     setMore(false);
-    if (!signedIn) return askToSignIn(_('Sign in to block or hide Margins'));
-    setBlocking(true);
+    if (signedIn) setBlocking(true);
+    else askToSignIn(_('Sign in to block or hide Margins'));
   };
 
   return (
