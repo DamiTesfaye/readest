@@ -7,7 +7,9 @@ import { migrate } from '@/services/database/migrate';
 import { getMigrations } from '@/services/database/migrations';
 import { getMarginsCore } from '@/services/margins/marginsClient';
 import { loadPlayEngine, type PlayGlue } from '@/services/margins/play/engine';
+import { drift } from '@/services/margins/play/motion';
 import { enterPlay } from '@/services/margins/play/surfaceSession';
+import { EV, stringsOutsideAllowList, TOOL, unpackScene } from '@/services/margins/replay/scene';
 import { MarginsStore } from '@/services/margins/store';
 import { buildTextMap } from '@/services/margins/textMap';
 import type { SectionInput } from '@/services/margins/types';
@@ -342,5 +344,58 @@ describe('play surface', () => {
     expect(play.active()).toBe(false);
     expect(getComputedStyle(s.renderer).opacity).toBe('1');
     expect(loadPlayEngine()).not.toBe(shared);
+  }, 60000);
+  it('keep records the session as a scene with no text', async () => {
+    const store = await layerStore();
+    const play = await enterPlay({ ...(await openMeditations()), reduced: true, store });
+    const id = play.tools.addShape('circle');
+    play.moveShapeTo(id, 300, 120);
+    play.tools.detachNext();
+    play.tools.undo();
+    await play.frame();
+    const kept = await play.tools.keep('A sun and an undone word');
+    play.exit();
+    if (!kept.ok) throw new Error(`keep refused: ${kept.reason}`);
+    expect(kept.scene).toBe('saved');
+    const asset = await store.getAsset(`scene-${kept.layerId}`);
+    expect(asset?.mime).toBe('application/vnd.ampleread.scene+gzip');
+    const scene = unpackScene(Uint8Array.from(atob(asset!.data!), (c) => c.charCodeAt(0)))!;
+    expect(scene.events.map((e) => (e[1] === EV.TOOL ? `tool${e[2]}` : e[1]))).toEqual([
+      EV.SHAPE_ADD,
+      EV.DOWN,
+      EV.MOVE,
+      EV.UP,
+      `tool${TOOL.DETACH}`,
+      `tool${TOOL.UNDO}`,
+    ]);
+    expect(scene.checkpoints.length).toBeGreaterThan(0);
+    expect(stringsOutsideAllowList(scene)).toEqual([]);
+  }, 60000);
+
+  it('drift runs from the session start', async () => {
+    const s = await openMeditations();
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(50_000);
+    const play = await enterPlay({ ...s, reduced: true });
+    clock.mockRestore();
+    play.tools.addShape('circle');
+    play.tools.setShapeMotion('drift');
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementationOnce((cb) => {
+      cb(51_000);
+      return 0;
+    });
+    await play.frame();
+    raf.mockRestore();
+    const style = play.canvas.style;
+    const box = {
+      x: parseFloat(style.left),
+      y: parseFloat(style.top),
+      width: parseFloat(style.width),
+      height: parseFloat(style.height),
+    };
+    const want = drift(1000, 0, box);
+    const proxy = document.querySelector<HTMLElement>('button[aria-label^="Circle shape"]')!;
+    expect(parseFloat(proxy.style.left)).toBeCloseTo(box.x + want.x - 12, 1);
+    expect(parseFloat(proxy.style.top)).toBeCloseTo(box.y + want.y - 12, 1);
+    play.exit();
   }, 60000);
 });

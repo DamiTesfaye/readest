@@ -35,7 +35,7 @@ const sha256 = async (bytes: Uint8Array<ArrayBuffer>) =>
     b.toString(16).padStart(2, '0'),
   ).join('');
 
-const keep = async (
+export const keepLocalAsset = async (
   store: MarginsStore,
   asset: Omit<MarginAsset, 'data' | 'sha256'>,
   blob: Blob,
@@ -50,7 +50,7 @@ export const addLocalAsset = async (
   size: { width: number; height: number },
 ): Promise<string> => {
   const localId = `${LOCAL}${crypto.randomUUID()}`;
-  await keep(
+  await keepLocalAsset(
     store,
     {
       localId,
@@ -147,7 +147,7 @@ const download = async (store: MarginsStore, ref: string) => {
     if (!res.ok) return null;
     const blob = await res.blob();
     const mime = res.headers.get('content-type') ?? blob.type;
-    await keep(
+    await keepLocalAsset(
       store,
       {
         localId: ref,

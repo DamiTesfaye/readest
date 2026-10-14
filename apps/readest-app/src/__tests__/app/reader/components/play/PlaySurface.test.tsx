@@ -176,4 +176,29 @@ describe('PlaySurface', () => {
     expect(screen.getByRole('toolbar')).toBeTruthy();
     eventDispatcher.off('margins-open-panel', panel);
   });
+  it('says when a kept play replays only its first minute or has no replay', async () => {
+    let session: ReturnType<typeof fakeSession> | null = null;
+    enterPlay.mockImplementation(async (args: { onExit: () => void }) => {
+      session = fakeSession(args.onExit);
+      return session;
+    });
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
+    fireEvent.change(screen.getByLabelText('Describe this play for screen readers'), {
+      target: { value: 'A long play' },
+    });
+    session!.tools.keep.mockResolvedValueOnce({
+      ok: true,
+      layerId: 'lyr_1',
+      truncated: true,
+      scene: 'failed',
+    });
+    await act(async () => fireEvent.submit(screen.getByRole('dialog', { name: 'Keep this play' })));
+    expect(toast.mock.calls.map((c) => c[0].detail.message)).toEqual([
+      'Kept as a private Margin.',
+      'Replays show the first minute.',
+      "This Play couldn't be saved for replay",
+    ]);
+  });
 });

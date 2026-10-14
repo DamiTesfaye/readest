@@ -152,7 +152,11 @@ export interface PlayToolsState {
   shapeMotion: 'none' | 'drift';
 }
 
-export type PlayKeepResult = KeepResult & { dropped?: number };
+export type PlayKeepResult = KeepResult & {
+  dropped?: number;
+  truncated?: boolean;
+  scene?: 'saved' | 'failed';
+};
 
 export interface PlayTools {
   enter(margin?: string): Promise<void>;

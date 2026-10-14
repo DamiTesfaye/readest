@@ -101,6 +101,8 @@ const KeepDialog = ({
     toast(_('Kept as a private Margin.'));
     if (result.dropped)
       toast(_("Some loose words were outside the kept passage and won't replay."));
+    if (result.truncated) toast(_('Replays show the first minute.'));
+    if (result.scene === 'failed') toast(_("This Play couldn't be saved for replay"));
     onDone();
   };
   return (
