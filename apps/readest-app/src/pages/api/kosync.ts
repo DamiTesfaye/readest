@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { lookup } from 'node:dns/promises';
 import { corsAllMethods, runMiddleware } from '@/utils/cors';
-import { isLanAddress } from '@/utils/network';
+import { isBlockedHost, isLanAddress } from '@/utils/network';
 import { KoSyncProxyPayload } from '@/types/kosync';
 
 const validEndpoints = [
@@ -8,6 +9,20 @@ const validEndpoints = [
   /^\/users\/auth$/,
   /^\/syncs\/progress(?:\/[a-fA-F0-9]{32})?$/,
 ];
+
+// shortcut: resolves once before fetching, so a DNS-rebinding answer that flips between this lookup and fetch's own still gets through; pin the connect address with a custom lookup if the Docker build runs beside sensitive services.
+const resolveHost = async (hostname: string): Promise<'public' | 'internal' | 'unresolved'> => {
+  const isIpLiteral = hostname.startsWith('[') || /^\d+(\.\d+){3}$/.test(hostname);
+  // Workers has no internal network to reach, so the hostname check suffices there.
+  const onWorkers = globalThis.navigator?.userAgent === 'Cloudflare-Workers';
+  if (isIpLiteral || onWorkers) return 'public';
+  try {
+    const addresses = await lookup(hostname, { all: true, verbatim: true });
+    return addresses.some(({ address }) => isBlockedHost(address)) ? 'internal' : 'public';
+  } catch {
+    return 'unresolved';
+  }
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await runMiddleware(req, res, corsAllMethods);
@@ -52,6 +67,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   target.pathname = `${baseUrl.pathname.replace(/\/+$/, '')}${endpoint}`;
   let targetUrl = target.href;
   if (isLanAddress(targetUrl)) {
+    return res
+      .status(400)
+      .json({ error: 'Requests to private/internal addresses are not allowed' });
+  }
+  // Redirects stay on this hostname, so one lookup covers every hop.
+  const resolved = await resolveHost(target.hostname);
+  if (resolved === 'unresolved') {
+    return res.status(502).json({ error: 'Could not resolve serverUrl' });
+  }
+  if (resolved === 'internal') {
     return res
       .status(400)
       .json({ error: 'Requests to private/internal addresses are not allowed' });
