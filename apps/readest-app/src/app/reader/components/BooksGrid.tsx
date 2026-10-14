@@ -34,6 +34,7 @@ import ReadingRuler from './ReadingRuler';
 import DoubleBorder from './DoubleBorder';
 import ReadingStatsTracker from './ReadingStatsTracker';
 import PlaySurface from './play/PlaySurface';
+import MarginCreatorPopover from './margins/MarginCreatorPopover';
 
 interface BooksGridProps {
   bookKeys: string[];
@@ -335,6 +336,7 @@ const BookCellInner: React.FC<BookCellProps> = ({
       )}
       <ReadingStatsTracker bookKey={bookKey} />
       <PlaySurface bookKey={bookKey} />
+      <MarginCreatorPopover bookKey={bookKey} />
     </div>
   );
 };

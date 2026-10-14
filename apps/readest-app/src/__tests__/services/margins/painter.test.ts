@@ -182,7 +182,12 @@ describe('margins painter', () => {
     const rects = [
       { left: 40, top: 20, right: 90, bottom: 30, width: 50, height: 10 },
     ] as DOMRect[];
-    const creator = { avatarUrl: 'https://cdn.example/a.png', color: '#E8846B', initial: 'D' };
+    const creator = {
+      name: 'Dami',
+      avatarUrl: 'https://cdn.example/a.png',
+      color: '#E8846B',
+      initial: 'D',
+    };
     const g = drawMargin([...rects], { count: 1, fuzzy: false, markers: false, creator });
     expect(g.querySelector('image')).toBeNull();
     expect(g.querySelector('circle')!.getAttribute('fill')).toBe('#E8846B');
@@ -194,7 +199,7 @@ describe('margins painter', () => {
     const rects = [
       { left: 40, top: 20, right: 90, bottom: 30, width: 50, height: 10 },
     ] as DOMRect[];
-    const creator = { avatarUrl: null, color: '#2E7D6B', initial: 'D' };
+    const creator = { name: 'Dami', avatarUrl: null, color: '#2E7D6B', initial: 'D' };
     const g = drawMargin([...rects], { count: 1, fuzzy: false, markers: true, creator });
     expect(g.querySelector('image')).toBeNull();
     expect(g.querySelector('circle')!.getAttribute('fill')).toBe('#2E7D6B');
@@ -210,6 +215,7 @@ describe('margins painter', () => {
 
   it('passes each Margin creator to the drawing', async () => {
     const creator = vi.fn((userId: string | null) => ({
+      name: 'X',
       avatarUrl: null,
       color: userId === 'u1' ? '#111111' : '#222222',
       initial: 'X',
@@ -223,6 +229,8 @@ describe('margins painter', () => {
     const { overlayer, added } = fakeOverlayer();
     await painter.drawSection(0, overlayer, 'full');
     expect(creator).toHaveBeenCalledWith('u1');
+    expect(painter.creatorOf('a')).toMatchObject({ color: '#111111' });
+    expect(painter.creatorOf('missing')).toBeUndefined();
     expect(added.get('margins:a')!.opts).toMatchObject({ creator: { color: '#111111' } });
   });
 

@@ -16,6 +16,7 @@ export interface PainterOverlayer {
 }
 
 export interface MarginCreator {
+  name: string;
   avatarUrl: string | null;
   color: string;
   initial: string;
@@ -37,6 +38,7 @@ export interface MarginsPainter {
     display: MarginsDisplay,
   ): Promise<string[]>;
   placements(): ReadonlyMap<string, Placement>;
+  creatorOf(id: string): MarginCreator | undefined;
 }
 
 export const MARGIN_KEY_PREFIX = 'margins:';
@@ -318,5 +320,6 @@ export const createPainter = (o: {
       return run;
     },
     placements: () => placed,
+    creatorOf: (id) => (authors.has(id) ? o.creator?.(authors.get(id) ?? null) : undefined),
   };
 };
