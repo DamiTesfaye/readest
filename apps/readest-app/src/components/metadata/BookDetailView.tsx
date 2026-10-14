@@ -1,11 +1,17 @@
 import clsx from 'clsx';
 import React, { useState } from 'react';
-import { MdOutlineCloudDownload, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import {
+  MdOutlineCloudDownload,
+  MdOutlineDownloadForOffline,
+  MdExpandMore,
+  MdExpandLess,
+} from 'react-icons/md';
 
 import { Book } from '@/types/book';
 import { BookMetadata } from '@/libs/document';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useDefaultBookshelfCovers } from '@/hooks/useDefaultBookshelfCovers';
 import { useEnv } from '@/context/EnvContext';
 import {
   formatAuthors,
@@ -15,7 +21,9 @@ import {
   formatLanguage,
   formatPublisher,
   formatTitle,
+  getBookPageCount,
   getContributorNames,
+  getSeriesIndex,
 } from '@/utils/book';
 import { isFeedBook } from '@/services/rss/feedBookUrl';
 import { saveSysSettings } from '@/helpers/settings';
@@ -25,6 +33,7 @@ import { EditIcon } from '@/components/EditIcon';
 import { DeleteIcon } from '@/components/DeleteIcon';
 import { DownloadIcon } from '@/components/DownloadIcon';
 import { ShareIcon } from '@/components/ShareIcon';
+import BookCoverViewer, { useBookCoverViewer } from '@/components/BookCoverViewer';
 import Dropdown from '../Dropdown';
 import MenuItem from '../MenuItem';
 
@@ -41,6 +50,10 @@ interface BookDetailViewProps {
   onUpload?: () => void;
   onShare?: () => void;
   onExport?: () => void;
+  /** Download an Audiobookshelf book for offline use (#6256). */
+  onDownloadOffline?: () => void;
+  /** Set when the offline download needs an upgrade; shown as a badge. */
+  offlinePremiumLabel?: string;
   onMetadataValueClick?: (type: 'tag' | 'subject', value: string) => void;
 }
 
@@ -57,12 +70,16 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
   onUpload,
   onShare,
   onExport,
+  onDownloadOffline,
+  offlinePremiumLabel,
   onMetadataValueClick,
 }) => {
   const _ = useTranslation();
   const { envConfig } = useEnv();
   const { settings } = useSettingsStore();
+  const { skeuomorphicCovers } = useDefaultBookshelfCovers();
   const [subjectsExpanded, setSubjectsExpanded] = useState(false);
+  const { coverSrc, openCoverViewer, closeCoverViewer } = useBookCoverViewer(book);
   const subjects = getContributorNames(metadata?.subject);
   const visibleSubjects = subjectsExpanded ? subjects : subjects.slice(0, 3);
 
@@ -107,9 +124,15 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
   return (
     <div className='relative w-full rounded-lg'>
       <div className='mb-6 me-4 flex h-32 items-start'>
-        <div className='me-6 aspect-[28/41] h-32 shadow-lg sm:me-10'>
-          <BookCover mode='list' book={book} showSpine={settings.librarySkeuomorphicCovers} />
-        </div>
+        <button
+          type='button'
+          aria-label={_('View Book Cover')}
+          className='me-6 aspect-[28/41] h-32 shadow-lg sm:me-10'
+          onClick={openCoverViewer}
+        >
+          <BookCover mode='list' book={book} showSpine={skeuomorphicCovers} />
+        </button>
+        {coverSrc && <BookCoverViewer src={coverSrc} onClose={closeCoverViewer} />}
         <div className='title-author flex h-32 flex-col justify-between'>
           <div>
             <p className='text-base-content mb-2 line-clamp-2 break-words text-lg font-bold'>
@@ -151,6 +174,19 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                 <DownloadIcon className='text-base-content' />
               </button>
             )}
+            {onDownloadOffline && !book.absDownloadedAt && (
+              <button
+                onClick={onDownloadOffline}
+                title={_('Download for Offline')}
+                aria-label={_('Download for Offline')}
+                className='flex items-center gap-1'
+              >
+                <MdOutlineDownloadForOffline className='fill-base-content' />
+                {offlinePremiumLabel && (
+                  <span className='badge badge-sm badge-ghost'>{offlinePremiumLabel}</span>
+                )}
+              </button>
+            )}
             {onDelete && (
               <Dropdown
                 label={_('Delete Book Options')}
@@ -160,8 +196,8 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
               >
                 <div
                   className={clsx(
-                    'delete-menu dropdown-content no-triangle !relative',
-                    'border-base-300 !bg-base-200 z-20 mt-1 max-w-[90vw] shadow-2xl',
+                    'delete-menu dropdown-content no-triangle relative!',
+                    'border-base-300 bg-base-200! z-20 mt-1 max-w-[90vw] shadow-2xl',
                   )}
                 >
                   <MenuItem
@@ -187,7 +223,7 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                     transient
                     label={_('Remove from Device Only')}
                     onClick={onDeleteLocalCopy}
-                    disabled={!book.downloadedAt}
+                    disabled={!book.downloadedAt && !book.absDownloadedAt}
                   />
                 </div>
               </Dropdown>
@@ -290,15 +326,15 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                 </div>
                 {/*
                   The same total the footer bar counts against: foliate's
-                  SectionProgress derives it from the spine's byte sizes when the
-                  book is opened (reflowable), or from the spine length for fixed
-                  layout. Nothing computes it at import time, so it lands in
-                  book.progress ([current, total]) on the first open (#5516).
+                  SectionProgress derives it from the spine's byte sizes
+                  (reflowable) or the spine length (fixed layout). Import records
+                  it in book.pageCount (#6662); opening the book stores it in
+                  book.progress ([current, total], #5516).
                 */}
                 <div className='overflow-hidden pe-1 text-end sm:text-start'>
                   <span className='font-bold'>{_('Pages')}</span>
                   <p className='text-neutral-content text-sm'>
-                    {book.progress?.[1] || _('Unknown')}
+                    {getBookPageCount(book) || _('Unknown')}
                   </p>
                 </div>
                 <div className='col-span-2 overflow-hidden sm:col-span-1'>
@@ -406,7 +442,7 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
                 <div className='overflow-hidden pe-1 text-end'>
                   <span className='font-bold'>{_('Series Index')}</span>
                   <p className='text-neutral-content text-sm'>
-                    {metadata?.seriesIndex || _('Unknown')}
+                    {getSeriesIndex(metadata?.seriesIndex) ?? _('Unknown')}
                   </p>
                 </div>
               </div>

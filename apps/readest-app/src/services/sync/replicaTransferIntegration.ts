@@ -5,6 +5,7 @@ import { publishReplicaManifest } from './replicaPublish';
 import type { AppService } from '@/types/system';
 import type { ClosableFile } from '@/utils/file';
 import type { ReplicaTransferFile } from '@/store/transferStore';
+import { sha256File } from '@/services/dictionaries/plugins/integrity';
 
 interface ReplicaTransferCompleteDetail {
   kind: string;
@@ -59,9 +60,17 @@ const handleReplicaUpload = async (detail: ReplicaTransferCompleteDetail): Promi
       detail.files.map(async (f) => {
         const file = await appServiceRef!.openFile(f.lfp, base);
         const partialMd5 = await partialMD5(file);
+        const sha256 = f.logical.toLowerCase().endsWith('.zip')
+          ? await sha256File(file)
+          : undefined;
         const closable = file as ClosableFile;
         if (closable && closable.close) await closable.close();
-        return { filename: f.logical, byteSize: f.byteSize, partialMd5 };
+        return {
+          filename: f.logical,
+          byteSize: f.byteSize,
+          partialMd5,
+          ...(sha256 ? { sha256 } : {}),
+        };
       }),
     );
     const published = await publishReplicaManifest(

@@ -36,7 +36,7 @@ let keychain: Promise<TokenPersistence<StoredSession> | null> | null = null;
 let fallbackChain: Promise<unknown> = Promise.resolve();
 
 const getKeychain = () =>
-  (keychain ??= createKeychainTokenPersistence<StoredSession>(STORAGE_KEY, 'AmpleRead'));
+  (keychain ??= createKeychainTokenPersistence<StoredSession>(STORAGE_KEY, 'AmpleRead', false));
 const notify = (s: StoredSession | null) => listeners.forEach((listener) => listener(s));
 
 export const getSession = async (): Promise<StoredSession | null> => {

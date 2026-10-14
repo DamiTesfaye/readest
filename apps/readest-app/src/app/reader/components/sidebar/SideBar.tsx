@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
@@ -8,7 +8,7 @@ import { useSidebarStore } from '@/store/sidebarStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { eventDispatcher } from '@/utils/event';
 import { getBookDirFromLanguage } from '@/utils/book';
-import { getPanelTopInset } from '@/utils/insets';
+import { getPanelHorizontalInsetStyle, getPanelTopInset } from '@/utils/insets';
 import { useEnv } from '@/context/EnvContext';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import { usePanelResize } from '@/hooks/usePanelResize';
@@ -28,15 +28,15 @@ const SideBar = ({}) => {
   const _ = useTranslation();
   const { appService } = useEnv();
   const { settings } = useSettingsStore();
-  const { updateAppTheme, safeAreaInsets, systemUIVisible, statusBarHeight } = useThemeStore();
+  const { updateAppTheme, safeAreaInsets, systemUIVisible, statusBarHeight, isIPhoneDuo } =
+    useThemeStore();
   const { sideBarBookKey, setSideBarBookKey, getSearchNavState, setSearchTerm, clearSearch } =
     useSidebarStore();
   const { setSearchBarVisible } = useSidebarStore();
   const searchNavState = sideBarBookKey ? getSearchNavState(sideBarBookKey) : null;
-  const { searchTerm = '', searchResults = null } = searchNavState || {};
+  const { searchResults = null } = searchNavState || {};
   const { getBookData, getConfig } = useBookDataStore();
   const { getView, getViewSettings } = useReaderStore();
-  const searchTermRef = useRef(searchTerm);
   const isMobile = window.innerWidth < 640;
   const [isFullHeightInMobile, setIsFullHeightInMobile] = useState(isMobile);
   const {
@@ -90,10 +90,6 @@ const SideBar = ({}) => {
   }, [isSideBarVisible]);
 
   useEffect(() => {
-    searchTermRef.current = searchTerm;
-  }, [searchTerm]);
-
-  useEffect(() => {
     eventDispatcher.on('search-term', onSearchEvent);
     eventDispatcher.on('navigate', onNavigateEvent);
     return () => {
@@ -134,13 +130,16 @@ const SideBar = ({}) => {
   }, [sideBarBookKey, clearSearch]);
 
   const handleHideSideBar = useCallback(() => {
-    if (searchTermRef.current) {
+    if (isSearchBarVisible) {
       handleHideSearchBar();
-    } else if (!isSideBarPinned) {
-      setSideBarVisible(false);
+      return true;
     }
+    if (!isSideBarVisible) return false;
+    if (isSideBarPinned) return false;
+    setSideBarVisible(false);
+    return true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sideBarBookKey, isSideBarPinned]);
+  }, [sideBarBookKey, isSearchBarVisible, isSideBarPinned, isSideBarVisible]);
 
   useShortcuts({ onShowSearchBar: handleShowSearchBar, onEscape: handleHideSideBar }, [
     handleHideSideBar,
@@ -196,6 +195,9 @@ const SideBar = ({}) => {
             statusBarHeight,
             safeAreaInsets,
           })}px`,
+          // iPhone Duo's status-bar strip reports as a large left/right inset
+          // (#6307). A side panel is only padded on its screen edge (left).
+          ...getPanelHorizontalInsetStyle(safeAreaInsets, isIPhoneDuo, isMobile, 'left'),
         }}
       >
         <style jsx>{`
@@ -223,7 +225,7 @@ const SideBar = ({}) => {
           onTouchStart={handleHorizontalDragStart}
           onKeyDown={handleDragKeyDown}
         ></div>
-        <div className='flex-shrink-0'>
+        <div className='shrink-0'>
           {isMobile && (
             <div
               role='slider'
