@@ -109,7 +109,9 @@ describe('library scrollbar integration in Chromium', () => {
     );
     await waitFor(() => {
       const frame = getByTestId('frame').getBoundingClientRect();
-      const heading = getByRole('heading', { name: 'Start your library' }).getBoundingClientRect();
+      const heading = getByRole('heading', {
+        name: "Let's Fill These Shelves",
+      }).getBoundingClientRect();
       expect(heading.top).toBeGreaterThan(frame.top + frame.height / 4);
       expect(heading.bottom).toBeLessThan(frame.bottom - frame.height / 4);
     });
