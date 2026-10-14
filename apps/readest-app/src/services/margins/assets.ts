@@ -110,6 +110,8 @@ const remoteIdFor = async (
   return uploaded;
 };
 
+export const uploadLocalAsset = remoteIdFor;
+
 export const uploadAssets = async (
   store: MarginsStore,
   body: unknown,

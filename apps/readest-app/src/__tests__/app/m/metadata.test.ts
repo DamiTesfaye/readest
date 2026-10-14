@@ -47,10 +47,21 @@ describe('/m generateMetadata', () => {
     expect(m.openGraph?.description).toBe('𝒜'.repeat(120));
   });
 
-  it('falls back to the note when the quote is empty', async () => {
+  it('describes the post by its note first', async () => {
     const payload = { v: 1, elements: [{ id: 'n', kind: 'note', text: 'A note', frame: {} }] };
-    vi.stubGlobal('fetch', respond(200, live({ quote: '', payload })));
+    vi.stubGlobal('fetch', respond(200, live({ payload })));
     expect((await meta('pst_1')).openGraph?.description).toBe('A note');
+  });
+
+  it('describes a shape post with no note by its citation', async () => {
+    const citation = { publisher: 'Gutenberg', year: 2001, page: '16', percent: 9 };
+    vi.stubGlobal('fetch', respond(200, live({ quote: null, display: 'shape', citation })));
+    const m = await meta('pst_1');
+    expect(m.openGraph?.description).toBe(
+      'Meditations · Marcus Aurelius · Gutenberg, 2001 ed. · p. 16',
+    );
+    const images = m.openGraph?.images as { url: string }[];
+    expect(images.map((i) => i.url)).toEqual([CARD]);
   });
 
   it('cuts the book title to 200 scalars', async () => {

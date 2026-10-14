@@ -24,6 +24,7 @@ import {
   MARGINS_OPEN_PASSAGE_EVENT,
   openPassage,
 } from '@/services/margins/public/badges';
+import { byteAt, sectionBytes } from '@/services/margins/public/offsets';
 import { MARGINS_POST_PENDING_EVENT, takePostOpen } from '@/services/margins/public/openPost';
 import { useMarginsPublic } from '@/services/margins/public/flag';
 import { openMarginsStore } from '@/services/margins/store';
@@ -56,6 +57,21 @@ const disjoint = (a: Range, b: Range) => {
   }
 };
 
+export const postPlacement = async (
+  post: PostView,
+  ctx: BridgeContext,
+): Promise<{ section: number; start: number; end: number } | null> => {
+  if (post.anchor.quote !== null) {
+    const p = placementOf(await resolveAnchor(ctx, post.anchor));
+    return p.kind === 'placed' ? { section: p.section, start: p.start, end: p.end } : null;
+  }
+  await ctx.ready;
+  const lengths = await ctx.core.sectionLengths(ctx.book.hash, ctx.bookDoc.sections.length);
+  if (lengths[post.section] !== post.sectionLen) return null;
+  const bytes = await sectionBytes(ctx.core, ctx.book.hash, post.section);
+  return { section: post.section, start: byteAt(bytes, post.start), end: byteAt(bytes, post.end) };
+};
+
 export const viewPostInPlace = async (
   bookKey: string,
   post: PostView | null,
@@ -69,8 +85,8 @@ export const viewPostInPlace = async (
     reader.draw();
     return 'placed';
   }
-  const p = placementOf(await resolveAnchor(reader.ctx, post.anchor));
-  if (p.kind !== 'placed') return 'missing';
+  const p = await postPlacement(post, reader.ctx);
+  if (!p) return 'missing';
   viewing.delete(bookKey);
   painter.setViewInPlace({ postId: post.id, section: p.section, start: p.start, end: p.end });
   await reader.view.goTo(p.section);

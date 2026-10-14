@@ -16,7 +16,23 @@ export interface PostBook {
   author: string | null;
   workId: string | null;
   capped: boolean;
+  findUrl: string | null;
 }
+
+export type Display = 'quote' | 'shape' | 'art';
+
+export interface Citation {
+  publisher?: string;
+  year?: number;
+  isbn?: string;
+  page?: string;
+  chapter?: string;
+  percent: number;
+}
+
+export type PostAnchor =
+  | Anchor
+  | (Omit<Anchor, 'quote' | 'context'> & { quote: null; context: null });
 
 export interface PostView {
   id: string;
@@ -28,14 +44,20 @@ export interface PostView {
   sectionLen: number;
   start: number;
   end: number;
-  quote: string;
-  anchor: Anchor;
+  quote: string | null;
+  anchor: PostAnchor;
   payload: unknown;
   cardUrl: string | null;
   language: string;
   status: 'live' | 'hidden';
   book: PostBook;
   mine: boolean;
+  display: Display;
+  citation: Citation | Record<string, never>;
+  sceneAsset: string | null;
+  coverAsset: string | null;
+  feedEligible: boolean;
+  following: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +116,10 @@ export interface PublishBody {
   start: number;
   end: number;
   sectionLen: number;
+  display?: Display;
+  citation?: Citation;
+  sceneAsset?: string;
+  coverAsset?: string;
 }
 
 export interface CounterNoticeBody {
@@ -264,6 +290,8 @@ export const publicApi = {
     ),
   trending: (o: TrendingRequest) =>
     callJson<PostPage>('/v1/feed/trending', withBody('POST', o), true),
+  familyFeed: (textId: string, order: 'ranked' | 'book', cursor?: string) =>
+    callJson<PostPage>(`/v1/families/${seg(textId)}/feed?${query({ order, cursor })}`, {}, true),
   post: async (postId: string): Promise<PostLookup> =>
     (await orNullOn(410, () => callJson<PostLookup>(`/v1/posts/${seg(postId)}`, {}, true))) ?? {
       id: postId,
@@ -286,15 +314,19 @@ export const publicApi = {
   adminQueue: () => callJson<QueueItem[]>('/v1/admin/queue'),
   adminAction: (postId: string, body: AdminAction) =>
     callJson<QueueItem>(`/v1/admin/posts/${seg(postId)}/actions`, withBody('POST', body)),
+  postAsset: async (postId: string, assetRef: string): Promise<Blob | null> => {
+    const res = await orNullOn(404, () =>
+      call(`/v1/posts/${seg(postId)}/assets/${seg(assetRef)}`, {}, true),
+    );
+    return res ? res.blob() : null;
+  },
   postAssetUrl: async (postId: string, assetRef: string): Promise<string | null> => {
     const key = `${postId}/${assetRef}`;
     const cached = assetUrls.get(key);
     if (cached) return cached;
-    const res = await orNullOn(404, () =>
-      call(`/v1/posts/${seg(postId)}/assets/${seg(assetRef)}`, {}, true),
-    );
-    if (!res) return null;
-    const url = URL.createObjectURL(await res.blob());
+    const blob = await publicApi.postAsset(postId, assetRef);
+    if (!blob) return null;
+    const url = URL.createObjectURL(blob);
     assetUrls.set(key, url);
     return url;
   },

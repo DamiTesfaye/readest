@@ -12,6 +12,7 @@ import {
   rememberPendingOpen,
   requestPostOpen,
 } from '@/services/margins/public/openPost';
+import { formatCitation } from '@/services/margins/public/citation';
 import { sharePost } from '@/services/margins/public/share';
 import { openMarginsStore } from '@/services/margins/store';
 import { useLibraryStore } from '@/store/libraryStore';
@@ -53,9 +54,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
         <span className='text-base-content/60'>{`@${post.author.handle}`}</span>
       </header>
       {isEnvelope(post.payload) ? (
-        <MarginArt envelope={post.payload} quote={post.quote} assetSource={assetSource} />
+        <MarginArt envelope={post.payload} quote={post.quote ?? ''} assetSource={assetSource} />
       ) : (
-        <p className='line-clamp-3 font-serif text-xs leading-relaxed'>{post.quote}</p>
+        <p className='line-clamp-3 font-serif text-xs leading-relaxed'>
+          {post.quote ?? formatCitation(post.citation, post.book)}
+        </p>
       )}
       <div className='flex flex-wrap items-center gap-1'>
         {actions}
