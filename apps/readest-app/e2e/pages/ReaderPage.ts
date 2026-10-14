@@ -52,7 +52,7 @@ export class ReaderPage extends BasePage {
     // toolbar popup at desktop widths, in a bottom sheet on phones. The
     // sidebar's own inline editor shares the test id; only one is ever open.
     this.noteEditor = page.locator('[data-testid="booknote-note-editor"]');
-    this.annotationItems = page.locator('li.booknote-item[role="button"]');
+    this.annotationItems = page.locator('[role="list"] > .booknote-item[role="listitem"]');
     // The app-drawn range-edit handles (the selection / annotation range
     // editors), as opposed to the browser's native selection handles.
     this.rangeHandles = page.locator('[data-testid="selection-handle"]');
@@ -536,7 +536,7 @@ export class ReaderPage extends BasePage {
    * button would also answer to a substring match on 'Highlight'.
    */
   popupTool(name: string | RegExp): Locator {
-    return this.annotationPopup.getByRole('button', { name, exact: typeof name === 'string' });
+    return this.annotationPopup.getByRole('button', { name });
   }
 
   async highlightSelection(): Promise<void> {
