@@ -6,16 +6,19 @@ import { getSession } from '@/services/ampleread/auth/session';
 import type { PostView } from '@/services/margins/public/api';
 import {
   bookFeedParams,
+  type EngagementKind,
   type FeedSource,
   fetchFeedPage,
   preloadPost,
 } from '@/services/margins/public/feedApi';
+import { engagement } from '@/services/margins/public/engagement';
 import { socialApi } from '@/services/margins/public/social';
 import { familyCache } from '@/services/margins/sync';
 import { prefersReducedMotion } from '@/utils/animation';
 import { eventDispatcher } from '@/utils/event';
 import { navigateToLibrary } from '@/utils/nav';
 import FeedCard from './FeedCard';
+import FeedTabs, { type FeedTab } from './FeedTabs';
 
 export interface FeedViewProps {
   source: FeedSource;
@@ -31,9 +34,17 @@ const PREV_KEYS = ['ArrowUp', 'PageUp'];
 
 const noEngagement = () => {};
 
+const countEngagement = (post: PostView, kind: EngagementKind) => engagement.count(post.id, kind);
+
 const familyOf = (post: PostView) => familyCache.get(post.textId) ?? post.textId;
 
-const FeedView = ({ source }: FeedViewProps) => {
+interface FeedProps {
+  source: FeedSource;
+  shown: boolean;
+  onForYou?(): void;
+}
+
+const Feed = ({ source, shown, onForYou }: FeedProps) => {
   const _ = useTranslation();
   const router = useRouter();
   const { appService } = useEnv();
@@ -60,18 +71,27 @@ const FeedView = ({ source }: FeedViewProps) => {
     setDropped(new Set());
     setCursor(null);
     setActive(0);
-    void getSession().then((s) => live && setSignedIn(!!s));
-    fetchFeedPage(source, undefined, { appService })
-      .then((page) => {
-        if (!live) return;
-        setPosts(page.posts);
-        setCursor(page.nextCursor);
-      })
-      .catch(fail);
+    (async () => {
+      const session = await getSession();
+      if (!live) return;
+      setSignedIn(!!session);
+      if (source.kind === 'following' && !session) return setPosts([]);
+      const page = await fetchFeedPage(source, undefined, { appService });
+      if (!live) return;
+      setPosts(page.posts);
+      setCursor(page.nextCursor);
+    })().catch(fail);
     return () => {
       live = false;
     };
   }, [key, appService]);
+
+  useEffect(
+    () => () => {
+      void engagement.flush();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!posts || !cursor || loading.current || active < posts.length - PAGE_AHEAD) return;
@@ -173,9 +193,16 @@ const FeedView = ({ source }: FeedViewProps) => {
       onWheel={onWheel}
     >
       {posts?.length === 0 && (
-        <p className='text-base-content/60 flex h-full items-center justify-center p-6 text-sm'>
-          {empty}
-        </p>
+        <div className='text-base-content/60 flex h-full flex-col items-center justify-center gap-2 p-6 text-sm'>
+          <p>
+            {source.kind === 'following' && !signedIn ? _('Sign in to follow creators') : empty}
+          </p>
+          {source.kind === 'following' && signedIn && onForYou && (
+            <button type='button' className='btn btn-ghost btn-sm' onClick={onForYou}>
+              {_('Go to For You')}
+            </button>
+          )}
+        </div>
       )}
       {posts?.map((post, i) => (
         <article
@@ -191,7 +218,7 @@ const FeedView = ({ source }: FeedViewProps) => {
         >
           <FeedCard
             post={post}
-            active={i === active}
+            active={shown && i === active}
             muted={muted}
             reduced={reduced}
             signedIn={signedIn}
@@ -199,12 +226,47 @@ const FeedView = ({ source }: FeedViewProps) => {
             onMute={() => setMuted(true)}
             onHidden={hide}
             onOpenBook={openBook}
-            onEngage={noEngagement}
+            onEngage={signedIn ? countEngagement : noEngagement}
           />
         </article>
       ))}
     </div>
   );
 };
+
+const tabSource = (tab: FeedTab, source: FeedSource): FeedSource =>
+  tab === source.kind ? source : ({ kind: tab } as FeedSource);
+
+const Tabbed = ({ source }: FeedViewProps) => {
+  const [tab, setTab] = useState<FeedTab>(source.kind as FeedTab);
+  const [visited, setVisited] = useState<FeedTab[]>([source.kind as FeedTab]);
+
+  const select = (next: FeedTab) => {
+    setTab(next);
+    setVisited((v) => (v.includes(next) ? v : [...v, next]));
+  };
+
+  return (
+    <div className='flex h-full flex-col'>
+      <FeedTabs current={tab} hasBook={source.kind === 'book'} onSelect={select} />
+      {visited.map((t) => (
+        <div key={t} className={t === tab ? 'min-h-0 flex-1' : 'hidden'}>
+          <Feed
+            source={tabSource(t, source)}
+            shown={t === tab}
+            onForYou={() => select('for-you')}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const FeedView = ({ source }: FeedViewProps) =>
+  source.kind === 'profile' ? (
+    <Feed source={source} shown />
+  ) : (
+    <Tabbed key={JSON.stringify(source)} source={source} />
+  );
 
 export default FeedView;

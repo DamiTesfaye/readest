@@ -7,6 +7,7 @@ import {
   type TrendingRequest,
   withBody,
 } from './api';
+import type { EngagementKind } from './feedApi';
 
 export interface UserProfile {
   handle: string;
@@ -61,4 +62,7 @@ export const socialApi = {
     callJson<PostPage>(at(`/v1/users/${seg(handle)}/posts`, { cursor }), {}, true),
   forYou: (o: TrendingRequest) => callJson<PostPage>('/v1/feed/for-you', withBody('POST', o), true),
   following: (cursor?: string) => callJson<PostPage>(at('/v1/feed/following', { cursor })),
+  events: async (events: { postId: string; kind: EngagementKind }[]) => {
+    await call('/v1/feed/events', { ...withBody('POST', { events }), keepalive: true });
+  },
 };
