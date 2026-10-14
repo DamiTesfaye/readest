@@ -1,6 +1,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
+import { CitationLine } from '@/components/margins/CitationLine';
 import { useTranslation } from '@/hooks/useTranslation';
 import { canDownloadEdition, getWorkDetail } from '@/services/ampleread';
 import { getSession } from '@/services/ampleread/auth/session';
@@ -12,7 +13,6 @@ import {
   rememberPendingOpen,
   requestPostOpen,
 } from '@/services/margins/public/openPost';
-import { formatCitation } from '@/services/margins/public/citation';
 import { sharePost } from '@/services/margins/public/share';
 import { openMarginsStore } from '@/services/margins/store';
 import { useLibraryStore } from '@/store/libraryStore';
@@ -57,7 +57,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
         <MarginArt envelope={post.payload} quote={post.quote ?? ''} assetSource={assetSource} />
       ) : (
         <p className='line-clamp-3 font-serif text-xs leading-relaxed'>
-          {post.quote ?? formatCitation(post.citation, post.book)}
+          {post.quote ?? <CitationLine citation={post.citation} book={post.book} />}
         </p>
       )}
       <div className='flex flex-wrap items-center gap-1'>

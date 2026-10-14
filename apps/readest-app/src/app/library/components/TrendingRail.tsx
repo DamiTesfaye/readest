@@ -1,8 +1,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { CitationLine } from '@/components/margins/CitationLine';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { PostView } from '@/services/margins/public/api';
-import { formatCitation } from '@/services/margins/public/citation';
 import { useMarginsPublic } from '@/services/margins/public/flag';
 import { MARGINS_OPEN_POST_EVENT, TRENDING_RAIL_LIMIT } from '@/services/margins/public/openPost';
 import { eventDispatcher } from '@/utils/event';
@@ -45,7 +45,7 @@ export function TrendingRail() {
                 {post.book.title && <span>{post.book.title}</span>}
               </span>
               <span className='line-clamp-3 font-serif text-sm'>
-                {post.quote ?? formatCitation(post.citation, post.book)}
+                {post.quote ?? <CitationLine citation={post.citation} book={post.book} />}
               </span>
             </button>
           </li>
