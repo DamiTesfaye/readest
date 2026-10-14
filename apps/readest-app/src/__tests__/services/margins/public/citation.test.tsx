@@ -1,14 +1,27 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+const h = vi.hoisted(() => ({ getWorkDetail: vi.fn() }));
+
+vi.mock('@/services/ampleread', async (orig) => ({
+  ...(await orig<typeof import('@/services/ampleread')>()),
+  getWorkDetail: h.getWorkDetail,
+}));
+vi.mock('@/services/margins/marginsClient', () => ({
+  getMarginsCore: () => ({ sectionLengths: async () => [100, 300] }),
+}));
+
 import { CitationLine } from '@/components/margins/CitationLine';
 import type { WorkDetail } from '@/services/ampleread/types';
 import {
   anchorPercent,
   buildCitation,
+  citationFor,
   formatCitation,
   readerContext,
 } from '@/services/margins/public/citation';
-import type { MarginText } from '@/services/margins/store';
+import type { LayerRow, MarginText, MarginsStore } from '@/services/margins/store';
+import { useLibraryStore } from '@/store/libraryStore';
+import type { Book } from '@/types/book';
 import { useReaderStore } from '@/store/readerStore';
 import type { BookProgress } from '@/types/book';
 
@@ -96,5 +109,24 @@ describe('citations', () => {
     expect(readerContext('hash1', 2)).toEqual({ page: '16', chapter: 'Book II' });
     expect(readerContext('hash1', 3)).toEqual({ page: null, chapter: null });
     expect(readerContext('hash2', 2)).toEqual({ page: null, chapter: null });
+  });
+
+  it('builds a publish citation from the linked work and the book position', async () => {
+    h.getWorkDetail.mockResolvedValue(work('Meditations', 'Marcus Aurelius'));
+    useLibraryStore.setState({
+      library: [{ hash: 'hash1', ampleread: { workId: 'wrk_1', editionId: 'ed_1' } } as Book],
+    });
+    const store = { getTextMap: async () => [{}, {}] } as unknown as MarginsStore;
+    const row = { fileHash: 'hash1' } as LayerRow;
+    const span = { section: 1, start: 150, end: 160, sectionLen: 300 };
+    expect(await citationFor(store, row, span)).toEqual({
+      publisher: 'Project Gutenberg',
+      percent: 63,
+    });
+    expect(h.getWorkDetail).toHaveBeenCalledWith('wrk_1');
+    h.getWorkDetail.mockRejectedValue(new Error('offline'));
+    expect(await citationFor(store, row, span)).toEqual({ percent: 63 });
+    useLibraryStore.setState({ library: [] });
+    expect(await citationFor(store, row, span)).toEqual({ percent: 63 });
   });
 });

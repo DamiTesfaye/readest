@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   library: [] as { hash: string; title: string; coverImageUrl?: string }[],
   scheduleDelete: vi.fn(() => ({ undo: vi.fn(), flush: vi.fn() })),
   flag: false,
+  sort: null as string | null,
+  assets: {} as Record<string, string>,
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -29,7 +31,7 @@ vi.mock('@/services/margins/store', () => ({
         ? { title: 'Meditations', familyId: 'fam_m', capped: false }
         : null,
     fileForText: async () => null,
-    getAsset: async () => null,
+    getAsset: async (id: string) => (h.assets[id] ? { data: h.assets[id] } : null),
     assetByRemote: async () => null,
   }),
 }));
@@ -45,6 +47,10 @@ vi.mock('@/store/libraryStore', () => {
   return { useLibraryStore };
 });
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({}),
+  useSearchParams: () => new URLSearchParams(h.sort ? { sort: h.sort } : {}),
+}));
 vi.mock('@/services/margins/public/flag', () => ({ useMarginsPublic: () => h.flag }));
 vi.mock('@/services/margins/public/api', async (orig) => ({
   ...(await orig<typeof import('@/services/margins/public/api')>()),
@@ -85,6 +91,8 @@ beforeEach(() => {
   h.session = { me: { id: 'u1' } };
   h.library = [{ hash: 'alice', title: 'Alice in Wonderland', coverImageUrl: 'blob:alice' }];
   h.flag = false;
+  h.sort = null;
+  h.assets = {};
   vi.clearAllMocks();
 });
 
@@ -105,6 +113,32 @@ describe('MarginsView', () => {
       .map((li) => li.textContent?.match(/quote (a\d)/)?.[1]);
     expect(quotes).toEqual(['a2', 'a1']);
     within(groups[1]!).getByText('2 Margins');
+  });
+
+  it('orders Margins by the space their local assets use with sort=size', async () => {
+    const art = { v: 1, ground: 'paper', quote: { frame: {}, size: 'm' } };
+    h.rows = [
+      row('a2', 5),
+      row('m1', 4, { fileHash: 'med-se', textId: 'txt_m1' }),
+      row('a1', 3, {
+        payload: { ...art, elements: [{ id: 'e1', kind: 'artwork', asset: 'local:art' }] },
+      }),
+      row('m2', 2, { fileHash: 'med-pg', textId: 'txt_m2' }),
+    ];
+    h.assets = { 'local:art': 'x'.repeat(400), 'scene-m2': 'x'.repeat(4000) };
+    h.sort = 'size';
+    await renderView();
+    const groups = screen.getAllByRole('region');
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual([
+      'Meditations',
+      'Alice in Wonderland',
+    ]);
+    const ids = (g: HTMLElement) =>
+      within(g)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent?.match(/quote ([am]\d)/)?.[1]);
+    expect(ids(groups[0]!)).toEqual(['m2', 'm1']);
+    expect(ids(groups[1]!)).toEqual(['a1', 'a2']);
   });
 
   it('opens a Margin in its book, or disables it when the book is not here', async () => {

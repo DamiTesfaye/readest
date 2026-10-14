@@ -81,11 +81,11 @@ export const renderCard = async ({ handle, bookTitle, citation, ground, art, see
   return canvas.convertToBlob({ type: 'image/png' });
 };
 
-export const uploadCard = async (png: Blob): Promise<string> => {
+export const uploadAsset = async (blob: Blob): Promise<string> => {
   const res = await call('/v1/layer-assets', {
     method: 'POST',
-    headers: { 'content-type': 'image/png' },
-    body: png,
+    headers: { 'content-type': blob.type },
+    body: blob,
   });
   return ((await res.json()) as { id: string }).id;
 };

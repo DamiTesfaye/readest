@@ -11,7 +11,7 @@ vi.mock('@/services/ampleread/auth/session', async (importOriginal) => ({
   amplereadFetch: session.amplereadFetch,
 }));
 
-import { CARD_HEIGHT, CARD_WIDTH, renderCard, uploadCard } from '@/services/margins/public/card';
+import { CARD_HEIGHT, CARD_WIDTH, renderCard, uploadAsset } from '@/services/margins/public/card';
 
 const artBlob = async () => {
   const canvas = new OffscreenCanvas(64, 64);
@@ -111,7 +111,7 @@ describe('Margin preview card', () => {
       new Response(JSON.stringify({ id: 'ast_card' }), { status: 201 }),
     );
     const png = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' });
-    expect(await uploadCard(png)).toBe('ast_card');
+    expect(await uploadAsset(png)).toBe('ast_card');
     const [path, init] = session.amplereadFetch.mock.calls[0]!;
     expect(path).toBe('/v1/layer-assets');
     expect(init.method).toBe('POST');
@@ -125,7 +125,7 @@ describe('Margin preview card', () => {
         status: 413,
       }),
     );
-    await expect(uploadCard(new Blob([], { type: 'image/png' }))).rejects.toMatchObject({
+    await expect(uploadAsset(new Blob([], { type: 'image/png' }))).rejects.toMatchObject({
       status: 413,
       code: 'asset_too_large',
     });

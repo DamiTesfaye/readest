@@ -1,8 +1,11 @@
-import { canDownloadEdition } from '@/services/ampleread';
+import { canDownloadEdition, getWorkDetail } from '@/services/ampleread';
 import type { WorkDetail } from '@/services/ampleread/types';
+import { useLibraryStore } from '@/store/libraryStore';
 import { useReaderStore } from '@/store/readerStore';
-import type { MarginText } from '../store';
+import { getMarginsCore } from '../marginsClient';
+import type { LayerRow, MarginText, MarginsStore } from '../store';
 import type { Citation } from './api';
+import type { ScalarSpan } from './offsets';
 
 type CitationBook = { title: string | null; author: string | null } | null;
 
@@ -71,4 +74,22 @@ export const readerContext = (
     page: progress?.pageItem?.label || null,
     chapter: progress?.sectionLabel || null,
   };
+};
+
+export const citationFor = async (
+  store: MarginsStore,
+  row: LayerRow,
+  span: ScalarSpan,
+): Promise<Citation> => {
+  const map = await store.getTextMap(row.fileHash);
+  const lengths = map ? await getMarginsCore().sectionLengths(row.fileHash, map.length) : [];
+  const workId = useLibraryStore.getState().library.find((b) => b.hash === row.fileHash)
+    ?.ampleread?.workId;
+  const work = workId ? await getWorkDetail(workId).catch(() => null) : null;
+  return buildCitation({
+    text: null,
+    work,
+    percent: anchorPercent(lengths, span.section, span.start),
+    ...readerContext(row.fileHash, span.section),
+  });
 };

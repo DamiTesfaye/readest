@@ -112,6 +112,14 @@ const remoteIdFor = async (
 
 export const uploadLocalAsset = remoteIdFor;
 
+export const localAssetBytes = async (
+  store: MarginsStore,
+  ref: string,
+): Promise<Uint8Array | null> => {
+  const asset = await store.getAsset(ref);
+  return asset?.data ? fromBase64(asset.data) : null;
+};
+
 export const uploadAssets = async (
   store: MarginsStore,
   body: unknown,
