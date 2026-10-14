@@ -224,14 +224,15 @@ describe('ViewMenu layout', () => {
     render(<ViewMenu bookKey='book-1' />);
     const seq = menuSequence();
     const autoScroll = seq.indexOf('Auto Scroll');
-    expect(seq.slice(autoScroll, autoScroll + 6)).toEqual([
+    expect(seq.slice(autoScroll, autoScroll + 7)).toEqual([
       'Auto Scroll',
       'Apply Theme Colors',
       'Invert Image In Dark Mode',
+      'Play with this page',
       'hr',
       'Webtoon Mode',
       'hr',
     ]);
-    expect(seq[autoScroll + 6]).toBe('Sign in to Sync');
+    expect(seq[autoScroll + 7]).toBe('Sign in to Sync');
   });
 });

@@ -112,7 +112,7 @@ describe('one-time bookshelf settings migration', () => {
     const settings = await loadSettings(ctx);
     expect(settings.bookshelves?.legacySettingsMigrated).toBe(true);
     expect(readBookshelves(settings).find((s) => s.id === 'recent')).toMatchObject({
-      enabled: false,
+      enabled: true,
       hideCovers: false,
       coverFit: 'crop',
       skeuomorphicCovers: false,

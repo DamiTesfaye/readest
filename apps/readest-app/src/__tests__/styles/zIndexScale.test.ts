@@ -34,7 +34,7 @@ const firstZ = (src: string, re: RegExp): number => {
 };
 
 const MODAL = firstZ(read('src/components/ModalPortal.tsx'), /z-\[(\d+)\]/);
-const SETTINGS = firstZ(read('src/components/settings/SettingsDialog.tsx'), /!z-\[(\d+)\]/);
+const SETTINGS = firstZ(read('src/components/settings/SettingsDialog.tsx'), /z-\[(\d+)\]!/);
 const RSVP_OVERLAY = firstZ(
   read('src/app/reader/components/rsvp/RSVPOverlay.tsx'),
   /fixed inset-0 z-\[(\d+)\] flex select-none/,

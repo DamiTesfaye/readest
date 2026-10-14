@@ -216,7 +216,7 @@ describe('library bookshelf integration', () => {
         }}
       />,
     );
-    expect(screen.getByRole('heading', { name: 'Start your library' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: "Let's Fill These Shelves" })).toBeTruthy();
     expect(screen.queryByTestId('content-search-results')).toBeNull();
   });
   it('hides enabled shelves without matching books from the library', () => {

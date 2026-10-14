@@ -1804,14 +1804,14 @@ describe('paragraph mode highlights (#6200)', () => {
 
     await waitFor(() => expect(painted()).toHaveLength(2));
     expect(painted()).toEqual([
-      { name: 'readest-annotation-highlight-facc15', texts: ['brave'], inClone: true },
-      { name: 'readest-annotation-underline-f87171', texts: ['world'], inClone: true },
+      { name: 'readest-annotation-highlight-FBDC40', texts: ['brave'], inClone: true },
+      { name: 'readest-annotation-underline-E58CA4', texts: ['world'], inClone: true },
     ]);
     // Each painted style/colour gets its own ::highlight() rule.
     const css = container.querySelector('style')!.textContent!;
-    expect(css).toContain('::highlight(readest-annotation-highlight-facc15)');
-    expect(css).toContain('#facc15');
-    expect(css).toContain('::highlight(readest-annotation-underline-f87171)');
+    expect(css).toContain('::highlight(readest-annotation-highlight-FBDC40)');
+    expect(css).toContain('#FBDC40');
+    expect(css).toContain('::highlight(readest-annotation-underline-E58CA4)');
     expect(css).toContain('text-decoration: underline');
   });
 

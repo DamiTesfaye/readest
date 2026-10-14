@@ -12,6 +12,7 @@ const { setProgress, readerState } = vi.hoisted(() => {
       setProgress,
       getViewState: () => ({}),
       getViewSettings: () => ({}),
+      getView: () => null,
     },
   };
 });

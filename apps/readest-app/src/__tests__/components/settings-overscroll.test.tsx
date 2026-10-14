@@ -37,7 +37,7 @@ vi.mock('@/components/Dialog', () => ({
     </>
   ),
 }));
-vi.mock('@/components/settings/FontPanel', () => ({
+vi.mock('@/components/settings/ControlPanel', () => ({
   default: () => (
     <div data-testid='content'>
       Settings <input data-testid='input' />
@@ -46,7 +46,6 @@ vi.mock('@/components/settings/FontPanel', () => ({
 }));
 vi.mock('@/components/settings/LayoutPanel', () => ({ default: () => null }));
 vi.mock('@/components/settings/ThemePanel', () => ({ default: () => null }));
-vi.mock('@/components/settings/ControlPanel', () => ({ default: () => null }));
 vi.mock('@/components/settings/TTSPanel', () => ({ default: () => null }));
 vi.mock('@/components/settings/LangPanel', () => ({ default: () => null }));
 vi.mock('@/components/settings/AIPanel', () => ({ default: () => null }));
@@ -197,7 +196,7 @@ describe('Settings tab scrolling', () => {
 
   it('does not restore a position saved on another panel', () => {
     scrollAndClose(240);
-    localStorage.setItem('lastConfigPanel', 'Layout');
+    localStorage.setItem('lastConfigPanel', 'Language');
     render(<SettingsDialog bookKey='' />);
     expect(screen.getByTestId('viewport').scrollTop).toBe(0);
   });
@@ -205,10 +204,10 @@ describe('Settings tab scrolling', () => {
   it.each([true, false])('starts a newly selected tab at the top (Android: %s)', (android) => {
     env.isAndroidApp = android;
     const { viewport } = setup(200);
-    fireEvent.click(screen.getByTitle('Layout'));
+    fireEvent.click(screen.getByTitle('Language'));
     expect(viewport.scrollTop).toBe(0);
     viewport.scrollTop = 300;
-    fireEvent.click(screen.getByTitle('Font'));
+    fireEvent.click(screen.getByTitle('Behavior'));
     expect(viewport.scrollTop).toBe(0);
   });
 });
