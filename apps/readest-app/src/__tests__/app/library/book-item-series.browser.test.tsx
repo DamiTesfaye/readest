@@ -51,7 +51,7 @@ describe('series index badge placement (#6347)', () => {
   ] as const) {
     it(`sits in the cover's top-end corner in ${direction}${eink ? ' e-ink' : ''}`, () => {
       const { container } = render(
-        <div dir={direction} data-eink={eink ? 'true' : undefined} style={{ width: 110 }}>
+        <div dir={direction} data-eink={eink ? 'true' : undefined} style={{ width: 245 }}>
           <BookItem {...props} book={book} />
         </div>,
       );
