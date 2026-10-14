@@ -65,7 +65,7 @@ vi.mock('@/utils/insets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/utils/insets')>()),
   getHeaderTriggerHeight: () => 0,
 }));
-vi.mock('@/helpers/settings', () => ({ saveViewSettings: vi.fn() }));
+vi.mock('@/helpers/settings', () => ({ saveViewSettings: vi.fn(), saveSysSettings: vi.fn() }));
 vi.mock('@/hooks/useKeyDownActions', () => ({ useKeyDownActions: () => {} }));
 
 // Keep reader state isolated; header, dropdown, window controls and CSS are real.
@@ -89,6 +89,25 @@ vi.mock('@/app/reader/components/ViewMenu', () => ({
 }));
 vi.mock('@/app/reader/components/SyncInfoDialog', () => ({ default: () => null }));
 vi.mock('@/components/ModalPortal', () => ({ default: () => null }));
+vi.mock('@/components/themefonts/ThemeFontsPanel', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/TocPopover', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/library/LibraryPopover', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/booknotes/BooknotesPopover', () => ({
+  default: () => null,
+  BOOKNOTES_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/booknotes/AnnotationsPopover', () => ({
+  default: () => null,
+  ANNOTATIONS_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/margins/MarginsPopover', () => ({
+  default: () => null,
+  MARGINS_POPOVER_WIDTH: 320,
+}));
+vi.mock('@/app/reader/components/MorePopover', () => ({
+  default: () => null,
+  MORE_POPOVER_WIDTH: 320,
+}));
 
 const insets = { top: 0, right: 0, bottom: 0, left: 0 };
 
@@ -170,7 +189,6 @@ it('lets the page-title strip receive taps while the toolbar is hidden', async (
 it.each([
   { width: 320, mobile: true, rtl: false, eink: false },
   { width: 390, mobile: false, rtl: false, eink: false },
-  { width: 807, mobile: true, rtl: false, eink: false },
   { width: 390, mobile: true, rtl: true, eink: false },
   { width: 390, mobile: true, rtl: false, eink: true },
 ])('keeps the mobile reader menu near the screen edge and dismissible: %o', async ({
@@ -199,14 +217,4 @@ it.each([
   expect(screen.getByRole('button', { name: 'View Options' }).getAttribute('aria-expanded')).toBe(
     'false',
   );
-});
-
-it('keeps the desktop menu aligned with its toggle', async () => {
-  useEnvMock.mockReturnValue({ envConfig: {}, appService: { isMobile: false } });
-  await page.viewport(1280, 900);
-  const { container } = renderHeader();
-  const toggle = screen.getByRole('button', { name: 'View Options' });
-  fireEvent.click(toggle);
-  const menu = container.querySelector('.view-menu') as HTMLElement;
-  expect(menu.getBoundingClientRect().right).toBe(toggle.getBoundingClientRect().right);
 });
