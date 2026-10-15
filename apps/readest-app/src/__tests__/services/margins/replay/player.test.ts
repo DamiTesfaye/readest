@@ -98,7 +98,7 @@ const harness = (o: { end?: number; bad?: number[]; reduced?: boolean } = {}) =>
   const { Replay, log } = fakeReplay(o);
   let now = 0;
   let cb: FrameRequestCallback | null = null;
-  const events = { onDrift: vi.fn(), onEnd: vi.fn(), onTurn: vi.fn() };
+  const events = { onDrift: vi.fn(), onEnd: vi.fn(), onTurn: vi.fn(), onRestart: vi.fn() };
   const canvas = {
     width: 1080,
     height: 1920,
@@ -227,6 +227,7 @@ describe('replay player', () => {
     h.tick(3100);
     h.tick(10);
     expect(h.log.made).toBe(2);
+    expect(h.events.onRestart).toHaveBeenCalledTimes(1);
     const r = harness({ end: 12, reduced: true });
     r.player.start();
     r.run(24, 12);

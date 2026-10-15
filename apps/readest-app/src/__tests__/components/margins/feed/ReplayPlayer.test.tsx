@@ -102,6 +102,16 @@ describe('ReplayPlayer', () => {
     screen.getByRole('button', { name: 'Restart' });
   });
 
+  it('shows Pause again when the card loops', async () => {
+    render(<ReplayPlayer {...props} />);
+    await settle();
+    act(() => lastArgs.current!.onEnd!());
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+    act(() => lastArgs.current!.onRestart!());
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(screen.queryByText('Your turn')).toBeNull();
+  });
+
   it('pauses and resumes', async () => {
     render(<ReplayPlayer {...props} />);
     await settle();

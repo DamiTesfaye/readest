@@ -30,6 +30,7 @@ export interface PlayerArgs {
   onSound?(step: number, code: number, now: number): void;
   onEnd?(): void;
   onTurn?(): void;
+  onRestart?(): void;
 }
 
 type ShapeJson =
@@ -230,6 +231,7 @@ export const createPlayer = (a: PlayerArgs): Player => {
     mode = a.mode ?? 'live';
     sfxNext = 0;
     if (pausedAt === null && !frame) frame = raf(tick);
+    a.onRestart?.();
   };
 
   const hitUnit = (x: number, y: number) => {

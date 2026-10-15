@@ -95,6 +95,10 @@ const ReplayPlayer = ({
           setTurned(true);
           engage.current?.('your_turn');
         },
+        onRestart: () => {
+          setEnded(false);
+          setTurned(false);
+        },
       });
       levels.push(
         ['live', async () => createPlayer({ ...(await args()), mode: 'live' })],
