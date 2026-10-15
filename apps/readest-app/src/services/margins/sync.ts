@@ -73,8 +73,9 @@ export const queueLayerWrite = async (
 ): Promise<void> => {
   const userId = await currentUserId();
   if (!MARGINS_LOCAL_FIRST && !userId) throw new AmpleReadSignedOutError();
-  const now = (lastQueuedAt = Math.max(Date.now(), lastQueuedAt + 1));
-  await store.enqueue({ ...op, opId: crypto.randomUUID(), nextAt: now, createdAt: now, userId });
+  const nextAt = Date.now();
+  const createdAt = (lastQueuedAt = Math.max(nextAt, lastQueuedAt + 1));
+  await store.enqueue({ ...op, opId: crypto.randomUUID(), nextAt, createdAt, userId });
 };
 
 const withTextId = (body: unknown, textId: string | null) => {
