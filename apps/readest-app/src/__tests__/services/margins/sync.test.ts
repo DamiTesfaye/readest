@@ -29,6 +29,7 @@ vi.mock('@/services/ampleread/auth/session', async (importOriginal) => ({
 const core = vi.hoisted(() => ({
   loadBook: vi.fn(async () => {}),
   fingerprint: vi.fn(async () => [['1', '2'], null]),
+  sectionLengths: vi.fn(async () => [400, 0]),
 }));
 
 vi.mock('@/services/margins/marginsClient', () => ({ getMarginsCore: () => core }));
@@ -395,7 +396,12 @@ describe('margins book open', () => {
     expect(core.loadBook).toHaveBeenCalledWith('hash-a', expect.any(Array));
     const [matchPath, matchInit] = session.amplereadFetch.mock.calls[0]!;
     expect(matchPath).toBe('/v1/texts/match');
-    expect(JSON.parse(matchInit.body)).toEqual({ sections: [['1', '2'], null], language: 'en' });
+    expect(JSON.parse(matchInit.body)).toEqual({
+      sections: [['1', '2'], null],
+      language: 'en',
+      sectionLengths: [400, 0],
+    });
+    expect(core.sectionLengths).toHaveBeenCalledWith('hash-a', 2);
     const [path, init] = session.amplereadFetch.mock.calls[1]!;
     expect(path).toBe('/v1/texts');
     expect(JSON.parse(init.body)).toEqual({
@@ -403,6 +409,7 @@ describe('margins book open', () => {
       language: 'en',
       meta: { title: 'Alice', author: 'Lewis Carroll' },
       versionOf: null,
+      sectionLengths: [400, 0],
     });
     expect(await currentStore.getTextLink('hash-a')).toMatchObject({
       textId: 'txt_new',
@@ -492,6 +499,9 @@ describe('margins book open', () => {
     expect(core.fingerprint).toHaveBeenCalledWith('hash-e');
     expect(install.installFetch).toHaveBeenCalledTimes(1);
     expect(install.installFetch.mock.calls[0]![0]).toBe('/v1/texts/match');
+    expect(JSON.parse(install.installFetch.mock.calls[0]![1].body).sectionLengths).toEqual([
+      400, 0,
+    ]);
     expect(session.amplereadFetch).not.toHaveBeenCalled();
     expect(await currentStore.getTextLink('hash-e')).toMatchObject({
       textId: 'txt_same',
@@ -567,5 +577,76 @@ describe('margins book open', () => {
     await onMarginsBookOpen(appService, hashed, bookDoc);
     await onMarginsBookOpen(appService, hashed, bookDoc);
     expect((await currentStore.getTextLink('hash-h'))!.textId).toBe('txt_h');
+  });
+
+  it('an already linked book reports its lengths once after sign-in', async () => {
+    const hashed = { ...book, hash: 'hash-i' };
+    await currentStore.setTextLink('hash-i', 'txt_i', 'en', 'txt_i');
+    signInAs(null);
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    expect(install.installFetch).not.toHaveBeenCalled();
+
+    signInAs('usr_a');
+    session.amplereadFetch
+      .mockResolvedValueOnce(json(200, { matches: [] }))
+      .mockImplementation(async () => feedEmpty());
+    await onMarginsBookOpen(appService, hashed, bookDoc);
+    const [path, init] = session.amplereadFetch.mock.calls[0]!;
+    expect(path).toBe('/v1/texts/match');
+    expect(JSON.parse(init.body)).toEqual({
+      sections: [['1', '2'], null],
+      language: 'en',
+      sectionLengths: [400, 0],
+    });
+    expect(localStorage.getItem('margins-lengths-reported:hash-i:usr_a')).not.toBeNull();
+    expect((await currentStore.getTextLink('hash-i'))!.textId).toBe('txt_i');
+  });
+
+  it('still syncs when the length report of a linked book fails', async () => {
+    await currentStore.setTextLink('hash-l', 'txt_l', 'en', 'txt_l');
+    session.amplereadFetch
+      .mockResolvedValueOnce(json(429, { error: 'rate_limited' }))
+      .mockImplementation(async () => feedEmpty());
+    await onMarginsBookOpen(appService, { ...book, hash: 'hash-l' }, bookDoc);
+    expect(session.amplereadFetch.mock.calls.map((c) => c[0])).toContain(
+      '/v1/layers/changes?since=0',
+    );
+    expect(localStorage.getItem('margins-lengths-reported:hash-l:usr_a')).toBeNull();
+  });
+
+  it('opens a Margin remembered for this text once the book links', async () => {
+    const { takePostOpen } = await import('@/services/margins/public/openPost');
+    await currentStore.setTextLink('hash-p', 'txt_p', 'en', 'txt_p');
+    localStorage.setItem(
+      'margins-pending-open',
+      JSON.stringify({ textId: 'txt_p', postId: 'pst_9' }),
+    );
+    signInAs(null);
+    const post = { id: 'pst_9', textId: 'txt_p', author: { handle: 'a', displayName: 'A' } };
+    install.installFetch.mockResolvedValueOnce(json(200, post));
+    await onMarginsBookOpen(appService, { ...book, hash: 'hash-p' }, bookDoc);
+    expect(install.installFetch.mock.calls[0]![0]).toBe('/v1/posts/pst_9');
+    expect(takePostOpen('hash-p')).toEqual(post);
+    expect(localStorage.getItem('margins-pending-open')).toBeNull();
+  });
+
+  it('does not report the lengths of a linked book again', async () => {
+    await currentStore.setTextLink('hash-j', 'txt_j', 'en', 'txt_j');
+    localStorage.setItem('margins-lengths-reported:hash-j:usr_a', '1');
+    session.amplereadFetch.mockImplementation(async () => feedEmpty());
+    await onMarginsBookOpen(appService, { ...book, hash: 'hash-j' }, bookDoc);
+    expect(session.amplereadFetch.mock.calls.map((c) => c[0])).not.toContain('/v1/texts/match');
+  });
+
+  it('marks the lengths reported when a signed-in open links the book', async () => {
+    session.amplereadFetch
+      .mockResolvedValueOnce(
+        json(200, {
+          matches: [{ textId: 'txt_k', confidence: 0.95, relation: 'same', familyId: 'txt_k' }],
+        }),
+      )
+      .mockImplementation(async () => feedEmpty());
+    await onMarginsBookOpen(appService, { ...book, hash: 'hash-k' }, bookDoc);
+    expect(localStorage.getItem('margins-lengths-reported:hash-k:usr_a')).not.toBeNull();
   });
 });

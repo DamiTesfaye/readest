@@ -15,8 +15,11 @@ import {
   retryMargin,
   scheduleDelete,
 } from '@/services/margins/margins';
-import type { Placement } from '@/services/margins/painter';
+import type { Placement, PostCluster } from '@/services/margins/painter';
 import { type Envelope, quoteCost } from '@/services/margins/payload';
+import { openPassage } from '@/services/margins/public/badges';
+import { useMarginsPublic } from '@/services/margins/public/flag';
+import { publicStateOf, unpublishPost, useMyPosts } from '@/services/margins/public/myPosts';
 import { type LayerRow, type MarginsStore, openMarginsStore } from '@/services/margins/store';
 import { cachedLink } from '@/services/margins/sync';
 import { readerTextIds } from '@/services/margins/texts';
@@ -31,6 +34,7 @@ import { getMarginsPainter, MARGINS_PLACED_EVENT } from '../../hooks/useMarginsP
 import { useMarginsQuota } from './ClipSheet';
 import ComposeSurface from './ComposeSurface';
 import MarginCard, { isEnvelope, storedQuote } from './MarginCard';
+import { MARGINS_PUBLISH_EVENT } from './PublishSheet';
 
 export const MARGINS_POPOVER_WIDTH = 340;
 const MAX_POPOVER_HEIGHT = 520;
@@ -102,6 +106,9 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
   const [deleted, setDeleted] = useState<{ undo(): void } | null>(null);
   const [editing, setEditing] = useState<{ row: LayerRow; anchor: Promise<Anchor> } | null>(null);
   const cards = useRef(new Map<string, HTMLDivElement>());
+  const { posts } = useMyPosts();
+  const publicOn = useMarginsPublic();
+  const [clusters, setClusters] = useState<PostCluster[]>([]);
 
   useEffect(() => setDisplay(saved), [saved]);
 
@@ -114,9 +121,16 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
     const hidden = hiddenMargins();
     const all = await store.layersForReader(book.hash, textIds, session?.me.id ?? null);
     setRows(all.filter((r) => !r.deleted && !hidden.has(r.id)));
-    setPlacements(new Map(getMarginsPainter(bookKey)?.placements() ?? []));
+    const painter = getMarginsPainter(bookKey);
+    setPlacements(new Map(painter?.placements() ?? []));
+    const open = new Set(view?.renderer.getContents().map((c) => c.index));
+    setClusters(
+      [...(painter?.postClusters().entries() ?? [])].flatMap(([i, list]) =>
+        open.has(i) ? list : [],
+      ),
+    );
     setSignedIn(!!session);
-  }, [appService, bookData, bookKey]);
+  }, [appService, bookData, bookKey, view]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -189,6 +203,7 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
     saveViewSettings(envConfig, bookKey, 'marginsDisplay', d, false, false);
   };
 
+  const textId = bookData?.book ? (cachedLink(bookData.book.hash)?.textId ?? null) : null;
   const placedOf = (row: LayerRow) => placements.get(row.id);
   const order = (a: LayerRow, b: LayerRow) => {
     const pa = placedOf(a) as Placed;
@@ -204,6 +219,7 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
     const p = placedOf(row);
     const placed = p?.kind === 'placed' ? p : null;
     const fail = () => console.error('Margins: panel action failed');
+    const publicState = publicStateOf(row, posts);
     return (
       <li key={row.id}>
         {p?.kind === 'detached' && (
@@ -232,6 +248,20 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
                   onClose();
                   eventDispatcher.dispatch('margins-play-enter', { bookKey, layerId: row.id });
                 }
+              : undefined
+          }
+          publicState={publicState}
+          onPublish={() =>
+            eventDispatcher.dispatch(MARGINS_PUBLISH_EVENT, { layerId: row.id, bookKey })
+          }
+          onUnpublish={
+            appService && 'post' in publicState
+              ? () =>
+                  void unpublishPost(
+                    (m) => appService.ask(m),
+                    _('Remove this Margin from public view?'),
+                    publicState.post,
+                  ).catch(fail)
               : undefined
           }
         />
@@ -312,6 +342,29 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
                       })}
                 </p>
                 <ul className='flex flex-col gap-1'>{otherRows.map(card)}</ul>
+              </section>
+            )}
+            {publicOn && textId && clusters.length > 0 && (
+              <section aria-label={_('Public Margins')} className='flex flex-col gap-1'>
+                <h3 className='popover-title px-1 text-sm'>{_('Public Margins')}</h3>
+                <ul className='flex flex-wrap gap-1'>
+                  {clusters.map((c) => (
+                    <li key={c.key}>
+                      <button
+                        type='button'
+                        className='btn btn-ghost btn-xs'
+                        onClick={() =>
+                          void openPassage(
+                            { bookKey, fileHash: bookData!.book!.hash, textId },
+                            c.key,
+                          ).catch(() => console.error('Margins: passage open failed'))
+                        }
+                      >
+                        {_('{{count}} takes', { count: c.count })}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
             {lostRows.length > 0 && (

@@ -38,11 +38,30 @@ export interface MarginsPainter {
     display: MarginsDisplay,
   ): Promise<string[]>;
   placements(): ReadonlyMap<string, Placement>;
+  setPostClusters(index: number, clusters: PostCluster[]): void;
+  postClusters(): ReadonlyMap<number, PostCluster[]>;
+  setViewInPlace(v: ViewInPlace | null): void;
   creatorOf(id: string): MarginCreator | undefined;
   rowOf(id: string): LayerRow | undefined;
 }
 
+export interface PostCluster {
+  start: number;
+  end: number;
+  count: number;
+  key: string;
+}
+
+export interface ViewInPlace {
+  postId: string;
+  section: number;
+  start: number;
+  end: number;
+}
+
 export const MARGIN_KEY_PREFIX = 'margins:';
+export const POSTS_KEY_PREFIX = 'margins-posts:';
+export const VIEW_KEY_PREFIX = 'margins-view:';
 export const MARGIN_COLOR = '#5B3DF5';
 export const CREATOR_COLORS = [
   '#5B3DF5',
@@ -63,6 +82,7 @@ export const creatorColor = (userId: string): string => {
 
 const BATCH = 20;
 const MARKER = 14;
+const BADGE = 16;
 const AVATAR = 18;
 const SAME_LINE_PX = 2;
 const PARAGRAPH_MERGE_ABOVE = 200;
@@ -173,6 +193,28 @@ export const drawMargin = (rects: DOMRect[], o: MarginDrawOptions): SVGElement =
   return g;
 };
 
+export const drawPostBadge = (rects: DOMRect[], o: { count: number }): SVGElement => {
+  const g = svg('g', { 'aria-hidden': 'true' });
+  const first = rects[0];
+  if (!first) return g;
+  const r = BADGE / 2;
+  const [cx, cy] = [first.right, first.top - r];
+  g.append(svg('circle', { cx, cy, r, fill: MARGIN_COLOR }));
+  const label = svg('text', {
+    x: cx,
+    y: cy,
+    fill: '#fff',
+    'font-size': 9,
+    'font-family': 'sans-serif',
+    'text-anchor': 'middle',
+    'dominant-baseline': 'central',
+  });
+  label.textContent = String(o.count);
+  g.append(label);
+  rects.splice(0, rects.length, box(cx - r, cy - r, BADGE));
+  return g;
+};
+
 const idle = () =>
   new Promise<void>((done) =>
     typeof requestIdleCallback === 'function'
@@ -224,6 +266,8 @@ export const createPainter = (o: {
   const drawn = new Map<number, Set<string>>();
   const queues = new Map<number, Promise<unknown>>();
   const ranges = new Map<string, Range>();
+  const clusters = new Map<number, PostCluster[]>();
+  let view: ViewInPlace | null = null;
   const authors = new Map<string, string | null>();
   const rowsById = new Map<string, LayerRow>();
 
@@ -261,8 +305,17 @@ export const createPainter = (o: {
   };
 
   const plan = async (index: number, display: MarginsDisplay) => {
-    const next = new Map<string, { range: Range; opts: MarginDrawOptions }>();
+    const next = new Map<string, { range: Range; opts: object; draw: Draw }>();
+    if (view?.section === index) {
+      const range = await rangeFor(index, view.start, view.end);
+      const opts = { count: 1, fuzzy: false, markers: false };
+      if (range) next.set(VIEW_KEY_PREFIX + view.postId, { range, opts, draw: drawMargin as Draw });
+    }
     if (display === 'quiet') return next;
+    for (const c of clusters.get(index) ?? []) {
+      const range = await rangeFor(index, c.start, c.end);
+      if (range) next.set(c.key, { range, opts: { count: c.count }, draw: drawPostBadge as Draw });
+    }
     const members: Member[] = [];
     for (const [id, p] of placed) {
       if (p.kind === 'placed' && p.section === index) {
@@ -277,7 +330,7 @@ export const createPainter = (o: {
           gap: true,
           creator: o.creator?.(authors.get(id) ?? null),
         };
-        if (range) next.set(MARGIN_KEY_PREFIX + id, { range, opts });
+        if (range) next.set(MARGIN_KEY_PREFIX + id, { range, opts, draw: drawMargin as Draw });
       }
     }
     members.sort((a, b) => a.start - b.start);
@@ -292,6 +345,7 @@ export const createPainter = (o: {
           markers: display === 'markers',
           creator: o.creator?.(authors.get(group[0]!.id) ?? null),
         },
+        draw: drawMargin as Draw,
       });
     }
     return next;
@@ -300,7 +354,7 @@ export const createPainter = (o: {
   const paint = async (index: number, overlayer: PainterOverlayer, display: MarginsDisplay) => {
     const next = await plan(index, display);
     for (const key of drawn.get(index) ?? []) if (!next.has(key)) overlayer.remove(key);
-    for (const [key, { range, opts }] of next) overlayer.add(key, range, drawMargin as Draw, opts);
+    for (const [key, { range, opts, draw }] of next) overlayer.add(key, range, draw, opts);
     drawn.set(index, new Set(next.keys()));
     return [...next.keys()];
   };
@@ -328,6 +382,11 @@ export const createPainter = (o: {
       return run;
     },
     placements: () => placed,
+    setPostClusters: (index, list) => void clusters.set(index, list),
+    postClusters: () => clusters,
+    setViewInPlace: (v) => {
+      view = v;
+    },
     rowOf: (id) => rowsById.get(id),
     creatorOf: (id) => (authors.has(id) ? o.creator?.(authors.get(id) ?? null) : undefined),
   };

@@ -115,6 +115,8 @@ import { canClip } from '@/services/margins/clip';
 import ClipSheet, { type ClipCompose } from '../margins/ClipSheet';
 import ComposeSurface from '../margins/ComposeSurface';
 import { saveMargin } from '@/services/margins/margins';
+import { marginsPublicEnabled } from '@/services/margins/public/flag';
+import { offerPublish } from '../margins/PublicMarginsHost';
 import { openMarginsStore } from '@/services/margins/store';
 import {
   emptyEnvelope,
@@ -2704,8 +2706,9 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
           onSave={async (envelope, anchor) => {
             if (!appService || !bookData.book) return;
             const store = await openMarginsStore(appService);
-            await saveMargin(store, { fileHash: bookData.book.hash, anchor, envelope });
+            const id = await saveMargin(store, { fileHash: bookData.book.hash, anchor, envelope });
             setMarginCompose(null);
+            if (await marginsPublicEnabled()) offerPublish(id, _('Kept'), _('Publish'), bookKey);
           }}
         />
       )}

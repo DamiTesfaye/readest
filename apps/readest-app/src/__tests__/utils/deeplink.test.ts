@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildAnnotationUrl,
+  parseMarginDeepLink,
   parseWidgetEditShelfDeepLink,
   parseWidgetGroupDeepLink,
 } from '../../utils/deeplink';
@@ -61,5 +62,23 @@ describe('widget edit-shelf deep link', () => {
     expect(
       parseWidgetEditShelfDeepLink('https://web.readest.com/o/widget-edit-shelf/x'),
     ).toBeNull();
+  });
+});
+
+describe('parseMarginDeepLink', () => {
+  const id = `pst_${'0123456789abcdef'.repeat(2)}`;
+
+  it('accepts the app scheme and the web link', () => {
+    expect(parseMarginDeepLink(`ampleread://m/${id}`)).toEqual({ postId: id });
+    expect(parseMarginDeepLink(`https://web.ampleread.com/m/${id}`)).toEqual({ postId: id });
+  });
+
+  it('rejects other hosts, other paths and malformed ids', () => {
+    expect(parseMarginDeepLink(`https://web.readest.com/m/${id}`)).toBeNull();
+    expect(parseMarginDeepLink('ampleread://auth/callback?code=x')).toBeNull();
+    expect(parseMarginDeepLink('ampleread://m/xyz')).toBeNull();
+    expect(parseMarginDeepLink(`https://web.ampleread.com/s/${id}`)).toBeNull();
+    expect(parseMarginDeepLink(`ampleread://m/${id}/extra`)).toBeNull();
+    expect(parseMarginDeepLink('not a url')).toBeNull();
   });
 });

@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import ComposeSurface from '@/app/reader/components/margins/ComposeSurface';
-import { isEnvelope, storedQuote } from '@/app/reader/components/margins/MarginCard';
+import { isEnvelope, PublicStatus, storedQuote } from '@/app/reader/components/margins/MarginCard';
+import { MARGINS_PUBLISH_EVENT } from '@/app/reader/components/margins/PublishSheet';
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usedOn } from '@/services/margins/clip';
 import { editMargin, scheduleDelete } from '@/services/margins/margins';
 import { quoteCost } from '@/services/margins/payload';
+import { publicStateOf, unpublishPost, useMyPosts } from '@/services/margins/public/myPosts';
 import { type LayerRow, openMarginsStore } from '@/services/margins/store';
+import { eventDispatcher } from '@/utils/event';
 import { useKindLabel, useYourMargins, type YourMargin } from './MarginsRail';
 
 export interface MarginsViewProps {
@@ -77,6 +80,7 @@ function MarginsView({ onOpenMargin }: MarginsViewProps) {
   const [editing, setEditing] = useState<LayerRow | null>(null);
   const [deleted, setDeleted] = useState<{ undo(): void } | null>(null);
   const entries = state?.entries ?? [];
+  const { posts } = useMyPosts();
 
   useEffect(() => {
     if (!deleted) return;
@@ -89,6 +93,16 @@ function MarginsView({ onOpenMargin }: MarginsViewProps) {
     openMarginsStore(appService)
       .then((store) => setDeleted(scheduleDelete(store, row.id)))
       .catch(() => console.error('Margins: delete failed'));
+  };
+
+  const unpublish = (row: LayerRow) => {
+    const post = publicStateOf(row, posts);
+    if (!appService || !('post' in post)) return;
+    unpublishPost(
+      (m) => appService.ask(m),
+      _('Remove this Margin from public view?'),
+      post.post,
+    ).catch(() => console.error('Margins: unpublish failed'));
   };
 
   return (
@@ -170,6 +184,13 @@ function MarginsView({ onOpenMargin }: MarginsViewProps) {
                       {_('Delete')}
                     </button>
                   </div>
+                  <PublicStatus
+                    state={publicStateOf(row, posts)}
+                    onPublish={() =>
+                      eventDispatcher.dispatch(MARGINS_PUBLISH_EVENT, { layerId: row.id })
+                    }
+                    onUnpublish={() => unpublish(row)}
+                  />
                   {!book && (
                     <p className='text-base-content/50 text-xs'>
                       {_('Add this book to your library to see the full passage.')}

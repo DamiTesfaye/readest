@@ -10,6 +10,10 @@ export const coreMethods = (core) => ({
   toRaw: (fileHash, section, canonByte) => JSON.parse(core.to_raw(fileHash, section, canonByte)),
   fromRaw: (fileHash, section, run, utf16) => core.from_raw(fileHash, section, run, utf16),
   mapOffset: (from, to, fromUtf16) => core.map_offset(from, to, fromUtf16),
+  sectionLengths: (fileHash, count) =>
+    Array.from({ length: count }, (_, i) =>
+      core.scalar_len(JSON.parse(core.canonical_section(fileHash, i)).text),
+    ),
 });
 
 export const answer = (methods, { id, method, args }) => {

@@ -108,6 +108,7 @@ vi.mock('@/app/reader/components/MorePopover', () => ({
   default: () => null,
   MORE_POPOVER_WIDTH: 320,
 }));
+vi.mock('@/app/reader/components/margins/PublicMarginsHost', () => ({ default: () => null }));
 
 const insets = { top: 0, right: 0, bottom: 0, left: 0 };
 

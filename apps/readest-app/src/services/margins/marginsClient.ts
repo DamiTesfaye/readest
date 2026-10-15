@@ -24,6 +24,7 @@ export interface MarginsCore {
   ): Promise<{ run: number; utf16: number }>;
   fromRaw(fileHash: string, section: number, run: number, utf16: number): Promise<number>;
   mapOffset(from: string, to: string, fromUtf16: number): Promise<number>;
+  sectionLengths(fileHash: string, count: number): Promise<number[]>;
 }
 
 type Reply = { id: number; result?: unknown; error?: string };
@@ -63,6 +64,7 @@ export const createMarginsCore = (worker: WorkerLike): MarginsCore => {
     toRaw: call('toRaw'),
     fromRaw: call('fromRaw'),
     mapOffset: call('mapOffset'),
+    sectionLengths: call('sectionLengths'),
   };
 };
 

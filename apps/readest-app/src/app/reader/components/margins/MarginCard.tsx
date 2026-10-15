@@ -1,6 +1,8 @@
 import clsx from 'clsx';
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useMarginsPublic } from '@/services/margins/public/flag';
+import type { PublicState } from '@/services/margins/public/myPosts';
 import type { Placement } from '@/services/margins/painter';
 import type { Envelope } from '@/services/margins/payload';
 import type { LayerRow } from '@/services/margins/store';
@@ -12,6 +14,7 @@ import {
   MarginsMotionStyle,
   motionClass,
 } from './ElementView';
+import RemovedNotice, { type RemovalAction, useRemovalCopy } from './RemovedNotice';
 
 export interface MarginCardProps {
   row: LayerRow;
@@ -25,7 +28,73 @@ export interface MarginCardProps {
   onRetry?(): void;
   onKeepHere?(): void;
   onPlay?(): void;
+  publicState?: PublicState;
+  onPublish?(): void;
+  onUnpublish?(): void;
 }
+
+export interface PublicStatusProps {
+  state?: PublicState;
+  onPublish?(): void;
+  onUnpublish?(): void;
+}
+
+export const PublicStatus = ({ state, onPublish, onUnpublish }: PublicStatusProps) => {
+  const _ = useTranslation();
+  const on = useMarginsPublic();
+  const removal = useRemovalCopy();
+  const [acting, setActing] = useState<RemovalAction | null>(null);
+  if (!on || !state) return null;
+  const button = 'btn btn-ghost btn-xs';
+  const unpublish = onUnpublish && (
+    <button type='button' className={button} onClick={onUnpublish}>
+      {_('Unpublish')}
+    </button>
+  );
+  if (state.kind === 'none')
+    return onPublish ? (
+      <div className='flex'>
+        <button type='button' className={clsx(button, 'text-[#5B3DF5]')} onClick={onPublish}>
+          {_('Publish')}
+        </button>
+      </div>
+    ) : null;
+  if (state.kind !== 'removed')
+    return (
+      <div className='flex flex-wrap items-center gap-1 text-xs'>
+        {state.kind === 'changed' ? (
+          <button type='button' className={button} onClick={onPublish}>
+            {_('Changes not public · Republish')}
+          </button>
+        ) : (
+          <span className='px-2 text-[#5B3DF5]'>
+            {state.kind === 'live' ? _('Public') : _('Under review')}
+          </span>
+        )}
+        {unpublish}
+      </div>
+    );
+  const { line, action } = removal(state.post);
+  const appeal = { none: null, pending: _('Appeal sent'), denied: _('Appeal declined') }[
+    state.post.appealState
+  ];
+  return (
+    <div className='flex flex-col gap-1 text-xs'>
+      <p className='text-base-content/70'>{line}</p>
+      {appeal && <p className='text-base-content/60'>{appeal}</p>}
+      {action && !acting && (
+        <button
+          type='button'
+          className={clsx(button, 'self-start')}
+          onClick={() => setActing(action)}
+        >
+          {action === 'appeal' ? _('Appeal') : _('Counter-notice')}
+        </button>
+      )}
+      {acting && <RemovedNotice post={state.post} action={acting} onDone={() => setActing(null)} />}
+    </div>
+  );
+};
 
 const QUOTA_ERRORS = ['excerpt_too_long', 'excerpt_quota_exceeded'];
 const ART_ERRORS = [
@@ -39,10 +108,12 @@ export const MarginArt = ({
   envelope,
   quote,
   onPlay,
+  assetSource,
 }: {
   envelope: Envelope;
   quote: string;
   onPlay?(): void;
+  assetSource?: (ref: string) => Promise<string | null>;
 }) => (
   <div
     className='relative w-full overflow-hidden rounded-lg'
@@ -57,7 +128,13 @@ export const MarginArt = ({
     </blockquote>
     {envelope.elements.map((e) => (
       <div key={e.id} className={motionClass(e)} style={frameStyle(e.frame)}>
-        <ElementView element={e} selected={false} editable={false} onPlay={onPlay} />
+        <ElementView
+          element={e}
+          selected={false}
+          editable={false}
+          onPlay={onPlay}
+          assetSource={assetSource}
+        />
       </div>
     ))}
   </div>
@@ -98,6 +175,9 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
     onRetry,
     onKeepHere,
     onPlay,
+    publicState,
+    onPublish,
+    onUnpublish,
   },
   ref,
 ) {
@@ -160,6 +240,7 @@ const MarginCard = forwardRef<HTMLDivElement, MarginCardProps>(function MarginCa
           {_('Delete')}
         </button>
       </div>
+      <PublicStatus state={publicState} onPublish={onPublish} onUnpublish={onUnpublish} />
     </div>
   );
 });

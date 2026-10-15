@@ -128,6 +128,7 @@ vi.mock('@/app/reader/components/MoreMenuButton', () => ({
   ),
 }));
 vi.mock('@/app/reader/components/PinnedMoreMenuButton', () => ({ default: () => null }));
+vi.mock('@/app/reader/components/margins/PublicMarginsHost', () => ({ default: () => null }));
 
 const insets = { top: 0, right: 0, bottom: 0, left: 0 };
 

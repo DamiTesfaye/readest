@@ -5,6 +5,10 @@ import { eventDispatcher } from '@/utils/event';
 import { getHorizontalInsetStyle } from '@/utils/insets';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
+export interface ToastAction {
+  label: string;
+  onClick(): void;
+}
 
 // The top bar a `toast-top` toast has to clear, plus the gap daisyUI 4 drew as
 // `.toast` padding. daisyUI 5 moved that padding into the insets, which the
@@ -24,6 +28,7 @@ export const Toast = () => {
   const [toastTimeout, setToastTimeout] = useState(5000);
   const [messageClass, setMessageClass] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [action, setAction] = useState<ToastAction | null>(null);
   const toastDismissTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toastClassMap = {
@@ -105,6 +110,7 @@ export const Toast = () => {
   const handleShowToast = async (event: CustomEvent) => {
     const { message, type = 'info', timeout, className = '', callback = null } = event.detail;
     setToastMessage(message);
+    setAction(event.detail.action ?? null);
     setToastType(type);
     if (timeout) setToastTimeout(timeout);
     if (callback && typeof callback === 'function') {
@@ -182,6 +188,19 @@ export const Toast = () => {
               </React.Fragment>
             ))}
           </span>
+
+          {action && (
+            <button
+              type='button'
+              className='btn btn-ghost btn-sm flex-shrink-0'
+              onClick={() => {
+                action.onClick();
+                handleDismiss();
+              }}
+            >
+              {action.label}
+            </button>
+          )}
 
           {/* Close button */}
           <button

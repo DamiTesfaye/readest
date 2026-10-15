@@ -27,6 +27,8 @@ import type { LayerRow } from '@/services/margins/store';
 import { requestMarginOpen } from '@/app/reader/hooks/useMarginsPainter';
 import MarginsRail from './components/MarginsRail';
 import MarginsView from './components/MarginsView';
+import TrendingView, { isTrendingView } from './components/TrendingView';
+import PublicMarginsHost from '@/app/reader/components/margins/PublicMarginsHost';
 import AmpleDocumentPromptDialog, {
   type AmpleDocumentChoice,
 } from '@/app/library/components/AmpleDocumentPromptDialog';
@@ -77,6 +79,7 @@ import { useAppUrlIngress } from '@/hooks/useAppUrlIngress';
 import { useOpenWithBooks } from '@/hooks/useOpenWithBooks';
 import { useOpenLaunchLinks } from '@/hooks/useOpenLaunchLinks';
 import { useHomeScreenWidgets } from '@/hooks/useHomeScreenWidgets';
+import { useOpenMarginLink } from '@/hooks/useOpenMarginLink';
 import { useOpenShareLink } from '@/hooks/useOpenShareLink';
 import { useOpenDeviceLink } from '@/hooks/useOpenDeviceLink';
 import { useClipUrlIngress } from '@/hooks/useClipUrlIngress';
@@ -391,6 +394,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   useOpenWithBooks();
   useOpenLaunchLinks();
   useHomeScreenWidgets();
+  useOpenMarginLink();
   useOpenShareLink();
   useOpenDeviceLink();
   useClipUrlIngress();
@@ -2019,7 +2023,9 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const showExploreView = !showCatalogsView && searchParams?.get('explore') === 'true';
   const showMarginsView =
     !showCatalogsView && !showExploreView && searchParams?.get('margins') === 'true';
-  const showDiscoverView = showCatalogsView || showExploreView || showMarginsView;
+  const showTrendingView = !showCatalogsView && !showExploreView && isTrendingView(searchParams);
+  const showDiscoverView =
+    showCatalogsView || showExploreView || showMarginsView || showTrendingView;
   const catalogSearchQuery = searchParams?.get('q') ?? '';
 
   return (
@@ -2227,6 +2233,11 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
             <MarginsView onOpenMargin={handleOpenMargin} />
           </div>
         )}
+        {showTrendingView && (
+          <div className='min-h-0 flex-grow overflow-y-auto'>
+            <TrendingView />
+          </div>
+        )}
         {!showDiscoverView &&
           showBookshelf &&
           (libraryBooks.some((book) => !book.deletedAt) ? (
@@ -2413,6 +2424,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         onImport={handleImportNovelFile}
       />
       <ClipSignInAlert />
+      <PublicMarginsHost bookKey={null} postId={searchParams?.get('post') ?? null} />
       <Toast />
     </div>
   );
