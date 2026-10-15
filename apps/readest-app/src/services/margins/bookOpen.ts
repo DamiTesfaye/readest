@@ -99,8 +99,9 @@ const link = async (
   const sectionLengths = () => getMarginsCore().sectionLengths(book.hash, sections.length);
   if (await loadLink(store, book.hash)) {
     if (!userId || localStorage.getItem(reportedKey(book.hash, userId))) return;
-    await post('/v1/texts/match', { sections, language, sectionLengths: await sectionLengths() });
-    localStorage.setItem(reportedKey(book.hash, userId), '1');
+    await post('/v1/texts/match', { sections, language, sectionLengths: await sectionLengths() })
+      .then(() => localStorage.setItem(reportedKey(book.hash, userId), '1'))
+      .catch(() => console.error('Margins: length report failed'));
     return;
   }
   const lengths = await sectionLengths();
