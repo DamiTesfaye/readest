@@ -71,7 +71,7 @@ export const readerContext = (
     .map((key) => reader.getProgress(key))
     .find((p) => p?.index === section);
   return {
-    page: progress?.pageItem?.label || null,
+    page: null,
     chapter: progress?.sectionLabel || null,
   };
 };

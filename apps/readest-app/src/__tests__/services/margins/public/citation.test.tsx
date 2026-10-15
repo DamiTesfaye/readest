@@ -100,13 +100,13 @@ describe('citations', () => {
     expect([...c.chapter!].length).toBe(120);
   });
 
-  it('reads the page and chapter only from a reader open on the section', () => {
-    const progress = { index: 2, sectionLabel: 'Book II', pageItem: { label: '16' } };
+  it('reads only the chapter from a reader open on the section, never its current page', () => {
+    const progress = { index: 2, sectionLabel: 'Book II', pageItem: { label: '40' } };
     useReaderStore.setState({
       bookKeys: ['hash1-abc'],
       getProgress: (key: string) => (key === 'hash1-abc' ? (progress as BookProgress) : null),
     });
-    expect(readerContext('hash1', 2)).toEqual({ page: '16', chapter: 'Book II' });
+    expect(readerContext('hash1', 2)).toEqual({ page: null, chapter: 'Book II' });
     expect(readerContext('hash1', 3)).toEqual({ page: null, chapter: null });
     expect(readerContext('hash2', 2)).toEqual({ page: null, chapter: null });
   });
