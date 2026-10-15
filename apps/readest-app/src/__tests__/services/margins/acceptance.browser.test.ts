@@ -111,10 +111,18 @@ describe('margins acceptance gates (M-R2)', () => {
         attach(new Overlayer(doc));
       });
     }
+    // The display and then the adjacent-section fill each dispatch 'stabilized'.
+    const filled = new Promise<void>((resolve) => {
+      let stabilized = 0;
+      el.addEventListener('stabilized', () => {
+        if (++stabilized === 2) resolve();
+      });
+    });
     document.body.appendChild(el);
     paginator = el;
     el.open(bookDoc);
     await el.goTo({ index });
+    await filled;
     const contents = el.getContents().find((c) => c.index === index);
     if (!contents?.doc) throw new Error('section not rendered');
     const ctx = ctxFor((i) => el.getContents().find((c) => c.index === i)?.doc ?? null);
@@ -216,16 +224,6 @@ describe('margins acceptance gates (M-R2)', () => {
     const { painter, overlayer } = await openAt(busiest);
     await painter.resolveAll(fifty);
     const layer = overlayer as unknown as PainterOverlayer;
-    const timeDraws = async () => {
-      const times: number[] = [];
-      for (let i = 0; i < 10; i++) {
-        const t = performance.now();
-        await painter.drawSection(busiest, layer, 'full');
-        times.push(performance.now() - t);
-      }
-      return median(times);
-    };
-    const without = await timeDraws();
     const clusters = fifty.flatMap((r) => {
       const p = painter.placements().get(r.id);
       return p?.kind === 'placed'
@@ -240,8 +238,21 @@ describe('margins acceptance gates (M-R2)', () => {
         : [];
     });
     expect(clusters).toHaveLength(SECTION_MARGINS);
-    painter.setPostClusters(busiest, clusters);
-    const withBadges = await timeDraws();
+    const timeDraw = async (list: typeof clusters) => {
+      painter.setPostClusters(busiest, list);
+      await painter.drawSection(busiest, layer, 'full');
+      const t = performance.now();
+      await painter.drawSection(busiest, layer, 'full');
+      return performance.now() - t;
+    };
+    const withoutTimes: number[] = [];
+    const withTimes: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      withoutTimes.push(await timeDraw([]));
+      withTimes.push(await timeDraw(clusters));
+    }
+    const without = median(withoutTimes);
+    const withBadges = median(withTimes);
     await annotate(
       `[margins-perf] badges: drawSection median without ${without.toFixed(2)} ms, ` +
         `with 50 clusters ${withBadges.toFixed(2)} ms`,

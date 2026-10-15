@@ -150,7 +150,11 @@ describe('NewMapSheet', () => {
     h.token = 'token';
     h.plan = 'plus';
     render(<NewMapSheet bookKey='bookhash-1' />);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Create map' })).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Create map' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create map' }));
     });

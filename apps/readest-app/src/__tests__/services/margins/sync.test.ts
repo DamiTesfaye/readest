@@ -142,7 +142,7 @@ describe('margins sync', () => {
     session.amplereadFetch
       .mockResolvedValueOnce(json(200, view('lyr_1', 1)))
       .mockResolvedValueOnce(json(200, view('lyr_2', 2)));
-    expect(await flushOutbox(currentStore, Number.MAX_SAFE_INTEGER)).toBe(2);
+    expect(await flushOutbox(currentStore)).toBe(2);
     expect([sentBody(0).id, sentBody(1).id]).toEqual(['lyr_1', 'lyr_2']);
     expect(session.amplereadFetch.mock.calls[0]![0]).toBe('/v1/layers');
     expect(await currentStore.dueOps(Number.MAX_SAFE_INTEGER, 'usr_a')).toEqual([]);
