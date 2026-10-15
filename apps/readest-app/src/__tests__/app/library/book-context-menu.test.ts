@@ -183,4 +183,10 @@ describe('getBookContextMenuItemIds', () => {
     expect(second).toEqual(first);
     expect(new Set(first).size).toBe(first.length);
   });
+
+  it('offers Margins on this book after Show Book Details when the book has a Text', () => {
+    const ids = getBookContextMenuItemIds(createBook({ downloadedAt: 1 }), { margins: true });
+    expect(ids.indexOf('marginsOnBook')).toBe(ids.indexOf('showDetails') + 1);
+    expect(getBookContextMenuItemIds(createBook())).not.toContain('marginsOnBook');
+  });
 });

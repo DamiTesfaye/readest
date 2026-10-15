@@ -152,7 +152,11 @@ export interface PlayToolsState {
   shapeMotion: 'none' | 'drift';
 }
 
-export type PlayKeepResult = KeepResult & { dropped?: number };
+export type PlayKeepResult = KeepResult & {
+  dropped?: number;
+  truncated?: boolean;
+  scene?: 'saved' | 'failed';
+};
 
 export interface PlayTools {
   enter(margin?: string): Promise<void>;
@@ -161,6 +165,7 @@ export interface PlayTools {
   addShape(kind: 'circle' | 'polygon'): string;
   removeShape(id: string): void;
   setShapeMotion(preset: 'none' | 'drift'): void;
+  addSound(id: string): void;
   detachMode(unit: Unit | null): void;
   detachNext(): void;
   shake(): void;

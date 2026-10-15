@@ -1,3 +1,4 @@
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import ComposeSurface from '@/app/reader/components/margins/ComposeSurface';
 import { isEnvelope, PublicStatus, storedQuote } from '@/app/reader/components/margins/MarginCard';
@@ -6,9 +7,9 @@ import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usedOn } from '@/services/margins/clip';
 import { editMargin, scheduleDelete } from '@/services/margins/margins';
-import { quoteCost } from '@/services/margins/payload';
+import { type ArtworkElement, quoteCost } from '@/services/margins/payload';
 import { publicStateOf, unpublishPost, useMyPosts } from '@/services/margins/public/myPosts';
-import { type LayerRow, openMarginsStore } from '@/services/margins/store';
+import { type LayerRow, type MarginsStore, openMarginsStore } from '@/services/margins/store';
 import { eventDispatcher } from '@/utils/event';
 import { useKindLabel, useYourMargins, type YourMargin } from './MarginsRail';
 
@@ -66,6 +67,16 @@ const LibraryEdit = ({
   );
 };
 
+const localBytes = async (store: MarginsStore, row: LayerRow) => {
+  const art = isEnvelope(row.payload)
+    ? row.payload.elements
+        .filter((e): e is ArtworkElement => e.kind === 'artwork')
+        .map((e) => e.asset)
+    : [];
+  const assets = await Promise.all([`scene-${row.id}`, ...art].map((ref) => store.getAsset(ref)));
+  return assets.reduce((n, a) => n + ((a?.data?.length ?? 0) * 3) / 4, 0);
+};
+
 const groupByFamily = (entries: YourMargin[]) => {
   const groups = new Map<string, YourMargin[]>();
   for (const e of entries) groups.set(e.familyKey, [...(groups.get(e.familyKey) ?? []), e]);
@@ -77,10 +88,33 @@ function MarginsView({ onOpenMargin }: MarginsViewProps) {
   const { appService } = useEnv();
   const kindLabel = useKindLabel();
   const state = useYourMargins();
+  const bySize = useSearchParams()?.get('sort') === 'size';
   const [editing, setEditing] = useState<LayerRow | null>(null);
   const [deleted, setDeleted] = useState<{ undo(): void } | null>(null);
+  const [sizes, setSizes] = useState<Map<string, number> | null>(null);
   const entries = state?.entries ?? [];
   const { posts } = useMyPosts();
+
+  useEffect(() => {
+    if (!bySize || !appService || !state) return;
+    let live = true;
+    openMarginsStore(appService)
+      .then((store) =>
+        Promise.all(
+          state.entries.map(async (e) => [e.row.id, await localBytes(store, e.row)] as const),
+        ),
+      )
+      .then((pairs) => live && setSizes(new Map(pairs)))
+      .catch(() => console.error('Margins: size read failed'));
+    return () => {
+      live = false;
+    };
+  }, [bySize, appService, state]);
+
+  const ordered =
+    bySize && sizes
+      ? [...entries].sort((a, b) => (sizes.get(b.row.id) ?? 0) - (sizes.get(a.row.id) ?? 0))
+      : entries;
 
   useEffect(() => {
     if (!deleted) return;
@@ -133,7 +167,7 @@ function MarginsView({ onOpenMargin }: MarginsViewProps) {
           {_('Your Margins show up here. Select a passage in a book and choose Margin.')}
         </p>
       )}
-      {groupByFamily(entries).map((group) => {
+      {groupByFamily(ordered).map((group) => {
         const lead = group.find((e) => e.book) ?? group[0]!;
         const title = lead.book?.title ?? lead.title ?? _('Unknown book');
         return (

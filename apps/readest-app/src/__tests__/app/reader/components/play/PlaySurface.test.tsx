@@ -57,7 +57,14 @@ const fakeSession = (onExit: () => void) => {
   const exit = vi.fn(onExit);
   return {
     exit,
-    tools: { state, exit, addShape: vi.fn(() => 's1'), undo: vi.fn(), keep: vi.fn() },
+    tools: {
+      state,
+      exit,
+      addShape: vi.fn(() => 's1'),
+      addSound: vi.fn(),
+      undo: vi.fn(),
+      keep: vi.fn(),
+    },
   };
 };
 
@@ -175,5 +182,61 @@ describe('PlaySurface', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('toolbar')).toBeTruthy();
     eventDispatcher.off('margins-open-panel', panel);
+  });
+  it('says when a kept play replays only its first minute or has no replay', async () => {
+    let session: ReturnType<typeof fakeSession> | null = null;
+    enterPlay.mockImplementation(async (args: { onExit: () => void }) => {
+      session = fakeSession(args.onExit);
+      return session;
+    });
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
+    fireEvent.change(screen.getByLabelText('Describe this play for screen readers'), {
+      target: { value: 'A long play' },
+    });
+    session!.tools.keep.mockResolvedValueOnce({
+      ok: true,
+      layerId: 'lyr_1',
+      truncated: true,
+      scene: 'failed',
+    });
+    await act(async () => fireEvent.submit(screen.getByRole('dialog', { name: 'Keep this play' })));
+    expect(toast.mock.calls.map((c) => c[0].detail.message)).toEqual([
+      'Kept as a private Margin.',
+      'Replays show the first minute.',
+      "This Play couldn't be saved for replay",
+    ]);
+  });
+
+  it('lists the sound effects by label and places one on tap', async () => {
+    let session: ReturnType<typeof fakeSession> | null = null;
+    enterPlay.mockImplementation(async (args: { onExit: () => void }) => {
+      session = fakeSession(args.onExit);
+      return session;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          v: 1,
+          effects: [
+            { id: 'pop-1', file: 'pop-1.ogg', label: 'Pop', group: 'ui' },
+            { id: 'thud-1', file: 'thud-1.ogg', label: 'Thud', group: 'impact' },
+          ],
+        }),
+      ),
+    );
+    render(<PlaySurface bookKey='b1' />);
+    await act(() => eventDispatcher.dispatch('margins-play-enter', { bookKey: 'b1' }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Sound' })));
+    const list = screen.getByRole('group', { name: 'Sound effects' });
+    expect(
+      within(list)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Pop', 'Thud']);
+    fireEvent.click(within(list).getByRole('button', { name: 'Thud' }));
+    expect(session!.tools.addSound).toHaveBeenCalledWith('thud-1');
   });
 });

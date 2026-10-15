@@ -1,6 +1,9 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useEnv } from '@/context/EnvContext';
+import { CitationLine } from '@/components/margins/CitationLine';
+import BlockSheet from '@/components/margins/feed/BlockSheet';
+import FollowButton, { askToSignIn } from '@/components/margins/feed/FollowButton';
 import { useTranslation } from '@/hooks/useTranslation';
 import { canDownloadEdition, getWorkDetail } from '@/services/ampleread';
 import { getSession } from '@/services/ampleread/auth/session';
@@ -26,12 +29,21 @@ interface PostCardProps {
   signedIn: boolean;
   onViewInPlace?(post: PostView): void;
   onMuted?(handle: string): void;
+  onBlocked?(handle: string): void;
   actions?: React.ReactNode;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMuted, actions }) => {
+const PostCard: React.FC<PostCardProps> = ({
+  post,
+  signedIn,
+  onViewInPlace,
+  onMuted,
+  onBlocked,
+  actions,
+}) => {
   const _ = useTranslation();
   const [reporting, setReporting] = useState(false);
+  const [blocking, setBlocking] = useState(false);
   const assetSource = useCallback((ref: string) => publicApi.postAssetUrl(post.id, ref), [post.id]);
   const button = 'btn btn-ghost btn-xs';
   const fail = () => console.error('Margins: post action failed');
@@ -46,16 +58,31 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
     onMuted?.(post.author.handle);
   };
 
+  const startBlock = () => {
+    if (signedIn) setBlocking(true);
+    else askToSignIn(_('Sign in to block or hide Margins'));
+  };
+
   return (
     <article className='flex flex-col gap-2 rounded-lg p-3' aria-label={`@${post.author.handle}`}>
       <header className='flex items-baseline gap-2 text-xs'>
         <span className='font-semibold'>{post.author.displayName}</span>
         <span className='text-base-content/60'>{`@${post.author.handle}`}</span>
+        {!post.mine && (
+          <FollowButton
+            handle={post.author.handle}
+            postId={post.id}
+            following={post.following}
+            signedIn={signedIn}
+          />
+        )}
       </header>
       {isEnvelope(post.payload) ? (
-        <MarginArt envelope={post.payload} quote={post.quote} assetSource={assetSource} />
+        <MarginArt envelope={post.payload} quote={post.quote ?? ''} assetSource={assetSource} />
       ) : (
-        <p className='line-clamp-3 font-serif text-xs leading-relaxed'>{post.quote}</p>
+        <p className='line-clamp-3 font-serif text-xs leading-relaxed'>
+          {post.quote ?? <CitationLine citation={post.citation} book={post.book} />}
+        </p>
       )}
       <div className='flex flex-wrap items-center gap-1'>
         {actions}
@@ -75,32 +102,40 @@ const PostCard: React.FC<PostCardProps> = ({ post, signedIn, onViewInPlace, onMu
             {_('Mute @{{handle}}', { handle: post.author.handle })}
           </button>
         )}
+        {!post.mine && (
+          <button type='button' className={button} onClick={startBlock}>
+            {_('Block @{{handle}}', { handle: post.author.handle })}
+          </button>
+        )}
       </div>
       {reporting && <ReportDialog postId={post.id} onClose={() => setReporting(false)} />}
+      {blocking && (
+        <BlockSheet
+          handle={post.author.handle}
+          onBlocked={() => onBlocked?.(post.author.handle)}
+          onClose={() => setBlocking(false)}
+        />
+      )}
     </article>
   );
 };
 
-export const OpenInBook = ({ post }: { post: PostView }) => {
-  const _ = useTranslation();
+export const useOpenTarget = (post: PostView) => {
   const { appService } = useEnv();
   const router = useRouter();
   const library = useLibraryStore((s) => s.library);
-  const [target, setTarget] = useState<OpenTarget | null>(null);
-  const fail = () => console.error('Margins: open in book failed');
 
   const go = (bookHash: string) => {
     requestPostOpen(bookHash, post);
     navigateToReader(router, [bookHash]);
   };
 
-  const open = async () => {
-    if (!appService) return;
+  const resolve = async (): Promise<OpenTarget | null> => {
+    if (!appService) return null;
     const hashes = library.filter((b) => !b.deletedAt).map((b) => b.hash);
     const found = await openTargetFor(post, await openMarginsStore(appService), hashes);
-    if (found.kind === 'library') return go(found.bookHash);
     if (found.kind === 'yourCopy') rememberPendingOpen(post);
-    setTarget(found);
+    return found;
   };
 
   const getBook = async (workId: string) => {
@@ -108,6 +143,21 @@ export const OpenInBook = ({ post }: { post: PostView }) => {
     const edition = (await getWorkDetail(workId)).editions.find(canDownloadEdition);
     const book = edition ? await downloadEdition({ appService, workId, edition }) : null;
     if (book) go(book.hash);
+  };
+
+  return { go, resolve, getBook };
+};
+
+export const OpenInBook = ({ post }: { post: PostView }) => {
+  const _ = useTranslation();
+  const { go, resolve, getBook } = useOpenTarget(post);
+  const [target, setTarget] = useState<OpenTarget | null>(null);
+  const fail = () => console.error('Margins: open in book failed');
+
+  const open = async () => {
+    const found = await resolve();
+    if (found?.kind === 'library') return go(found.bookHash);
+    setTarget(found);
   };
 
   return (

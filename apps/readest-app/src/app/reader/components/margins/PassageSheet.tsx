@@ -1,7 +1,10 @@
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getSession } from '@/services/ampleread/auth/session';
 import { type PostView, publicApi } from '@/services/margins/public/api';
+import { bookFeedParams } from '@/services/margins/public/feedApi';
+import { navigateToLibrary } from '@/utils/nav';
 import { SHEET_CLASS } from './HandleSheet';
 import PostCard from './PostCard';
 
@@ -25,6 +28,7 @@ const PassageSheet: React.FC<PassageSheetProps> = ({
   onViewInPlace,
 }) => {
   const _ = useTranslation();
+  const router = useRouter();
   const [posts, setPosts] = useState<PostView[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
@@ -48,6 +52,10 @@ const PassageSheet: React.FC<PassageSheetProps> = ({
     onViewInPlace(null);
     onClose();
   };
+  const seeAll = () => {
+    close();
+    navigateToLibrary(router, bookFeedParams(textId));
+  };
   const title = _('{{count}} takes on this passage', { count: posts.length });
 
   return (
@@ -66,6 +74,9 @@ const PassageSheet: React.FC<PassageSheetProps> = ({
               signedIn={signedIn}
               onViewInPlace={onViewInPlace}
               onMuted={(handle) => setPosts((all) => all.filter((p) => p.author.handle !== handle))}
+              onBlocked={(handle) =>
+                setPosts((all) => all.filter((p) => p.author.handle !== handle))
+              }
             />
           </li>
         ))}
@@ -79,6 +90,9 @@ const PassageSheet: React.FC<PassageSheetProps> = ({
           {_('Load more')}
         </button>
       )}
+      <button type='button' className='btn btn-ghost btn-sm' onClick={seeAll}>
+        {_('See all on this book')}
+      </button>
     </div>
   );
 };

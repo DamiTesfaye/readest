@@ -10,6 +10,7 @@ import {
   type PlaySession,
 } from '@/services/margins/play/surfaceSession';
 import { playTools, type PlayTool } from '@/services/margins/play/tools';
+import { sharedSfx } from '@/services/margins/replay/sfx';
 import { openMarginsStore } from '@/services/margins/store';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useCustomFontStore } from '@/store/customFontStore';
@@ -101,6 +102,8 @@ const KeepDialog = ({
     toast(_('Kept as a private Margin.'));
     if (result.dropped)
       toast(_("Some loose words were outside the kept passage and won't replay."));
+    if (result.truncated) toast(_('Replays show the first minute.'));
+    if (result.scene === 'failed') toast(_("This Play couldn't be saved for replay"));
     onDone();
   };
   return (
@@ -156,12 +159,52 @@ const KeepDialog = ({
   );
 };
 
+interface SfxEffect {
+  id: string;
+  label: string;
+}
+
+const SoundPicker = ({ play }: { play: PlayTools }) => {
+  const _ = useTranslation();
+  const [effects, setEffects] = useState<SfxEffect[]>([]);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    fetch('/sfx/index.json')
+      .then((r) => r.json() as Promise<{ effects: SfxEffect[] }>)
+      .then((index) => setEffects(index.effects))
+      .catch(() => setFailed(true));
+  }, []);
+  return (
+    <div
+      role='group'
+      aria-label={_('Sound effects')}
+      className='bg-base-100 absolute bottom-16 left-1/2 z-50 flex max-h-48 w-80 -translate-x-1/2 flex-wrap gap-1 overflow-y-auto rounded-lg p-2 shadow-lg'
+    >
+      {failed && <p className='text-error text-xs'>{_("Sound effects couldn't load")}</p>}
+      {effects.map((e) => (
+        <button
+          key={e.id}
+          type='button'
+          className='btn btn-xs'
+          onClick={() => {
+            play.addSound(e.id);
+            sharedSfx()?.schedule(e.id, 0, 0);
+          }}
+        >
+          {e.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
   const _ = useTranslation();
   const { appService } = useEnv();
   const [session, setSession] = useState<PlaySession | null>(null);
   const [standInSeen, setStandInSeen] = useState(false);
   const [keeping, setKeeping] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [rawText, setRawText] = useState(false);
   const sessionRef = useRef<PlaySession | null>(null);
   const entering = useRef(false);
@@ -205,6 +248,7 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
           sessionRef.current = null;
           setSession(null);
           setKeeping(false);
+          setPicking(false);
         },
       });
     };
@@ -241,9 +285,11 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
   useEffect(() => () => sessionRef.current?.exit(), []);
 
   if (!session) return null;
-  const tools = playTools(_).map((t) =>
-    t.id === 'play.keep' ? { ...t, run: () => setKeeping(true) } : t,
-  );
+  const runs: Record<string, () => void> = {
+    'play.keep': () => setKeeping(true),
+    'play.sound': () => setPicking((p) => !p),
+  };
+  const tools = playTools(_).map((t) => (runs[t.id] ? { ...t, run: runs[t.id]! } : t));
   const showStandIn = session.tools.state.font === 'standIn' && !standInSeen;
   return (
     <>
@@ -274,6 +320,7 @@ const PlaySurface = ({ bookKey, toolbar }: PlaySurfaceProps) => {
       {keeping && (
         <KeepDialog bookKey={bookKey} play={session.tools} onDone={() => setKeeping(false)} />
       )}
+      {picking && <SoundPicker play={session.tools} />}
       {toolbar ? (
         toolbar(session.tools, tools)
       ) : (

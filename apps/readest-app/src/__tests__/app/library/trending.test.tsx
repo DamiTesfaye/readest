@@ -56,9 +56,8 @@ vi.mock('@/services/ampleread', () => ({
 }));
 vi.mock('@/services/ampleread/download', () => ({ downloadEdition: h.downloadEdition }));
 
-import { PostSheet } from '@/app/reader/components/margins/PostCard';
+import { OpenInBook, PostSheet } from '@/app/reader/components/margins/PostCard';
 import TrendingRail from '@/app/library/components/TrendingRail';
-import TrendingView, { isTrendingView } from '@/app/library/components/TrendingView';
 import { eventDispatcher } from '@/utils/event';
 
 const post = (id: string, o: Partial<PostView> = {}) =>
@@ -104,7 +103,7 @@ describe('Trending Margins', () => {
       }),
     );
     fireEvent.click(within(rail).getByRole('button', { name: 'See all' }));
-    expect(h.navigateToLibrary).toHaveBeenCalledWith(h.router, 'margins=trending');
+    expect(h.navigateToLibrary).toHaveBeenCalledWith(h.router, 'feed=for-you');
   });
 
   it('opens a rail item in the single-post sheet', async () => {
@@ -126,30 +125,17 @@ describe('Trending Margins', () => {
     expect(h.trending).not.toHaveBeenCalled();
   });
 
-  it('routes ?margins=trending to the trending view', () => {
-    expect(isTrendingView(new URLSearchParams('margins=trending'))).toBe(true);
-    expect(isTrendingView(new URLSearchParams('margins=true'))).toBe(false);
-    expect(isTrendingView(null)).toBe(false);
-  });
-
-  it('loads more with the cursor and opens a library book', async () => {
-    h.trending.mockResolvedValueOnce(page(2, 'c1')).mockResolvedValueOnce(page(1));
-    render(<TrendingView />);
+  it('opens a library book', async () => {
+    render(<OpenInBook post={post('p0')} />);
     await act(async () => {});
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Load more' })));
-    expect(h.trending).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'c1' }));
-    expect(screen.getAllByRole('article')).toHaveLength(3);
-    await act(async () =>
-      fireEvent.click(screen.getAllByRole('button', { name: 'Open in book' })[0]!),
-    );
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Open in book' })));
     expect(h.requestPostOpen).toHaveBeenCalledWith('h1', expect.objectContaining({ id: 'p0' }));
     expect(h.navigateToReader).toHaveBeenCalledWith(h.router, ['h1']);
   });
 
   it('asks to open your copy, and remembers the Margin for it', async () => {
     h.target = { kind: 'yourCopy' };
-    h.trending.mockResolvedValue(page(1));
-    render(<TrendingView />);
+    render(<OpenInBook post={post('p0')} />);
     await act(async () => {});
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Open in book' })));
     screen.getByText('Open this book from your library to see this Margin in place.');
@@ -158,8 +144,7 @@ describe('Trending Margins', () => {
 
   it('gets a catalogue book, then opens it', async () => {
     h.target = { kind: 'download', workId: 'wrk1' };
-    h.trending.mockResolvedValue(page(1));
-    render(<TrendingView />);
+    render(<OpenInBook post={post('p0')} />);
     await act(async () => {});
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Open in book' })));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Get this book' })));

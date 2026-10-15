@@ -11,7 +11,7 @@ vi.mock('@/services/ampleread/auth/session', async (importOriginal) => ({
   amplereadFetch: session.amplereadFetch,
 }));
 
-import { CARD_HEIGHT, CARD_WIDTH, renderCard, uploadCard } from '@/services/margins/public/card';
+import { CARD_HEIGHT, CARD_WIDTH, renderCard, uploadAsset } from '@/services/margins/public/card';
 
 const artBlob = async () => {
   const canvas = new OffscreenCanvas(64, 64);
@@ -21,12 +21,47 @@ const artBlob = async () => {
   return canvas.convertToBlob({ type: 'image/png' });
 };
 
-const quote = 'To live a good life: we have the potential for it. '.repeat(6).slice(0, 280);
+const citation = 'Meditations · Marcus Aurelius · Gutenberg, 2001 ed. · p. 16';
+
+const spyText = () => {
+  const texts: string[] = [];
+  const record = function (this: unknown, text: string) {
+    texts.push(text);
+  };
+  const spies = [
+    vi.spyOn(OffscreenCanvasRenderingContext2D.prototype, 'fillText').mockImplementation(record),
+    vi.spyOn(CanvasRenderingContext2D.prototype, 'fillText').mockImplementation(record),
+  ];
+  return { texts, restore: () => spies.forEach((s) => s.mockRestore()) };
+};
 
 describe('Margin preview card', () => {
-  it('renders the quote, art, handle and title to a 1200 × 630 PNG', async () => {
+  it('renders the card without passage text', async () => {
+    const spy = spyText();
+    const bars = vi.spyOn(OffscreenCanvasRenderingContext2D.prototype, 'roundRect');
+    try {
+      const input = {
+        handle: 'reader_1',
+        bookTitle: 'Meditations',
+        citation,
+        ground: 'ink' as const,
+        art: [],
+        seed: 7,
+      };
+      await renderCard(input);
+      expect(Object.keys(input)).not.toContain('quote');
+      expect(new Set(spy.texts)).toEqual(new Set(['@reader_1 · Meditations', citation]));
+      expect(bars).toHaveBeenCalled();
+    } finally {
+      spy.restore();
+      bars.mockRestore();
+    }
+  });
+
+  it('renders the citation, art, handle and title to a 1200 × 630 PNG', async () => {
     const png = await renderCard({
-      quote,
+      citation,
+      seed: 3,
       handle: 'reader_1',
       bookTitle: 'Meditations',
       ground: 'ink',
@@ -60,7 +95,8 @@ describe('Margin preview card', () => {
 
   it('renders without art or a title', async () => {
     const png = await renderCard({
-      quote: 'Short.',
+      citation: '',
+      seed: 1,
       handle: 'r',
       bookTitle: null,
       ground: 'paper',
@@ -75,7 +111,7 @@ describe('Margin preview card', () => {
       new Response(JSON.stringify({ id: 'ast_card' }), { status: 201 }),
     );
     const png = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' });
-    expect(await uploadCard(png)).toBe('ast_card');
+    expect(await uploadAsset(png)).toBe('ast_card');
     const [path, init] = session.amplereadFetch.mock.calls[0]!;
     expect(path).toBe('/v1/layer-assets');
     expect(init.method).toBe('POST');
@@ -89,7 +125,7 @@ describe('Margin preview card', () => {
         status: 413,
       }),
     );
-    await expect(uploadCard(new Blob([], { type: 'image/png' }))).rejects.toMatchObject({
+    await expect(uploadAsset(new Blob([], { type: 'image/png' }))).rejects.toMatchObject({
       status: 413,
       code: 'asset_too_large',
     });

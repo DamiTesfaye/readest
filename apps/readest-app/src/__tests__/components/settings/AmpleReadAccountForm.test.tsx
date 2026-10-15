@@ -11,6 +11,9 @@ const signIn = vi.hoisted(() => ({
 const session = vi.hoisted(() => ({ getSession: vi.fn(), onSessionChange: vi.fn(() => () => {}) }));
 vi.mock('@/services/ampleread/auth/signIn', () => signIn);
 vi.mock('@/services/ampleread/auth/session', () => session);
+vi.mock('@/components/settings/integrations/BlockedAccounts', () => ({
+  default: () => <section aria-label='Blocked accounts' />,
+}));
 
 describe('AmpleReadAccountForm', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -21,6 +24,7 @@ describe('AmpleReadAccountForm', () => {
     render(<AmpleReadAccountForm onBack={() => {}} />);
     expect(await screen.findByRole('button', { name: /Google/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Apple/ })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Blocked accounts' })).toBeNull();
     expect(screen.getByLabelText(/Email/)).toBeTruthy();
   });
 
@@ -42,6 +46,7 @@ describe('AmpleReadAccountForm', () => {
     session.getSession.mockResolvedValue({ me: { email: 'a@b.c', displayName: null } });
     render(<AmpleReadAccountForm onBack={() => {}} />);
     expect(await screen.findByText('a@b.c')).toBeTruthy();
+    screen.getByRole('region', { name: 'Blocked accounts' });
     fireEvent.click(screen.getByRole('button', { name: /Sign out/ }));
     await waitFor(() => expect(signIn.signOut).toHaveBeenCalled());
   });

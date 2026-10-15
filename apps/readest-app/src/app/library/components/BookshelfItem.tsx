@@ -4,6 +4,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useLongPress } from '@/hooks/useLongPress';
+import { useBookTextId } from '@/services/margins/public/feedApi';
 import { Menu, MenuItem } from '@tauri-apps/api/menu';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
@@ -102,6 +103,7 @@ interface BookshelfItemProps {
   handleSetSelectMode: (selectMode: boolean) => void;
   handleShowDetailsBook: (book: Book) => void;
   handleLibraryNavigation: (targetGroup: string) => void;
+  handleOpenMarginsFeed?: (textId: string) => void;
   handleUpdateReadingStatus: (book: Book, status: ReadingStatus | undefined) => void;
   showTimeRemaining: boolean;
   showSeriesIndex?: boolean;
@@ -123,6 +125,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
   handleSetSelectMode,
   handleShowDetailsBook,
   handleLibraryNavigation,
+  handleOpenMarginsFeed,
   handleUpdateReadingStatus,
   showTimeRemaining,
   showSeriesIndex,
@@ -131,6 +134,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
   const { appService } = useEnv();
   const { settings } = useSettingsStore();
   const { openBook } = useOpenBook({ setLoading, handleBookDownload });
+  const marginsTextId = useBookTextId('format' in item ? (item as Book).hash : null);
 
   const showBookDetailsModal = useCallback(async (book: Book) => {
     handleShowDetailsBook(book);
@@ -216,6 +220,12 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
           showBookDetailsModal(book);
         },
       },
+      marginsOnBook: {
+        text: _('Margins on this book'),
+        action: async () => {
+          if (marginsTextId) handleOpenMarginsFeed?.(marginsTextId);
+        },
+      },
       showInFinder: {
         text: _(fileRevealLabel),
         action: async () => {
@@ -279,6 +289,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
     return getBookContextMenuItemIds(book, {
       localSend: isTauriAppPlatform() && isLocalSendEnabled(),
       absOffline: isTauriAppPlatform(),
+      margins: !!marginsTextId && !!handleOpenMarginsFeed,
     }).map((id) => itemOptions[id]);
   };
 
@@ -355,7 +366,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
       cachedMenuRef.current = null;
       if (cached) releaseMenu(cached);
     };
-  }, [item, itemSelected, isSelectMode, settings.localBooksDir, _]);
+  }, [item, itemSelected, isSelectMode, settings.localBooksDir, _, marginsTextId]);
 
   const handleSelectItem = useCallback(
     throttle(() => {
@@ -403,7 +414,7 @@ const BookshelfItem: React.FC<BookshelfItemProps> = ({
       // pass through unchanged.
       await trackPopup(menu.popup(new LogicalPosition(position.x, position.y)));
     }, 100),
-    [item, itemSelected, isSelectMode, settings.localBooksDir],
+    [item, itemSelected, isSelectMode, settings.localBooksDir, marginsTextId],
   );
 
   const { pressing, handlers } = useLongPress(

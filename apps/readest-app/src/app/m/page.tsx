@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { getApiBase } from '@/services/ampleread';
 import { AMPLEREAD_WEB_BASE_URL } from '@/services/constants';
 import type { PostLookup, PostView } from '@/services/margins/public/api';
+import { formatCitation } from '@/services/margins/public/citation';
 import type { Envelope, NoteElement } from '@/services/margins/payload';
 import MarginRoute from './MarginLanding';
 
@@ -46,7 +47,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     return { title: 'This Margin is no longer available', robots: { index: false } };
 
   const title = `@${post.author.handle}${post.book.title ? ` on ${cut(post.book.title, 200)}` : ''}`;
-  const description = cut(post.quote || noteOf(post), 120);
+  const description = cut(
+    noteOf(post) || post.quote || formatCitation(post.citation, post.book),
+    120,
+  );
   const images = post.cardUrl ? [{ url: post.cardUrl, width: 1200, height: 630 }] : undefined;
   return {
     title,

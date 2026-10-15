@@ -149,6 +149,10 @@ const nextConfig = {
         source: '/m/:id',
         destination: '/m?id=:id',
       },
+      {
+        source: '/@:handle',
+        destination: '/u?handle=:handle',
+      },
     ];
   },
   async headers() {

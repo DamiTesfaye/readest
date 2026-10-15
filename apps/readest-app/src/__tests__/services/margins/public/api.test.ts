@@ -190,4 +190,23 @@ describe('publicApi', () => {
     expect(await publicApi.postAssetUrl('pst_1', 'ast_2')).toBeNull();
     vi.unstubAllGlobals();
   });
+
+  it('reads a family feed signed out', async () => {
+    signedOut();
+    install.installFetch.mockImplementation(async () => json(200, { posts: [], nextCursor: null }));
+    await publicApi.familyFeed('txt_1', 'book', 'c');
+    expect(pathOf(install.installFetch)).toBe('/v1/families/txt_1/feed?order=book&cursor=c');
+    expect(session.amplereadFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns a post asset as a blob and null on 404', async () => {
+    signedOut();
+    install.installFetch.mockResolvedValueOnce(new Response('scene', { status: 200 }));
+    const blob = await publicApi.postAsset('pst_1', 'ast_9');
+    expect(blob).toBeInstanceOf(Blob);
+    expect(await blob!.text()).toBe('scene');
+    expect(pathOf(install.installFetch)).toBe('/v1/posts/pst_1/assets/ast_9');
+    install.installFetch.mockResolvedValueOnce(json(404, { error: 'not_found', message: 'No' }));
+    expect(await publicApi.postAsset('pst_1', 'ast_8')).toBeNull();
+  });
 });

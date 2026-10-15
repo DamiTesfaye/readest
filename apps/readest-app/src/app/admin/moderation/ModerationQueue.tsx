@@ -34,6 +34,9 @@ const useActions = (item: QueueItem) => {
   if (item.kind === 'csam') return [[_('Mark reported'), { action: 'csam_reported' }]] as const;
   const countered = item.notices.some((n) => n.state === 'countered' && !n.restoreAfter);
   const actions: [string, AdminAction][] = [
+    ...(item.kind === 'review'
+      ? [[_('Approve for feeds'), { action: 'approve_feed' }] as [string, AdminAction]]
+      : []),
     [_('Dismiss'), { action: 'dismiss' }],
     [_('Hide'), { action: 'hide' }],
     [_('Remove'), { action: 'remove' }],

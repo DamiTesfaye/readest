@@ -8,6 +8,8 @@ const h = vi.hoisted(() => ({
   mute: vi.fn(async () => {}),
   report: vi.fn(async () => {}),
   sharePost: vi.fn(async () => 'copied'),
+  follow: vi.fn(async () => {}),
+  block: vi.fn(async () => {}),
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -23,6 +25,9 @@ vi.mock('@/services/margins/public/api', async (orig) => ({
   publicApi: { postAssetUrl: h.postAssetUrl, mute: h.mute, report: h.report },
 }));
 vi.mock('@/services/margins/public/share', () => ({ sharePost: h.sharePost }));
+vi.mock('@/services/margins/public/social', () => ({
+  socialApi: { follow: h.follow, block: h.block },
+}));
 
 import PostCard from '@/app/reader/components/margins/PostCard';
 
@@ -108,5 +113,44 @@ describe('PostCard', () => {
     cleanup();
     render(<PostCard post={samplePost()} signedIn={false} />);
     expect(screen.queryByRole('button', { name: /Mute/ })).toBeNull();
+  });
+
+  it('puts Follow after the handle, and none on your own post', async () => {
+    render(<PostCard post={samplePost()} signedIn />);
+    const follow = screen.getByRole('button', { name: 'Follow' });
+    expect(
+      screen.getByText('@reader_1').compareDocumentPosition(follow) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await act(async () => fireEvent.click(follow));
+    expect(h.follow).toHaveBeenCalledWith('reader_1', 'pst1');
+    cleanup();
+    render(<PostCard post={samplePost({ mine: true })} signedIn />);
+    expect(screen.queryByRole('button', { name: 'Follow' })).toBeNull();
+  });
+
+  it('blocks the author after a confirm', async () => {
+    const onBlocked = vi.fn();
+    render(<PostCard post={samplePost()} signedIn onBlocked={onBlocked} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Block @reader_1' }));
+    screen.getByText("Block @reader_1? You won't see each other's Margins.");
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Block' })));
+    expect(h.block).toHaveBeenCalledWith('reader_1');
+    expect(onBlocked).toHaveBeenCalledWith('reader_1');
+  });
+
+  it('asks a signed-out reader to sign in instead of blocking', () => {
+    const toast = vi.fn();
+    eventDispatcher.on('toast', toast);
+    render(<PostCard post={samplePost()} signedIn={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Block @reader_1' }));
+    eventDispatcher.off('toast', toast);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(toast.mock.calls[0]![0].detail).toMatchObject({
+      message: 'Sign in to block or hide Margins',
+    });
+    cleanup();
+    render(<PostCard post={samplePost({ mine: true })} signedIn />);
+    expect(screen.queryByRole('button', { name: /^Block/ })).toBeNull();
   });
 });

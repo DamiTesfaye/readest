@@ -1,7 +1,16 @@
+import { getSession } from '@/services/ampleread/auth/session';
 import { createAnchorAt } from '../anchorBridge';
+import { keepLocalAsset } from '../assets';
+import { withCheckpoints } from '../replay/checkpoints';
+import { loadReplay } from '../replay/engine';
+import { createRecorder } from '../replay/recorder';
+import { buildScene, EV, packScene, SCENE_MIME, TOOL } from '../replay/scene';
+import type { MarginsStore } from '../store';
+import { bytesToScalars } from './element';
 import { dropPlayEngine } from './engine';
 import { saveMargin } from '../margins';
 import { buildPlayElement, keepPlay, keepSpan, playOverQuota } from './keep';
+import { STAND_IN_FACES, standInFor } from './fonts';
 import { drift, lerpFactor } from './motion';
 import { posesToPage, prepareReplay, type Replay, shapesToPage } from './replay';
 import { createWorld, detachBodies, MAX_BODIES, removeBodies, step, type World } from './physics';
@@ -88,6 +97,15 @@ const targetsOf = (glyphs: Float32Array) => {
     out[k + 1] = glyphs[i + 1]!;
   }
   return out;
+};
+
+const unitSpan = (unitOf: (canon: number) => number, [s, e]: Span): Span | null => {
+  let span: Span | null = null;
+  for (let b = s; b < e; b++) {
+    const u = unitOf(b);
+    if (u >= 0) span = [span?.[0] ?? u, u + 1];
+  }
+  return span;
 };
 
 const sameRange = (x: Range, y: Range) => {
@@ -214,6 +232,40 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
   let raf = 0;
   let last = performance.now();
   let lastMove = last;
+  const startedAt = last;
+  const rec = createRecorder(startedAt);
+  let glyphUnits = false;
+  const sceneSource = {
+    ...entry,
+    text: textBytes,
+    windowStart: win.start,
+    em,
+    box,
+    columns: page.columns,
+    gutter: page.gutter,
+    font: STAND_IN_FACES[standInFor(page.cssFamily)][0],
+    seed,
+  };
+  const record = (kind: number, args: number[]) => rec.push(performance.now(), kind, args);
+  const recordShape = (shape: PlayShape, p: { x: number; y: number }) =>
+    record(
+      EV.SHAPE_ADD,
+      shape.type === 'circle'
+        ? [0, p.x / em, p.y / em, shape.pad / em, (shape.r ?? 0) / em]
+        : [
+            1,
+            p.x / em,
+            p.y / em,
+            shape.pad / em,
+            shape.pts?.length ?? 0,
+            ...(shape.pts ?? []).flat().map((v) => v / em),
+          ],
+    );
+  const recordMove = (from: { x: number; y: number }, x: number, y: number) => {
+    record(EV.DOWN, [from.x / em, from.y / em]);
+    record(EV.MOVE, [x / em, y / em]);
+    record(EV.UP, []);
+  };
 
   const cluster = (canon: number, len: number) =>
     decoder.decode(textBytes.subarray(canon - win.start, canon - win.start + len));
@@ -323,7 +375,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
     if (s.shapeMotion === 'drift')
       s = {
         ...s,
-        poses: s.poses.map((p, i) => ({ ...p, ...drift(now, i, box) })),
+        poses: s.poses.map((p, i) => ({ ...p, ...drift(now - startedAt, i, box) })),
       };
     const flying = world.bodies.some((b) => !b.rest);
     if (flying) world = step(world);
@@ -396,6 +448,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
     bodyGlyphs = records;
     const settle = settled || reduced || tier.tier === 'P3' || tier.tier === 'P4';
     world = detachBodies(world, out, settle, tier.tier === 'P1' ? MAX_BODIES : P2_BODIES);
+    for (const [x, y] of spans) record(EV.TOOL, [TOOL.DETACH, x, y]);
     s = detach(s, spans);
     wake();
   };
@@ -477,7 +530,50 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       element,
       save: (draft) => saveMargin(store, draft),
     });
-    return result.ok ? { ...result, dropped: span.dropped } : result;
+    if (!result.ok) return result;
+    const scene = await saveScene(store, result.layerId, span, canonical);
+    return { ...result, dropped: span.dropped, truncated: rec.truncated(performance.now()), scene };
+  };
+
+  const sceneEvents = (unitOf: (canon: number) => number) =>
+    rec.events().flatMap((e) => {
+      if (e[1] !== EV.TOOL || e[2] !== TOOL.DETACH) return [e];
+      const units = unitSpan(unitOf, [e[3]!, e[4]!]);
+      return units ? [[e[0]!, EV.TOOL, TOOL.DETACH, ...units]] : [];
+    });
+
+  const saveScene = async (
+    store: MarginsStore,
+    layerId: string,
+    span: { start: number; end: number },
+    canonical: Uint8Array,
+  ): Promise<'saved' | 'failed'> => {
+    try {
+      const [[start, end]] = bytesToScalars(canonical, 0, [[span.start, span.end]]) as [Span];
+      const passage = { startByte: span.start, endByte: span.end, start, end };
+      const unit = glyphUnits ? ('glyph' as const) : ('word' as const);
+      const { unitOf } = buildScene({ ...sceneSource, unit, passage }, []);
+      const built = buildScene(
+        { ...sceneSource, unit, passage },
+        sceneEvents(unitOf),
+        rec.sfx(),
+      ).scene;
+      const data = packScene(withCheckpoints(built, await loadReplay()));
+      if (!data) return 'failed';
+      const asset = {
+        localId: `scene-${layerId}`,
+        userId: (await getSession())?.me.id ?? null,
+        remoteId: null,
+        mime: SCENE_MIME,
+        width: 0,
+        height: 0,
+        createdAt: Date.now(),
+      };
+      await keepLocalAsset(store, asset, new Blob([data as Uint8Array<ArrayBuffer>]));
+      return 'saved';
+    } catch {
+      return 'failed';
+    }
   };
 
   const spanAt = (byte: number, u: Unit): Span | null => {
@@ -503,6 +599,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
     const at = local(e);
     const id = shapeAt(at.x, at.y);
     if (id) {
+      record(EV.DOWN, [at.x / em, at.y / em]);
       dragging = { id, ...at };
       canvas.setPointerCapture?.(e.pointerId);
       wake();
@@ -511,12 +608,14 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
     if (!unit) return;
     const byte = glue.hit(at.x, at.y);
     const span = byte >= 0 ? spanAt(byte, unit) : null;
+    glyphUnits ||= !!span && unit === 'glyph';
     if (span) doDetach([span]);
   };
 
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging) return;
     const at = local(e);
+    record(EV.MOVE, [at.x / em, at.y / em]);
     s = moveShape(s, dragging.id, at.x - dragging.x, at.y - dragging.y);
     dragging = { ...dragging, ...at };
     wake();
@@ -524,6 +623,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
 
   const onPointerUp = () => {
     if (!dragging) return;
+    record(EV.UP, []);
     dragging = null;
     wake();
   };
@@ -572,6 +672,8 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
 
   const mountShapeProxy = (shape: PlayShape) => {
     const proxy = mountProxy(host, shape, em, (dx, dy) => {
+      const p = s.poses.find((q) => q.shape === shape.id);
+      if (p) recordMove(p, p.x + dx, p.y + dy);
       s = moveShape(s, shape.id, dx, dy);
       wake();
     });
@@ -590,6 +692,8 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       shapeMotion: reduced ? 'none' : (r.element.shapeMotion ?? 'none'),
     };
     shapes.forEach(mountShapeProxy);
+    shapes.forEach((x, i) => recordShape(x, s.poses[i]!));
+    if (s.shapeMotion === 'drift') record(EV.TOOL, [TOOL.MOTION, 1]);
     syncEngine(performance.now());
     current = targetsOf(glyphs);
     const spans = r.spans.filter(([x, y]) => x >= win.start && y <= win.end);
@@ -611,19 +715,26 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
       const n = s.shapes.length;
       s = addShape(s, kind, { x: box.width / 2 - n * em, y: box.height / 3 + n * em }, em);
       const shape = s.shapes[s.shapes.length - 1]!;
+      recordShape(shape, s.poses[s.poses.length - 1]!);
       mountShapeProxy(shape);
       wake();
       return shape.id;
     },
     removeShape(id) {
+      const index = s.shapes.findIndex((x) => x.id === id);
+      if (index >= 0) record(EV.SHAPE_REMOVE, [index]);
       s = removeShape(s, id);
       proxies.get(id)?.remove();
       proxies.delete(id);
       wake();
     },
     setShapeMotion(preset) {
+      record(EV.TOOL, [TOOL.MOTION, preset === 'drift' ? 1 : 0]);
       s = { ...s, shapeMotion: preset };
       wake();
+    },
+    addSound(id) {
+      rec.sound(performance.now(), id);
     },
     detachMode(u) {
       unit = u ? unitFor(u, win.text) : null;
@@ -641,6 +752,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
     undo() {
       const spans = s.undo[s.undo.length - 1];
       if (!spans) return;
+      record(EV.TOOL, [TOOL.UNDO]);
       s = undo(s);
       const canons = new Set<number>();
       for (const b of world.bodies) {
@@ -691,6 +803,7 @@ const startSession = (a: EnterPlayArgs, page: Page, replay?: Replay): PlaySessio
     moveShapeTo(id, x, y) {
       const p = s.poses.find((q) => q.shape === id);
       if (!p) return;
+      recordMove(p, x, y);
       s = moveShape(s, id, x - p.x, y - p.y);
       wake();
     },

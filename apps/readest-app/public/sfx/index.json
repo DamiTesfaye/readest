@@ -1,0 +1,251 @@
+{
+  "v": 1,
+  "effects": [
+    {
+      "id": "thud-1",
+      "file": "thud-1.ogg",
+      "label": "Thud",
+      "group": "impact"
+    },
+    {
+      "id": "thud-2",
+      "file": "thud-2.ogg",
+      "label": "Thud 2",
+      "group": "impact"
+    },
+    {
+      "id": "thud-3",
+      "file": "thud-3.ogg",
+      "label": "Heavy thud",
+      "group": "impact"
+    },
+    {
+      "id": "knock-1",
+      "file": "knock-1.ogg",
+      "label": "Knock",
+      "group": "impact"
+    },
+    {
+      "id": "knock-2",
+      "file": "knock-2.ogg",
+      "label": "Wood knock",
+      "group": "impact"
+    },
+    {
+      "id": "plank-1",
+      "file": "plank-1.ogg",
+      "label": "Plank",
+      "group": "impact"
+    },
+    {
+      "id": "clink-1",
+      "file": "clink-1.ogg",
+      "label": "Clink",
+      "group": "impact"
+    },
+    {
+      "id": "clink-2",
+      "file": "clink-2.ogg",
+      "label": "Glass clink",
+      "group": "impact"
+    },
+    {
+      "id": "clang-1",
+      "file": "clang-1.ogg",
+      "label": "Clang",
+      "group": "impact"
+    },
+    {
+      "id": "clang-2",
+      "file": "clang-2.ogg",
+      "label": "Heavy clang",
+      "group": "impact"
+    },
+    {
+      "id": "bell-1",
+      "file": "bell-1.ogg",
+      "label": "Bell",
+      "group": "impact"
+    },
+    {
+      "id": "plate-1",
+      "file": "plate-1.ogg",
+      "label": "Plate",
+      "group": "impact"
+    },
+    {
+      "id": "tin-1",
+      "file": "tin-1.ogg",
+      "label": "Tin",
+      "group": "impact"
+    },
+    {
+      "id": "step-grass-1",
+      "file": "step-grass-1.ogg",
+      "label": "Grass step",
+      "group": "nature"
+    },
+    {
+      "id": "step-snow-1",
+      "file": "step-snow-1.ogg",
+      "label": "Snow step",
+      "group": "nature"
+    },
+    {
+      "id": "step-wood-1",
+      "file": "step-wood-1.ogg",
+      "label": "Wood step",
+      "group": "nature"
+    },
+    {
+      "id": "step-stone-1",
+      "file": "step-stone-1.ogg",
+      "label": "Stone step",
+      "group": "nature"
+    },
+    {
+      "id": "pop-1",
+      "file": "pop-1.ogg",
+      "label": "Pop",
+      "group": "ui"
+    },
+    {
+      "id": "pop-2",
+      "file": "pop-2.ogg",
+      "label": "Pop 2",
+      "group": "ui"
+    },
+    {
+      "id": "click-1",
+      "file": "click-1.ogg",
+      "label": "Click",
+      "group": "ui"
+    },
+    {
+      "id": "click-2",
+      "file": "click-2.ogg",
+      "label": "Click 2",
+      "group": "ui"
+    },
+    {
+      "id": "tick-1",
+      "file": "tick-1.ogg",
+      "label": "Tick",
+      "group": "ui"
+    },
+    {
+      "id": "toggle-1",
+      "file": "toggle-1.ogg",
+      "label": "Toggle",
+      "group": "ui"
+    },
+    {
+      "id": "switch-1",
+      "file": "switch-1.ogg",
+      "label": "Switch",
+      "group": "ui"
+    },
+    {
+      "id": "select-1",
+      "file": "select-1.ogg",
+      "label": "Select",
+      "group": "ui"
+    },
+    {
+      "id": "confirm-1",
+      "file": "confirm-1.ogg",
+      "label": "Confirm",
+      "group": "ui"
+    },
+    {
+      "id": "error-1",
+      "file": "error-1.ogg",
+      "label": "Error",
+      "group": "ui"
+    },
+    {
+      "id": "question-1",
+      "file": "question-1.ogg",
+      "label": "Question",
+      "group": "ui"
+    },
+    {
+      "id": "glass-1",
+      "file": "glass-1.ogg",
+      "label": "Glass",
+      "group": "ui"
+    },
+    {
+      "id": "bong-1",
+      "file": "bong-1.ogg",
+      "label": "Bong",
+      "group": "ui"
+    },
+    {
+      "id": "whoosh-up-1",
+      "file": "whoosh-up-1.ogg",
+      "label": "Whoosh up",
+      "group": "whoosh"
+    },
+    {
+      "id": "whoosh-down-1",
+      "file": "whoosh-down-1.ogg",
+      "label": "Whoosh down",
+      "group": "whoosh"
+    },
+    {
+      "id": "scroll-1",
+      "file": "scroll-1.ogg",
+      "label": "Scroll",
+      "group": "whoosh"
+    },
+    {
+      "id": "phase-up-1",
+      "file": "phase-up-1.ogg",
+      "label": "Rise",
+      "group": "whoosh"
+    },
+    {
+      "id": "phase-down-1",
+      "file": "phase-down-1.ogg",
+      "label": "Fall",
+      "group": "whoosh"
+    },
+    {
+      "id": "pluck-1",
+      "file": "pluck-1.ogg",
+      "label": "Pluck",
+      "group": "music"
+    },
+    {
+      "id": "pluck-2",
+      "file": "pluck-2.ogg",
+      "label": "Pluck 2",
+      "group": "music"
+    },
+    {
+      "id": "chime-1",
+      "file": "chime-1.ogg",
+      "label": "Chime",
+      "group": "music"
+    },
+    {
+      "id": "tone-1",
+      "file": "tone-1.ogg",
+      "label": "Tone",
+      "group": "music"
+    },
+    {
+      "id": "two-tone-1",
+      "file": "two-tone-1.ogg",
+      "label": "Two tones",
+      "group": "music"
+    },
+    {
+      "id": "power-up-1",
+      "file": "power-up-1.ogg",
+      "label": "Power up",
+      "group": "music"
+    }
+  ]
+}

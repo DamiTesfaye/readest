@@ -63,6 +63,13 @@ export const playTools = (_: (key: string) => string): readonly PlayTool[] => [
     run: (p) => p.undo(),
   },
   {
+    id: 'play.sound',
+    label: _('Sound'),
+    group: 'play',
+    enabled: (s) => s.active,
+    run: () => undefined,
+  },
+  {
     id: 'play.keep',
     label: _('Keep'),
     group: 'play',
