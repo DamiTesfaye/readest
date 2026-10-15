@@ -10,6 +10,8 @@ const env = { ...loadEnvFile('.env'), ...loadEnvFile('.env.web'), CI: process.en
 
 const MINDMAP_PERF_TEST = 'src/__tests__/app/reader/components/mindmap/mindmapCanvas.browser.test.tsx';
 const PLAY_SURFACE_TEST = 'src/__tests__/services/margins/play/surface.browser.test.ts';
+const MARGINS_PERF_TEST = 'src/__tests__/services/margins/acceptance.browser.test.ts';
+const PERF_TESTS = [MINDMAP_PERF_TEST, MARGINS_PERF_TEST];
 
 const contextOptions = {
   viewport: { width: 1920, height: 1080 },
@@ -115,7 +117,17 @@ export default defineConfig({
         test: {
           name: 'chromium',
           include: ['src/**/*.browser.test.ts', 'src/**/*.browser.test.tsx'],
-          exclude: [PLAY_SURFACE_TEST],
+          exclude: [PLAY_SURFACE_TEST, ...PERF_TESTS],
+          browser: { instances: [{ browser: 'chromium' }] },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'chromium-perf',
+          include: PERF_TESTS,
+          fileParallelism: false,
+          sequence: { groupOrder: 1 },
           browser: { instances: [{ browser: 'chromium' }] },
         },
       },
@@ -124,7 +136,7 @@ export default defineConfig({
         test: {
           name: 'chromium-play-surface',
           include: [PLAY_SURFACE_TEST],
-          sequence: { groupOrder: 2 },
+          sequence: { groupOrder: 3 },
           browser: { instances: [{ browser: 'chromium' }] },
         },
       },
@@ -133,7 +145,7 @@ export default defineConfig({
         test: {
           name: 'chromium-one-raster-thread',
           include: [MINDMAP_PERF_TEST],
-          sequence: { groupOrder: 1 },
+          sequence: { groupOrder: 2 },
           browser: {
             provider: playwright({
               contextOptions,
