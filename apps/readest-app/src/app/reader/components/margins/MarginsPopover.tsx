@@ -283,10 +283,10 @@ const MarginsPopover: React.FC<MarginsPopoverProps> = ({
         width={MARGINS_POPOVER_WIDTH}
         maxHeight={MAX_POPOVER_HEIGHT}
         getPlacement={getPlacement}
-        className='!overflow-hidden'
+        className='!overflow-hidden flex flex-col'
         onClose={onClose}
       >
-        <div className='flex max-h-full flex-col'>
+        <div className='flex min-h-0 flex-col'>
           <div className='bg-base-200 flex shrink-0 flex-col gap-2 px-4 pb-2 pt-4'>
             <PopoverTitleBar title={_('Margins')} showDivider />
             <div role='radiogroup' aria-label={_('Show Margins')} className='join self-start'>

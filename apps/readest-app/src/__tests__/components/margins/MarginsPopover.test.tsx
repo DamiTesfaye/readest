@@ -40,8 +40,15 @@ vi.mock('@/context/EnvContext', () => {
   return { useEnv: () => env };
 });
 vi.mock('@/components/ToolbarPopover', () => ({
-  default: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
-    isOpen ? <div>{children}</div> : null,
+  default: ({
+    isOpen,
+    className,
+    children,
+  }: {
+    isOpen: boolean;
+    className?: string;
+    children: React.ReactNode;
+  }) => (isOpen ? <div className={className}>{children}</div> : null),
 }));
 vi.mock('@/store/readerStore', () => {
   const state = {
@@ -228,6 +235,16 @@ describe('MarginsPopover', () => {
     await open();
     const header = screen.getByRole('radiogroup', { name: 'Show Margins' }).closest('.bg-base-200');
     expect(header?.className).toContain('shrink-0');
+  });
+
+  it('lets the list scroll inside the height-capped panel', async () => {
+    await open();
+    const header = screen.getByRole('radiogroup', { name: 'Show Margins' }).closest('.bg-base-200');
+    const column = header!.parentElement!;
+    expect(column.parentElement!.className.split(' ')).toEqual(
+      expect.arrayContaining(['flex', 'flex-col']),
+    );
+    expect(column.className.split(' ')).toContain('min-h-0');
   });
 
   it('switches the display through a three-option radiogroup', async () => {
