@@ -2,8 +2,7 @@ import { Ink, inkViewBox } from '@/libs/ink/builder';
 import { bandFill } from '@/libs/ink/fills';
 import { roundRectPoly } from '@/libs/ink/geom';
 import { box, check, underline } from '@/libs/ink/shapes';
-
-export const INK_SKIN_THEMES = ['paper'];
+import { INK_SKIN_THEMES } from '@/styles/themes';
 
 const STYLE_ID = 'ink-skin';
 const FRAME_PAD = 6;
@@ -61,7 +60,10 @@ const toDataUri = (
 export const applyInkSkin = (themeName: string): void => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  document.getElementById(STYLE_ID)?.remove();
+  const key = `${themeName}|${root.dataset['theme']}`;
+  const existing = document.getElementById(STYLE_ID);
+  if (existing?.dataset['key'] === key) return;
+  existing?.remove();
   if (!INK_SKIN_THEMES.includes(themeName)) {
     delete root.dataset['inkSkin'];
     return;
@@ -72,6 +74,7 @@ export const applyInkSkin = (themeName: string): void => {
   );
   const style = document.createElement('style');
   style.id = STYLE_ID;
+  style.dataset['key'] = key;
   style.textContent = `:root{${vars.join('')}}`;
   document.head.appendChild(style);
   root.dataset['inkSkin'] = '';

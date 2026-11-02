@@ -2219,5 +2219,6 @@
   "This folder is an external library. Uncheck to stop reading its books in place; future imports will copy books into the library.": "Thư mục này là thư viện ngoài. Bỏ chọn để ngừng đọc sách tại chỗ; các lần nhập sau sẽ sao chép sách vào thư viện.",
   "More Settings": "Cài đặt khác",
   "Right-to-Left Pages": "Trang từ phải sang trái",
-  "Send Document Metadata": "Gửi siêu dữ liệu tài liệu"
+  "Send Document Metadata": "Gửi siêu dữ liệu tài liệu",
+  "Neue Paper uses Kevin Sans until you pick a font": "__STRING_NOT_TRANSLATED__"
 }

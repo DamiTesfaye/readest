@@ -3,8 +3,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useThemeStore } from '@/store/themeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSafeAreaInsets } from './useSafeAreaInsets';
-import { themes, applyCustomTheme, Palette } from '@/styles/themes';
-import { applyInkSkin } from '@/styles/inkSkin';
+import { themes, applyCustomTheme, Palette, syncInkSkin } from '@/styles/themes';
 import { getStatusBarHeight, setSystemUIVisibility } from '@/utils/bridge';
 import { getOSPlatform } from '@/utils/misc';
 import { parseWebViewVersion } from '@/utils/ua';
@@ -131,7 +130,7 @@ export const useTheme = ({
   useEffect(() => {
     const colorScheme = isDarkMode ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', `${themeColor}-${colorScheme}`);
-    applyInkSkin(themeColor);
+    syncInkSkin(themeColor);
     document.documentElement.style.setProperty('color-scheme', colorScheme);
     document.documentElement.style.setProperty('--scroll-bg-opacity', isBwEink ? '1.0' : '0.5');
     document.documentElement.style.setProperty(

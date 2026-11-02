@@ -16,6 +16,12 @@ vi.mock('@/context/EnvContext', () => ({
   }),
 }));
 
+const theme = vi.hoisted(() => ({ color: 'default' }));
+vi.mock('@/store/themeStore', () => ({
+  useThemeStore: (select: (state: { themeColor: string }) => unknown) =>
+    select({ themeColor: theme.color }),
+}));
+
 vi.mock('@/helpers/settings', () => ({ saveViewSettings: vi.fn() }));
 
 vi.mock('@/store/readerStore', () => ({
@@ -66,6 +72,18 @@ describe('FontPanel bookFontChosen', () => {
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'pick-monospace' }));
     expect(flagWrites()).toEqual([]);
+  });
+
+  it('shows the Kevin Sans hint only under Neue Paper before a pick', () => {
+    const hint = 'Neue Paper uses Kevin Sans until you pick a font';
+    theme.color = 'default';
+    renderPanel();
+    expect(screen.queryByText(hint)).toBeNull();
+    cleanup();
+    theme.color = 'paper';
+    renderPanel();
+    expect(screen.getByText(hint)).toBeTruthy();
+    theme.color = 'default';
   });
 
   it('clears the flag on reset', () => {

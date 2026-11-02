@@ -19,6 +19,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useReaderStore } from '@/store/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useThemeStore } from '@/store/themeStore';
 import { useCustomFontStore } from '@/store/customFontStore';
 import { getOSPlatform, isCJKEnv } from '@/utils/misc';
 import { getSysFontsList } from '@/utils/bridge';
@@ -98,6 +99,7 @@ const FontPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
   const { getView, getViewSettings } = useReaderStore();
   const { settings, fontPanelView, setFontPanelView } = useSettingsStore();
   const { fonts: allCustomFonts, getFontFamilies } = useCustomFontStore();
+  const themeColor = useThemeStore((state) => state.themeColor);
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
   const view = getView(bookKey);
 
@@ -367,7 +369,14 @@ const FontPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
         )}
       </BoxedList>
 
-      <BoxedList title={_('Font Face')}>
+      <BoxedList
+        title={_('Font Face')}
+        description={
+          themeColor === 'paper' && !viewSettings.bookFontChosen
+            ? _('Neue Paper uses Kevin Sans until you pick a font')
+            : undefined
+        }
+      >
         <FontFace
           family='serif'
           label={_('Serif Font')}

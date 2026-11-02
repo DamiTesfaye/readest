@@ -51,6 +51,17 @@ describe('applyInkSkin', () => {
     expect(document.querySelectorAll('#ink-skin')).toHaveLength(1);
   });
 
+  it('skips regeneration when theme and mood are unchanged', () => {
+    applyInkSkin('paper');
+    const first = document.getElementById('ink-skin');
+    applyInkSkin('paper');
+    expect(document.getElementById('ink-skin')).toBe(first);
+    document.documentElement.setAttribute('data-theme', 'paper-dark');
+    applyInkSkin('paper');
+    expect(document.getElementById('ink-skin')).not.toBe(first);
+    document.documentElement.removeAttribute('data-theme');
+  });
+
   it('removes the skin for other themes', () => {
     applyInkSkin('paper');
     applyInkSkin('desert-sunset');

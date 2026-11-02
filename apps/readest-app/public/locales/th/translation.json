@@ -2219,5 +2219,6 @@
   "This folder is an external library. Uncheck to stop reading its books in place; future imports will copy books into the library.": "โฟลเดอร์นี้เป็นคลังหนังสือภายนอก ยกเลิกการเลือกเพื่อหยุดอ่านหนังสือจากตำแหน่งเดิม การนำเข้าครั้งต่อไปจะคัดลอกหนังสือเข้าคลังหนังสือ",
   "More Settings": "การตั้งค่าเพิ่มเติม",
   "Right-to-Left Pages": "หน้าจากขวาไปซ้าย",
-  "Send Document Metadata": "ส่งข้อมูลเมตาของเอกสาร"
+  "Send Document Metadata": "ส่งข้อมูลเมตาของเอกสาร",
+  "Neue Paper uses Kevin Sans until you pick a font": "__STRING_NOT_TRANSLATED__"
 }

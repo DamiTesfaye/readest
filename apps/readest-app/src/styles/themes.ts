@@ -399,3 +399,13 @@ export const applyCustomTheme = (
     dark: darkThemeName,
   };
 };
+
+export const INK_SKIN_THEMES = ['paper'];
+
+let inkSkinRequested = false;
+// The ink engine loads only once a skinned theme is picked; later calls keep going through it so they apply in order.
+export const syncInkSkin = (themeName: string): void => {
+  if (!inkSkinRequested && !INK_SKIN_THEMES.includes(themeName)) return;
+  inkSkinRequested = true;
+  void import('@/styles/inkSkin').then((m) => m.applyInkSkin(themeName));
+};

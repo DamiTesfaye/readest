@@ -37,6 +37,18 @@ for (const mode of ['light', 'dark'] as const) {
     const html = page.locator(`html[data-theme="paper-${mode}"][data-ink-skin]`);
     await expect(html).toHaveCount(1);
     await expect(page.locator('#ink-skin')).toHaveCount(1);
+    const frames = await page.evaluate(() => {
+      const row = document.body.appendChild(document.createElement('div'));
+      row.innerHTML =
+        '<button class="btn"></button>'.repeat(3) +
+        '<button class="btn btn-ghost"></button>'.repeat(2);
+      const sources = [...row.children].map((el) => getComputedStyle(el).borderImageSource);
+      row.remove();
+      return sources;
+    });
+    expect(new Set(frames.slice(0, 3)).size).toBe(3);
+    expect(frames.slice(0, 3)).not.toContain('none');
+    expect(frames.slice(3)).toEqual(['none', 'none']);
     const headerFont = await reader.headerBar.evaluate((el) => getComputedStyle(el).fontFamily);
     expect(headerFont).toContain('Kevin Sans Hand');
 

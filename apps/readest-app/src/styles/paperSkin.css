@@ -21,7 +21,7 @@
   line-gap-override: 0%;
 }
 
-:root[data-theme^='paper-']:not([data-eink='true']) {
+:root[data-theme^='paper-'] {
   --ll-ink: #2a2420;
   --ll-ink-soft: #4a423b;
   --ll-pencil: #6b6660;
@@ -37,6 +37,9 @@
   --ll-rule-red: #d9776a;
   --ll-blend: multiply;
   --ll-on-marker: #2a2420;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) {
   --paper-font:
     'Kevin Sans Hand', 'Avenir Next LT Pro', 'Avenir Next', Inter, ui-sans-serif, system-ui,
     sans-serif;
@@ -46,7 +49,7 @@
   font-family: var(--paper-font);
 }
 
-:root[data-theme='paper-dark']:not([data-eink='true']) {
+:root[data-theme='paper-dark'] {
   --ll-ink: #ece8dc;
   --ll-ink-soft: #cfcabd;
   --ll-pencil: #9aa1a0;
@@ -99,7 +102,7 @@
 /* Hand-drawn chrome. Image rules wait for data-ink-skin (set by applyInkSkin) so an unset
    --ink-* var never invalidates a background shorthand. */
 :root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
-  :is(
+  :where(
     .btn:not(.btn-ghost, .btn-link),
     .card.border,
     .modal-box,
@@ -122,12 +125,16 @@
 }
 
 :root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
-  :is(.btn, .card, .input-bordered, .bookitem-main):nth-child(3n + 2) {
+  :is(.btn:not(.btn-ghost, .btn-link), .card.border, .input-bordered, .bookitem-main):nth-child(
+    3n + 2
+  ) {
   border-image-source: var(--ink-frame-2);
 }
 
 :root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
-  :is(.btn, .card, .input-bordered, .bookitem-main):nth-child(3n + 3) {
+  :is(.btn:not(.btn-ghost, .btn-link), .card.border, .input-bordered, .bookitem-main):nth-child(
+    3n + 3
+  ) {
   border-image-source: var(--ink-frame-3);
 }
 
@@ -150,9 +157,7 @@
   border-image: var(--ink-frame-bold) 14 / 14px / 6px stretch;
 }
 
-:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
-  .bottom-tab
-  [aria-current='page'] {
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .bottom-tab [aria-current] {
   background: var(--ink-underline) bottom / 100% 6px no-repeat transparent;
 }
 
