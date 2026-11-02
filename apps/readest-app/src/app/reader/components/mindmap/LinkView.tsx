@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { linkShape } from '@/services/mindmap/records/linkGeometry';
 import type { LinkRecord, MapStyle, PositionedRecord } from '@/services/mindmap/schema/types';
 import { liveLinkEnds, recordBounds } from '@/services/mindmap/spatial/spatialIndex';
 import type { MapStore } from '@/services/mindmap/store/mapStore';
 import type { RegisterElement } from './RecordView';
 import { useRecord } from './useCanvasStores';
+import { sketchMarkup } from '@/styles/inkSkin';
 
 interface LinkViewProps {
   link: LinkRecord;
@@ -12,24 +13,54 @@ interface LinkViewProps {
   to: PositionedRecord;
   mapStyle: MapStyle;
   register: RegisterElement;
+  sketch?: boolean;
 }
 
 const shapeOf = ({ link, from, to }: Pick<LinkViewProps, 'link' | 'from' | 'to'>) =>
   linkShape(recordBounds(from), recordBounds(to), link);
 
-const LinkPathView: React.FC<LinkViewProps> = ({ link, from, to, mapStyle, register }) => (
-  <path
-    ref={(element) => (element ? register(link.id, element) : undefined)}
-    data-record-id={link.id}
-    data-testid={`mm-link-${link.id}`}
-    d={shapeOf({ link, from, to }).d}
-    fill='none'
-    stroke='var(--mm-link)'
-    strokeWidth={mapStyle === 'sticker' ? 3 : 2}
-    strokeDasharray={link.dash ? '8 6' : undefined}
-    strokeLinecap='round'
-  />
-);
+const SketchedLinkView: React.FC<LinkViewProps> = ({ link, from, to, mapStyle, register }) => {
+  const shape = shapeOf({ link, from, to });
+  const svg = useMemo(
+    () =>
+      sketchMarkup(link.id, 0, 0, (ink) => {
+        ink.stroke(
+          shape.points.map((p) => [p.x, p.y]),
+          'ink',
+          { color: 'current', width: mapStyle === 'sticker' ? 1.4 : 1 },
+        );
+      }).svg,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [link.id, shape.d, mapStyle],
+  );
+  return (
+    <g
+      ref={(element) => (element ? register(link.id, element) : undefined)}
+      data-record-id={link.id}
+      data-testid={`mm-link-${link.id}`}
+      style={{ color: 'var(--mm-link)' }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+};
+
+const LinkPathView: React.FC<LinkViewProps> = (props) => {
+  const { link, from, to, mapStyle, register, sketch } = props;
+  if (sketch && !link.dash) return <SketchedLinkView {...props} />;
+  return (
+    <path
+      ref={(element) => (element ? register(link.id, element) : undefined)}
+      data-record-id={link.id}
+      data-testid={`mm-link-${link.id}`}
+      d={shapeOf({ link, from, to }).d}
+      fill='none'
+      stroke='var(--mm-link)'
+      strokeWidth={mapStyle === 'sticker' ? 3 : 2}
+      strokeDasharray={link.dash ? '8 6' : undefined}
+      strokeLinecap='round'
+    />
+  );
+};
 
 const LinkLabelView: React.FC<LinkViewProps> = ({ link, from, to, mapStyle, register }) => {
   if (!link.label) return null;
@@ -57,6 +88,7 @@ interface LinkSlotProps {
   store: MapStore;
   mapStyle: MapStyle;
   register: RegisterElement;
+  sketch?: boolean;
 }
 
 const useLinkEnds = (store: MapStore, id: string) => {

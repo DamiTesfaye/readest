@@ -40,10 +40,17 @@ interface WorldLayerProps {
   controller: CanvasController;
   mapStyle: MapStyle;
   animate: boolean;
+  sketch?: boolean;
   children?: React.ReactNode;
 }
 
-const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, children }) => {
+const WorldLayer: React.FC<WorldLayerProps> = ({
+  controller,
+  mapStyle,
+  animate,
+  sketch,
+  children,
+}) => {
   const _ = useTranslation();
   const { store } = controller;
   const rendered = useRef(new Set<string>());
@@ -189,7 +196,14 @@ const WorldLayer: React.FC<WorldLayerProps> = ({ controller, mapStyle, animate, 
         aria-hidden='true'
       >
         {ids.links.map((id) => (
-          <LinkPath key={id} id={id} store={store} mapStyle={mapStyle} register={register} />
+          <LinkPath
+            key={id}
+            id={id}
+            store={store}
+            mapStyle={mapStyle}
+            register={register}
+            sketch={sketch}
+          />
         ))}
       </svg>
       {ids.others.map(renderRecord)}

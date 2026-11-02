@@ -14,6 +14,7 @@ import { FoliateView, NOTE_PREFIX } from '@/types/view';
 import { NativeTouchEventType } from '@/types/system';
 import { getLocale, getOSPlatform, makeSafeFilename, uniqueId } from '@/utils/misc';
 import { useThemeStore } from '@/store/themeStore';
+import { inkAnnotations } from '@/app/reader/utils/inkAnnotations';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { getBookProgress, useBookProgress } from '@/store/readerProgressStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -115,7 +116,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const { envConfig, appService } = useEnv();
   const { settings, setSettingsDialogBookKey, setSettingsDialogOpen, setActiveSettingsItemId } =
     useSettingsStore();
-  const { isDarkMode } = useThemeStore();
+  const { isDarkMode, themeColor } = useThemeStore();
   // Per-field selectors — see store/readerProgressStore.ts header for the
   // "destructure-subscribes-the-whole-store" rationale.
   const getConfig = useBookDataStore((s) => s.getConfig);
@@ -496,6 +497,10 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
   const onDrawAnnotation = (event: Event) => {
     const viewSettings = getViewSettings(bookKey)!;
     const isBwEink = viewSettings.isEink && !viewSettings.isColorEink;
+    const drawers =
+      useThemeStore.getState().themeColor === 'paper' && !viewSettings.isEink
+        ? inkAnnotations
+        : Overlayer;
     const detail = (event as CustomEvent).detail;
     const { draw, annotation, doc, range } = detail;
     const { style, color } = annotation as BookNote;
@@ -515,7 +520,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       const { writingMode } = defaultView.getComputedStyle(el);
       draw(Overlayer.bubble, { writingMode });
     } else if (kind === 'highlight') {
-      draw(Overlayer.highlight, {
+      draw(drawers.highlight, {
         color: isBwEink ? einkBgColor : hexColor,
         vertical: viewSettings.vertical,
       });
@@ -524,7 +529,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       const node = range.startContainer;
       const el = node.nodeType === 1 ? node : node.parentElement;
       const { writingMode } = defaultView.getComputedStyle(el);
-      draw(Overlayer.strikethrough, {
+      draw(drawers.strikethrough, {
         writingMode,
         color: isBwEink ? einkFgColor : hexColor,
       });
@@ -541,7 +546,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       const padding = viewSettings.vertical
         ? (lineHeightValue - fontSizeValue) / 2 - strokeWidth + verticalCompensation
         : (lineHeightValue - fontSizeValue) / 2 - strokeWidth + horizontalCompensation;
-      draw(Overlayer[kind], {
+      draw(drawers[kind], {
         writingMode,
         color: isBwEink ? einkFgColor : hexColor,
         padding,
@@ -1086,7 +1091,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets }> = ({
       console.warn(e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress, annotationIndex, translationEpoch]);
+  }, [progress, annotationIndex, translationEpoch, themeColor]);
 
   // Translations are appended long after a section's annotations were drawn, so
   // a highlight anchored inside translated text has nothing to attach to at
