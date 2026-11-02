@@ -178,10 +178,11 @@ export const themes = [
     name: 'paper',
     label: _('Neue Paper'),
     colors: {
-      light: generateLightPalette({ fg: '#2b2b28', bg: '#faf7f0', primary: '#4f7a6a' }),
-      dark: generateDarkPalette({ fg: '#e0ddd4', bg: '#26261f', primary: '#8ab4a0' }),
+      light: generateLightPalette({ fg: '#2a2420', bg: '#f8f5ee', primary: '#a9481a' }),
+      dark: generateDarkPalette({ fg: '#ece8dc', bg: '#2a3033', primary: '#f2a272' }),
     },
-    previewFont: 'Bitter, Georgia, serif',
+    previewFont:
+      "'Kevin Sans Hand', 'Avenir Next LT Pro', 'Avenir Next', Inter, ui-sans-serif, system-ui, sans-serif",
     scene: {},
   },
   {

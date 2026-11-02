@@ -1,0 +1,97 @@
+/* Neue Paper: the hand-drawn LooseLeaf skin. Kevin Sans is MIT (public/fonts/LICENSE-looseleaf.txt). */
+@font-face {
+  font-family: 'Kevin Sans Hand';
+  src: url('/fonts/KevinSans-Regular.woff2') format('woff2');
+  font-weight: 100 500;
+  font-display: swap;
+  size-adjust: 88%;
+  ascent-override: 120.45%;
+  descent-override: 60.23%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Kevin Sans Hand';
+  src: url('/fonts/KevinSans-Bold.woff2') format('woff2');
+  font-weight: 600 900;
+  font-display: swap;
+  size-adjust: 88%;
+  ascent-override: 120.45%;
+  descent-override: 60.23%;
+  line-gap-override: 0%;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) {
+  --ll-ink: #2a2420;
+  --ll-ink-soft: #4a423b;
+  --ll-pencil: #6b6660;
+  --ll-pencil-mark: #8e887f;
+  --ll-marker: #df6b3c;
+  --ll-hi: #f8dc4c;
+  --ll-focus: #2c4f9e;
+  --ll-red: #c2412d;
+  --ll-paper: #f8f5ee;
+  --ll-paper-shade: #ece6da;
+  --ll-slip: #fbf8f1;
+  --ll-rule-blue: #8fb0d4;
+  --ll-rule-red: #d9776a;
+  --ll-blend: multiply;
+  --ll-on-marker: #2a2420;
+  --paper-font:
+    'Kevin Sans Hand', 'Avenir Next LT Pro', 'Avenir Next', Inter, ui-sans-serif, system-ui,
+    sans-serif;
+  --rounded-box: 3px;
+  --rounded-btn: 3px;
+  --rounded-badge: 3px;
+  font-family: var(--paper-font);
+}
+
+:root[data-theme='paper-dark']:not([data-eink='true']) {
+  --ll-ink: #ece8dc;
+  --ll-ink-soft: #cfcabd;
+  --ll-pencil: #9aa1a0;
+  --ll-pencil-mark: #7d8584;
+  --ll-marker: #e8925e;
+  --ll-hi: #e9d36a;
+  --ll-focus: #8fb8ff;
+  --ll-red: #f08a7a;
+  --ll-paper: #2a3033;
+  --ll-paper-shade: #353c40;
+  --ll-slip: #31383b;
+  --ll-rule-blue: #6f8fae;
+  --ll-rule-red: #b8675c;
+  --ll-blend: screen;
+  --ll-on-marker: #1f2427;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])
+  :is(
+    .font-sans,
+    .popover-title,
+    .popover-label,
+    .popover-field-label,
+    .popover-action-label,
+    [class*='[font-family:'],
+    [data-mm-mode] .font-serif
+  ) {
+  font-family: var(--paper-font);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])
+  :is(.rounded-sm, .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl) {
+  border-radius: 3px;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) .shadow-sm {
+  --tw-shadow: 0 1px 1.5px rgb(58 44 30 / 0.16);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) .shadow-md {
+  --tw-shadow: 0 1px 1.5px rgb(58 44 30 / 0.2), 0 7px 16px -4px rgb(58 44 30 / 0.2);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) :is(.shadow-lg, .shadow-xl) {
+  --tw-shadow:
+    0 1px 1.5px rgb(58 44 30 / 0.2), 0 2px 5px -1px rgb(58 44 30 / 0.1),
+    0 12px 22px -8px rgb(58 44 30 / 0.2);
+}

@@ -163,6 +163,12 @@ const FontPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
       monospaceFont: setMonospaceFont,
       fontWeight: setFontWeight,
     });
+    saveViewSettings(envConfig, bookKey, 'bookFontChosen', false);
+  };
+
+  const chooseBookFont = (setFont: (font: string) => void) => (font: string) => {
+    setFont(font);
+    saveViewSettings(envConfig, bookKey, 'bookFontChosen', true);
   };
 
   const handleManageCustomFonts = () => {
@@ -368,7 +374,7 @@ const FontPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
           options={[...customFonts, ...SERIF_FONTS.filter(filterNonFreeFonts), ...CJK_SERIF_FONTS]}
           moreOptions={sysFonts}
           selected={serifFont}
-          onSelect={setSerifFont}
+          onSelect={chooseBookFont(setSerifFont)}
           data-setting-id='settings.font.serifFont'
         />
         <FontFace
@@ -381,7 +387,7 @@ const FontPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
           ]}
           moreOptions={sysFonts}
           selected={sansSerifFont}
-          onSelect={setSansSerifFont}
+          onSelect={chooseBookFont(setSansSerifFont)}
           data-setting-id='settings.font.sansSerifFont'
         />
         <FontFace
