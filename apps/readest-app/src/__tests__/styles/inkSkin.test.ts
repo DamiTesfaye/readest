@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { box } from '@/libs/ink/shapes';
-import { sketchMarkup } from '@/styles/inkSkin';
+import { applyInkSkin, sketchMarkup } from '@/styles/inkSkin';
 
 describe('sketchMarkup', () => {
   const draw = (seed: string | number) =>
@@ -18,5 +18,43 @@ describe('sketchMarkup', () => {
 
   it('differs across seeds', () => {
     expect(draw('frame-1').svg).not.toBe(draw('frame-2').svg);
+  });
+});
+
+describe('applyInkSkin', () => {
+  const VARS = ['frame-1', 'frame-2', 'frame-3', 'frame-bold', 'underline', 'fill', 'check'];
+  const skinText = () => document.getElementById('ink-skin')?.textContent ?? '';
+
+  afterEach(() => {
+    applyInkSkin('default');
+  });
+
+  it('writes every ink var as an SVG data URI and sets the gate attribute', () => {
+    applyInkSkin('paper');
+    const text = skinText();
+    for (const name of VARS) {
+      const match = text.match(new RegExp(`--ink-${name}:url\\("data:image/svg\\+xml,([^"]+)"\\)`));
+      expect(match, name).not.toBeNull();
+      expect(decodeURIComponent(match![1]!)).toMatch(
+        /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/,
+      );
+      expect(decodeURIComponent(match![1]!)).not.toContain('var(--ll-');
+    }
+    expect(document.documentElement.hasAttribute('data-ink-skin')).toBe(true);
+  });
+
+  it('is idempotent', () => {
+    applyInkSkin('paper');
+    const first = skinText();
+    applyInkSkin('paper');
+    expect(skinText()).toBe(first);
+    expect(document.querySelectorAll('#ink-skin')).toHaveLength(1);
+  });
+
+  it('removes the skin for other themes', () => {
+    applyInkSkin('paper');
+    applyInkSkin('desert-sunset');
+    expect(document.getElementById('ink-skin')).toBeNull();
+    expect(document.documentElement.hasAttribute('data-ink-skin')).toBe(false);
   });
 });

@@ -71,6 +71,7 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
           }}
           title={getTabLabel(tab)}
           aria-label={getTabLabel(tab)}
+          aria-current={activeTab === tab ? 'page' : undefined}
         >
           <div className='m-0 flex h-6 items-center p-0'>{getTabIcon(tab)}</div>
         </div>

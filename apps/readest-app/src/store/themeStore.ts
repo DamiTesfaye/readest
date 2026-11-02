@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { addPluginListener, type PluginListener } from '@tauri-apps/api/core';
 import { AppService } from '@/types/system';
 import { getThemeCode, ThemeCode } from '@/utils/style';
+import { applyInkSkin } from '@/styles/inkSkin';
 import {
   getSystemColorScheme,
   startAmbientLightUpdates,
@@ -152,6 +153,7 @@ const applyDataTheme = (themeColor: string, isDarkMode: boolean) => {
     'data-theme',
     `${themeColor}-${isDarkMode ? 'dark' : 'light'}`,
   );
+  applyInkSkin(themeColor);
 };
 
 let ambientLightListener: PluginListener | null = null;

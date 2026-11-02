@@ -95,3 +95,101 @@
     0 1px 1.5px rgb(58 44 30 / 0.2), 0 2px 5px -1px rgb(58 44 30 / 0.1),
     0 12px 22px -8px rgb(58 44 30 / 0.2);
 }
+
+/* Hand-drawn chrome. Image rules wait for data-ink-skin (set by applyInkSkin) so an unset
+   --ink-* var never invalidates a background shorthand. */
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(
+    .btn:not(.btn-ghost, .btn-link),
+    .card.border,
+    .modal-box,
+    .menu-container,
+    .popup-container,
+    .dropdown-content,
+    [data-radix-popper-content-wrapper] > *,
+    .input-bordered,
+    .select-bordered:not(.\!border-0),
+    .textarea-bordered,
+    .toggle,
+    .checkbox,
+    .bookitem-main,
+    .btn-ghost:hover,
+    [data-record-id]
+      > div
+      > :is(.border, .border-2, [class*='border-[3px]']):not(.border-dashed, .rounded-full)
+  ) {
+  border-image: var(--ink-frame-1) 14 / 14px / 6px stretch;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(.btn, .card, .input-bordered, .bookitem-main):nth-child(3n + 2) {
+  border-image-source: var(--ink-frame-2);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(.btn, .card, .input-bordered, .bookitem-main):nth-child(3n + 3) {
+  border-image-source: var(--ink-frame-3);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  [data-record-id]
+  > div
+  > :is(.border, .border-2, [class*='border-[3px]']):not(.border-dashed, .rounded-full) {
+  border-radius: 4px;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(.btn-primary, [role='radio'][aria-checked='true'].bg-primary) {
+  background: var(--ink-fill) center / 100% 100% no-repeat transparent;
+  color: var(--ll-on-marker);
+  border-image-source: var(--ink-frame-bold);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  [role='radio'][aria-checked='true'].bg-primary {
+  border-image: var(--ink-frame-bold) 14 / 14px / 6px stretch;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  .bottom-tab
+  [aria-current='page'] {
+  background: var(--ink-underline) bottom / 100% 6px no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .checkbox:checked {
+  background: var(--ink-check) center / 80% no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .header-bar {
+  background-image: var(--ink-underline);
+  background-position: bottom;
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .footer-bar {
+  background-image: var(--ink-underline);
+  background-position: top;
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .sticky-progress-track {
+  border-color: transparent;
+  background: var(--ink-underline) center / 100% 100% no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .sticky-progress-fill {
+  background: var(--ink-fill) center / 100% 100% no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) :focus-visible {
+  outline: 2px solid var(--ll-focus);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :root[data-theme^='paper-'] * {
+    border-image: none !important;
+  }
+}
