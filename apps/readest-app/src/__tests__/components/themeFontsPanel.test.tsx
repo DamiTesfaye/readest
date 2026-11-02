@@ -7,8 +7,10 @@ vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => (key: string) => key,
 }));
 
+const themeState = vi.hoisted(() => ({ themeColor: 'paper' }));
+
 vi.mock('@/store/themeStore', () => ({
-  useThemeStore: () => ({ themeColor: 'paper', setThemeColor: vi.fn() }),
+  useThemeStore: () => ({ themeColor: themeState.themeColor, setThemeColor: vi.fn() }),
 }));
 
 vi.mock('@/components/themefonts/ControlRow', () => ({
@@ -24,14 +26,17 @@ vi.mock('@/components/PopoverTitleBar', () => ({
 }));
 
 vi.mock('@/components/themescene/ThemeSceneArt', () => ({
-  default: () => null,
+  default: ({ themeName }: { themeName: string }) => <i data-testid={`scene-${themeName}`} />,
 }));
 
 vi.mock('@/components/themescene/useSceneMotion', () => ({
   useSceneMotion: () => ({ active: false, handlers: {}, onSelect: vi.fn() }),
 }));
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  themeState.themeColor = 'paper';
+});
 
 describe('ThemeFontsPanel Customize button', () => {
   it('renders the label without the brush icon', () => {
@@ -50,5 +55,20 @@ describe('ThemeCardGrid card titles', () => {
     expect(title.className).toMatch(/\bwhitespace-normal\b/);
     expect(title.className).toMatch(/\bbreak-words\b/);
     expect(title.className).toMatch(/\btext-center\b/);
+  });
+});
+
+describe('ThemeCardGrid Neue Paper card', () => {
+  it('draws the hand-drawn card while Neue Paper is active', () => {
+    render(<ThemeCardGrid />);
+    expect(screen.getByTestId('paper-card-art')).toBeTruthy();
+    expect(screen.queryByTestId('scene-paper')).toBeNull();
+  });
+
+  it('keeps the scene art under any other theme', () => {
+    themeState.themeColor = 'desert-sunset';
+    render(<ThemeCardGrid />);
+    expect(screen.queryByTestId('paper-card-art')).toBeNull();
+    expect(screen.getByTestId('scene-paper')).toBeTruthy();
   });
 });
