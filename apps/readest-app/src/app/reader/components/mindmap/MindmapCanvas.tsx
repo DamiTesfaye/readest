@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useThemeStore } from '@/store/themeStore';
 import type { Point } from '@/services/mindmap/records/geometry';
 import type { MapStyle, RecordAnchor } from '@/services/mindmap/schema/types';
 import { isLive } from '@/services/mindmap/spatial/spatialIndex';
@@ -71,6 +72,7 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
   const [menu, setMenu] = useState<Point | null>(null);
   const eink = mode === 'eink';
   const effectiveStyle: MapStyle = eink ? 'ink' : mapStyle;
+  const sketch = useThemeStore((s) => s.themeColor) === 'paper' && !eink;
   const cssVars = useMemo(() => mindmapCssVars(mode), [mode]);
 
   const focusRecord = useCallback((id: string) => {
@@ -204,7 +206,12 @@ const MindmapCanvas: React.FC<MindmapCanvasProps> = ({
       }}
     >
       <GridLayer camera={controller.camera} eink={eink} />
-      <WorldLayer controller={controller} mapStyle={effectiveStyle} animate={animate}>
+      <WorldLayer
+        controller={controller}
+        mapStyle={effectiveStyle}
+        animate={animate}
+        sketch={sketch}
+      >
         {worldChildren}
       </WorldLayer>
       <LiveLayer controller={controller} />

@@ -80,14 +80,53 @@ const buildFontFamilyLists = (
  * --serif/--sans-serif CSS variables. Custom fonts are already mounted in the
  * top document, so the returned chain resolves them by family name.
  */
-export const getBaseFontFamily = (viewSettings: ViewSettings): string => {
+export const getBaseFontFamily = (
+  viewSettings: ViewSettings,
+  themeName: string | undefined = getThemeCode().themeName,
+): string => {
+  const fonts = withThemeFonts(viewSettings, themeName);
   const families = buildFontFamilyLists(
-    viewSettings.serifFont!,
-    viewSettings.sansSerifFont!,
-    viewSettings.monospaceFont!,
-    viewSettings.defaultCJKFont!,
+    fonts.serifFont!,
+    fonts.sansSerifFont!,
+    fonts.monospaceFont!,
+    fonts.defaultCJKFont!,
   );
-  return viewSettings.defaultFont!.toLowerCase() === 'serif' ? families.serif : families.sansSerif;
+  return fonts.defaultFont!.toLowerCase() === 'serif' ? families.serif : families.sansSerif;
+};
+
+const PAPER_FONT = 'Kevin Sans Hand';
+
+// Neue Paper defaults the book to Kevin Sans until the user picks a book font.
+const withThemeFonts = (viewSettings: ViewSettings, themeName?: string): ViewSettings => {
+  if (themeName !== 'paper' || viewSettings.bookFontChosen) return viewSettings;
+  return {
+    ...viewSettings,
+    serifFont: viewSettings.serifFont === 'Bitter' ? PAPER_FONT : viewSettings.serifFont,
+    sansSerifFont:
+      viewSettings.sansSerifFont === 'Roboto' ? PAPER_FONT : viewSettings.sansSerifFont,
+  };
+};
+
+// Absolute URLs: the reader iframe is a blob document and can't resolve /fonts/.
+const paperFontFaces = () => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return [
+    ['Regular', '100 500'],
+    ['Bold', '600 900'],
+  ]
+    .map(
+      ([file, weight]) => `@font-face {
+  font-family: "${PAPER_FONT}";
+  src: url("${origin}/fonts/KevinSans-${file}.woff2") format("woff2");
+  font-weight: ${weight};
+  font-display: swap;
+  size-adjust: 88%;
+  ascent-override: 120.45%;
+  descent-override: 60.23%;
+  line-gap-override: 0%;
+}`,
+    )
+    .join('\n');
 };
 
 /**
@@ -1075,6 +1114,7 @@ export interface ThemeCode {
   primary: string;
   palette: Palette;
   isDarkMode: boolean;
+  themeName?: string;
 }
 
 export const getThemeCode = () => {
@@ -1144,6 +1184,7 @@ export const getThemeCode = () => {
     primary: defaultPalette.primary,
     palette: defaultPalette,
     isDarkMode,
+    themeName: themeColor,
   } as ThemeCode;
 };
 
@@ -1177,9 +1218,10 @@ export const getStyles = (
         viewSettings.hyphenation!,
         viewSettings.vertical!,
       );
+  const fonts = withThemeFonts(viewSettings, themeCode.themeName);
   const fontStyles = getFontStyles(
-    viewSettings.serifFont!,
-    viewSettings.sansSerifFont!,
+    fonts.serifFont!,
+    fonts.sansSerifFont!,
     viewSettings.monospaceFont!,
     viewSettings.defaultFont!,
     viewSettings.defaultCJKFont!,
@@ -1195,7 +1237,9 @@ export const getStyles = (
   // the configured font instead of falling back to serif/sans-serif and
   // visibly swapping a moment later. Blob URLs are already in memory, so
   // no network round-trip happens here.
-  const customFontFaces = getCustomFontFaces(customFonts);
+  const customFontFaces =
+    (themeCode.themeName === 'paper' ? paperFontFaces() + '\n' : '') +
+    getCustomFontFaces(customFonts);
   const colorStyles = getColorStyles(
     viewSettings.overrideColor!,
     viewSettings.invertImgColorInDark!,

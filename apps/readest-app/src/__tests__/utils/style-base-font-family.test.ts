@@ -44,6 +44,11 @@ describe('getBaseFontFamily', () => {
     const family = getBaseFontFamily(vs);
     expect(family).toContain('"Source Han Serif CN"');
   });
+
+  it('defaults to Kevin Sans under Neue Paper', () => {
+    const family = getBaseFontFamily(makeFontSettings(), 'paper');
+    expect(family.trimStart().startsWith('"Kevin Sans Hand"')).toBe(true);
+  });
 });
 
 describe('getFontFamilies', () => {

@@ -21,6 +21,7 @@ import {
   ThemeScope,
   resolveThemeName,
   getEffectiveDarkMode,
+  syncInkSkin,
 } from '@/styles/themes';
 import { ThemeBackground, applyBackgroundOverride } from '@/styles/backgrounds';
 import { EnvConfigType, isWebAppPlatform } from '@/services/environment';
@@ -211,6 +212,7 @@ const applyDataTheme = (themeColor: string, isDarkMode: boolean) => {
     'data-theme',
     `${themeColor}-${isDarkMode ? 'dark' : 'light'}`,
   );
+  syncInkSkin(themeColor);
 };
 
 /**

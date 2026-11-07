@@ -232,3 +232,29 @@ describe('OverlayLayer', () => {
     expect(controller.history.canUndo()).toBe(false);
   });
 });
+
+describe('WorldLayer sketched links (Neue Paper)', () => {
+  it('draws a sketched ink group when sketch is on', () => {
+    const controller = controllerFor([elizabeth, darcy, slights]);
+    render(<WorldLayer controller={controller} mapStyle='sticker' animate sketch />);
+    const link = screen.getByTestId('mm-link-l');
+    expect(link.tagName.toLowerCase()).toBe('g');
+    expect(link.getAttribute('data-record-id')).toBe('l');
+    expect(link.querySelectorAll('path').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the plain path without sketch and for dashed links', () => {
+    const plain = controllerFor([elizabeth, darcy, slights]);
+    const { unmount } = render(<WorldLayer controller={plain} mapStyle='sticker' animate />);
+    const path = screen.getByTestId('mm-link-l');
+    expect(path.tagName.toLowerCase()).toBe('path');
+    const d = path.getAttribute('d');
+    unmount();
+
+    const dashed = controllerFor([elizabeth, darcy, { ...slights, dash: true }]);
+    render(<WorldLayer controller={dashed} mapStyle='sticker' animate sketch />);
+    const dashedPath = screen.getByTestId('mm-link-l');
+    expect(dashedPath.tagName.toLowerCase()).toBe('path');
+    expect(dashedPath.getAttribute('d')).toBe(d);
+  });
+});

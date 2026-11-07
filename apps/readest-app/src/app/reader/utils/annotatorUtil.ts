@@ -1,4 +1,5 @@
 import { Overlayer } from 'foliate-js/overlayer.js';
+import { inkAnnotations } from './inkAnnotations';
 import { HIGHLIGHT_COLOR_HEX } from '@/services/constants';
 import {
   BookNote,
@@ -397,10 +398,12 @@ export function drawAnnotationOverlay(
     viewSettings: ViewSettings;
     isDarkMode: boolean;
     isMobile: boolean;
+    ink?: boolean;
   },
 ): void {
   const { draw, annotation, doc, range } = detail;
   const { settings, viewSettings, isDarkMode, isMobile } = ctx;
+  const drawers = ctx.ink ? inkAnnotations : Overlayer;
   const isBwEink = viewSettings.isEink && !viewSettings.isColorEink;
   const { style, color, value } = annotation;
   const hexColor = getHighlightColorHex(settings, color);
@@ -417,13 +420,13 @@ export function drawAnnotationOverlay(
     const { writingMode } = doc.defaultView!.getComputedStyle(startElement());
     draw(Overlayer.bubble, { writingMode });
   } else if (kind === 'highlight') {
-    draw(Overlayer.highlight, {
+    draw(drawers.highlight, {
       color: getAnnotationOverlayColor('highlight', hexColor, { isBwEink, isDarkMode }),
       vertical: viewSettings.vertical,
     });
   } else if (kind === 'strikethrough') {
     const { writingMode } = doc.defaultView!.getComputedStyle(startElement());
-    draw(Overlayer.strikethrough, {
+    draw(drawers.strikethrough, {
       writingMode,
       color: getAnnotationOverlayColor(kind, hexColor, { isBwEink, isDarkMode }),
     });
@@ -437,7 +440,7 @@ export function drawAnnotationOverlay(
     const padding = viewSettings.vertical
       ? (lineHeightValue - fontSizeValue) / 2 - strokeWidth + verticalCompensation
       : (lineHeightValue - fontSizeValue) / 2 - strokeWidth + horizontalCompensation;
-    draw(Overlayer[kind], {
+    draw(drawers[kind], {
       writingMode,
       color: getAnnotationOverlayColor(kind, hexColor, { isBwEink, isDarkMode }),
       padding,

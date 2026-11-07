@@ -155,7 +155,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
   const { envConfig, appService } = useEnv();
   const { settings, setSettingsDialogBookKey, setSettingsDialogOpen, setActiveSettingsItemId } =
     useSettingsStore();
-  const { isDarkMode, isIPhoneDuo, themeCode } = useThemeStore();
+  const { isDarkMode, isIPhoneDuo, themeCode, themeColor } = useThemeStore();
   // Per-field selectors — see store/readerProgressStore.ts header for the
   // "destructure-subscribes-the-whole-store" rationale.
   const getConfig = useBookDataStore((s) => s.getConfig);
@@ -758,6 +758,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
       viewSettings,
       isDarkMode,
       isMobile: !!appService?.isMobile,
+      ink: themeColor === 'paper' && !viewSettings.isEink,
     });
   };
 
@@ -1346,7 +1347,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
       console.warn(e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress, annotationIndex, translationEpoch]);
+  }, [progress, annotationIndex, translationEpoch, themeColor]);
 
   // Translations are appended long after a section's annotations were drawn, so
   // a highlight anchored inside translated text has nothing to attach to at

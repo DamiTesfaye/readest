@@ -1,0 +1,324 @@
+/* Neue Paper: the hand-drawn LooseLeaf skin. Kevin Sans is MIT (public/fonts/LICENSE-looseleaf.txt). */
+@font-face {
+  font-family: 'Kevin Sans Hand';
+  src: url('/fonts/KevinSans-Regular.woff2') format('woff2');
+  font-weight: 100 500;
+  font-display: swap;
+  size-adjust: 88%;
+  ascent-override: 120.45%;
+  descent-override: 60.23%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Kevin Sans Hand';
+  src: url('/fonts/KevinSans-Bold.woff2') format('woff2');
+  font-weight: 600 900;
+  font-display: swap;
+  size-adjust: 88%;
+  ascent-override: 120.45%;
+  descent-override: 60.23%;
+  line-gap-override: 0%;
+}
+
+:root[data-theme^='paper-'] {
+  --ll-ink: #2a2420;
+  --ll-ink-soft: #4a423b;
+  --ll-pencil: #6b6660;
+  --ll-pencil-mark: #8e887f;
+  --ll-marker: #df6b3c;
+  --ll-hi: #f8dc4c;
+  --ll-focus: #2c4f9e;
+  --ll-red: #c2412d;
+  --ll-paper: #f8f5ee;
+  --ll-paper-shade: #ece6da;
+  --ll-slip: #fbf8f1;
+  --ll-rule-blue: #8fb0d4;
+  --ll-rule-red: #d9776a;
+  --ll-blend: multiply;
+  --ll-on-marker: #2a2420;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']):not([data-bg-texture])
+  :is(.sidebar-container, .notebook-container, .foliate-viewer, .library-page aside) {
+  position: relative;
+}
+
+/* Neue Paper sits on LooseLeaf cold-press paper unless the user picked a texture; mirrors createTextureCSS */
+:root[data-theme^='paper-']:not([data-eink='true']):not([data-bg-texture])
+  :is(
+    body,
+    .sidebar-container,
+    .notebook-container,
+    .foliate-viewer,
+    .notch-masked,
+    .library-page aside
+  )::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    url('/images/looseleaf/fibre.png'), url('/images/looseleaf/relief.png'),
+    url('/images/looseleaf/cloud.png');
+  background-size:
+    240px 240px,
+    192px 192px,
+    720px 720px;
+  background-repeat: repeat;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']):not([data-bg-texture]) body::before {
+  height: 100vh;
+}
+
+/* The tiles' highlights read as scratches on slate, so calm them in dark */
+:root[data-theme='paper-dark']:not([data-eink='true']):not([data-bg-texture])
+  :is(
+    body,
+    .sidebar-container,
+    .notebook-container,
+    .foliate-viewer,
+    .notch-masked,
+    .library-page aside
+  )::before {
+  opacity: 0.4;
+}
+
+/* On the library only the sidebar is paper; must follow the rule above to win the tie */
+:root[data-theme^='paper-']:not([data-eink='true']):not([data-bg-texture])
+  body:has(.library-page)::before {
+  content: none;
+}
+
+/* The sidebar margins show the page itself, so match the shelf's base-100 */
+:root[data-theme^='paper-']:not([data-eink='true']) .library-page {
+  background-color: var(--fallback-b1, oklch(var(--b1) / 1));
+}
+
+/* Library sidebar as a clipped sheet with a second sheet peeking out behind it */
+:root[data-theme^='paper-']:not([data-eink='true']) .library-page aside {
+  position: relative;
+  margin: 12px;
+  height: calc(100% - 24px);
+  border: 0;
+  border-radius: 2px;
+  background-color: var(--ll-paper);
+  box-shadow:
+    0 1px 1.5px rgb(58 44 30 / 0.18),
+    4px 5px 0 -1px var(--ll-paper),
+    4px 5px 0 0 rgb(58 44 30 / 0.14),
+    5px 9px 16px -6px rgb(58 44 30 / 0.22);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) .library-page aside::after {
+  content: '';
+  position: absolute;
+  top: 88px;
+  right: -11px;
+  z-index: 2;
+  width: 22px;
+  height: 44px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #7fb3ea 0 50%, var(--ll-clip, #5b9be0) 50% 100%);
+  clip-path: polygon(0 0, 78% 0, 100% 50%, 78% 100%, 0 100%);
+}
+
+/* Sidebar search as an inked slip with a keycap, after LooseLeaf's search field */
+:root[data-theme^='paper-']:not([data-eink='true']) .library-page aside .search-input {
+  background-color: var(--ll-slip);
+  color: var(--ll-ink);
+  border: 6px solid transparent;
+  border-radius: 3px;
+  padding-inline-start: 2.1rem;
+  box-shadow: 0 1px 1.5px rgb(58 44 30 / 0.12);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  .library-page
+  aside
+  .search-input {
+  border-image: var(--ink-frame-bold) 14 / 14px / 6px stretch;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) .library-page aside .paper-search-icon {
+  z-index: 1;
+  color: var(--ll-ink-soft);
+}
+
+.paper-keycap {
+  z-index: 1;
+  padding: 1px 5px;
+  font: 600 9px / 10px var(--paper-font, inherit);
+  color: var(--ll-ink-soft);
+  background-color: var(--ll-paper-shade);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgb(58 44 30 / 0.25);
+}
+
+/* Active sidebar row is a highlighter swipe, after LooseLeaf's selected nav item */
+:root[data-theme^='paper-']:not([data-eink='true']) .library-page aside [aria-current='page'] {
+  background-color: color-mix(in srgb, var(--ll-hi) 85%, transparent);
+  color: var(--ll-on-marker);
+  border-radius: 14px 6px 12px 5px / 9px 14px 6px 12px;
+}
+
+:root[data-ink-skin] .paper-keycap {
+  border-image: var(--ink-frame-1) 14 / 6px / 1px stretch;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) {
+  --paper-font:
+    'Kevin Sans Hand', 'Avenir Next LT Pro', 'Avenir Next', Inter, ui-sans-serif, system-ui,
+    sans-serif;
+  --rounded-box: 3px;
+  --rounded-btn: 3px;
+  --rounded-badge: 3px;
+  font-family: var(--paper-font);
+}
+
+:root[data-theme='paper-dark'] {
+  --ll-ink: #ece8dc;
+  --ll-ink-soft: #cfcabd;
+  --ll-pencil: #9aa1a0;
+  --ll-pencil-mark: #7d8584;
+  --ll-marker: #e8925e;
+  --ll-hi: #e9d36a;
+  --ll-focus: #8fb8ff;
+  --ll-red: #f08a7a;
+  --ll-paper: #2a3033;
+  --ll-paper-shade: #353c40;
+  --ll-slip: #31383b;
+  --ll-rule-blue: #6f8fae;
+  --ll-rule-red: #b8675c;
+  --ll-blend: screen;
+  --ll-on-marker: #1f2427;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])
+  :is(
+    .font-sans,
+    .popover-title,
+    .popover-label,
+    .popover-field-label,
+    .popover-action-label,
+    [class*='[font-family:'],
+    [data-mm-mode] .font-serif
+  ) {
+  font-family: var(--paper-font);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])
+  :is(.rounded-sm, .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl) {
+  border-radius: 3px;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) .shadow-sm {
+  --tw-shadow: 0 1px 1.5px rgb(58 44 30 / 0.16);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) .shadow-md {
+  --tw-shadow: 0 1px 1.5px rgb(58 44 30 / 0.2), 0 7px 16px -4px rgb(58 44 30 / 0.2);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) :is(.shadow-lg, .shadow-xl) {
+  --tw-shadow:
+    0 1px 1.5px rgb(58 44 30 / 0.2), 0 2px 5px -1px rgb(58 44 30 / 0.1),
+    0 12px 22px -8px rgb(58 44 30 / 0.2);
+}
+
+/* Hand-drawn chrome. Image rules wait for data-ink-skin (set by applyInkSkin) so an unset
+   --ink-* var never invalidates a background shorthand. */
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :where(
+    .btn:not(.btn-ghost, .btn-link),
+    .card.border,
+    .modal-box,
+    .menu-container,
+    .popup-container,
+    .dropdown-content,
+    [data-radix-popper-content-wrapper] > *,
+    .input-bordered,
+    .select-bordered:not(.\!border-0),
+    .textarea-bordered,
+    .toggle,
+    .checkbox,
+    [data-record-id]
+      > div
+      > :is(.border, .border-2, [class*='border-[3px]']):not(.border-dashed, .rounded-full)
+  ) {
+  border-image: var(--ink-frame-1) 14 / 14px / 6px stretch;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(.btn:not(.btn-ghost, .btn-link), .card.border, .input-bordered):nth-child(3n + 2) {
+  border-image-source: var(--ink-frame-2);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(.btn:not(.btn-ghost, .btn-link), .card.border, .input-bordered):nth-child(3n + 3) {
+  border-image-source: var(--ink-frame-3);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  [data-record-id]
+  > div
+  > :is(.border, .border-2, [class*='border-[3px]']):not(.border-dashed, .rounded-full) {
+  border-radius: 4px;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  :is(.btn-primary, [role='radio'][aria-checked='true'].bg-primary) {
+  background: var(--ink-fill) center / 100% 100% no-repeat transparent;
+  color: var(--ll-on-marker);
+  border-image-source: var(--ink-frame-bold);
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin]
+  [role='radio'][aria-checked='true'].bg-primary {
+  border-image: var(--ink-frame-bold) 14 / 14px / 6px stretch;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .bottom-tab [aria-current] {
+  background: var(--ink-underline) bottom / 100% 6px no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .checkbox:checked {
+  background: var(--ink-check) center / 80% no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .header-bar {
+  background-image: var(--ink-underline);
+  background-position: bottom;
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .footer-bar {
+  background-image: var(--ink-underline);
+  background-position: top;
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .sticky-progress-track {
+  border-color: transparent;
+  background: var(--ink-underline) center / 100% 100% no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true'])[data-ink-skin] .sticky-progress-fill {
+  background: var(--ink-fill) center / 100% 100% no-repeat transparent;
+}
+
+:root[data-theme^='paper-']:not([data-eink='true']) :focus-visible:not([tabindex='-1']) {
+  outline: 2px solid var(--ll-focus);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :root[data-theme^='paper-'] * {
+    border-image: none !important;
+  }
+}

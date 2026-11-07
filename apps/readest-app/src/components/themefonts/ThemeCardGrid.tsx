@@ -6,6 +6,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import ThemeSceneArt from '@/components/themescene/ThemeSceneArt';
 import { useSceneMotion } from '@/components/themescene/useSceneMotion';
 import { getCardThemes } from './model';
+import PaperCardArt from './PaperCardArt';
 
 interface ThemeCardProps {
   theme: Theme;
@@ -33,11 +34,15 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, selected, onSelect }) => {
         onSelect(theme.name);
       }}
     >
-      <ThemeSceneArt
-        themeName={theme.name}
-        active={motion.active}
-        imgClassName='pointer-events-none absolute inset-0 h-full w-full object-cover'
-      />
+      {theme.name === 'paper' && selected ? (
+        <PaperCardArt />
+      ) : (
+        <ThemeSceneArt
+          themeName={theme.name}
+          active={motion.active}
+          imgClassName='pointer-events-none absolute inset-0 h-full w-full object-cover'
+        />
+      )}
       <span
         className='relative text-2xl font-bold leading-none'
         style={{ fontFamily: theme.previewFont, color: textColor }}

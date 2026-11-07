@@ -246,3 +246,23 @@ describe('dual-mood themes', () => {
     expect(getEffectiveDarkMode('my-custom-theme', 'auto', false)).toBe(false);
   });
 });
+
+describe('Neue Paper ink skin palette', () => {
+  it('paper is ink on paper (light) and chalk on slate (dark)', () => {
+    const paper = themes.find((t) => t.name === 'paper')!;
+    expect(paper.mood).toBeUndefined();
+    expect(paper.colors.light['base-100']).toBe('#f8f5ee');
+    expect(paper.colors.light['base-content']).toBe('#2a2420');
+    expect(paper.colors.light.primary).toBe('#a9481a');
+    expect(paper.colors.dark['base-100']).toBe('#2a3033');
+    expect(paper.colors.dark['base-content']).toBe('#ece8dc');
+    expect(paper.colors.dark.primary).toBe('#f2a272');
+    expect(paper.previewFont).toMatch(/^'Kevin Sans Hand'/);
+  });
+
+  it('default keeps its pre-skin palette', () => {
+    const def = themes.find((t) => t.name === DEFAULT_THEME)!;
+    expect(def.colors.light['base-100']).toBe('#faf7f0');
+    expect(def.colors.dark['base-100']).toBe('#26261f');
+  });
+});

@@ -5,10 +5,12 @@ import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { BoxedList, ScopeSwitch, SectionTitle, SettingsRow, SettingsSelect } from '../primitives';
 import { PiPlus } from 'react-icons/pi';
 import type { BackgroundTextureScope } from '@/helpers/settings';
+import { layersToStyle, type TextureLayer } from '@/styles/textures';
 
 interface Texture {
   id: string;
   url?: string;
+  layers?: TextureLayer[];
   blobUrl?: string;
   animated?: boolean;
   loaded?: boolean;
@@ -84,6 +86,7 @@ const BackgroundTextureSelector: React.FC<BackgroundTextureSelectorProps> = ({
             style={{
               backgroundImage: texture.loaded ? `url("${texture.blobUrl || texture.url}")` : 'none',
               backgroundSize: 'cover',
+              ...(texture.layers && layersToStyle(texture.layers)),
               backgroundPosition: 'top',
               minHeight: '80px',
             }}

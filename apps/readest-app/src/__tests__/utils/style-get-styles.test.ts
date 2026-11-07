@@ -1110,6 +1110,35 @@ describe('instant-highlight selection suppression stays out of getStyles', () =>
   });
 });
 
+describe('Neue Paper book fonts (via getStyles)', () => {
+  const paper = makeThemeCode({ themeName: 'paper' });
+
+  it('defaults serif and sans-serif to Kevin Sans and inlines its faces', () => {
+    const css = getStyles(makeViewSettings(), paper);
+    expect(css).toContain('--serif: "Kevin Sans Hand"');
+    expect(css).toContain('--sans-serif: "Kevin Sans Hand"');
+    expect(css).toMatch(/@font-face \{\s*font-family: "Kevin Sans Hand"/);
+    expect(css.indexOf('@namespace')).toBe(0);
+  });
+
+  it("keeps the user's own font picks", () => {
+    const vs = makeViewSettings({ serifFont: 'Literata', sansSerifFont: 'Inter' });
+    const css = getStyles(vs, paper);
+    expect(css).toContain('--serif: "Literata"');
+    expect(css).toContain('--sans-serif: "Inter"');
+  });
+
+  it('keeps Bitter once the user has chosen a book font', () => {
+    const vs = makeViewSettings({ bookFontChosen: true, serifFont: 'Bitter' });
+    expect(getStyles(vs, paper)).toContain('--serif: "Bitter"');
+  });
+
+  it('leaves the default theme without Kevin Sans', () => {
+    const css = getStyles(makeViewSettings(), makeThemeCode({ themeName: 'default' }));
+    expect(css).not.toContain('Kevin Sans');
+  });
+});
+
 describe('link touch hold (#6242)', () => {
   it('takes links out of hit testing while a touch is held', () => {
     // Chromium's touch adjustment snaps a long press onto a link within reach

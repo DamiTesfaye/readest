@@ -344,6 +344,7 @@ export interface BookFont {
   defaultFontSize: number;
   minimumFontSize: number;
   fontWeight: number;
+  bookFontChosen?: boolean;
 }
 
 export type ConvertChineseVariant =
