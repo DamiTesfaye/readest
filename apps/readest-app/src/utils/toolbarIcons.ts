@@ -23,7 +23,24 @@ export const getSelectionIconColor = (isDarkMode: boolean): string => {
   return isDarkMode ? MUTED_ICON_FILL : COLORED_ICON_FILL;
 };
 
-export const getHomepageIconSrc = (icon: string, isDarkMode: boolean, active = false): string => {
+const PAPER_OUTLINE_ICONS = new Set([
+  'library',
+  'currently-reading',
+  'finished-reading',
+  'collections',
+  'shared',
+]);
+
+export const hasPaperOutlineIcon = (icon: string, themeColor?: string): boolean =>
+  themeColor === 'paper' && PAPER_OUTLINE_ICONS.has(icon);
+
+export const getHomepageIconSrc = (
+  icon: string,
+  isDarkMode: boolean,
+  active = false,
+  themeColor?: string,
+): string => {
+  if (hasPaperOutlineIcon(icon, themeColor)) return `/images/homepage/paper/${icon}.svg`;
   return !isDarkMode || active
     ? `/images/homepage/${icon}.svg`
     : `/images/homepage/${icon}-muted.svg`;

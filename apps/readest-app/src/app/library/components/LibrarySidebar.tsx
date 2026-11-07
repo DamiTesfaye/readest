@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FaSearch, FaUser } from 'react-icons/fa';
-import { LuChevronsUpDown } from 'react-icons/lu';
+import { LuChevronsUpDown, LuSearch } from 'react-icons/lu';
 import { PiCaretRightBold } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
@@ -12,7 +12,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
 import { navigateToLibrary, navigateToProfile } from '@/utils/nav';
-import { getHomepageIconSrc, getSearchShortcutBadgeSrc } from '@/utils/toolbarIcons';
+import {
+  getHomepageIconSrc,
+  getSearchShortcutBadgeSrc,
+  hasPaperOutlineIcon,
+} from '@/utils/toolbarIcons';
 import { getUserProfilePlan } from '@/utils/access';
 import { ensureLibraryStatusFilter, LibraryStatusFilter } from '../utils/libraryUtils';
 import { eventDispatcher } from '@/utils/event';
@@ -60,26 +64,42 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   isDarkMode,
   iconClassName = 'h-4',
   onClick,
-}) => (
-  <button
-    type='button'
-    aria-current={active ? 'page' : undefined}
-    onClick={onClick}
-    className={clsx(
-      'flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start',
-      'hover:bg-base-300/70 [font-family:"Avenir_Next_LT_Pro"] text-sm',
-      active ? 'bg-base-300/70 text-base-content' : 'text-base-content/85',
-    )}
-  >
-    <img
-      src={getHomepageIconSrc(icon, isDarkMode, active)}
-      alt=''
-      aria-hidden
-      className={clsx('w-6 object-contain', iconClassName)}
-    />
-    <span className='truncate'>{label}</span>
-  </button>
-);
+}) => {
+  const { themeColor } = useThemeStore();
+  const outline = hasPaperOutlineIcon(icon, themeColor);
+  return (
+    <button
+      type='button'
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+      className={clsx(
+        'flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start',
+        'hover:bg-base-300/70 [font-family:"Avenir_Next_LT_Pro"] text-sm',
+        active ? 'bg-base-300/70 text-base-content' : 'text-base-content/85',
+      )}
+    >
+      {outline ? (
+        // Painted with the text colour through a mask so it follows light and dark
+        <span
+          aria-hidden
+          className='h-5 w-6 shrink-0 bg-current'
+          style={{
+            mask: `url(${getHomepageIconSrc(icon, isDarkMode, active, themeColor)}) center / contain no-repeat`,
+            WebkitMask: `url(${getHomepageIconSrc(icon, isDarkMode, active, themeColor)}) center / contain no-repeat`,
+          }}
+        />
+      ) : (
+        <img
+          src={getHomepageIconSrc(icon, isDarkMode, active)}
+          alt=''
+          aria-hidden
+          className={clsx('w-6 object-contain', iconClassName)}
+        />
+      )}
+      <span className='truncate'>{label}</span>
+    </button>
+  );
+};
 
 const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
   const _ = useTranslation();
@@ -87,7 +107,9 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
   const searchParams = useSearchParams();
   const { appService } = useEnv();
   const { user, token } = useAuth();
-  const { isDarkMode } = useThemeStore();
+  const { isDarkMode, themeColor } = useThemeStore();
+  const isPaper = themeColor === 'paper';
+  const isMacShortcut = appService?.osPlatform === 'macos' || appService?.osPlatform === 'ios';
   const { isTrafficLightVisible } = useTrafficLight();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') ?? '');
@@ -178,9 +200,14 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
       )}
     >
       <div className='px-3 pt-2'>
-        <div className='relative flex h-8 items-center'>
-          <span className='text-base-content/50 absolute ps-2.5'>
-            <FaSearch className='h-3.5 w-3.5' />
+        <div className={clsx('relative flex items-center', isPaper ? 'h-10' : 'h-8')}>
+          <span
+            className={clsx(
+              'absolute',
+              isPaper ? 'paper-search-icon ps-3' : 'text-base-content/50 ps-2.5',
+            )}
+          >
+            {isPaper ? <LuSearch className='h-4 w-4' /> : <FaSearch className='h-3.5 w-3.5' />}
           </span>
           <input
             ref={searchInputRef}
@@ -190,18 +217,23 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
             onChange={handleSearchChange}
             spellCheck='false'
             className={clsx(
-              'search-input input eink-bordered h-8 w-full rounded-lg pe-10 ps-8',
+              'search-input input eink-bordered w-full rounded-lg pe-10 ps-8',
+              isPaper ? 'h-10' : 'h-8',
               'bg-base-300/45 border-0',
               '[font-family:"Avenir_Next_LT_Pro"] text-sm font-light',
               'placeholder:text-base-content/50 truncate',
               'focus:outline-none focus:ring-0',
             )}
           />
-          <img
-            src={getSearchShortcutBadgeSrc(appService?.osPlatform, isDarkMode)}
-            alt='⌘K'
-            className='absolute end-2.5 h-3 w-auto'
-          />
+          {isPaper ? (
+            <kbd className='paper-keycap absolute end-2'>{isMacShortcut ? '⌘K' : 'Ctrl K'}</kbd>
+          ) : (
+            <img
+              src={getSearchShortcutBadgeSrc(appService?.osPlatform, isDarkMode)}
+              alt='⌘K'
+              className='absolute end-2.5 h-3 w-auto'
+            />
+          )}
         </div>
       </div>
       <nav className='flex flex-1 flex-col gap-5 overflow-y-auto px-3 pt-5'>
@@ -350,9 +382,10 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
         ) : (
           <Dropdown
             label={_('Sign into your account')}
+            showTooltip={false}
             className='dropdown-top'
             containerClassName='w-full'
-            buttonClassName='hover:bg-base-300/70 -m-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg p-1 text-start'
+            buttonClassName='-m-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg p-1 text-start'
             toggleButton={
               <>
                 <div
