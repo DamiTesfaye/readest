@@ -1,5 +1,5 @@
 import { MetadataProvider, SearchRequest, MetadataResult } from './types';
-import { OpenLibraryProvider, GoogleBooksProvider } from './providers';
+import { GoogleBooksProvider } from './providers';
 
 interface MetadataServiceConfig {
   googleBooksApiKeys?: string;
@@ -10,8 +10,6 @@ export class MetadataService {
   private providers: MetadataProvider[] = [];
 
   constructor(config: MetadataServiceConfig = {}) {
-    this.providers.push(new OpenLibraryProvider());
-
     if (config.googleBooksApiKeys) {
       this.providers.push(new GoogleBooksProvider(config.googleBooksApiKeys));
     }

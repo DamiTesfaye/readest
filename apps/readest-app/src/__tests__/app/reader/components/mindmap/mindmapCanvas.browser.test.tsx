@@ -28,6 +28,8 @@ const FITTED_PAN_BUDGET_MS = ON_CI ? 43 : FRAME_BUDGET_MS;
 const FITTED_ZOOM_BUDGET_MS = ON_CI ? 47 : FRAME_BUDGET_MS;
 const DRAG_REACT_BUDGET_MS = ON_CI ? 2.7 : 2;
 const CI_BUDGET_ISSUE = '#2';
+const measureTimeout = (budgetMs: number) =>
+  2 * budgetMs * (WARM_UP_FRAMES + MEASURED_PASSES * MEASURED_FRAMES);
 
 const rgb = (hex: string): string => {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -330,30 +332,38 @@ describe('mindmap canvas in a real browser', () => {
     expect(await measureP95(() => controller.camera.panBy(-4, -2))).toBeLessThan(FRAME_BUDGET_MS);
   });
 
-  it(`keeps p95 frame time under ${FITTED_PAN_BUDGET_MS} ms while panning a fitted map of 2,000 linked records (CI budget tracked in ${CI_BUDGET_ISSUE})`, async () => {
-    await page.viewport(1280, 900);
-    const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
-    act(() => controller.fitView(false));
-    await nextFrame();
-    expect(screen.getByTestId('mm-record-n1999').style.display).toBe('');
-    expect(await measureP95(() => controller.camera.panBy(-2, -1))).toBeLessThan(
-      FITTED_PAN_BUDGET_MS,
-    );
-  });
+  it(
+    `keeps p95 frame time under ${FITTED_PAN_BUDGET_MS} ms while panning a fitted map of 2,000 linked records (CI budget tracked in ${CI_BUDGET_ISSUE})`,
+    async () => {
+      await page.viewport(1280, 900);
+      const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
+      act(() => controller.fitView(false));
+      await nextFrame();
+      expect(screen.getByTestId('mm-record-n1999').style.display).toBe('');
+      expect(await measureP95(() => controller.camera.panBy(-2, -1))).toBeLessThan(
+        FITTED_PAN_BUDGET_MS,
+      );
+    },
+    measureTimeout(FITTED_PAN_BUDGET_MS),
+  );
 
-  it(`keeps p95 frame time under ${FITTED_ZOOM_BUDGET_MS} ms while zooming a fitted map of 2,000 linked records (CI budget tracked in ${CI_BUDGET_ISSUE})`, async () => {
-    await page.viewport(1280, 900);
-    const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
-    act(() => controller.fitView(false));
-    await nextFrame();
-    let step = 0;
-    const zoomP95 = await measureP95(() => {
-      step += 1;
-      const factor = Math.floor(step / 30) % 2 === 0 ? 1.02 : 1 / 1.02;
-      controller.camera.zoomAt({ x: 500, y: 350 }, factor);
-    });
-    expect(zoomP95).toBeLessThan(FITTED_ZOOM_BUDGET_MS);
-  });
+  it(
+    `keeps p95 frame time under ${FITTED_ZOOM_BUDGET_MS} ms while zooming a fitted map of 2,000 linked records (CI budget tracked in ${CI_BUDGET_ISSUE})`,
+    async () => {
+      await page.viewport(1280, 900);
+      const { controller } = mount(linkedTree(2000), { x: 0, y: 0, z: 1 });
+      act(() => controller.fitView(false));
+      await nextFrame();
+      let step = 0;
+      const zoomP95 = await measureP95(() => {
+        step += 1;
+        const factor = Math.floor(step / 30) % 2 === 0 ? 1.02 : 1 / 1.02;
+        controller.camera.zoomAt({ x: 500, y: 350 }, factor);
+      });
+      expect(zoomP95).toBeLessThan(FITTED_ZOOM_BUDGET_MS);
+    },
+    measureTimeout(FITTED_ZOOM_BUDGET_MS),
+  );
 
   it('promotes the world layer while the camera moves and drops it once it settles', async () => {
     await page.viewport(1280, 900);

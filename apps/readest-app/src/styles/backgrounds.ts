@@ -5,7 +5,6 @@ import {
   boostContrast,
   generateDarkPalette,
   generateLightPalette,
-  hexToOklch,
   themes,
 } from './themes';
 
@@ -105,12 +104,12 @@ export const applyBackgroundOverride = (
         BODY_MIN_CONTRAST,
       );
       return `[data-theme="${themeName}-${mode}"] {
-        --b1: ${hexToOklch(palette['base-100'])};
-        --b2: ${hexToOklch(palette['base-200'])};
-        --b3: ${hexToOklch(palette['base-300'])};
-        --bc: ${hexToOklch(palette['base-content'])};
-        --n: ${hexToOklch(palette.neutral)};
-        --nc: ${hexToOklch(palette['neutral-content'])};
+        --color-base-100: ${palette['base-100']};
+        --color-base-200: ${palette['base-200']};
+        --color-base-300: ${palette['base-300']};
+        --color-base-content: ${palette['base-content']};
+        --color-neutral: ${palette.neutral};
+        --color-neutral-content: ${palette['neutral-content']};
       }`;
     })
     .join('\n');

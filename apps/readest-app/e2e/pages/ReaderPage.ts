@@ -26,7 +26,9 @@ export class ReaderPage extends BasePage {
   readonly proofreadPopup: Locator;
   readonly noteEditor: Locator;
   readonly annotationItems: Locator;
+  readonly rangeHandles: Locator;
   readonly pageJumpInput: Locator;
+  readonly viewInPlace: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -47,8 +49,15 @@ export class ReaderPage extends BasePage {
     this.dictionaryPopup = page.locator('.popup-container:has([data-testid="dict-title"])');
     this.translatorPopup = page.locator('.popup-container:has(h1:text-is("Original Text"))');
     this.proofreadPopup = page.locator('.popup-container:has-text("Selected text:")');
-    this.noteEditor = page.locator('.note-editor-container');
+    // Annotate opens the note editor on the selection itself — inside the
+    // toolbar popup at desktop widths, in a bottom sheet on phones. The
+    // sidebar's own inline editor shares the test id; only one is ever open.
+    this.noteEditor = page.locator('[data-testid="booknote-note-editor"]');
     this.annotationItems = page.locator('[role="list"] > .booknote-item[role="listitem"]');
+    // The app-drawn range-edit handles (the selection / annotation range
+    // editors), as opposed to the browser's native selection handles.
+    this.rangeHandles = page.locator('[data-testid="selection-handle"]');
+    this.viewInPlace = this.foliateView.locator('rect[fill="#5B3DF5"][fill-opacity="0.18"]');
   }
 
   /** Wait until the reader route is active and the book viewer has mounted. */
@@ -383,6 +392,19 @@ export class ReaderPage extends BasePage {
     throw new Error('no visible book section found in the viewer');
   }
 
+  /** Press one of the reader's zoom shortcuts. */
+  async pressZoomShortcut(key: '=' | '-' | '0'): Promise<void> {
+    await this.page.keyboard.press(`Control+${key}`);
+  }
+
+  /** The px font size the book text is currently rendered at. */
+  async bookFontSize(): Promise<number> {
+    const frame = await this.visibleSectionFrame();
+    return frame
+      .locator('body')
+      .evaluate((body) => Number.parseFloat(getComputedStyle(body).fontSize));
+  }
+
   /**
    * Select a paragraph of book text and raise the annotation popup.
    *
@@ -433,7 +455,12 @@ export class ReaderPage extends BasePage {
     await this.annotationPopup.waitFor({ state: 'visible' });
   }
 
-  /** A tool button inside the annotation popup, by its accessible name. */
+  /**
+   * A tool button inside the annotation popup, by its accessible name. The
+   * match is exact for string names: the highlight style/color strip shows
+   * alongside the toolbar since #5983, and its "Select highlight style"
+   * button would also answer to a substring match on 'Highlight'.
+   */
   popupTool(name: string | RegExp): Locator {
     return this.annotationPopup.getByRole('button', { name });
   }
@@ -442,16 +469,45 @@ export class ReaderPage extends BasePage {
     await this.popupTool('Highlight').click();
   }
 
+  /**
+   * Click the first highlight drawn in the book, opening its toolbar and
+   * range editor.
+   *
+   * The overlay is an SVG laid over its section iframe in that iframe's own
+   * client coordinates, so a point just inside the highlight path's top-left
+   * corner (the start of its first line — {@link selectText} selects from a
+   * paragraph start) is a point on the highlighted text in that document. The
+   * click is dispatched there rather than through the page mouse, so it also
+   * reaches a highlight in a prerendered section that is not on screen.
+   */
+  async clickHighlight(): Promise<void> {
+    const overlay = this.foliateView.locator('svg g path').first();
+    await overlay.waitFor({ state: 'attached' });
+    await overlay.evaluate((node) => {
+      const path = node as SVGPathElement;
+      const box = path.getBBox();
+      const doc = path.ownerSVGElement?.parentElement?.querySelector('iframe')?.contentDocument;
+      if (!doc) throw new Error('highlight overlay has no section document');
+      doc.dispatchEvent(
+        new MouseEvent('click', { clientX: box.x + 4, clientY: box.y + 4, bubbles: true }),
+      );
+    });
+  }
+
   async selectHighlightColor(color: string): Promise<void> {
     await this.annotationPopup.getByRole('button', { name: `${color} color` }).click();
   }
 
-  /** Annotate the current selection with a note. */
+  /**
+   * Annotate the current selection with a note. Annotate highlights the
+   * selection and opens the annotations tab with the new item already in edit
+   * mode, so the note is written and saved inside that item.
+   */
   async addNote(text: string): Promise<void> {
     await this.popupTool('Add note').click();
     await this.noteEditor.waitFor({ state: 'visible' });
     await this.noteEditor.getByRole('textbox').fill(text);
-    await this.notebook.getByRole('button', { name: 'Save' }).click();
+    await this.noteEditor.getByRole('button', { name: 'Save' }).click();
   }
 
   /** Read the system clipboard (the context must grant `clipboard-read`). */
@@ -496,16 +552,21 @@ export class ReaderPage extends BasePage {
         .catch(() => false)
     )
       return;
-    await this.revealHeader();
+    await this.openMoreAction('Annotations');
+  }
+
+  async openMoreAction(title: string): Promise<void> {
+    for (let attempt = 0; attempt < 4 && !(await this.isHeaderRevealed()); attempt++) {
+      await this.revealHeader();
+      await this.page.waitForTimeout(250);
+    }
     await this.page.locator('button[aria-label="More"]:visible').first().click();
-    await this.page.getByRole('button', { name: 'Annotations', exact: true }).click();
+    await this.page.getByRole('button', { name: new RegExp(`^${title}\\b`) }).click();
   }
 
   async editFirstNote(): Promise<void> {
     await this.page.keyboard.press('Escape');
-    await this.revealHeader();
-    await this.page.locator('button[aria-label="More"]:visible').first().click();
-    await this.page.getByRole('button', { name: 'Bookmarks & Notes', exact: true }).click();
+    await this.openMoreAction('Bookmarks & Notes');
     await this.page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     await this.noteEditor.waitFor({ state: 'visible' });
   }

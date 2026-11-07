@@ -1,0 +1,7 @@
+[
+  { "file": "xhtml/blockquote-p.xhtml", "lang": "en", "canonical": "Before the quote.\nQuoted line one.\nQuoted line two.\nAfter." },
+  { "file": "xhtml/br.xhtml", "lang": "en", "canonical": "First line\nsecond line\nthird" },
+  { "file": "xhtml/ruby-ja.xhtml", "lang": "ja", "canonical": "漢字を読む。" },
+  { "file": "xhtml/cfi-inert.xhtml", "lang": "en", "canonical": "Visible text." },
+  { "file": "xhtml/soft-hyphen-em.xhtml", "lang": "en", "canonical": "extraordinary emphasis" }
+]

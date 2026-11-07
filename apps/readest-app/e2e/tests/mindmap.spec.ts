@@ -2,14 +2,12 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/base';
 import type { ReaderPage } from '../pages/ReaderPage';
 
-const openMindmap = async (reader: ReaderPage, page: Page) => {
-  await reader.revealHeader();
-  await page.getByRole('button', { name: 'Spark' }).click();
-  await page.getByRole('button', { name: /^Mindmap/ }).click();
+const openMindmap = async (reader: ReaderPage) => {
+  await reader.openMoreAction('Mindmap');
 };
 
 const createBlankMap = async (reader: ReaderPage, page: Page) => {
-  await openMindmap(reader, page);
+  await openMindmap(reader);
   const sheet = page.getByRole('dialog', { name: 'New mind map' });
   await sheet.getByLabel('Blank canvas').check();
   await sheet.getByRole('button', { name: 'Create map' }).click();
@@ -19,7 +17,7 @@ const createBlankMap = async (reader: ReaderPage, page: Page) => {
 };
 
 const createGeneratedMap = async (reader: ReaderPage, page: Page) => {
-  await openMindmap(reader, page);
+  await openMindmap(reader);
   const sheet = page.getByRole('dialog', { name: 'New mind map' });
   await expect(sheet.getByLabel('Generated from the book')).toBeChecked();
   await sheet.getByRole('button', { name: 'Create map' }).click();
@@ -75,7 +73,7 @@ test.describe('Mind map', () => {
     await expect(canvas).toBeHidden();
     await page.reload();
     await reader.waitForReady();
-    await openMindmap(reader, page);
+    await openMindmap(reader);
 
     const reopened = page.getByRole('button', { name: /^Elizabeth, Idea/ });
     await expect(reopened).toBeVisible();
@@ -238,7 +236,7 @@ test.describe('Mind map', () => {
     await page.getByRole('treeitem', { name: /Chapter 6 - Pig and Pepper/ }).click();
     await expect.poll(() => bookLocation(page)).toMatch(/^epubcfi\(\/6\/18[!,)]/);
     await page.keyboard.press('Escape');
-    await openMindmap(reader, page);
+    await openMindmap(reader);
     await expect(chapterNode(page, 'Chapter 6 - Pig and Pepper')).toHaveCount(1);
     await expect(chapterNode(page, 'Chapter 12 - Alice’s Evidence')).toHaveCount(0);
     await expect(page.getByTestId('mm-reveal-chip')).toContainText('new');
@@ -286,6 +284,7 @@ test.describe('Mind map', () => {
         const total = sizes.reduce((sum, size) => sum + size, 0);
         const heading = view.book.sections[0]?.fragments?.find((f) => f.href.endsWith('#ch2'));
         return {
+          fraction: view.lastLocation?.fraction ?? 0,
           ahead: heading ? (view.lastLocation?.fraction ?? 0) >= heading.size / total : false,
           onScreen: (view.lastLocation?.range?.toString() ?? '').includes('Chapter Two Secret'),
           toc: view.lastLocation?.tocItem?.label ?? '',
@@ -294,7 +293,10 @@ test.describe('Mind map', () => {
     await expect
       .poll(async () => {
         const state = await probe();
-        if (!state.ahead) await reader.nextPage();
+        if (!state.ahead) {
+          await reader.nextPage();
+          await expect.poll(async () => (await probe()).fraction).not.toBe(state.fraction);
+        }
         return state.ahead;
       })
       .toBe(true);
@@ -306,7 +308,7 @@ test.describe('Mind map', () => {
 
   test('returns focus from the new map sheet when it is dismissed', async ({ openBook, page }) => {
     const reader = await openBook();
-    await openMindmap(reader, page);
+    await openMindmap(reader);
     const sheet = page.getByRole('dialog', { name: 'New mind map' });
     await expect(sheet).toBeVisible();
     await expect(sheet).toBeFocused();
@@ -314,7 +316,7 @@ test.describe('Mind map', () => {
     await expect(sheet).toBeHidden();
     await expect
       .poll(() => page.evaluate(() => document.activeElement?.getAttribute('title') ?? 'BODY'))
-      .toBe('Spark');
+      .toBe('More');
   });
 
   test('keeps Tab inside the full-screen map', async ({ openBook, page }) => {

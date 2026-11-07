@@ -100,6 +100,7 @@ const popoverWith = (isOpen: boolean) => (
     onOpenThemeFonts={vi.fn()}
     onOpenBooknotes={vi.fn()}
     onOpenAnnotations={vi.fn()}
+    onOpenMargins={vi.fn()}
     onToggleTTS={vi.fn()}
   />
 );

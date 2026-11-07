@@ -10,10 +10,10 @@ const { navigateToLibrary, navigateToLogin, navigateToProfile, dispatch } = vi.h
 }));
 
 let searchString = '';
-let authState: { user: { user_metadata?: Record<string, string> } | null; token: string | null } = {
-  user: null,
-  token: null,
-};
+let marginsPublic = false;
+let amplereadSession: {
+  me: { displayName: string | null; email: string | null; avatarUrl: string | null };
+} | null = null;
 
 vi.mock('@/hooks/useTranslation', () => ({ useTranslation: () => (s: string) => s }));
 vi.mock('@/context/EnvContext', () => ({
@@ -22,7 +22,7 @@ vi.mock('@/context/EnvContext', () => ({
     appService: { osPlatform: 'macos', isMobile: false, hasWindowBar: false },
   }),
 }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => authState }));
+vi.mock('@/hooks/useAmpleReadSession', () => ({ useAmpleReadSession: () => amplereadSession }));
 vi.mock('@/store/themeStore', () => ({
   useThemeStore: () => ({ isDarkMode: false, safeAreaInsets: { top: 0 } }),
 }));
@@ -36,7 +36,6 @@ vi.mock('@/utils/event', () => ({ eventDispatcher: { dispatch } }));
 vi.mock('@/utils/debounce', () => ({
   debounce: (fn: (...args: unknown[]) => void) => fn,
 }));
-vi.mock('@/utils/access', () => ({ getUserProfilePlan: () => 'free' }));
 vi.mock('@/hooks/useTrafficLight', () => ({
   useTrafficLight: () => ({ isTrafficLightVisible: false }),
 }));
@@ -59,6 +58,7 @@ vi.mock('@/components/Dropdown', () => ({
 vi.mock('@/app/library/components/SettingsMenu', () => ({
   default: () => <div data-testid='settings-menu' />,
 }));
+vi.mock('@/services/margins/public/flag', () => ({ useMarginsPublic: () => marginsPublic }));
 vi.mock('@/components/UserAvatar', () => ({ default: () => <div data-testid='avatar' /> }));
 
 import LibrarySidebar from '@/app/library/components/LibrarySidebar';
@@ -67,6 +67,7 @@ const renderSidebar = (overrides: Partial<React.ComponentProps<typeof LibrarySid
   const props = {
     onPullLibrary: vi.fn(),
     onOpenCatalogManager: vi.fn(),
+    onOpenExplore: vi.fn(),
     ...overrides,
   };
   render(<LibrarySidebar {...props} />);
@@ -75,7 +76,8 @@ const renderSidebar = (overrides: Partial<React.ComponentProps<typeof LibrarySid
 
 beforeEach(() => {
   searchString = '';
-  authState = { user: null, token: null };
+  marginsPublic = false;
+  amplereadSession = null;
   navigateToLibrary.mockReset();
   navigateToLogin.mockReset();
   navigateToProfile.mockReset();
@@ -96,6 +98,7 @@ describe('LibrarySidebar', () => {
       'Finished',
       'Collections',
       'Shared',
+      'Explore',
       // 'Catalogs',
       // 'RSS Feeds',
     ]) {
@@ -171,6 +174,67 @@ describe('LibrarySidebar', () => {
   //   expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
   // });
 
+  it('has a Margins section between Library and Discover that opens Your Margins', () => {
+    renderSidebar();
+    const heading = screen.getByText('Margins');
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(labels.indexOf('Your Margins')).toBeGreaterThan(labels.indexOf('Shared'));
+    expect(labels.indexOf('Your Margins')).toBeLessThan(labels.indexOf('Explore'));
+    expect(heading.className).toBe(screen.getByText('Library').className);
+    searchString = 'explore=true&catalogs=true';
+    cleanup();
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Your Margins' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).toContain('margins=true');
+    expect(navigatedTo).not.toContain('explore=');
+    expect(navigatedTo).not.toContain('catalogs=');
+  });
+
+  it('marks Your Margins current in the margins view and leaves it for a status', () => {
+    searchString = 'margins=true';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Your Margins' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Finished' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).not.toContain('margins=');
+    expect(navigatedTo).toContain('status=finished');
+  });
+
+  it('lists Explore in Discover after Shared', () => {
+    renderSidebar();
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(labels.indexOf('Explore')).toBeGreaterThan(labels.indexOf('Shared'));
+  });
+
+  it('opens the Explore view from Explore', () => {
+    const props = renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
+    expect(props.onOpenExplore).toHaveBeenCalledTimes(1);
+    expect(props.onOpenCatalogManager).not.toHaveBeenCalled();
+  });
+
+  it('marks Explore active and the status items inactive in the explore view', () => {
+    searchString = 'explore=true';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Explore' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('leaves the explore view when a library status is selected', () => {
+    searchString = 'explore=true';
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: 'Finished' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).not.toContain('explore=');
+    expect(navigatedTo).toContain('status=finished');
+  });
+
   it('switches the search placeholder per section', () => {
     renderSidebar();
     expect(screen.getByRole('searchbox').getAttribute('placeholder')).toBe('Search');
@@ -208,17 +272,23 @@ describe('LibrarySidebar', () => {
     expect(navigateToLogin).not.toHaveBeenCalled();
   });
 
-  it('shows name, plan and Upgrade when logged in, routing to the profile', () => {
-    authState = {
-      user: { user_metadata: { full_name: 'Dami Tesfaye' } },
-      token: 'jwt',
+  it('shows the AmpleRead account name and email when signed in, with no Readest plan', () => {
+    amplereadSession = {
+      me: { displayName: 'Dami Tesfaye', email: 'dami@example.com', avatarUrl: null },
     };
     renderSidebar();
     expect(screen.getByText('Dami Tesfaye')).toBeTruthy();
-    expect(screen.getByText('Free')).toBeTruthy();
+    expect(screen.getByText('dami@example.com')).toBeTruthy();
     expect(screen.getByTestId('settings-menu')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
-    expect(navigateToProfile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Free')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sign into your account' })).toBeNull();
+  });
+
+  it('falls back to the email when the AmpleRead account has no display name', () => {
+    amplereadSession = { me: { displayName: null, email: 'dami@example.com', avatarUrl: null } };
+    renderSidebar();
+    expect(screen.getAllByText('dami@example.com')).toHaveLength(1);
   });
 
   it('no longer renders the view/select/settings footer strip', () => {
@@ -242,5 +312,32 @@ describe('LibrarySidebar', () => {
     expect(screen.getByRole('button', { name: 'Sign into your account' }).innerHTML).toContain(
       'Avenir_Next_LT_Pro',
     );
+  });
+
+  it('opens the Feed under Margins only while the flag is on', () => {
+    renderSidebar();
+    expect(screen.queryByRole('button', { name: 'Feed' })).toBeNull();
+    cleanup();
+    marginsPublic = true;
+    searchString = 'margins=true&explore=true';
+    renderSidebar();
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(labels.indexOf('Feed')).toBe(labels.indexOf('Your Margins') + 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Feed' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).toContain('feed=for-you');
+    expect(navigatedTo).not.toContain('margins=');
+    expect(navigatedTo).not.toContain('explore=');
+  });
+
+  it('marks the Feed current in a feed and leaves it for Your Margins', () => {
+    marginsPublic = true;
+    searchString = 'feed=book&text=txt1&order=ranked';
+    renderSidebar();
+    expect(screen.getByRole('button', { name: 'Feed' }).getAttribute('aria-current')).toBe('page');
+    fireEvent.click(screen.getByRole('button', { name: 'Your Margins' }));
+    const navigatedTo = navigateToLibrary.mock.calls[0]?.[1] ?? '';
+    expect(navigatedTo).toContain('margins=true');
+    expect(navigatedTo).not.toMatch(/feed=|text=|order=/);
   });
 });

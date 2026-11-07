@@ -72,9 +72,10 @@ const renderIcon = (props: Partial<React.ComponentProps<typeof AmpleCloudIcon>> 
   render(<AmpleCloudIcon themeName='default' isDarkMode={false} visible {...props} />);
 
 const loadedInstance = async () => {
-  await waitFor(() =>
-    expect(screen.getByTestId('ample-cloud-canvas').className).toContain('opacity-100'),
-  );
+  await waitFor(() => {
+    expect(screen.getByTestId('ample-cloud-canvas').className).toContain('opacity-100');
+    expect(riveMock.instances[0]!.play).toHaveBeenCalled();
+  });
   return riveMock.instances[0]!;
 };
 
@@ -211,6 +212,8 @@ describe('AmpleCloudIcon', () => {
     expect(rgb).toHaveBeenLastCalledWith(0xf4, 0x68, 0x31);
     expect(riveMock.instances).toHaveLength(1);
     expect(rive.cleanup).not.toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(fetch).mock.calls.filter(([url]) => url === '/rive/ample-cloud.riv'),
+    ).toHaveLength(1);
   });
 });

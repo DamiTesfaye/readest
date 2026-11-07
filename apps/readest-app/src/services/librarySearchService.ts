@@ -15,7 +15,12 @@ import { findFuzzyMatches, MAX_FUZZY_QUERY_LENGTH } from '@/utils/fuzzySearch';
 import type { LibrarySearchWorkerMatch } from '@/utils/librarySearchWorkerProtocol';
 import { findNearbyMatches } from '@/utils/nearbySearch';
 import { createRejectFilter } from '@/utils/node';
-import { compileSearchRegex, filterWholeWordMatches, findRegexMatches } from '@/utils/textSearch';
+import {
+  compileSearchRegex,
+  filterWholeWordMatches,
+  findRegexMatches,
+  stripSoftHyphens,
+} from '@/utils/textSearch';
 import { BookFileNotFoundError } from './errors';
 import {
   beginSearchIndex,
@@ -223,7 +228,7 @@ const makeFuzzyExcerpt = (
 // prepareSearchSection awaits loadTextWalker() first.
 type TextWalker = typeof import('foliate-js/text-walker.js')['textWalker'];
 let textWalker: TextWalker | null = null;
-const loadTextWalker = async (): Promise<TextWalker> =>
+export const loadTextWalker = async (): Promise<TextWalker> =>
   (textWalker ??= (await import('foliate-js/text-walker.js')).textWalker);
 
 interface PreparedSearchSection {
@@ -278,7 +283,7 @@ const closeBook = async (book: SearchableBookDoc | null, file: File | null) => {
   }
 };
 
-const makeAcceptNode = (book: Book) =>
+export const makeAcceptNode = (book: Book) =>
   createRejectFilter({
     tags: book.primaryLanguage?.startsWith('ja') ? ['rt'] : [],
     attributes: ['cfi-inert'],
@@ -528,6 +533,18 @@ export async function* searchLibraryBooks(
     locale: string,
     limit: number,
   ): Promise<SectionMatchOutcome> => {
+    const softHyphens = stripSoftHyphens(text);
+    if (softHyphens) {
+      const outcome = await matchSectionText(book, sectionIndex, softHyphens.text, locale, limit);
+      return {
+        ...outcome,
+        matches: outcome.matches.map((match) => ({
+          ...match,
+          ...softHyphens.toSource(match),
+          runs: match.runs.map(softHyphens.toSource),
+        })),
+      };
+    }
     if (usesSearchWorker) {
       const payload = {
         sectionKey: `${book.hash}:${book.updatedAt}:${sectionIndex}`,

@@ -5,8 +5,6 @@ import { MdCloudSync } from 'react-icons/md';
 
 import StatusBadge from '@/app/library/components/StatusBadge';
 import BrightnessOverlay from '@/app/reader/components/BrightnessOverlay';
-import PlanIndicators from '@/app/user/components/PlanIndicators';
-import type { PlanDetails } from '@/app/user/utils/plan';
 import HighlightChars from '@/components/command-palette/HighlightChars';
 import { Overlay } from '@/components/Overlay';
 import {
@@ -24,42 +22,6 @@ import NavigationRow from '@/components/settings/primitives/NavigationRow';
 import SettingsSwitchRow from '@/components/settings/primitives/SettingsSwitchRow';
 
 const noop = () => {};
-
-const mockPlans: PlanDetails[] = [
-  {
-    name: 'Free',
-    plan: 'free',
-    type: 'subscription',
-    color: '#64748b',
-    hintColor: '#94a3b8',
-    price: 0,
-    currency: 'usd',
-    interval: 'month',
-    features: [{ label: '3 books in your library' }, { label: 'Basic sync' }],
-  },
-  {
-    name: 'Plus',
-    plan: 'plus',
-    type: 'subscription',
-    color: '#3b82f6',
-    hintColor: '#60a5fa',
-    price: 499,
-    currency: 'usd',
-    interval: 'month',
-    features: [{ label: 'Unlimited library' }, { label: 'AI translation' }],
-  },
-  {
-    name: 'Pro',
-    plan: 'pro',
-    type: 'subscription',
-    color: '#7c3aed',
-    hintColor: '#a78bfa',
-    price: 999,
-    currency: 'usd',
-    interval: 'month',
-    features: [{ label: 'Everything in Plus' }, { label: 'Priority TTS voices' }],
-  },
-];
 
 export const demos: DemoEntry[] = [
   {
@@ -86,12 +48,7 @@ export const demos: DemoEntry[] = [
     notes:
       'Positioned absolutely at the left edge; wrapped in a relative sized box so the capsule is visible.',
   },
-  {
-    name: 'PlanIndicators',
-    sourcePath: 'app/user/components/PlanIndicators.tsx',
-    status: 'used',
-    node: <PlanIndicators allPlans={mockPlans} currentPlanIndex={1} onSelectPlan={noop} />,
-  },
+
   {
     name: 'HighlightChars',
     sourcePath: 'components/command-palette/HighlightChars.tsx',

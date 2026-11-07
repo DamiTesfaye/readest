@@ -1,3 +1,7 @@
+import {
+  applyRemoteBookshelfRows,
+  replayBookshelfOperations,
+} from '@/services/bookshelves/persistence';
 import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useEnv } from '@/context/EnvContext';
@@ -15,6 +19,13 @@ import {
 import { useCustomOPDSStore, findOPDSCatalogByContentId } from '@/store/customOPDSStore';
 import { findMindmapByContentId, useMindmapStore } from '@/services/mindmap/persist/mindmapStore';
 import { beginMindmapPull, finishMindmapPull } from '@/services/mindmap/sync/runtime';
+import { useABSServerStore } from '@/store/absServerStore';
+import {
+  useCustomTranslatorStore,
+  findCustomTranslator,
+  findTranslationPrompt,
+} from '@/store/customTranslatorStore';
+import { useCustomTTSStore, findCustomTTSService } from '@/store/customTTSStore';
 import { transferManager } from '@/services/transferManager';
 import { getReplicaSync, subscribeReplicaSyncReady } from '@/services/sync/replicaSync';
 import { dictionaryAdapter } from '@/services/sync/adapters/dictionary';
@@ -22,6 +33,12 @@ import { fontAdapter } from '@/services/sync/adapters/font';
 import { textureAdapter } from '@/services/sync/adapters/texture';
 import { opdsCatalogAdapter } from '@/services/sync/adapters/opdsCatalog';
 import { mindmapAdapter, type MindmapReplicaRecord } from '@/services/sync/adapters/mindmap';
+import { absServerAdapter } from '@/services/sync/adapters/absServer';
+import {
+  customTranslatorAdapter,
+  translationPromptAdapter,
+} from '@/services/sync/adapters/customTranslator';
+import { customTTSAdapter } from '@/services/sync/adapters/customTTS';
 import { settingsAdapter, type SettingsRemoteRecord } from '@/services/sync/adapters/settings';
 import {
   applyRemoteSettings,
@@ -47,6 +64,9 @@ import type { ImportedDictionary } from '@/services/dictionaries/types';
 import type { CustomFont } from '@/styles/fonts';
 import type { CustomTexture } from '@/styles/textures';
 import type { OPDSCatalog } from '@/types/opds';
+import type { ABSServer } from '@/types/audiobookshelf';
+import type { CustomTranslator, TranslationPrompt } from '@/types/translation';
+import type { CustomTTSService } from '@/types/customTTS';
 import type { Hlc, ReplicaRow } from '@/types/replica';
 import type { SystemSettings } from '@/types/settings';
 
@@ -55,7 +75,12 @@ export type ReplicaKind =
   | 'font'
   | 'texture'
   | 'opds_catalog'
+  | 'abs_server'
+  | 'custom_translator'
+  | 'translation_prompt'
+  | 'custom_tts'
   | 'settings'
+  | 'bookshelf'
   | 'mindmap';
 
 export const READER_REPLICA_KINDS: readonly ReplicaKind[] = [
@@ -70,7 +95,12 @@ export const LIBRARY_REPLICA_KINDS: readonly ReplicaKind[] = [
   'font',
   'texture',
   'opds_catalog',
+  'abs_server',
+  'custom_translator',
+  'translation_prompt',
+  'custom_tts',
   'settings',
+  'bookshelf',
   'mindmap',
 ];
 
@@ -126,7 +156,7 @@ let hasCurrentUser = false;
 // Shared promise for the boot-time settings pull. All other kinds'
 // boot pulls await this so applyRemoteSettings has a chance to seed
 // `lastPublishedFields` with server-authoritative values before
-// dict/font/texture/opds_catalog auto-saves fire — without that
+// dict/font/texture/opds_catalog/abs_server auto-saves fire — without that
 // ordering, those auto-saves diff against `undefined` on a fresh
 // boot and republish the local default (e.g.
 // `dictionarySettings.providerOrder`) with a fresh HLC, clobbering
@@ -303,6 +333,50 @@ const mindmapPullConfig: ReplicaPullConfig<MindmapReplicaRecord> = {
   backgroundTransfers: true,
 };
 
+const absServerPullConfig: ReplicaPullConfig<ABSServer> = {
+  kind: 'abs_server',
+  // metadata-only — no baseDir
+  adapter: absServerAdapter,
+  findByContentId: (id) => useABSServerStore.getState().findByContentId(id),
+  hydrateLocalStore: (envConfig) => useABSServerStore.getState().loadABSServers(envConfig),
+  applyRemote: (server) => useABSServerStore.getState().applyRemoteServer(server),
+  softDeleteByContentId: (id) => useABSServerStore.getState().softDeleteByContentId(id),
+};
+
+// Translators and prompts persist together, so both hydrate the same store.
+const hydrateCustomTranslators = (envConfig: EnvConfigType) =>
+  useCustomTranslatorStore.getState().loadCustomTranslators(envConfig);
+
+const customTranslatorPullConfig: ReplicaPullConfig<CustomTranslator> = {
+  kind: 'custom_translator',
+  // metadata-only — no baseDir
+  adapter: customTranslatorAdapter,
+  findByContentId: findCustomTranslator,
+  hydrateLocalStore: hydrateCustomTranslators,
+  applyRemote: (t) => useCustomTranslatorStore.getState().applyRemoteTranslator(t),
+  softDeleteByContentId: (id) => useCustomTranslatorStore.getState().softDeleteTranslator(id),
+};
+
+const translationPromptPullConfig: ReplicaPullConfig<TranslationPrompt> = {
+  kind: 'translation_prompt',
+  // metadata-only — no baseDir
+  adapter: translationPromptAdapter,
+  findByContentId: findTranslationPrompt,
+  hydrateLocalStore: hydrateCustomTranslators,
+  applyRemote: (p) => useCustomTranslatorStore.getState().applyRemotePrompt(p),
+  softDeleteByContentId: (id) => useCustomTranslatorStore.getState().softDeletePrompt(id),
+};
+
+const customTTSPullConfig: ReplicaPullConfig<CustomTTSService> = {
+  kind: 'custom_tts',
+  // metadata-only — no baseDir
+  adapter: customTTSAdapter,
+  findByContentId: findCustomTTSService,
+  hydrateLocalStore: (envConfig) => useCustomTTSStore.getState().loadCustomTTSServices(envConfig),
+  applyRemote: (s) => useCustomTTSStore.getState().applyRemoteService(s),
+  softDeleteByContentId: (id) => useCustomTTSStore.getState().softDeleteService(id),
+};
+
 const settingsPullConfig = (envConfig: EnvConfigType): ReplicaPullConfig<SettingsRemoteRecord> => ({
   kind: 'settings',
   // metadata-only — no baseDir
@@ -355,6 +429,16 @@ const runPullForKind = async (
   const ctx = getReplicaSync();
   if (!ctx) return;
   switch (kind) {
+    case 'bookshelf': {
+      await replayBookshelfOperations(envConfig);
+      // Batched rows already passed the category/auth gates and advanced the
+      // cursor, so apply them even if those gates change after the fetch.
+      if (!pullOverride && (!isSyncCategoryEnabled('bookshelf') || !(await getAccessToken())))
+        return;
+      const rows = await (pullOverride ? pullOverride() : ctx.manager.pull('bookshelf', pullOpts));
+      await applyRemoteBookshelfRows(envConfig, rows);
+      return;
+    }
     case 'dictionary':
       await replicaPullAndApply(
         buildReplicaPullDeps(
@@ -398,6 +482,54 @@ const runPullForKind = async (
           service,
           envConfig,
           opdsCatalogPullConfig,
+          pullOpts,
+          pullOverride,
+        ),
+      );
+      return;
+    case 'abs_server':
+      await replicaPullAndApply(
+        buildReplicaPullDeps(
+          ctx.manager,
+          service,
+          envConfig,
+          absServerPullConfig,
+          pullOpts,
+          pullOverride,
+        ),
+      );
+      return;
+    case 'custom_translator':
+      await replicaPullAndApply(
+        buildReplicaPullDeps(
+          ctx.manager,
+          service,
+          envConfig,
+          customTranslatorPullConfig,
+          pullOpts,
+          pullOverride,
+        ),
+      );
+      return;
+    case 'translation_prompt':
+      await replicaPullAndApply(
+        buildReplicaPullDeps(
+          ctx.manager,
+          service,
+          envConfig,
+          translationPromptPullConfig,
+          pullOpts,
+          pullOverride,
+        ),
+      );
+      return;
+    case 'custom_tts':
+      await replicaPullAndApply(
+        buildReplicaPullDeps(
+          ctx.manager,
+          service,
+          envConfig,
+          customTTSPullConfig,
           pullOpts,
           pullOverride,
         ),
@@ -474,7 +606,12 @@ const triggerIncrementalPullAll = (): void => {
       }
       await Promise.allSettled(
         kindsToPull.map(async (kind) => {
-          const rows = rowsByKind.get(kind) ?? [];
+          // Absent (as opposed to empty) means the backend answered nothing
+          // for this kind — see ReplicaSyncManager.pullMany. Applying an
+          // empty row set instead would be indistinguishable from the server
+          // having no rows at all.
+          const rows = rowsByKind.get(kind);
+          if (!rows) return;
           try {
             await runPullForKind(kind, service, envConfig, undefined, async () => rows);
           } catch (err) {
@@ -673,7 +810,15 @@ export const useReplicaPull = ({
           await Promise.allSettled(
             eligible.map(async (kind) => {
               try {
-                const rows = rowsByKind.get(kind) ?? [];
+                // Absent (as opposed to empty) means the backend answered
+                // nothing for this kind — see ReplicaSyncManager.pullMany.
+                // Release the dedup slot so a later mount retries instead of
+                // applying "no information" as an empty server state.
+                const rows = rowsByKind.get(kind);
+                if (!rows) {
+                  pulledKinds.delete(kind);
+                  return;
+                }
                 await runPullForKind(kind, appService, envConfig, undefined, async () => rows);
               } catch (err) {
                 console.warn(`replica ${kind} boot apply failed`, err);

@@ -82,7 +82,7 @@ describe('SearchBarRive', () => {
   it('applies hasResults that was already true when the file finishes loading', async () => {
     render(<SearchBarRive hasResults />);
     await screen.findByTestId('search-pup-hit-area');
-    expect(riveMock.inputs.searchHover.value).toBe(true);
+    await waitFor(() => expect(riveMock.inputs.searchHover.value).toBe(true));
   });
 
   describe('short yay', () => {
@@ -166,7 +166,7 @@ describe('SearchBarRive', () => {
     it('starts the yay when results were already there as the file loads', async () => {
       render(<SearchBarRive hasResults />);
       await screen.findByTestId('search-pup-hit-area');
-      expect(riveMock.inputs.searchHover.value).toBe(true);
+      await waitFor(() => expect(riveMock.inputs.searchHover.value).toBe(true));
       vi.useFakeTimers();
       expect(vi.getTimerCount()).toBe(0);
     });
@@ -188,7 +188,7 @@ describe('SearchBarRive', () => {
     it('applies an isEmpty that was already false when the file finishes loading', async () => {
       render(<SearchBarRive hasResults={false} isEmpty={false} />);
       await screen.findByTestId('search-pup-hit-area');
-      expect(riveMock.inputs.empty.value).toBe(false);
+      await waitFor(() => expect(riveMock.inputs.empty.value).toBe(false));
     });
 
     it('defaults to an empty field', async () => {
@@ -241,7 +241,7 @@ describe('SearchBarRive', () => {
       <SearchBarRive hasResults={false} onLoadedChange={onLoadedChange} />,
     );
     await screen.findByTestId('search-pup-hit-area');
-    expect(onLoadedChange).toHaveBeenLastCalledWith(true);
+    await waitFor(() => expect(onLoadedChange).toHaveBeenLastCalledWith(true));
 
     unmount();
     expect(onLoadedChange).toHaveBeenLastCalledWith(false);

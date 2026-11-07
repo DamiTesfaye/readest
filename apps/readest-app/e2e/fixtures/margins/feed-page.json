@@ -1,0 +1,34 @@
+[
+  {
+    "id": "pst_e2e_1",
+    "layerId": null,
+    "author": { "handle": "reader_one", "displayName": "Reader One" },
+    "display": "art",
+    "payload": { "v": 1, "ground": "paper", "quote": { "frame": {}, "size": "m" }, "elements": [] },
+    "sceneAsset": null,
+    "coverAsset": null
+  },
+  {
+    "id": "pst_e2e_2",
+    "layerId": null,
+    "author": { "handle": "reader_two", "displayName": "Reader Two" },
+    "display": "shape",
+    "payload": {
+      "v": 1,
+      "ground": "paper",
+      "quote": { "frame": {}, "size": "m" },
+      "elements": [{ "id": "p1", "kind": "play", "alt": "Words pushed aside" }]
+    },
+    "sceneAsset": "ast_scene",
+    "coverAsset": "ast_cover"
+  },
+  {
+    "id": "pst_e2e_3",
+    "layerId": null,
+    "author": { "handle": "reader_three", "displayName": "Reader Three" },
+    "display": "art",
+    "payload": { "v": 1, "ground": "ink", "quote": { "frame": {}, "size": "m" }, "elements": [] },
+    "sceneAsset": null,
+    "coverAsset": null
+  }
+]

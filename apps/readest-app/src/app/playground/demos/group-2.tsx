@@ -58,6 +58,8 @@ export const demos: DemoEntry[] = [
           popupWidth={240}
           popupHeight={460}
           canShare
+          canMargin={false}
+          onMargin={() => {}}
           onSelectStyle={noop}
           onSelectColor={noop}
           onBookmark={noop}

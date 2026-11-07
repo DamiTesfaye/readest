@@ -69,7 +69,7 @@ const TocPopover: React.FC<TocPopoverProps> = ({ bookKey, isOpen, anchorEl, onCl
             onSelectResult={handleSearchResultClick}
           />
         ) : (
-          bookDoc.toc && <TOCView toc={bookDoc.toc} bookKey={bookKey} />
+          bookDoc.toc && <TOCView toc={bookDoc.toc} bookDoc={bookDoc} bookKey={bookKey} />
         )}
       </div>
     </ToolbarPopover>

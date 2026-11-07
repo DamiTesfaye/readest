@@ -6,18 +6,19 @@ import { LuChevronsUpDown, LuSearch } from 'react-icons/lu';
 import { PiCaretRightBold } from 'react-icons/pi';
 
 import { useEnv } from '@/context/EnvContext';
-import { useAuth } from '@/context/AuthContext';
 import { useThemeStore } from '@/store/themeStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
-import { navigateToLibrary, navigateToProfile } from '@/utils/nav';
+import { useAmpleReadSession } from '@/hooks/useAmpleReadSession';
+import { navigateToLibrary } from '@/utils/nav';
+import { FEED_PARAMS, isFeedView } from '@/services/margins/public/feedApi';
+import { useMarginsPublic } from '@/services/margins/public/flag';
 import {
   getHomepageIconSrc,
   getSearchShortcutBadgeSrc,
   hasPaperOutlineIcon,
 } from '@/utils/toolbarIcons';
-import { getUserProfilePlan } from '@/utils/access';
 import { ensureLibraryStatusFilter, LibraryStatusFilter } from '../utils/libraryUtils';
 import { eventDispatcher } from '@/utils/event';
 import { debounce } from '@/utils/debounce';
@@ -36,16 +37,10 @@ const TAG_COLORS = [
   { label: 'Yellow', color: '#F2D34E' },
 ];
 
-const PLAN_LABELS = {
-  free: 'Free',
-  plus: 'Plus',
-  pro: 'Pro',
-  purchase: 'Lifetime',
-} as const;
-
 interface LibrarySidebarProps {
   onPullLibrary: () => void;
   onOpenCatalogManager: () => void;
+  onOpenExplore: () => void;
 }
 
 interface SidebarNavItemProps {
@@ -54,6 +49,7 @@ interface SidebarNavItemProps {
   active?: boolean;
   isDarkMode: boolean;
   iconClassName?: string;
+  iconSrc?: string;
   onClick: () => void;
 }
 
@@ -63,10 +59,11 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   active = false,
   isDarkMode,
   iconClassName = 'h-4',
+  iconSrc,
   onClick,
 }) => {
   const { themeColor } = useThemeStore();
-  const outline = hasPaperOutlineIcon(icon, themeColor);
+  const outline = !iconSrc && hasPaperOutlineIcon(icon, themeColor);
   return (
     <button
       type='button'
@@ -90,7 +87,7 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
         />
       ) : (
         <img
-          src={getHomepageIconSrc(icon, isDarkMode, active)}
+          src={iconSrc ?? getHomepageIconSrc(icon, isDarkMode, active)}
           alt=''
           aria-hidden
           className={clsx('w-6 object-contain', iconClassName)}
@@ -101,12 +98,12 @@ const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
   );
 };
 
-const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
+const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary, onOpenExplore }) => {
   const _ = useTranslation();
   const router = useAppRouter();
   const searchParams = useSearchParams();
   const { appService } = useEnv();
-  const { user, token } = useAuth();
+  const me = useAmpleReadSession()?.me;
   const { isDarkMode, themeColor } = useThemeStore();
   const isPaper = themeColor === 'paper';
   const isMacShortcut = appService?.osPlatform === 'macos' || appService?.osPlatform === 'ios';
@@ -117,6 +114,11 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
 
   const statusFilter = ensureLibraryStatusFilter(searchParams?.get('status'));
   const catalogsActive = searchParams?.get('catalogs') === 'true';
+  const exploreActive = searchParams?.get('explore') === 'true';
+  const marginsActive = searchParams?.get('margins') === 'true';
+  const marginsPublic = useMarginsPublic();
+  const feedActive = isFeedView(searchParams);
+  const discoverActive = catalogsActive || exploreActive || marginsActive || feedActive;
 
   const navigateWithParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -151,7 +153,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
   useEffect(() => {
     setSearchQuery(searchParams?.get('q') ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogsActive]);
+  }, [discoverActive]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -172,10 +174,34 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
         params.set('status', status);
       }
       params.delete('group');
-      if (catalogsActive) {
+      if (discoverActive) {
         params.delete('catalogs');
+        params.delete('explore');
+        params.delete('margins');
         params.delete('q');
+        for (const key of FEED_PARAMS) params.delete(key);
       }
+    });
+  };
+
+  const handleOpenMargins = () => {
+    navigateWithParams((params) => {
+      params.set('margins', 'true');
+      params.delete('catalogs');
+      params.delete('explore');
+      params.delete('q');
+      for (const key of FEED_PARAMS) params.delete(key);
+    });
+  };
+
+  const handleOpenFeed = () => {
+    navigateWithParams((params) => {
+      for (const key of FEED_PARAMS) params.delete(key);
+      params.set('feed', 'for-you');
+      params.delete('margins');
+      params.delete('catalogs');
+      params.delete('explore');
+      params.delete('q');
     });
   };
 
@@ -187,9 +213,9 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
     });
   };
 
-  const plan = token ? getUserProfilePlan(token) : 'free';
-  const userFullName = user?.user_metadata?.['full_name'] || user?.email || '';
-  const avatarUrl = user?.user_metadata?.['picture'] || user?.user_metadata?.['avatar_url'] || '';
+  const userFullName = me?.displayName || me?.email || '';
+  const userEmail = me?.displayName ? me.email : null;
+  const avatarUrl = me?.avatarUrl || '';
 
   return (
     <aside
@@ -244,21 +270,21 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
           <SidebarNavItem
             icon='library'
             label={_('All')}
-            active={!catalogsActive && statusFilter === 'all'}
+            active={!discoverActive && statusFilter === 'all'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('all')}
           />
           <SidebarNavItem
             icon='currently-reading'
             label={_('Currently Reading')}
-            active={!catalogsActive && statusFilter === 'reading'}
+            active={!discoverActive && statusFilter === 'reading'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('reading')}
           />
           <SidebarNavItem
             icon='finished-reading'
             label={_('Finished')}
-            active={!catalogsActive && statusFilter === 'finished'}
+            active={!discoverActive && statusFilter === 'finished'}
             isDarkMode={isDarkMode}
             onClick={() => handleSelectStatus('finished')}
           />
@@ -274,6 +300,41 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
             isDarkMode={isDarkMode}
             iconClassName='h-5'
             onClick={toastComingSoon}
+          />
+        </div>
+        <div className='flex flex-col gap-1'>
+          <span className='text-base-content/50 px-2 [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+            {_('Margins')}
+          </span>
+          <SidebarNavItem
+            icon='margins'
+            iconSrc='/images/spark/margins.svg'
+            label={_('Your Margins')}
+            active={marginsActive}
+            isDarkMode={isDarkMode}
+            onClick={handleOpenMargins}
+          />
+          {marginsPublic && (
+            <SidebarNavItem
+              icon='margins'
+              iconSrc='/images/spark/margins.svg'
+              label={_('Feed')}
+              active={feedActive}
+              isDarkMode={isDarkMode}
+              onClick={handleOpenFeed}
+            />
+          )}
+        </div>
+        <div className='flex flex-col gap-1'>
+          <span className='text-base-content/50 px-2 [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+            {_('Discover')}
+          </span>
+          <SidebarNavItem
+            icon='explore'
+            label={_('Explore')}
+            active={exploreActive}
+            isDarkMode={isDarkMode}
+            onClick={onOpenExplore}
           />
         </div>
         {/* <div className='flex flex-col gap-1'>
@@ -337,7 +398,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
         </div>
       </nav>
       <div className='border-base-300 eink-bordered border-t p-3'>
-        {user ? (
+        {me ? (
           <div className='flex items-center gap-2'>
             <Dropdown
               label={_('Account Menu')}
@@ -356,27 +417,17 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({ onPullLibrary }) => {
                     <span className='truncate [font-family:"Avenir_Next_LT_Pro"] text-sm'>
                       {userFullName}
                     </span>
-                    <span className='text-base-content/60 truncate [font-family:"Avenir_Next_LT_Pro"] text-xs'>
-                      {_(PLAN_LABELS[plan])}
-                    </span>
+                    {userEmail && (
+                      <span className='text-base-content/60 truncate [font-family:"Avenir_Next_LT_Pro"] text-xs'>
+                        {userEmail}
+                      </span>
+                    )}
                   </span>
                 </>
               }
             >
               <SettingsMenu onPullLibrary={onPullLibrary} />
             </Dropdown>
-            {plan === 'free' && (
-              <button
-                type='button'
-                onClick={() => navigateToProfile(router)}
-                className={clsx(
-                  'border-base-300 eink-bordered rounded-full border px-3 py-1',
-                  'hover:bg-base-300/70 [font-family:"Avenir_Next_LT_Pro"] text-xs font-medium',
-                )}
-              >
-                {_('Upgrade')}
-              </button>
-            )}
             <LuChevronsUpDown aria-hidden className='text-base-content/50 h-4 w-4 shrink-0' />
           </div>
         ) : (

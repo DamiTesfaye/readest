@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { IconType } from 'react-icons';
 import { IoIosBuild } from 'react-icons/io';
 import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import { PiNotePencil } from 'react-icons/pi';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { Position } from '@/utils/sel';
 import { BookNote, HighlightColor, HighlightStyle } from '@/types/book';
@@ -60,6 +61,7 @@ interface AnnotationPopupProps {
   isVertical: boolean;
   selectedText: string;
   notes: BookNote[];
+  onEditNote?: (note: BookNote) => void;
   position: Position;
   trianglePosition: Position;
   selectedStyle: HighlightStyle;
@@ -68,6 +70,8 @@ interface AnnotationPopupProps {
   popupWidth: number;
   popupHeight: number;
   canShare: boolean;
+  canMargin: boolean;
+  onMargin: () => void;
   onSelectStyle: (style: HighlightStyle) => void;
   onSelectColor: (color: HighlightColor) => void;
   onBookmark: () => void;
@@ -90,6 +94,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
   isVertical,
   selectedText,
   notes,
+  onEditNote,
   position,
   trianglePosition,
   selectedStyle: _selectedStyle,
@@ -98,6 +103,8 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
   popupWidth,
   popupHeight,
   canShare,
+  canMargin,
+  onMargin,
   onSelectStyle,
   onSelectColor,
   onBookmark,
@@ -168,14 +175,14 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
   const divider = <div className='border-base-content/10 border-t' />;
 
   return (
-    <div dir={dir}>
+    <div dir={dir} className='pointer-events-none absolute inset-0 z-[43]'>
       <Popup
         width={popupWidth}
         maxHeight={isVertical ? undefined : popupHeight}
         position={position}
         trianglePosition={trianglePosition}
         className={clsx(
-          'selection-popup !bg-base-200 no-scrollbar overflow-y-auto overscroll-contain',
+          'selection-popup pointer-events-auto !bg-base-200 no-scrollbar overflow-y-auto overscroll-contain',
           notes.length > 0 && '!bg-transparent',
         )}
         triangleClassName='!text-base-200'
@@ -190,6 +197,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
             triangleDir={trianglePosition.dir!}
             popupWidth={popupWidth}
             popupHeight={popupHeight}
+            onEditNote={onEditNote}
             onDismiss={onDismiss}
           />
         ) : showAdvanced ? (
@@ -260,6 +268,7 @@ const AnnotationPopup: React.FC<AnnotationPopupProps> = ({
             <div className='flex flex-col'>
               {actionRow('bookmark-outline', _('Bookmark page'), onBookmark)}
               {actionRow('add-note-outline', _('Add note'), onAddNote)}
+              {canMargin && actionRow(reactIcon(PiNotePencil), _('Margin'), onMargin)}
               {annotatedStyle !== null &&
                 actionRow(reactIcon(RiDeleteBinLine), _('Delete'), onDelete)}
             </div>

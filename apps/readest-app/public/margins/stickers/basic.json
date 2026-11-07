@@ -1,0 +1,50 @@
+[
+  {
+    "name": "star",
+    "label": "Star"
+  },
+  {
+    "name": "heart",
+    "label": "Heart"
+  },
+  {
+    "name": "sparkle",
+    "label": "Sparkle"
+  },
+  {
+    "name": "check",
+    "label": "Check"
+  },
+  {
+    "name": "question",
+    "label": "Question"
+  },
+  {
+    "name": "exclaim",
+    "label": "Exclamation"
+  },
+  {
+    "name": "arrow",
+    "label": "Arrow"
+  },
+  {
+    "name": "circle",
+    "label": "Circle"
+  },
+  {
+    "name": "underline",
+    "label": "Underline"
+  },
+  {
+    "name": "bracket",
+    "label": "Bracket"
+  },
+  {
+    "name": "quote",
+    "label": "Quote mark"
+  },
+  {
+    "name": "smile",
+    "label": "Smile"
+  }
+]

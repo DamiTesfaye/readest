@@ -38,11 +38,20 @@ jobs:
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - name: Install minimal stable with clippy and rustfmt
         if: steps.changes.outputs.tauri == 'true'
-        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+      - name: load the ampleread-backend read key
+        if: steps.changes.outputs.tauri == 'true'
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AMPLEREAD_BACKEND_DEPLOY_KEY }}
+      - name: fetch git dependencies through the ssh agent
+        if: steps.changes.outputs.tauri == 'true'
+        shell: bash
+        run: echo 'CARGO_NET_GIT_FETCH_WITH_CLI=true' >> "$GITHUB_ENV"
       - name: Cache apt packages
         if: steps.changes.outputs.tauri == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -87,7 +96,7 @@ jobs:
           submodules: 'true'
       - name: detect localsend-bin changes
         id: changes
-        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           filters: |
             native:
@@ -97,7 +106,7 @@ jobs:
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - name: Install minimal stable with clippy and rustfmt
         if: steps.changes.outputs.native == 'true'
-        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           toolchain: stable
           override: true
@@ -123,7 +132,7 @@ jobs:
           submodules: 'true'
 
       - name: setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -140,7 +149,7 @@ jobs:
         run: |
           pnpm format:check || (pnpm format && git diff && exit 1)
 
-      # pnpm lint here is web-only (tsgo + biome). The koplugin syntax check
+      # pnpm lint here is web-only (tsc + biome). The koplugin syntax check
       # (lint:lua) runs in the test_extensions job, which installs LuaJIT only
       # when the koplugin sources changed.
       - name: run lint
@@ -198,7 +207,7 @@ jobs:
           submodules: 'true'
 
       - name: setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -210,6 +219,12 @@ jobs:
         working-directory: apps/readest-app
         run: |
           pnpm install --frozen-lockfile --prefer-offline && pnpm setup-vendors
+
+      - name: margin-core wasm size gate
+        run: test $(gzip -9c packages/margin-core-wasm/dist/web/margin_core_wasm_bg.wasm | wc -c) -le 307200
+
+      - name: margin-play wasm size gate
+        run: test $(gzip -9c packages/margin-play-wasm/dist/web/margin_play_wasm_bg.wasm | wc -c) -le 1572864
 
       # Playwright is only needed by the browser tests, which run on shard 1.
       - name: cache playwright browsers
@@ -270,7 +285,7 @@ jobs:
               - 'apps/readest.koplugin/**'
 
       - name: setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -359,7 +374,7 @@ jobs:
 
       - name: setup pnpm
         if: steps.changes.outputs.tauri == 'true'
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: setup node
         if: steps.changes.outputs.tauri == 'true'
@@ -391,26 +406,35 @@ jobs:
 
       - name: install Rust toolchain
         if: steps.changes.outputs.tauri == 'true'
-        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           toolchain: stable
           # This action defaults RUSTFLAGS to -D warnings. Path-patched
-          # dependencies (packages/tao, packages/tauri) build without
-          # cap-lints, so upstream warnings in them (e.g. glib deprecations
-          # in tao's Linux backend) would fail the app build. Warnings in
-          # our own crate are enforced by the rust_lint job instead.
+          # dependencies (packages/tauri, packages/swift-rs) build without
+          # cap-lints, so upstream warnings in them would fail the app
+          # build. Warnings in our own crate are enforced by the rust_lint
+          # job instead.
           rustflags: ''
           # Disable this action's built-in rust-cache so the explicit
           # Swatinem/rust-cache below is the single cache (it's the one
           # configured with cache-workspace-crates for the vendored tauri fork).
           cache: false
 
-      - uses: Swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3 # v2
+      - name: load the ampleread-backend read key
+        if: steps.changes.outputs.tauri == 'true'
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AMPLEREAD_BACKEND_DEPLOY_KEY }}
+      - name: fetch git dependencies through the ssh agent
+        if: steps.changes.outputs.tauri == 'true'
+        shell: bash
+        run: echo 'CARGO_NET_GIT_FETCH_WITH_CLI=true' >> "$GITHUB_ENV"
+      - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         if: steps.changes.outputs.tauri == 'true'
         with:
           # cache-workspace-crates caches the path/workspace crates too: the
-          # vendored tauri fork (packages/tauri, packages/tauri-plugins, wired
-          # via [patch.crates-io]) and the local src-tauri/plugins/*. These are
+          # vendored tauri fork (packages/tauri, wired via [patch.crates-io])
+          # and the local src-tauri/plugins/*. These are
           # workspace members that rust-cache prunes by default, so the whole
           # tauri stack — plus every crates.io plugin that depends on the
           # patched `tauri` — rebuilt on every run. They change only

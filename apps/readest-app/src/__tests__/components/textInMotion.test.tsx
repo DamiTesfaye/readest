@@ -64,6 +64,9 @@ class ResizeObserverStub {
 const renderArt = (props: Partial<React.ComponentProps<typeof TextInMotionArt>> = {}) =>
   render(<TextInMotionArt themeName='default' isDarkMode={false} hovered={false} {...props} />);
 
+const artFetches = () =>
+  vi.mocked(fetch).mock.calls.filter(([url]) => url === '/rive/moving-pictures.riv');
+
 const loadedInstance = async () => {
   await waitFor(() =>
     expect(screen.getByTestId('text-in-motion-canvas').className).toContain('opacity-100'),
@@ -148,7 +151,7 @@ describe('TextInMotionArt', () => {
   it('applies hover requested before the file finished loading', async () => {
     renderArt({ hovered: true });
     await loadedInstance();
-    expect(riveMock.hover.value).toBe(true);
+    await waitFor(() => expect(riveMock.hover.value).toBe(true));
   });
 
   it('uses the coloured palette in coloured themes', async () => {
@@ -179,7 +182,7 @@ describe('TextInMotionArt', () => {
     expectPalette([0x00, 0x7a, 0xff], [0x02, 0x02, 0x88]);
     expect(riveMock.instances).toHaveLength(1);
     expect(rive.cleanup).not.toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(artFetches()).toHaveLength(1);
   });
 
   it('cleans the instance up on unmount', async () => {
@@ -207,7 +210,7 @@ describe('TextInMotionArt', () => {
     await act(async () => {});
     expect(screen.queryByTestId('text-in-motion-canvas')).toBeNull();
     expect(riveMock.instances).toHaveLength(0);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(artFetches()).toHaveLength(0);
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       '/images/toolbar/moving-pictures.svg',
     );
@@ -217,8 +220,11 @@ describe('TextInMotionArt', () => {
     renderArt();
     const rive = await loadedInstance();
     const canvas = screen.getByTestId('text-in-motion-canvas');
-    const observer = resizeObservers.find((entry) => entry.target === canvas);
-    expect(observer).toBeDefined();
+    const observer = await waitFor(() => {
+      const found = resizeObservers.find((entry) => entry.target === canvas);
+      expect(found).toBeDefined();
+      return found;
+    });
     rive.resizeDrawingSurfaceToCanvas.mockClear();
     act(() => observer!.callback());
     expect(rive.resizeDrawingSurfaceToCanvas).toHaveBeenCalledTimes(1);

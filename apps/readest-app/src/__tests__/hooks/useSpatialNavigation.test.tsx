@@ -79,6 +79,16 @@ describe('useToolbarKeyNavigation', () => {
       expect(document.activeElement).toBe(document.querySelector('[data-testid="btn-1"]'));
     });
 
+    it('keeps focus on a toolbar button that already has it when keyboard-activated', async () => {
+      const { rerender } = render(<TestToolbar isVisible={false} />);
+      const third = document.querySelector<HTMLButtonElement>('[data-testid="btn-3"]')!;
+      third.focus();
+      simulateKeyboardActivation();
+      rerender(<TestToolbar isVisible={true} />);
+      await waitForAutoFocus();
+      expect(document.activeElement).toBe(third);
+    });
+
     it('does not auto-focus when not visible', async () => {
       simulateKeyboardActivation();
       render(<TestToolbar isVisible={false} />);

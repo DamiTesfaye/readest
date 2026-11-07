@@ -115,8 +115,8 @@ describe('mindmap presets', () => {
   });
 
   it('flips the ink preset stroke with the theme and never uses filters', () => {
-    expect(mindmapCssVars('light')['--mm-ink-stroke']).toBe('oklch(var(--bc))');
-    expect(mindmapCssVars('dark')['--mm-ink-stroke']).toBe('oklch(var(--bc))');
+    expect(mindmapCssVars('light')['--mm-ink-stroke']).toBe('var(--color-base-content)');
+    expect(mindmapCssVars('dark')['--mm-ink-stroke']).toBe('var(--color-base-content)');
     expect(mindmapCssVars('eink')['--mm-sky-stroke']).toBe('#000000');
     const all = MODES.flatMap((mode) => Object.values(mindmapCssVars(mode))).join(' ');
     expect(all).not.toMatch(/invert|filter/);
@@ -129,8 +129,8 @@ describe('sticker node initials', () => {
       const palette = theme.colors[scheme];
       const resolve = (value: string): string =>
         value
-          .replace('oklch(var(--b3))', palette['base-300'])
-          .replace('oklch(var(--bc))', palette['base-content']);
+          .replace('var(--color-base-300)', palette['base-300'])
+          .replace('var(--color-base-content)', palette['base-content']);
       it(`every initial meets 3:1 on its disc in ${theme.name} ${scheme}`, () => {
         const vars = mindmapCssVars(scheme);
         for (const preset of PRESET_COLORS) {

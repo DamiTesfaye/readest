@@ -68,7 +68,10 @@ export function useSpatialNavigation(
     if (!isVisible || !wasKeyboardActivated.current) return;
     const container = containerRef.current;
     if (!container) return;
-    const timer = setTimeout(() => focusFirstButton(container), 100);
+    const timer = setTimeout(() => {
+      if (container.contains(document.activeElement)) return;
+      focusFirstButton(container);
+    }, 100);
     return () => clearTimeout(timer);
   }, [isVisible, containerRef]);
 

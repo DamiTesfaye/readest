@@ -3,9 +3,11 @@ import { AppService, BaseDir } from '@/types/system';
 import { useTransferStore, TransferItem, ReplicaTransferFile } from '@/store/transferStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { isReadestCloudStorageActive } from '@/services/sync/cloudSyncProvider';
+import { isSyncCategoryEnabled } from '@/services/sync/syncCategories';
 import { TranslationFunc } from '@/hooks/useTranslation';
 import { createProgressThrottle, ProgressHandler, ProgressPayload } from '@/utils/transfer';
 import { eventDispatcher } from '@/utils/event';
+import { isAbsOfflineCapable, isAudiobook } from '@/utils/audiobook';
 import { getTransferMessages } from './transferMessages';
 import { getReplicaAdapter } from './sync/replicaRegistry';
 import { STORAGE_FILE_NOT_FOUND_ERROR } from '@/libs/errors';
@@ -82,8 +84,16 @@ class TransferManager {
     return !!useSettingsStore.getState().settings?.version;
   }
 
-  private isBookUploadAllowed(): boolean {
-    return isReadestCloudStorageActive(useSettingsStore.getState().settings);
+  /**
+   * A Readest Cloud file is only reachable through its `books` row, and that
+   * row is pushed only while Books sync is on. Uploading with it off stores
+   * files no other device can ever list, while still spending quota.
+   */
+  isBookUploadAllowed(): boolean {
+    return (
+      isReadestCloudStorageActive(useSettingsStore.getState().settings) &&
+      isSyncCategoryEnabled('book')
+    );
   }
 
   private isDeferredBookUpload(t: TransferItem): boolean {
@@ -92,7 +102,7 @@ class TransferManager {
 
   /**
    * Cancel pending book uploads when Readest Cloud is not the selected
-   * provider. Idempotent (acts on pending rows only) — safe to run on
+   * provider or Books sync is off. Idempotent (acts on pending rows only) — safe to run on
    * every processQueue pass, which also re-settles rows another window
    * or a rogue retry re-pended. Cancellation is visible ('cancelled'
    * with cancelReason 'policy'), never a silent drop.
@@ -110,7 +120,7 @@ class TransferManager {
       store.setTransferStatus(t.id, 'cancelled', undefined, 'policy');
     });
     console.info(
-      `[cloudSync] cancelled ${gated.length} pending Readest Cloud upload(s): third-party provider selected`,
+      `[cloudSync] cancelled ${gated.length} pending Readest Cloud upload(s): Readest Cloud or Books sync is off`,
     );
     this.persistQueue();
   }
@@ -171,6 +181,9 @@ class TransferManager {
       return null;
     }
 
+    // ABS books stream from the server; there is no local file to upload.
+    if (isAudiobook(book)) return null;
+
     // Readest Cloud storage is not written to while a third-party
     // provider is selected. Before settings hydrate the entry is queued
     // and deferred; the reconcile on hydration decides its fate.
@@ -192,14 +205,42 @@ class TransferManager {
     return transferId;
   }
 
-  queueDownload(book: Book, priority: number = 10): string | null {
+  queueDownload(book: Book, priority: number = 10, isBackground: boolean = false): string | null {
     if (!this.isReady()) {
       console.warn('TransferManager not initialized');
       return null;
     }
 
+    // ABS books stream from the server; there is no cloud file to download.
+    if (isAudiobook(book)) return null;
+
     const store = useTransferStore.getState();
 
+    const existing = store.getTransferByBookHash(book.hash, 'download');
+    if (existing) {
+      return existing.id;
+    }
+
+    const transferId = store.addTransfer(book.hash, book.title, 'download', priority, isBackground);
+    this.persistQueue();
+    this.processQueue();
+    return transferId;
+  }
+
+  /**
+   * Queue an offline download of an Audiobookshelf book's media (#6256). A
+   * 'book' download row, so the shelf's cover overlay and the Transfer Queue
+   * track it like any book download; executeBookTransfer routes it to the
+   * ABS downloader instead of cloud storage.
+   */
+  queueAbsOfflineDownload(book: Book, priority: number = 10): string | null {
+    if (!this.isReady()) {
+      console.warn('TransferManager not initialized');
+      return null;
+    }
+    if (!isAbsOfflineCapable(book)) return null;
+
+    const store = useTransferStore.getState();
     const existing = store.getTransferByBookHash(book.hash, 'download');
     if (existing) {
       return existing.id;
@@ -494,6 +535,8 @@ class TransferManager {
       } else {
         await this.executeBookTransfer(transfer, progressHandler, abortController);
       }
+      // A transfer that cannot stop mid-flight must not report success once cancelled.
+      if (abortController.signal.aborted) return;
 
       // Land the final progress value that the throttle may still be holding.
       progressThrottle.flush();
@@ -614,7 +657,7 @@ class TransferManager {
   private async executeBookTransfer(
     transfer: TransferItem,
     progressHandler: (p: ProgressPayload) => void,
-    _abortController: AbortController,
+    abortController: AbortController,
   ): Promise<void> {
     const _ = this._!;
     const library = this.getLibrary!();
@@ -622,6 +665,15 @@ class TransferManager {
 
     if (!book) {
       throw new Error(_('Book not found in library'));
+    }
+
+    if (book.format === 'ABS' && transfer.type === 'download') {
+      const { downloadAbsForOffline } = await import('@/services/audiobookshelf/offline');
+      await downloadAbsForOffline(this.appService!, book, progressHandler, abortController.signal);
+      if (abortController.signal.aborted) return;
+      book.absDownloadedAt = Date.now();
+      await this.updateBook!(book);
+      return;
     }
 
     if (transfer.type === 'upload') {

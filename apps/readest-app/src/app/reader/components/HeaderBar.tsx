@@ -13,7 +13,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useTrafficLightStore } from '@/store/trafficLightStore';
 import { useTrafficLight } from '@/hooks/useTrafficLight';
 import { useSpatialNavigation } from '@/app/reader/hooks/useSpatialNavigation';
-import { getHeaderTriggerHeight } from '@/utils/insets';
+import { getHeaderTriggerHeight, getHorizontalInsetStyle } from '@/utils/insets';
+import { getBookDataAttributes } from '@/utils/book';
 import Dropdown from '@/components/Dropdown';
 import ModalPortal from '@/components/ModalPortal';
 import WindowButtons from '@/components/WindowButtons';
@@ -29,6 +30,10 @@ import TocPopover from './TocPopover';
 import LibraryPopover from './library/LibraryPopover';
 import BooknotesPopover, { BOOKNOTES_POPOVER_WIDTH } from './booknotes/BooknotesPopover';
 import AnnotationsPopover, { ANNOTATIONS_POPOVER_WIDTH } from './booknotes/AnnotationsPopover';
+import MarginsPopover, { MARGINS_POPOVER_WIDTH } from './margins/MarginsPopover';
+import PublicMarginsHost from './margins/PublicMarginsHost';
+import { MARGINS_OPEN_PANEL_EVENT } from './margins/ClipSheet';
+import { MARGINS_OPEN_CARD_EVENT } from '../hooks/useMarginsPainter';
 import MorePopover, { MORE_POPOVER_WIDTH } from './MorePopover';
 import MoreMenuButton from './MoreMenuButton';
 import PinnedMoreMenuButton from './PinnedMoreMenuButton';
@@ -47,7 +52,7 @@ const END_SLOT_INDICES = [0, 1, 2];
 
 const THEME_FONTS_WIDTH = 300;
 
-type SidePanel = 'themeFonts' | 'booknotes' | 'annotations';
+type SidePanel = 'themeFonts' | 'booknotes' | 'annotations' | 'margins';
 
 interface HeaderBarProps {
   bookKey: string;
@@ -79,14 +84,23 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const { isTrafficLightVisible } = useTrafficLight(headerRef);
   const { trafficLightInFullscreen, setTrafficLightVisibility } = useTrafficLightStore();
   const { bookKeys, hoveredBookKey } = useReaderStore();
-  const { isDarkMode, themeColor, systemUIVisible, statusBarHeight } = useThemeStore();
+  const { isDarkMode, themeColor, systemUIVisible, statusBarHeight, isIPhoneDuo } = useThemeStore();
   const { isSideBarVisible, getIsSideBarVisible } = useSidebarStore();
   const { getView, getViewState, getViewSettings, setHoveredBookKey } = useReaderStore();
   const { getBookData, getConfig } = useBookDataStore();
   const bookData = getBookData(bookKey);
   const bookConfig = getConfig(bookKey);
-  const lastSyncedAt =
-    Math.max(bookConfig?.lastSyncedAtConfig || 0, bookConfig?.lastSyncedAtNotes || 0) || undefined;
+  // Readest Cloud's per-book stamps. Includes the PUSH stamps so this agrees
+  // with the View menu's sync row, which has always counted them — otherwise
+  // the row could read "Synced 2 minutes ago" while this dialog said "Never
+  // synced" for the same book.
+  const nativeLastSyncedAt =
+    Math.max(
+      bookConfig?.lastSyncedAtConfig || 0,
+      bookConfig?.lastSyncedAtNotes || 0,
+      bookConfig?.lastPushedAtConfig || 0,
+      bookConfig?.lastPushedAtNotes || 0,
+    ) || undefined;
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMetaHashDialogOpen, setIsMetaHashDialogOpen] = useState(false);
@@ -97,6 +111,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isBooknotesOpen, setIsBooknotesOpen] = useState(false);
   const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(false);
+  const [isMarginsOpen, setIsMarginsOpen] = useState(false);
+  const [marginsFocusId, setMarginsFocusId] = useState<string | null>(null);
   const [sidePanelAnchorRect, setSidePanelAnchorRect] = useState<Rect | null>(null);
   const [slotAnchorEl, setSlotAnchorEl] = useState<HTMLElement | null>(null);
   const [isArranging, setIsArranging] = useState(false);
@@ -145,6 +161,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     setIsThemeFontsOpen(panel === 'themeFonts');
     setIsBooknotesOpen(panel === 'booknotes');
     setIsAnnotationsOpen(panel === 'annotations');
+    setIsMarginsOpen(panel === 'margins');
     handleToggleDropdown(true);
   };
 
@@ -191,6 +208,36 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     handleToggleDropdown(false);
   };
 
+  const handleOpenMargins = (anchorRect: Rect) => {
+    setMarginsFocusId(null);
+    openSidePanel('margins', anchorRect);
+  };
+
+  const handleCloseMargins = () => {
+    setIsMarginsOpen(false);
+    setMarginsFocusId(null);
+    setSlotAnchorEl(null);
+    setIsMoreOpen(false);
+    handleToggleDropdown(false);
+  };
+
+  useEffect(() => {
+    const open = (e: CustomEvent) => {
+      const anchor =
+        headerRef.current?.querySelector<HTMLElement>('[data-quick-pick="margins"]') ??
+        moreAnchorRef.current;
+      if (e.detail?.bookKey !== bookKey || !anchor) return;
+      setMarginsFocusId(e.detail.ids?.[0] ?? null);
+      openSidePanelFromSlot('margins')(anchor);
+    };
+    eventDispatcher.on(MARGINS_OPEN_CARD_EVENT, open);
+    eventDispatcher.on(MARGINS_OPEN_PANEL_EVENT, open);
+    return () => {
+      eventDispatcher.off(MARGINS_OPEN_CARD_EVENT, open);
+      eventDispatcher.off(MARGINS_OPEN_PANEL_EVENT, open);
+    };
+  });
+
   const handleToggleTTS = () => {
     const ttsEnabled = getViewState(bookKey)?.ttsEnabled;
     eventDispatcher.dispatch(ttsEnabled ? 'tts-stop' : 'tts-speak', { bookKey });
@@ -235,6 +282,18 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     [sidePanelPointerY],
   );
 
+  const getMarginsPlacement = useCallback(
+    (anchorRect: Rect, viewport: Rect) =>
+      getToolbarSidePanelPlacement(
+        anchorRect,
+        viewport,
+        MORE_POPOVER_WIDTH,
+        MARGINS_POPOVER_WIDTH,
+        sidePanelPointerY,
+      ),
+    [sidePanelPointerY],
+  );
+
   const getBooknotesPlacement = useCallback(
     (anchorRect: Rect, viewport: Rect) =>
       sidePanelAnchorRect
@@ -272,6 +331,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
     onOpenContents: openContents,
     onOpenThemeFonts: openSidePanelFromSlot('themeFonts'),
     onOpenAnnotations: openSidePanelFromSlot('annotations'),
+    onOpenMargins: openSidePanelFromSlot('margins'),
     onOpenBooknotes: openSidePanelFromSlot('booknotes'),
     onToggleTTS: handleToggleTTS,
   });
@@ -295,13 +355,21 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
     if (hoveredBookKey === bookKey && isTopLeft) {
       setTrafficLightVisibility(true);
-    } else if (!hoveredBookKey) {
-      setTimeout(() => {
-        if (!getIsSideBarVisible()) {
-          setTrafficLightVisibility(false);
-        }
-      }, 100);
+      return;
     }
+    if (hoveredBookKey) return;
+    // The hide is deferred so a pointer crossing from one hover target to the
+    // next doesn't flash the buttons off. Cancel it on unmount: closing the
+    // last book writes `hoveredBookKey = null` and then routes to the library,
+    // so an uncancelled timer comes due after the library header has already
+    // asked for the buttons and hides them there (#6222). `getIsSideBarVisible`
+    // is why an open sidebar masked this — it short-circuits the same hide.
+    const timeout = setTimeout(() => {
+      if (!getIsSideBarVisible()) {
+        setTrafficLightVisibility(false);
+      }
+    }, 100);
+    return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appService, hoveredBookKey]);
 
@@ -416,6 +484,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             : `${insets.top}px`,
           backgroundColor: chromeColor ?? undefined,
           color: chromeTextColor,
+          // iPhone Duo's status-bar strip reports as a large left/right inset
+          // (#6307); clear it without losing the header's own ps-4/pr-4 padding.
+          ...getHorizontalInsetStyle(insets, isIPhoneDuo, 16),
         }}
         onFocus={() => !appService?.isMobile && setHoveredBookKey(bookKey)}
         onMouseLeave={(e) => {
@@ -453,8 +524,9 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           className={clsx(
             'header-title z-15 bg-base-100 pointer-events-none hidden flex-1 items-center justify-center sm:flex sm:bg-transparent',
             !windowButtonVisible && 'absolute inset-0',
-            isHeaderCompact && '!hidden',
+            isHeaderCompact && 'hidden!',
           )}
+          {...getBookDataAttributes(bookTitle, bookData?.book?.metadata)}
         >
           <div
             aria-hidden='true'
@@ -491,6 +563,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             onOpenThemeFonts={handleThemeFontsOpen}
             onOpenBooknotes={handleOpenBooknotes}
             onOpenAnnotations={handleOpenAnnotations}
+            onOpenMargins={handleOpenMargins}
             onToggleTTS={handleToggleTTS}
             isArranging={isArranging}
             onArrangeChange={setIsArranging}
@@ -530,6 +603,15 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             getPlacement={slotAnchorEl ? undefined : getAnnotationsPlacement}
             onClose={handleCloseAnnotations}
           />
+          <MarginsPopover
+            bookKey={bookKey}
+            isOpen={isMarginsOpen}
+            anchorEl={panelAnchorEl}
+            getPlacement={slotAnchorEl ? undefined : getMarginsPlacement}
+            focusId={marginsFocusId}
+            onClose={handleCloseMargins}
+          />
+          <PublicMarginsHost bookKey={bookKey} />
           <div className='flex items-center gap-x-4 max-[350px]:gap-x-2 sm:hidden'>
             {!isHeaderCompact && <SettingsToggler bookKey={bookKey} />}
             <NotebookToggler bookKey={bookKey} />
@@ -551,9 +633,10 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
             <ModalPortal showOverlay={false}>
               <SyncInfoDialog
                 isOpen={isMetaHashDialogOpen}
+                bookKey={bookKey}
                 metadata={bookData?.bookDoc?.metadata ?? bookData?.book?.metadata}
                 storedMetaHash={bookData?.book?.metaHash}
-                lastSyncedAt={lastSyncedAt}
+                nativeLastSyncedAt={nativeLastSyncedAt}
                 onClose={() => setIsMetaHashDialogOpen(false)}
               />
             </ModalPortal>

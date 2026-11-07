@@ -12,8 +12,8 @@ import { SettingLabel } from '../primitives';
 // the stored choice (a slot, not a hex) carries across modes.
 const BackgroundSwatchRow = ({ labelClassName }: { labelClassName?: string }) => {
   const _ = useTranslation();
-  const { themeColor, isDarkMode, themeBackground, setThemeBackground } = useThemeStore();
-  const swatches = getBackgroundSwatches(themeColor, isDarkMode);
+  const { readerThemeColor, isDarkMode, themeBackground, setThemeBackground } = useThemeStore();
+  const swatches = getBackgroundSwatches(readerThemeColor, isDarkMode);
   const selectedIndex = getSelectedSwatchIndex(themeBackground);
 
   return (
